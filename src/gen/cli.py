@@ -174,6 +174,15 @@ def format_report(report: Report) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # The report header contains 'α'; a default Windows console (cp1252) cannot
+    # encode it and print() would crash. Make stdout UTF-8 so the CLI is robust
+    # everywhere without dumbing down the output.
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except Exception:  # noqa: BLE001 - never let console setup abort a run
+            pass
+
     parser = argparse.ArgumentParser(
         prog="gen", description="GENESIS — anti-hallucination research engine (Phase α)."
     )
