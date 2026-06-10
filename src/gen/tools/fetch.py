@@ -10,11 +10,42 @@ content.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 from ..core.errors import FetchFailedError
 from ..core.state import SourceRef, SourceSupport
 from .http import HttpGet, content_hash
+
+# Text fields carrying readable prose in common JSON API responses, in priority
+# order (a Wikipedia REST summary uses 'extract').
+_PROSE_FIELDS = ("extract", "content", "text", "body", "abstract", "summary")
+
+
+def readable_text(content: str) -> str:
+    """Return human-readable prose from a fetched body.
+
+    If the body is a JSON API response (e.g. a Wikipedia REST summary), return its
+    main prose field so consumers — the scholar's model and its verbatim-quote
+    guard, the skeptic's judge — work on clean prose instead of a JSON envelope
+    they would otherwise paraphrase or misjudge. Plain-text or non-JSON bodies
+    (and JSON without a known prose field) pass through unchanged, so this never
+    hides content.
+    """
+    stripped = content.lstrip()
+    if not stripped.startswith("{"):
+        return content
+    try:
+        doc = json.loads(stripped)
+    except (json.JSONDecodeError, ValueError):
+        return content
+    if not isinstance(doc, dict):
+        return content
+    for field in _PROSE_FIELDS:
+        value = doc.get(field)
+        if isinstance(value, str) and value.strip():
+            return value
+    return content
 
 
 @dataclass(frozen=True)

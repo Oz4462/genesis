@@ -27,7 +27,7 @@ from ..core.interfaces import LedgerStore, SearchBackend
 from ..core.state import ClaimStatus, RunState, SourceRef, SourceSupport
 from ..llm.base import LLMClient
 from ..llm.parsing import extract_json
-from ..tools.fetch import WebFetchTool
+from ..tools.fetch import WebFetchTool, readable_text
 from ..verification.cross_model import (
     Judgment,
     assert_different_families,
@@ -106,7 +106,8 @@ class Skeptic:
                         f"skeptic: skip (fetch not ok) {cand.url_or_id}: {result.reason}"
                     )
                     continue
-                evidence.append((cand.url_or_id, result.content))
+                # Judge clean prose, not a JSON envelope (same helper the scholar uses).
+                evidence.append((cand.url_or_id, readable_text(result.content)))
 
             verifier_verdicts = [
                 await self._judge(self._verifier, claim.text, content, url)

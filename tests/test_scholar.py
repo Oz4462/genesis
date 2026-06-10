@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from gen.agents.scholar import Scholar, claim_id  # noqa: E402
+from gen.agents.scholar import Scholar, claim_id, readable_text  # noqa: E402
 from gen.core.state import (  # noqa: E402
     ClaimStatus,
     Question,
@@ -107,6 +107,42 @@ def test_too_short_quote_is_rejected():
     llm = ScriptedLLM("claude-opus-4-8", json.dumps([{"text": "claim", "quote": "aa"}]))
     st = run(Scholar(fetch, llm, InMemoryLedgerStore(), min_quote_len=4).run(_state([url])))
     assert st.claims == []
+
+
+def test_readable_text_passes_plain_text_through():
+    assert readable_text("just plain prose here") == "just plain prose here"
+    assert readable_text("not { quite json") == "not { quite json"
+
+
+def test_readable_text_unwraps_json_api_prose():
+    # A Wikipedia REST summary is JSON; the quotable prose lives in '.extract'.
+    body = json.dumps({"type": "standard", "title": "ACIS",
+                       "extract": "The 3D ACIS Modeler is a geometric modeling kernel.",
+                       "wikibase_item": "Q123"})
+    assert readable_text(body) == "The 3D ACIS Modeler is a geometric modeling kernel."
+
+
+def test_scholar_feeds_readable_prose_not_raw_json_to_model():
+    # Regression for the live ACIS finding: the model must see clean prose, not the
+    # JSON envelope, so it can copy a verbatim quote instead of paraphrasing one.
+    url = "https://en.wikipedia.org/api/rest_v1/page/summary/ACIS"
+    prose = "The 3D ACIS Modeler is a geometric modeling kernel developed by Spatial."
+    body = json.dumps({"type": "standard", "extract": prose, "wikibase_item": "Q123"})
+    fetch = WebFetchTool(http_serving({url: body}))
+
+    seen: list[str] = []
+
+    def responder(system: str, user: str) -> str:
+        seen.append(user)
+        return json.dumps([{"text": "ACIS is a geometric modeling kernel.",
+                            "quote": "is a geometric modeling kernel developed by Spatial"}])
+
+    llm = ScriptedLLM("claude-opus-4-8", responder)
+    st = run(Scholar(fetch, llm, InMemoryLedgerStore()).run(_state([url])))
+
+    assert len(st.claims) == 1  # quote is verbatim in the prose -> kept
+    assert prose in seen[0]                 # model saw the clean prose
+    assert "wikibase_item" not in seen[0]   # model did NOT see the JSON envelope
 
 
 def test_rerun_does_not_duplicate_claims():

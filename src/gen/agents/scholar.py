@@ -17,16 +17,22 @@ from ..core.interfaces import LedgerStore
 from ..core.state import Claim, ClaimStatus, RunState
 from ..llm.base import LLMClient
 from ..llm.parsing import extract_json
-from ..tools.fetch import WebFetchTool
+from ..tools.fetch import WebFetchTool, readable_text
 
 _SYSTEM = (
     "You extract ATOMIC factual claims from a SOURCE TEXT that help answer a "
     "QUESTION. Rules: (1) use ONLY the source text, never outside knowledge; "
     "(2) each claim is a single, independently checkable statement; (3) for each "
-    "claim include a SHORT quote copied VERBATIM from the source that supports "
-    "it; (4) if the source has nothing relevant, return an empty array. "
-    'Return JSON: [{"text": "...", "quote": "..."}].'
+    "claim include a quote that is COPIED CHARACTER-FOR-CHARACTER from the source "
+    "as one contiguous span — it must be findable with Ctrl+F in the source. Do "
+    "NOT paraphrase, reorder, abbreviate, or reconstruct the quote; if you cannot "
+    "copy an exact span, omit the claim. (4) if the source has nothing relevant, "
+    'return an empty array. Return JSON: [{"text": "...", "quote": "..."}].'
 )
+
+# readable_text is re-exported (moved to tools.fetch as a neutral home shared with
+# the skeptic); kept importable from here for callers and tests.
+__all__ = ["Scholar", "claim_id", "readable_text"]
 
 
 def _normalize(s: str) -> str:
@@ -73,8 +79,11 @@ class Scholar:
                 )
                 continue
 
+            # Clean prose once; the model and the quote guard must see the SAME text.
+            content = readable_text(result.content)
+
             try:
-                items = await self._extract(state.question.raw, result.content)
+                items = await self._extract(state.question.raw, content)
             except LLMOutputError as exc:
                 state.log.append(f"scholar: skip (unparseable LLM) {cand.url_or_id}: {exc}")
                 continue
@@ -85,7 +94,7 @@ class Scholar:
                 if not text or not quote:
                     state.log.append(f"scholar: drop (missing text/quote) from {cand.url_or_id}")
                     continue
-                if not self._quote_supported(quote, result.content):
+                if not self._quote_supported(quote, content):
                     # The model fabricated the quote — refuse the claim outright.
                     state.log.append(
                         f"scholar: DROP hallucinated quote not in source {cand.url_or_id}: {quote[:60]!r}"
