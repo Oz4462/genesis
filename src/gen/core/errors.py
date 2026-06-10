@@ -98,3 +98,16 @@ class LLMOutputError(GenesisError):
 
     def __init__(self, agent: str, detail: str) -> None:
         super().__init__(f"{agent}: unparseable LLM output: {detail}")
+
+
+class LLMTransportError(GenesisError):
+    """An LLM backend could not be reached or returned an unusable envelope.
+
+    Distinct from ``LLMOutputError`` (the model answered, but its content was
+    unparseable): here NO model output exists. Raised loudly because a dead or
+    misconfigured server must never degrade into "the model said nothing" —
+    downstream would honestly treat that as abstention and thereby mask an outage.
+    """
+
+    def __init__(self, model: str, reason: str) -> None:
+        super().__init__(f"LLM backend for {model!r} failed: {reason}")
