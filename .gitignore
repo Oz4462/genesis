@@ -1,0 +1,36 @@
+# --- Secrets (NIEMALS committen) ---
+.env
+.env.*
+*.key
+*.pem
+secrets/
+config.local.yaml
+credentials*.json
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# --- GENESIS Laufzeit-Artefakte ---
+runs/
+*.checkpoint
+ledger_local.db
+robin_output/

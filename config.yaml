@@ -1,0 +1,12 @@
+# GENESIS — Phase α configuration (PHASE_ALPHA §7).
+# Cross-model rule: models.verifier MUST be a different family than models.generator.
+phase_alpha:
+  confidence_threshold: 0.7      # τ for VERIFIED
+  max_refine_rounds: 3           # anti-infinite-loop
+  require_independent_source: true
+  min_sources_for_verified: 2    # except an unambiguous primary source
+  models:
+    generator: "claude-opus-4-8" # scout, scholar
+    verifier:  "gpt-4o"          # skeptic  (MUST differ from generator family)
+    judge:     null              # optional second judge on dissent
+  search_backends: [semantic_scholar]
