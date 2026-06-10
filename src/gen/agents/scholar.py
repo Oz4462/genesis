@@ -22,12 +22,16 @@ from ..tools.fetch import WebFetchTool, readable_text
 _SYSTEM = (
     "You extract ATOMIC factual claims from a SOURCE TEXT that help answer a "
     "QUESTION. Rules: (1) use ONLY the source text, never outside knowledge; "
-    "(2) each claim is a single, independently checkable statement; (3) for each "
-    "claim include a quote that is COPIED CHARACTER-FOR-CHARACTER from the source "
-    "as one contiguous span — it must be findable with Ctrl+F in the source. Do "
-    "NOT paraphrase, reorder, abbreviate, or reconstruct the quote; if you cannot "
-    "copy an exact span, omit the claim. (4) if the source has nothing relevant, "
-    'return an empty array. Return JSON: [{"text": "...", "quote": "..."}].'
+    "(2) each claim's 'text' must be ONE complete, self-contained statement that "
+    "stands on its own and is independently checkable — a full grammatical "
+    "sentence with a clear subject. NEVER a sentence fragment, a dangling clause, "
+    "a list item, or a phrase starting with 'and'/'or'/'use of'/'an'. If a fact "
+    "needs context from the rest of the sentence to make sense, include that "
+    "context in the text. (3) for each claim include a quote COPIED "
+    "CHARACTER-FOR-CHARACTER from the source as one contiguous span — findable "
+    "with Ctrl+F. Do NOT paraphrase, reorder, abbreviate, or reconstruct it; if "
+    "you cannot copy an exact span, omit the claim. (4) if the source has nothing "
+    'relevant, return an empty array. Return JSON: [{"text": "...", "quote": "..."}].'
 )
 
 # readable_text is re-exported (moved to tools.fetch as a neutral home shared with
@@ -37,6 +41,39 @@ __all__ = ["Scholar", "claim_id", "readable_text"]
 
 def _normalize(s: str) -> str:
     return " ".join(s.split()).lower()
+
+
+# Lowercase function words that only ever continue a sentence — a claim text
+# starting with one is a fragment, not a standalone statement. Content words
+# (incl. lowercase proper nouns like 'build123d') are NOT here, so they pass.
+_FRAGMENT_STARTERS = frozenset({
+    "and", "or", "but", "nor", "yet", "so", "a", "an", "the", "of", "with",
+    "for", "as", "by", "to", "in", "on", "at", "from", "because", "which",
+    "that", "than", "then", "plus", "including", "use", "using", "uses",
+})
+
+
+def _looks_complete(text: str) -> bool:
+    """True if `text` reads as a complete, standalone statement (not a fragment).
+
+    Code-level defense-in-depth for the prompt rule "each claim is one complete
+    sentence" — the model does not always obey (a live run split prose into
+    verbatim fragments like 'and garbage collection', 'an extensive standard
+    library'). Heuristic: reject a text whose first word is a LOWERCASE function
+    word (a clear continuation marker). Content-word starts pass, including
+    lowercase proper nouns ('build123d ...'), so real claims are not over-rejected.
+    Conservative by design: dropping a borderline fragment yields abstention,
+    which GENESIS prefers over asserting a low-quality claim. Verb-initial
+    fragments ('emphasizes ...') are left to the prompt; this guard targets the
+    unambiguous function-word case.
+    """
+    t = text.strip()
+    if not t:
+        return False
+    first = t.split()[0]
+    if first[0].islower() and first.strip(".,;:\"'()").lower() in _FRAGMENT_STARTERS:
+        return False
+    return True
 
 
 def claim_id(run_id: str, source: str, text: str) -> str:
@@ -93,6 +130,15 @@ class Scholar:
                 quote = (item.get("quote") or "").strip()
                 if not text or not quote:
                     state.log.append(f"scholar: drop (missing text/quote) from {cand.url_or_id}")
+                    continue
+                if not _looks_complete(text):
+                    # Not an atomic statement (a fragment/clause) — drop it. A
+                    # low-quality "claim" would otherwise pass to verification and
+                    # could attract a spurious support (live: "Waste collection"
+                    # matched "garbage collection").
+                    state.log.append(
+                        f"scholar: drop (sentence fragment, not atomic) {cand.url_or_id}: {text[:60]!r}"
+                    )
                     continue
                 if not self._quote_supported(quote, content):
                     # The model fabricated the quote — refuse the claim outright.

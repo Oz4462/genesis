@@ -100,6 +100,46 @@ def test_unparseable_llm_output_yields_no_claim_no_crash():
     assert any("unparseable LLM" in line for line in st.log)
 
 
+def test_sentence_fragment_claim_is_rejected():
+    # Live finding (Python run): qwen split a sentence into verbatim fragments like
+    # "and garbage collection" — a meaningless non-atomic "claim" that then attracted
+    # a spurious support ("Waste collection"). A complete statement starts capitalized;
+    # a fragment is dropped (abstention is safer than a low-quality assertion).
+    url = "https://en.wikipedia.org/api/rest_v1/page/summary/Python"
+    content = "Python is a language, supporting indentation and garbage collection."
+    fetch = WebFetchTool(http_serving({url: content}))
+    llm = ScriptedLLM(
+        "claude-opus-4-8",
+        json.dumps([
+            {"text": "and garbage collection", "quote": "and garbage collection"},
+            {"text": "an extensive standard library", "quote": "supporting indentation"},
+            {"text": "Python is a language.", "quote": "Python is a language"},
+        ]),
+    )
+    st = run(Scholar(fetch, llm, InMemoryLedgerStore()).run(_state([url])))
+    texts = [c.text for c in st.claims]
+    assert "Python is a language." in texts        # complete statement kept
+    assert "and garbage collection" not in texts    # 'and' fragment dropped
+    assert "an extensive standard library" not in texts  # 'an' fragment dropped
+    assert any("fragment" in line for line in st.log)
+
+
+def test_lowercase_proper_noun_claim_is_not_treated_as_fragment():
+    # Guard against over-rejection: a real statement can start with a lowercase
+    # proper noun (package name like 'build123d'); only leading FUNCTION words
+    # ('and', 'an', 'of', ...) signal a fragment, not content words.
+    url = "https://docs.example/b"
+    content = "build123d is built on the Open Cascade kernel."
+    fetch = WebFetchTool(http_serving({url: content}))
+    llm = ScriptedLLM(
+        "claude-opus-4-8",
+        json.dumps([{"text": "build123d is built on the Open Cascade kernel.",
+                     "quote": "built on the Open Cascade"}]),
+    )
+    st = run(Scholar(fetch, llm, InMemoryLedgerStore()).run(_state([url])))
+    assert [c.text for c in st.claims] == ["build123d is built on the Open Cascade kernel."]
+
+
 def test_too_short_quote_is_rejected():
     url = "https://docs.example/x"
     content = "aaa bbb ccc relevant content"
