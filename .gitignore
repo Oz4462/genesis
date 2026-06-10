@@ -34,3 +34,6 @@ runs/
 *.checkpoint
 ledger_local.db
 robin_output/
+
+# --- Lokale Claude-/Tooling-Artefakte (Session-Tracking, nicht versionieren) ---
+.claude/

@@ -14,7 +14,7 @@ Die vollständige α-Pipeline (Anti-Halluzination) und der β-Lösungsraum sind 
 
 ```
 $ python -m pytest tests/ -q
-146 passed
+154 passed
 ```
 
 Alle Tests laufen **ohne einen einzigen LLM-Token und ohne Netzwerk**. Das heißt: Die Garantie „kein Fakt ohne Quelle, keine widerlegte Aussage als Tatsache, Lücken werden als Lücken markiert, im Zweifel Abstention" ist **bewiesen** — und von einem unabhängigen, adversarialen Audit bestätigt (Details: `docs/phases/PHASE_ALPHA_RESULT.md`).
@@ -24,7 +24,12 @@ $ python -m gen --demo        # deterministischer End-to-End-Lauf, offline
 $ python -m gen "Frage..."     # Live-Lauf: lokale Ollama-Modelle + Wikipedia, keine Cloud-Keys
 ```
 
-**Live-Betrieb (neu):** Ein realer `OllamaLLM`-Adapter (Generator- und Verifier-Familie getrennt, vor jedem Aufruf erzwungen), ein keyloses `WikipediaBackend` als Discovery-Workhorse und der `PostgresLedgerStore` sind angebunden. Der Postgres-Ledger ist gegen eine echte PostgreSQL-Instanz verifiziert — alle drei Provenance-Schichten greifen, inklusive des DB-Triggers (`scripts/postgres_smoke.py`). Ein realer End-to-End-Lauf gegen lokale Ollama-Modelle bestätigt die zentrale Garantie unter echten Bedingungen: sind Quellen nicht abrufbar, **abstrahiert** das System (Gate bestanden, null Claims) statt zu halluzinieren (`scripts/live_smoke.py`).
+**Live-Betrieb (neu):** Ein realer `OllamaLLM`-Adapter (Generator- und Verifier-Familie getrennt, vor jedem Aufruf erzwungen), ein keyloses `WikipediaBackend` als Discovery-Workhorse und der `PostgresLedgerStore` sind angebunden. Der Postgres-Ledger ist gegen eine echte PostgreSQL-Instanz verifiziert — alle drei Provenance-Schichten greifen, inklusive des DB-Triggers (`scripts/postgres_smoke.py`). Reale End-to-End-Läufe gegen lokale Ollama-Modelle (Generator ≠ Verifier-Familie) belegen beide Seiten der Garantie empirisch, ohne Cloud-Key (`scripts/live_smoke.py`):
+
+- **Abstention statt Halluzination:** Sind Quellen nicht abrufbar oder ein Zitat nicht wörtlich belegbar, abstrahiert das System (Gate bestanden, null Claims). In einem Lauf fing der Wörtlich-Zitat-Guard live eine echte Modell-Paraphrase ab — manuell gegengeprüft, korrekt verworfen.
+- **Autonomes VERIFIED:** Existiert echte, abrufbare Korroboration, erreicht GENESIS einen verifizierten Befund vollautomatisch — z. B. „Python is a programming language." mit `confidence 1.0`, gestützt durch zwei unabhängige Quellen, cross-model verifiziert, Gate bestanden.
+
+Reales Testen mit kleinen lokalen Modellen deckte auch ehrliche Qualitätsgrenzen auf (Über-Fragmentierung, oberflächliches Verifier-Urteil) — root-cause-gefixt bzw. dokumentiert in `docs/BUILD_LOG.md` (LI-8). **Keine erfundene Tatsache gelangte je in einen Bericht.**
 
 ## Warum diese Reihenfolge
 

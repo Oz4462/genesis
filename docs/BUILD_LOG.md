@@ -585,3 +585,57 @@ Envelope) zum Zitieren geben, dann dieselbe Akzeptanz-Suite gegen Live-Daten fah
 **Gesamtstand:** 149 passed (offline) + Postgres-Ledger live (3 Schichten) + Live-E2E
 ×3 (Garantie empirisch bestätigt) + CLI auf Windows lauffähig.
 
+## LI-8 — autonomer Happy-Path GRÜN + zwei ehrliche Qualitätsbefunde  ✅
+
+Die obige „Rest-Lücke" ist geschlossen. Zwei credential-freie Root-Cause-Fixes haben
+den autonomen Happy-Path zum ersten **VERIFIED** geführt:
+
+**Fix A — saubere Prosa statt JSON-Envelope** (`readable_text` in `tools/fetch.py`,
+von scholar UND skeptic genutzt): Der scholar las zuvor den Wikipedia-REST-Summary als
+rohes JSON und paraphrasierte das Zitat (ACIS-Befund, LI-6). `readable_text` entpackt
+das Prosa-Feld (`extract`/…), bevor Modell und Zitat-Guard es sehen — beide arbeiten
+jetzt auf **derselben** sauberen Prosa. **Lauf 4 (nach Fix A):** der scholar extrahierte
+erstmals **drei echte, wörtlich-zitierte Claims** (ACIS, Russian Geometric Kernel,
+Digital Geometric Kernel) — qwen2.5:14b kopiert jetzt verbatim. Sie blieben korrekt
+UNSUPPORTED: vendor-spezifische Fakten haben je nur **eine** Wikipedia-Quelle, und
+GENESIS verlangt ≥2 unabhängige — Korroboration ist nicht verhandelbar.
+
+**Fix B — Frage→Keywords (LI-5) + gut-korroborierbares Thema.** Vorab billig (nur HTTP,
+kein Modell) verifiziert, dass für „Python als Programmiersprache" **4 unabhängige**
+Wikipedia-Artikel den allgemeinen Fakt stützen. **Lauf 5 (`What is the Python
+programming language?`):** erstmals **`status: verified, confidence: 1.0`** für
+„Python is a programming language." — Zitat „The programming language Python" (verbatim
+aus *History of Python*), unabhängig gestützt durch *Python (programming language)* +
+*Zen of Python*, **cross-model** (qwen generiert, gemma verifiziert), GATE α `passed`.
+**Der autonome Happy-Path funktioniert end-to-end mit echten Modellen, ohne Seeding,
+ohne Cloud-Key.**
+
+**Zwei ehrliche Qualitätsbefunde aus Lauf 5 (nicht versteckt):**
+1. **Über-Fragmentierung:** qwen2.5:14b spaltete die Prosa in verbatim, aber
+   **nicht-atomare** „Claims" wie „and garbage collection". Das Fragment fing dann
+2. **eine semantisch falsche Stütze:** gemma4 akzeptierte den Artikel „**Waste
+   collection**" (Müllabfuhr!) als Beleg für „garbage collection" (Speicherverwaltung)
+   — reiner Wort-Match. **Keine falsche Tatsache** gelangte in den Output (die Garantie
+   hielt — „Python is a programming language" ist wahr und echt korroboriert), aber die
+   *Qualität* dieses einen Fragment-Befunds war schlecht.
+
+**Fix für Befund 1 (LI-8-Guard):** `scholar._looks_complete` verwirft Claims, deren
+erstes Wort ein kleingeschriebenes Funktionswort ist (and/an/of/use/…) — Defense-in-
+depth zur Prompt-Regel „vollständiger Satz". Behält Content-Wort-Starts inkl.
+kleingeschriebener Eigennamen (`build123d …`), verwirft Fragmente. Konservativ: ein
+verworfenes Fragment → Abstention (GENESIS bevorzugt das gegenüber einer
+Low-Quality-Behauptung). Eliminiert das „garbage collection"-Fragment und damit auch
+die spurious „Waste collection"-Stütze. 154 Tests grün (2 neue: Fragment verworfen,
+Eigenname behalten).
+
+**Ehrliche Rest-Lücke (verschoben, nicht beseitigt):** Der Verifier (gemma4) kann durch
+Oberflächen-Wort-Match getäuscht werden (Befund 2) — er prüft Stützung ohne tiefes
+semantisches Verständnis. Das ist eine **Verifier-Modellgüte-Grenze**, kein
+Architektur-Defekt; Minderungen: stärkeres Verifier-Modell, Begründungspflicht im
+Judge-Prompt, oder ein zweiter Judge (bereits unterstützt). Ebenfalls offen: ein
+Semantic-Scholar-Key für akademische Korroboration (User-Action).
+
+**Gesamtstand nach LI-8:** **154 passed** (offline) + Postgres-Ledger live (3 Schichten)
++ Live-E2E ×5 (inkl. **erstem autonomem VERIFIED**, cross-model, gate-passed) + CLI auf
+Windows lauffähig. Die Anti-Halluzinations-Garantie hielt in **allen** Läufen.
+
