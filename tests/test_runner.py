@@ -109,6 +109,8 @@ def test_build_live_wires_models_into_config_and_deps():
     deps, cfg = build_live("qwen2.5:14b", "gemma4:latest")
     assert deps.generator_llm.model == "qwen2.5:14b"
     assert deps.verifier_llm.model == "gemma4:latest"
+    # keyless Wikipedia is the first/primary backend (Semantic Scholar 429s w/o key)
+    assert [b.name for b in deps.backends] == ["wikipedia", "semantic_scholar"]
     # The config must carry the SAME ids the deps run on: the skeptic asserts
     # cross-model against config.phase_alpha.models.generator, and config_hash
     # (reproducibility anchor A5) must change when the live models change.

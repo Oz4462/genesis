@@ -26,7 +26,7 @@ from .llm.ollama import OllamaLLM
 from .ledger.store import InMemoryLedgerStore
 from .runner import Dependencies, run
 from .tools.http import HttpResponse, default_http_get
-from .tools.search import SemanticScholarBackend
+from .tools.search import SemanticScholarBackend, WikipediaBackend
 from .verification.cross_model import assert_different_families
 
 # --- offline demo world (deterministic) --------------------------------------
@@ -125,7 +125,13 @@ def build_live(generator: str, verifier: str) -> tuple[Dependencies, Config]:
     """
     assert_different_families(generator, verifier)
     deps = Dependencies(
-        backends=[SemanticScholarBackend(default_http_get)],
+        # Wikipedia first: keyless and reliable. Semantic Scholar second: academic
+        # depth, but 429s without a key — it degrades visibly (logged) rather than
+        # blocking the run, so a missing key never fabricates or empties a result.
+        backends=[
+            WikipediaBackend(default_http_get),
+            SemanticScholarBackend(default_http_get),
+        ],
         http_get=default_http_get,
         generator_llm=OllamaLLM(generator),
         verifier_llm=OllamaLLM(verifier),

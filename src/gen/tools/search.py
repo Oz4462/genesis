@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json
 from typing import Callable, Mapping
-from urllib.parse import quote_plus
+from urllib.parse import quote, quote_plus
 
 from ..core.errors import SearchBackendError
 from ..core.state import SourceCandidate
@@ -81,6 +81,65 @@ class SemanticScholarBackend:
                     title=paper.get("title"),
                     backend=self.name,
                     relevance_note=note,
+                    fetched_ok=False,
+                )
+            )
+        return out
+
+
+class WikipediaBackend:
+    """Keyless discovery via the MediaWiki search API.
+
+    The free Semantic Scholar API rate-limits (HTTP 429) without a key; Wikipedia's
+    API needs none and is reliable, so it is GENESIS's default discovery workhorse.
+
+    A candidate's ``url_or_id`` points at the REST *summary* endpoint, whose body
+    is clean, fact-dense prose — exactly what the scholar's verbatim quote guard
+    needs to actually match (a raw article URL fetches noisy HTML instead). Like
+    every backend this does DISCOVERY only: it returns candidates, never facts, and
+    raises ``SearchBackendError`` on transport failure rather than a silent empty
+    list.
+    """
+
+    name = "wikipedia"
+    _SEARCH = "https://en.wikipedia.org/w/api.php"
+    _SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/"
+
+    def __init__(self, http_get: HttpGet, *, lang: str = "en") -> None:
+        self._http_get = http_get
+        if lang != "en":  # keep the default endpoints unless a caller overrides lang
+            self._SEARCH = f"https://{lang}.wikipedia.org/w/api.php"
+            self._SUMMARY = f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/"
+
+    async def search(self, query: str, limit: int) -> list[SourceCandidate]:
+        url = (
+            f"{self._SEARCH}?action=query&list=search&format=json"
+            f"&srsearch={quote_plus(query)}&srlimit={limit}"
+        )
+        try:
+            resp = await self._http_get(url)
+        except Exception as exc:  # noqa: BLE001
+            raise SearchBackendError(self.name, str(exc)) from exc
+        if not (200 <= resp.status < 300):
+            raise SearchBackendError(self.name, f"HTTP {resp.status}")
+        try:
+            data = json.loads(resp.body)
+        except json.JSONDecodeError as exc:
+            raise SearchBackendError(self.name, f"bad JSON: {exc}") from exc
+
+        results = (((data.get("query") or {}).get("search")) or [])[:limit]
+        out: list[SourceCandidate] = []
+        for hit in results:
+            title = hit.get("title")
+            if not title:
+                continue  # no title -> no stable summary URL; skip, never invent
+            path = quote(title.replace(" ", "_"), safe="")
+            out.append(
+                SourceCandidate(
+                    url_or_id=self._SUMMARY + path,
+                    title=title,
+                    backend=self.name,
+                    relevance_note=f"Wikipedia: search match for {query!r}",
                     fetched_ok=False,
                 )
             )
