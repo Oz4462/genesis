@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from gen.core.errors import SearchBackendError  # noqa: E402
 from gen.core.interfaces import SearchBackend  # noqa: E402
 from gen.tools.http import HttpResponse  # noqa: E402
-from gen.tools.search import WikipediaBackend  # noqa: E402
+from gen.tools.search import WikipediaBackend, to_keywords  # noqa: E402
 
 
 def run(coro):
@@ -115,3 +115,23 @@ def test_special_characters_in_title_are_path_encoded():
         "https://en.wikipedia.org/api/rest_v1/page/summary/"
         "C%2B%2B_%28programming_language%29"
     )
+
+
+# --- query normalization: Wikipedia full-text search wants keywords, not questions
+
+def test_to_keywords_strips_question_framing_and_punctuation():
+    # Wikipedia search matches a question poorly (stop words + '?' pollute it);
+    # the content keywords are what surface the right article.
+    assert to_keywords("What is a geometric modeling kernel?") == "geometric modeling kernel"
+    assert to_keywords("How does the Open Cascade Technology work?") == "Open Cascade Technology work"
+    assert to_keywords("geometric modeling kernel") == "geometric modeling kernel"  # already keywords
+    assert to_keywords("What are the main features of OCCT?") == "main features of OCCT"
+
+
+def test_search_sends_normalized_keywords_not_the_raw_question():
+    calls: list = []
+    be = WikipediaBackend(http_returning(200, search_body("Geometric modeling kernel"), calls))
+    run(be.search("What is a geometric modeling kernel?", 5))
+    # the keyword form (URL-encoded) is what hit the API, not the raw question
+    assert "srsearch=geometric+modeling+kernel" in calls[0]
+    assert "What" not in calls[0] and "%3F" not in calls[0]  # no question word, no '?'

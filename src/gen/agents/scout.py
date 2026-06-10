@@ -63,19 +63,31 @@ class Scout:
         return state
 
     async def _queries(self, focus: str) -> list[str]:
-        """Return search queries for a focus. LLM is optional and fact-free."""
+        """Return search queries for a focus. LLM is optional and fact-free.
+
+        The focus text is ALWAYS the first query: it is the highest-precision
+        discovery signal and (after per-backend normalization, e.g. Wikipedia's
+        keyword form) the most likely to surface the directly relevant source.
+        LLM-elaborated queries are added after it for breadth, deduped, and
+        capped at ``max_queries`` — so an off-target elaboration can never crowd
+        out the direct query.
+        """
+        queries = [focus]
         if self._llm is None:
-            return [focus]
+            return queries
         system = (
-            "You produce concise web/academic SEARCH QUERIES (not answers, not "
-            "facts) for a research question. Return a JSON array of short query "
-            "strings, most important first."
+            "You produce short keyword SEARCH QUERIES (not answers, not facts, "
+            "not full sentences) for a research question — the way you would type "
+            "into a search box. Return a JSON array of short query strings, most "
+            "important first."
         )
         try:
             resp = await self._llm.complete(system=system, user=focus)
             value = extract_json(resp.text, agent="scout")
-            queries = [str(q).strip() for q in value if str(q).strip()]  # type: ignore[union-attr]
+            extra = [str(q).strip() for q in value if str(q).strip()]  # type: ignore[union-attr]
         except Exception:  # noqa: BLE001 - query gen is best-effort, never fatal
-            return [focus]
-        queries = queries[: self._max_queries] if queries else [focus]
+            return queries
+        for q in extra[: self._max_queries]:
+            if q != focus and q not in queries:
+                queries.append(q)
         return queries

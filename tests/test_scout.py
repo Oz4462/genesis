@@ -73,12 +73,23 @@ def test_backend_failure_is_logged_and_run_continues():
     assert any("bad" in line and "failed" in line for line in st.log)
 
 
-def test_llm_formulates_queries_capped():
+def test_focus_query_is_always_tried_then_capped_llm_queries():
+    # The direct focus query is the highest-precision discovery signal and must
+    # never be dropped in favour of (possibly off-target) LLM elaborations. The
+    # cap governs only the LLM queries; the focus is always included, first.
     b = FakeBackend("b", ["https://a"])
     llm = ScriptedLLM("gpt-4o", '["q1", "q2", "q3", "q4"]')
     scout = Scout([b], llm=llm, max_queries=2)
-    run(scout.run(_state()))
-    assert b.queries == ["q1", "q2"]  # capped at max_queries
+    run(scout.run(_state(raw="what is X?")))
+    assert b.queries == ["what is X?", "q1", "q2"]  # focus first, then capped LLM
+
+
+def test_llm_query_equal_to_focus_is_not_duplicated():
+    b = FakeBackend("b", ["https://a"])
+    llm = ScriptedLLM("gpt-4o", '["what is X?", "q2"]')
+    scout = Scout([b], llm=llm, max_queries=3)
+    run(scout.run(_state(raw="what is X?")))
+    assert b.queries == ["what is X?", "q2"]  # focus not searched twice
 
 
 def test_llm_parse_failure_falls_back_to_focus_text():

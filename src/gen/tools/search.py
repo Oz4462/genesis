@@ -20,6 +20,7 @@ empty list).
 from __future__ import annotations
 
 import json
+import re
 from typing import Callable, Mapping
 from urllib.parse import quote, quote_plus
 
@@ -31,6 +32,34 @@ from .http import HttpGet
 def _truncate(text: str, n: int = 160) -> str:
     text = " ".join(text.split())
     return text if len(text) <= n else text[: n - 1] + "…"
+
+
+# Leading interrogative framing that hurts keyword search ("What is ...", "How
+# does the ...", "Which of ..."). Stripped so the content keywords surface the
+# right article. Kept deliberately small: only the unambiguous lead-in, never
+# mid-sentence words (which could be meaningful).
+_QUESTION_LEAD = re.compile(
+    r"^\s*(what|which|who|whom|whose|how|why|when|where)\b"
+    r"(\s+(is|are|was|were|do|does|did|can|could|should|would|will))?"
+    r"(\s+(a|an|the))?\s+",
+    re.IGNORECASE,
+)
+
+
+def to_keywords(query: str) -> str:
+    """Reduce a natural-language question to keyword form for full-text search.
+
+    Wikipedia's search matches keywords, not questions: a leading "What is ..."
+    and a trailing "?" pollute the ranking and surface tangential articles. This
+    strips that framing and question punctuation while preserving the content
+    words (and their case, so proper nouns like "Open Cascade Technology" stay
+    intact). Already-keyword queries pass through unchanged. If stripping would
+    empty the query, the original is kept (never search for nothing).
+    """
+    cleaned = query.replace("?", " ").replace("(", " ").replace(")", " ")
+    stripped = _QUESTION_LEAD.sub("", cleaned, count=1)
+    result = " ".join(stripped.split())
+    return result or " ".join(query.split())
 
 
 class SemanticScholarBackend:
@@ -114,7 +143,7 @@ class WikipediaBackend:
     async def search(self, query: str, limit: int) -> list[SourceCandidate]:
         url = (
             f"{self._SEARCH}?action=query&list=search&format=json"
-            f"&srsearch={quote_plus(query)}&srlimit={limit}"
+            f"&srsearch={quote_plus(to_keywords(query))}&srlimit={limit}"
         )
         try:
             resp = await self._http_get(url)
