@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from gen.cli import build_demo, main  # noqa: E402
+from gen.cli import build_demo, build_live, main  # noqa: E402
 from gen.config import Config, config_hash, default_config  # noqa: E402
 from gen.core.state import ClaimStatus  # noqa: E402
 from gen.runner import load_checkpoint, make_run_id, run  # noqa: E402
@@ -96,8 +96,30 @@ def test_cli_no_question_prints_help_returns_2(capsys):
     assert rc == 2
 
 
-def test_cli_real_mode_without_adapter_returns_3(capsys):
-    rc = main(["what is the capital of France?"])
+def test_cli_real_mode_same_family_fails_closed_before_any_call(capsys):
+    # Generator and verifier resolve to the same family -> the cross-model guard
+    # must abort BEFORE any network/LLM call (build_live wires, it never calls).
+    rc = main(["q", "--generator", "qwen2.5:14b", "--verifier", "qwen2.5:7b"])
     err = capsys.readouterr().err
     assert rc == 3
-    assert "Real LLM adapters are not configured" in err
+    assert "famil" in err.lower()  # honest reason, not a generic failure
+
+
+def test_build_live_wires_models_into_config_and_deps():
+    deps, cfg = build_live("qwen2.5:14b", "gemma4:latest")
+    assert deps.generator_llm.model == "qwen2.5:14b"
+    assert deps.verifier_llm.model == "gemma4:latest"
+    # The config must carry the SAME ids the deps run on: the skeptic asserts
+    # cross-model against config.phase_alpha.models.generator, and config_hash
+    # (reproducibility anchor A5) must change when the live models change.
+    assert cfg.phase_alpha.models.generator == "qwen2.5:14b"
+    assert cfg.phase_alpha.models.verifier == "gemma4:latest"
+    assert config_hash(cfg) != config_hash(default_config())
+
+
+def test_build_live_rejects_same_family():
+    import pytest
+    from gen.core.errors import ModelConflictError
+
+    with pytest.raises(ModelConflictError):
+        build_live("qwen2.5:14b", "qwen2.5:7b")

@@ -4,10 +4,12 @@ For Phase α a CLI suffices (PHASE_ALPHA §1: "CLI/MCP genügt für α"). A Fast
 wrapper can wrap ``runner.run`` later without changing the core; CLI was chosen to
 avoid adding a server dependency for α.
 
-``--demo`` runs a fully offline, deterministic end-to-end pipeline (scripted
-models + canned sources) so the wiring is demonstrable without API keys or
-network. Real-model runs require LLMClient adapters injected into
-``Dependencies`` — a thin, non-blocking step (PHASE_ALPHA §9).
+Two modes:
+  * ``--demo`` — fully offline, deterministic end-to-end pipeline (scripted
+    models + canned sources): the wiring is demonstrable without keys or network.
+  * real mode (``python -m gen "question"``) — live run against a local Ollama
+    server (generator and verifier from DIFFERENT model families, enforced
+    before any call) and the Semantic Scholar backend. No cloud keys required.
 """
 
 from __future__ import annotations
@@ -17,11 +19,15 @@ import asyncio
 import sys
 
 from .config import Config, default_config
+from .core.errors import GenesisError
 from .core.state import Report, SourceCandidate
 from .llm.base import ScriptedLLM
+from .llm.ollama import OllamaLLM
 from .ledger.store import InMemoryLedgerStore
 from .runner import Dependencies, run
-from .tools.http import HttpResponse
+from .tools.http import HttpResponse, default_http_get
+from .tools.search import SemanticScholarBackend
+from .verification.cross_model import assert_different_families
 
 # --- offline demo world (deterministic) --------------------------------------
 
@@ -105,6 +111,33 @@ def build_demo() -> tuple[str, Dependencies, Config]:
     return question, deps, default_config()
 
 
+# --- live wiring (local Ollama + Semantic Scholar) ----------------------------
+
+def build_live(generator: str, verifier: str) -> tuple[Dependencies, Config]:
+    """Wire real adapters: local Ollama models + Semantic Scholar + real HTTP.
+
+    Pure wiring — performs no network call itself. The cross-model rule is
+    enforced HERE, before any model is contacted: a misconfigured pair must
+    fail closed at the edge, not after the generator has already produced
+    claims. The returned config carries the same model ids the dependencies
+    run on, so the skeptic's audit (against config) and config_hash (A5) stay
+    consistent with reality.
+    """
+    assert_different_families(generator, verifier)
+    deps = Dependencies(
+        backends=[SemanticScholarBackend(default_http_get)],
+        http_get=default_http_get,
+        generator_llm=OllamaLLM(generator),
+        verifier_llm=OllamaLLM(verifier),
+        ledger=InMemoryLedgerStore(),
+    )
+    models = {"generator": generator, "verifier": verifier}
+    config = Config.from_dict(
+        {"phase_alpha": {"models": models}, "phase_beta": {"models": models}}
+    )
+    return deps, config
+
+
 # --- presentation ------------------------------------------------------------
 
 def format_report(report: Report) -> str:
@@ -141,6 +174,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("question", nargs="?", help="the research question")
     parser.add_argument("--demo", action="store_true", help="run the offline deterministic demo")
     parser.add_argument("--checkpoint-dir", default=None, help="write a run checkpoint here")
+    parser.add_argument(
+        "--generator", default="qwen2.5:14b",
+        help="Ollama model for scout/scholar (default: qwen2.5:14b)",
+    )
+    parser.add_argument(
+        "--verifier", default="gemma4:latest",
+        help="Ollama model for skeptic — MUST be a different family (default: gemma4:latest)",
+    )
     args = parser.parse_args(argv)
 
     if args.demo:
@@ -156,15 +197,18 @@ def main(argv: list[str] | None = None) -> int:
         parser.print_help()
         return 2
 
-    print(
-        "Real LLM adapters are not configured in this build. Phase α ships the "
-        "full pipeline and a deterministic offline demo. Run:\n"
-        "    python -m gen --demo\n"
-        "To answer arbitrary questions, inject LLMClient adapters into "
-        "Dependencies (PHASE_ALPHA §9: model choice is non-blocking, behind adapters).",
-        file=sys.stderr,
-    )
-    return 3
+    try:
+        deps, cfg = build_live(args.generator, args.verifier)
+        report = asyncio.run(
+            run(args.question, deps, config=cfg, checkpoint_dir=args.checkpoint_dir)
+        )
+    except GenesisError as exc:
+        # Honest abort: misconfiguration (same family), dead Ollama server, or a
+        # systemically failing backend — never a fabricated or empty "success".
+        print(f"GENESIS aborted: {exc}", file=sys.stderr)
+        return 3
+    print(format_report(report))
+    return 0
 
 
 if __name__ == "__main__":
