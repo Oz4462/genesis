@@ -8,20 +8,23 @@ Ein Mensch liefert ein Problem oder eine Idee. GENESIS recherchiert, **verifizie
 
 ## Status
 
-**Phase α abgeschlossen — das Anti-Halluzinations-Fundament steht und ist beweisbar korrekt.**
+**Phase α + β abgeschlossen und beweisbar korrekt — jetzt auch live gegen echte Modelle lauffähig.**
 
-Die vollständige Phase-α-Pipeline ist gebaut und getestet: Fakten-Ledger (Quellenzwang), Tool-Adapter (ehrliches Fetch), die vier Agenten (`scout`, `scholar`, `skeptic`, `conductor`), Cross-Model-Verifikation, das Verifikations-Gate und die End-to-End-Verdrahtung mit CLI.
+Die vollständige α-Pipeline (Anti-Halluzination) und der β-Lösungsraum sind gebaut und getestet: Fakten-Ledger (Quellenzwang), Tool-Adapter (ehrliches Fetch), die Agenten (`scout`, `scholar`, `skeptic`, `conductor`, `synthesizer`), Cross-Model-Verifikation, die Gates α und β und die End-to-End-Verdrahtung mit CLI.
 
 ```
 $ python -m pytest tests/ -q
-102 passed
+146 passed
 ```
 
 Alle Tests laufen **ohne einen einzigen LLM-Token und ohne Netzwerk**. Das heißt: Die Garantie „kein Fakt ohne Quelle, keine widerlegte Aussage als Tatsache, Lücken werden als Lücken markiert, im Zweifel Abstention" ist **bewiesen** — und von einem unabhängigen, adversarialen Audit bestätigt (Details: `docs/phases/PHASE_ALPHA_RESULT.md`).
 
 ```
 $ python -m gen --demo        # deterministischer End-to-End-Lauf, offline
+$ python -m gen "Frage..."     # Live-Lauf: lokale Ollama-Modelle + Wikipedia, keine Cloud-Keys
 ```
+
+**Live-Betrieb (neu):** Ein realer `OllamaLLM`-Adapter (Generator- und Verifier-Familie getrennt, vor jedem Aufruf erzwungen), ein keyloses `WikipediaBackend` als Discovery-Workhorse und der `PostgresLedgerStore` sind angebunden. Der Postgres-Ledger ist gegen eine echte PostgreSQL-Instanz verifiziert — alle drei Provenance-Schichten greifen, inklusive des DB-Triggers (`scripts/postgres_smoke.py`). Ein realer End-to-End-Lauf gegen lokale Ollama-Modelle bestätigt die zentrale Garantie unter echten Bedingungen: sind Quellen nicht abrufbar, **abstrahiert** das System (Gate bestanden, null Claims) statt zu halluzinieren (`scripts/live_smoke.py`).
 
 ## Warum diese Reihenfolge
 
@@ -64,7 +67,7 @@ Alles dreht sich um den `Claim` (`src/gen/core/state.py`): eine einzelne, prüfb
 
 ## Nächster Schritt
 
-Phase α ist als Architektur vollständig bewiesen. Der ehrliche nächste Schritt zum Live-Betrieb: reale `LLMClient`-Adapter (Generator-Familie ≠ Verifier-Familie) und Live-Such-Backends hinter `Dependencies` anbinden und dieselbe Akzeptanz-Suite gegen Live-Daten fahren — dann beginnt **Phase β** (Ideation). Siehe `docs/phases/PHASE_ALPHA_RESULT.md` §Methodik.
+Phase α + β sind als Architektur vollständig bewiesen, und die ersten realen Adapter (Ollama, Wikipedia, Postgres) sind live angebunden und verifiziert. Der ehrliche nächste Schritt: die externen Discovery-Quellen produktionsreif machen (Semantic-Scholar-API-Key, höfliches Rate-Limiting), damit der Happy-Path — verifizierter Claim aus abrufbarer Quelle — auch unter Live-Last reproduzierbar grün wird, und dieselbe Akzeptanz-Suite gegen Live-Daten fahren. Danach: Phase γ (Spezifikation/CAD). Siehe `docs/phases/PHASE_ALPHA_RESULT.md` §Methodik und `docs/BUILD_LOG.md` (Live-Integrations-Sprint).
 
 ## Lizenz
 

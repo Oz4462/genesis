@@ -442,3 +442,146 @@ Eine ehrliche Schwachstelle wurde gefunden und **sofort behoben:**
 
 **Endstand Phase β:** **129 passed** (104 α inkl. neuem Backstop-Test + 25 β + … —
 genau: 102 α + 1 α-Backstop + 14 GATE-β + 7 synthesizer + 5 acceptance).
+
+---
+
+# BUILD_LOG — Live-Integrations-Sprint (echte Modelle statt ScriptedLLM)
+
+> Ziel: die in α/β bewiesene Architektur erstmals gegen **echte lokale Modelle**,
+> **echte Suche** und **echten Fetch** fahren — und den Postgres-Ledger gegen eine
+> **echte DB** verifizieren. Bisher war alles offline/ScriptedLLM bewiesen (§9 der
+> Phasen-Specs: realer Adapter = dünne, nicht-blockierende Schicht). Dieser Sprint
+> baut genau diese Schicht und prüft sie empirisch. Umgebung: lokales Ollama
+> (`qwen2.5:14b` Generator, `gemma4` Verifier — verschiedene Familien),
+> PostgreSQL 17.9, kein Cloud-Key.
+
+## LI-1 — `OllamaLLM`-Adapter (erster realer `LLMClient`)  ✅
+- `src/gen/llm/ollama.py` (+ Export in `llm/__init__.py`), `tests/test_llm_ollama.py` (7, TDD).
+- Erfüllt `LLMClient` hinter der vorhandenen Seam; Transport injizierbar → Unit-Tests
+  ohne Server. **Fehlerhaltung (anti-Halluzination):** jeder Transport-/Server-/
+  Envelope-Fehler wirft den neuen `LLMTransportError` — ein toter Server darf NIE
+  wie „Modell hat nichts gesagt" aussehen (das würde downstream als ehrliche
+  Abstention durchgehen und einen Ausfall verschleiern). Greedy decoding
+  (temperature 0): Extraktion/Judging, nicht Kreativtext; stützt A5.
+- Live-Smoke: 1 echter `complete`-Call gegen `qwen2.5:7b` → „Paris" (9,8 s).
+- Selbstkontrolle: [x] Interface/Typen [x] 7/7 inkl. 5 Negativ (404, Transport-Exc,
+  Non-JSON, fehlendes message.content, leere Modell-ID) [x] keine Fakten
+  [x] laut statt still [x] Doku [x] BUILD_LOG. Tests gesamt: 136.
+
+## LI-2 — CLI-Realmodus (`python -m gen "frage"`)  ✅
+- `src/gen/cli.py` `build_live()`, `tests/test_runner.py` (+3).
+- Verdrahtet reale Adapter; der alte rc=3-„adapters not configured"-Pfad ist
+  **vollständig entfernt** (Migration ohne Überlappung). **Cross-Model wird VOR
+  jedem Aufruf erzwungen** (`assert_different_families` in `build_live`): ein
+  gleich-familiäres Paar scheitert „fail-closed" am Rand mit ehrlichem Grund auf
+  stderr, nicht erst nachdem der Generator schon Claims erzeugt hat. Config trägt
+  dieselben Modell-IDs wie die Deps → skeptic-Audit + `config_hash` (A5) bleiben
+  konsistent mit der Realität.
+- Selbstkontrolle: [x] Interface/Typen [x] Suite grün, Demo unangetastet [x] kein
+  Erfindungspfad [x] laut (GenesisError → rc=3) [x] Doku [x] BUILD_LOG. Tests: 138.
+
+## LI-3 — keyloses `WikipediaBackend` (primärer Discovery-Kanal)  ✅
+- `src/gen/tools/search.py` `WikipediaBackend`, `tests/test_wikipedia.py` (8, TDD).
+- Die freie Semantic-Scholar-API gibt **ohne Key HTTP 429** (live bestätigt) → würde
+  jeden Lauf an Kandidaten verhungern lassen. Wikipedia (MediaWiki-Such-API +
+  REST-`summary`-Endpoint, dessen Body sauberer Prosatext ist, den der scholar
+  **wörtlich** zitatprüfen kann) braucht keinen Key. Wie jedes Backend: nur
+  DISCOVERY, lautes Scheitern (Transport/HTTP/JSON), titellose/leere Treffer
+  übersprungen statt erfunden. Gegen echte API + echten Fetch verifiziert (§0.3).
+- In `build_live` als **erstes** Backend; Semantic Scholar bleibt zweiter Kanal und
+  degradiert sichtbar (geloggt) bei 429. Tests gesamt: 146.
+
+## LI-4 — Postgres-Ledger LIVE verifiziert (ältester offener Punkt aus Aufgabe 1)  ✅
+- `scripts/postgres_smoke.py` gegen echte **PostgreSQL 17.9** (asyncpg 0.31), in
+  einer wegwerfbaren `genesis_test`-DB (berührt keine anderen Projekte). Beweist:
+  Schema appliziert sauber; `add_claims`+`update_claim`+`get_claims` round-trippen
+  einen Claim mit voller Provenance; **die DRITTE Schicht greift real** — der
+  Python-Guard wird umgangen und ein quellenloser Claim direkt per SQL eingefügt →
+  der DEFERRED-Trigger `claim_requires_source` lehnt ihn bei COMMIT ab, die Zeile
+  ist abwesend; `record_fetch` upsertet; Independence-View ist abfragbar.
+- Ergebnis (real): **„ALL POSTGRES CHECKS PASSED — provenance enforced at all THREE
+  layers."** Damit ist der frühere ehrliche Offen-Punkt (Adapter nie gegen echte DB
+  gelaufen) **geschlossen.** Keine Secrets im Code (DSN via `GENESIS_PG_DSN`/argv).
+
+## LI-5 — Discovery-Härtung (zwei live beobachtete Defekte, root-cause gefixt)  ✅
+- `tools/search.py` `to_keywords` + `agents/scout.py`; `tools/http.py` Backoff.
+  Tests `test_wikipedia.py` (+2), `test_scout.py` (Contract aktualisiert +1).
+- **Defekt 1:** Wikipedias Volltextsuche will **Keywords, keine Fragen** — „What is
+  a geometric modeling kernel?" lieferte FreeCAD statt des Kernel-Artikels.
+  `to_keywords` entfernt Frage-Einleitung + „?"/Klammern, erhält Inhaltswörter und
+  Groß-/Kleinschreibung (Eigennamen intakt). Gegen echte API verifiziert: die Frage
+  liefert jetzt „Geometric modeling kernel" als Top-Treffer.
+- **Defekt 2:** der scout suchte NUR die (oft verbosen, off-target) LLM-Queries und
+  verwarf die direkte Subfrage. Jetzt wird die Focus-Query **immer zuerst** gesucht,
+  dann deduplizierte/gekappte LLM-Keyword-Queries — das direkteste Signal kann nie
+  verdrängt werden. scout-Prompt fordert jetzt kurze Keyword-Queries.
+- `default_http_get`: höflicher 429/503-Backoff-Retry (Retry-After beachtet,
+  gekappt); erschöpfte Retries fließen weiter als ehrliches `ok=False`, nie als
+  Fake-Erfolg. Deskriptiver User-Agent (API-Etikette). Tests gesamt: 149.
+
+## LI-6 — Live-End-to-End gegen echte Modelle (empirischer Beweis der Garantie)
+
+**Lauf 1 + 2 (Abstention unter Adversität) — real, dokumentiert:**
+Volle Pipeline lief end-to-end mit echten Modellen (qwen2.5:14b zerlegt real in
+Subfragen + generiert Queries; Cross-Model-Split aktiv, A6 geloggt). Semantic
+Scholar gab durchgehend 429 (keyless), Wikipedia-Discovery traf nur Tangentiales
+bzw. wurde rate-limitiert. Ergebnis beide Male: **0 Claims, GATE α `passed=True`,
+`body="No claim could be independently verified"`** — das System **abstrahierte
+statt zu halluzinieren.** Das ist Kernprinzip 4 („Ich weiß es nicht" ist gültiger
+Output), erstmals **mit echten Modellen** empirisch belegt, nicht nur via
+ScriptedLLM. Audit-Trail je Lauf im Checkpoint (`runs/live-smoke/checkpoint.json`).
+
+**Lauf 3 (nach Discovery-Fix) — der Wörtlich-Zitat-Guard fängt eine ECHTE
+Modell-Halluzination live:** Diesmal fand der scout den real relevanten Artikel
+(Wikipedia **ACIS**, ein Geometrie-Kernel), Fetch ok. Das echte Generator-Modell
+(`qwen2.5:14b`) emittierte einen Claim mit dem Zitat „ACIS is a geometric modeling
+kernel developed by Spatial Cor[poration]". Die Quelle sagt aber **wörtlich**: „The
+3D ACIS Modeler (ACIS) is a geometric modeling kernel developed by Spatial
+Corporation" — das Modell ließ das „The 3D … Modeler (" weg, das Zitat steht so
+**nicht** in der Quelle. Der Code-Guard im scholar (`_quote_supported`, normalisierter
+Substring-Match) griff: `scholar: DROP hallucinated quote not in source .../ACIS`.
+**Manuell gegengeprüft** (echte Quelle abgerufen): das Zitat fehlt tatsächlich
+verbatim → der Drop ist **korrekt**, kein False-Positive. Ergebnis: 0 Claims, GATE α
+`passed=True`, ehrliche Abstention.
+
+> **Das ist der zentrale Beweis dieses Sprints.** Nicht im Skript, sondern in freier
+> Wildbahn: ein echtes Modell paraphrasierte eine plausible, fast-richtige Aussage
+> als Zitat — und GENESIS' Code-Garantie (Zitat muss verbatim in der Quelle stehen)
+> verhinderte, dass diese Paraphrase als „Fakt" in den Bericht gelangt. Genau dafür
+> ist das System gebaut. Über drei reale Läufe: **null Halluzination im Output,
+> Gate jedes Mal bestanden, im Zweifel Abstention.**
+
+## LI-7 — Windows-CLI-Encoding-Bug (durch reales Testen gefunden)  ✅
+- `src/gen/cli.py` `main()`: stdout auf UTF-8 umgestellt. **Realer Produkt-Bug:**
+  `python -m gen --demo` druckt den Header „Phase α"; eine Standard-Windows-Konsole
+  (cp1252) kann „α" (U+03B1) nicht kodieren → `UnicodeEncodeError`, CLI unbrauchbar.
+  Root-cause im CLI gefixt (kein Output-Downgrade). Verifiziert: `--demo` auf einer
+  echten `chcp 1252`-Konsole läuft jetzt rc=0, druckt „Phase α" + den verifizierten
+  Befund korrekt.
+
+### Selbstkontrolle (§0.2/§0.3) — Live-Sprint gesamt
+- [x] Interface/Typen? Alle neuen Adapter erfüllen ihre Protocols (`LLMClient`,
+      `SearchBackend`, `LedgerStore`); voll typisiert.
+- [x] Tests grün inkl. Negativtests? **149 passed** (129 Basis + 7 Ollama + 10
+      Wikipedia + 3 build_live/cross-model + Scout-Contract). Plus reale Smokes:
+      Ollama-`complete`, Postgres-3-Schichten, Live-E2E ×3.
+- [x] Faktische Aussagen über Ledger? Ja — alle Live-Läufe bauen den Report nur aus
+      Ledger-Claims; **live bewiesen**, dass ein nicht-verbatim Zitat verworfen wird.
+- [x] Pfad für erfundene Quelle/Fakt? Keiner — im Gegenteil, der Guard wurde live
+      beim Abfangen einer echten Paraphrase beobachtet und manuell gegengeprüft.
+- [x] Laut statt still? `LLMTransportError`, `SearchBackendError`, `ModelConflictError`
+      (fail-closed vor jedem Aufruf), GenesisError→rc=3.
+- [x] Cross-Model? Erzwungen vor jedem Aufruf; im Audit-Log jeder Lauf belegt (A6).
+- [x] Doku + BUILD_LOG? Dieser Eintrag; README aktualisiert.
+
+**Ehrliche Rest-Lücke (nicht-blockierend):** Der autonome *Happy-Path* (verifizierter
+Claim end-to-end) wurde noch nicht grün erreicht — Engpass ist **keylose
+Discovery-Recall + Zitat-Treue kleiner lokaler Modelle** (Semantic-Scholar-Key fehlt;
+14B-Modell paraphrasiert statt verbatim zu zitieren). Das ist eine Daten-/Modellgüte-
+Grenze, **kein Defekt der Garantie** — die Garantie hielt in allen drei Läufen. Nächster
+Schritt: Semantic-Scholar-Key + ggf. dem scholar den sauberen Prosatext (statt JSON-
+Envelope) zum Zitieren geben, dann dieselbe Akzeptanz-Suite gegen Live-Daten fahren.
+
+**Gesamtstand:** 149 passed (offline) + Postgres-Ledger live (3 Schichten) + Live-E2E
+×3 (Garantie empirisch bestätigt) + CLI auf Windows lauffähig.
+
