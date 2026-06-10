@@ -635,7 +635,15 @@ Architektur-Defekt; Minderungen: stärkeres Verifier-Modell, Begründungspflicht
 Judge-Prompt, oder ein zweiter Judge (bereits unterstützt). Ebenfalls offen: ein
 Semantic-Scholar-Key für akademische Korroboration (User-Action).
 
+**Live-Bestätigung des Guards (Lauf 6, gleiche Frage):** Das „and garbage collection"-
+Fragment ist weg, und mit ihm die spurious „Waste collection"-Stütze (sie hing an genau
+diesem Fragment). Übrig bleibt ein einziger, sauberer Befund — „Python is a programming
+language." VERIFIED, jetzt durch **drei** topisch korrekte unabhängige Quellen (Python-
+Artikel, Python Software Foundation, Zen of Python). Ein Fix, beide Qualitätsbefunde
+behoben.
+
 **Gesamtstand nach LI-8:** **154 passed** (offline) + Postgres-Ledger live (3 Schichten)
-+ Live-E2E ×5 (inkl. **erstem autonomem VERIFIED**, cross-model, gate-passed) + CLI auf
-Windows lauffähig. Die Anti-Halluzinations-Garantie hielt in **allen** Läufen.
++ Live-E2E ×6 (inkl. **autonomem VERIFIED**, cross-model, gate-passed, Fragment-Fix live
+bestätigt) + CLI auf Windows lauffähig. Die Anti-Halluzinations-Garantie hielt in
+**allen** Läufen.
 
