@@ -442,9 +442,15 @@ phase_gamma:
   `test_gate_never_invents_a_plausibility_rule`). Geometrie-Maße bleiben
   strukturell > 0 (C-9) — das ist Validität, keine Domänenbehauptung.
 
-**Bewusst offen (nicht blockierend):**
-- build123d-Python-Export als zweiter Adapter — die CSG-Struktur (§3.3) ist auch
-  darauf abbildbar.
+**Erledigt — zweiter CAD-Adapter (build123d):**
+- `export/build123d.py` rendert dieselbe CSG-Geometrie als build123d-Python
+  (Algebra-Modus: `Box(l,w,h)`, `Cylinder(r,h)`, `Sphere(r)`, `+`/`-`/`&` für
+  union/difference/intersection, `Pos(x,y,z) * obj` für translate — Syntax aus der
+  build123d-Doku belegt). Werte aus quantity_ids aufgelöst, Quantity-Ids als
+  Traceability-Kommentar je Komponente. `ExportError` fail-loud. Beide Back-Ends
+  teilen die Zahlenformatierung (`export/numfmt.py`) → kein Drift. CLI:
+  `--format b123d`. **Ehrliche Grenze:** wie OpenSCAD syntaktisch belegt + getestet,
+  aber nicht durch eine echte build123d/OCCT-Installation ausgeführt.
 - **Magnitude/Skalen-Korrektheit innerhalb einer Dimension.** C-15 fängt
   *Dimensions*-Fehler (kg + mm, Fläche-als-Länge), **nicht** falsche Skalenfaktoren
   derselben Dimension (cm→mm via `*100` statt `*10` bleibt dimensional valide).

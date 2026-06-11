@@ -30,13 +30,9 @@ from ..core.state import (
     Quantity,
     Specification,
 )
+from .numfmt import fmt_number as _fmt
 
 _INDENT = "  "
-
-
-def _fmt(value: float) -> str:
-    """Deterministic, clean number rendering (60, 4.5, 2.25 — no trailing .0)."""
-    return f"{float(value):g}"
 
 
 def _resolve(node: GeometryNode, param: str, quantities: dict[str, Quantity]) -> tuple[str, str]:

@@ -30,6 +30,7 @@ from .core.state import (
 from .llm.base import ScriptedLLM
 from .llm.ollama import OllamaLLM
 from .ledger.store import InMemoryLedgerStore
+from .export.build123d import specification_to_build123d
 from .export.openscad import specification_to_openscad
 from .runner import Dependencies, run, run_solution, run_specification
 from .tools.http import HttpResponse, default_http_get
@@ -472,9 +473,12 @@ def format_specification(spec: Specification) -> str:
 
 
 def render_spec(spec: Specification, fmt: str) -> str:
-    """Render a γ spec as the human instruction ('text') or OpenSCAD ('scad')."""
+    """Render a γ spec: human instruction ('text'), OpenSCAD ('scad'), or
+    build123d Python ('b123d')."""
     if fmt == "scad":
         return specification_to_openscad(spec)
+    if fmt == "b123d":
+        return specification_to_build123d(spec)
     return format_specification(spec)
 
 
@@ -500,9 +504,9 @@ def main(argv: list[str] | None = None) -> int:
              "spec = Phase γ build specification (default: report)",
     )
     parser.add_argument(
-        "--format", choices=("text", "scad"), default="text",
+        "--format", choices=("text", "scad", "b123d"), default="text",
         help="spec mode only: 'text' = human-readable instruction (default); "
-             "'scad' = OpenSCAD source of the CSG geometry",
+             "'scad' = OpenSCAD source; 'b123d' = build123d Python of the CSG geometry",
     )
     parser.add_argument("--checkpoint-dir", default=None, help="write a run checkpoint here")
     parser.add_argument(
