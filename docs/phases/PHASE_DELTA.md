@@ -771,6 +771,55 @@ Kt ≈ 3,14`).
 
 ---
 
+## 25. Stationäre Wärmeleitung — die Thermik-Achse (`thermal.py`)
+
+Die Elektronik-Schichten (`circuit.py`/ERC) rechnen die **Verlustleistung** eines
+Bauteils; die Statik rechnet **Spannung**. Die fehlende Physik, die beide verbindet,
+ist **Wärme**: eine dissipierte Leistung hebt die Bauteiltemperatur, und ein
+Polymerteil (PLA-Glasübergang `~60 °C`) versagt **thermisch** lange bevor es
+**mechanisch** versagt. Dieses Modul ist das stationäre Wärmeleitungs-Analogon zum
+Elastizitäts-FEM: Skalarfeld = Temperatur, Element = 4-Knoten-Tet, Elementmatrix
+`k·V·(∇N)ᵀ(∇N)` — Fourier-Leitung. Reines numpy, dieselbe strukturierte Vernetzung
+wie der Elastizitäts-Solver, **keine** externe Abhängigkeit (läuft also auch ohne
+gmsh/cadquery).
+
+**Verifiziert, nicht behauptet:** der lineare Tet reproduziert ein **lineares**
+Temperaturfeld **exakt** — das thermische Zwilling zum „Zug ist exakt"-Test. Damit
+liefert 1-D-Leitung durch einen prismatischen Stab das **Fourier-Gesetz**
+`Q = k·A·ΔT/L` auf **jedem** Netz maschinengenau: das Feld ist linear (`max|T−linear|
+< 1e-9`), und die aus den FEM-**Reaktionen** gelesene geleitete Wärme **gleicht die
+geschlossene Form exakt** (`rtol 1e-9`). Der Test pinnt beides; die geschlossenen
+Helfer (`fourier_heat`, `conductive_temperature_rise`) sind damit als exakt
+validiert (Hin-/Rück-Identität `Q ↔ ΔT`).
+
+**Der echte Check (Thermal-DFM):** `overtemperature_check(power, k, A, L, ambient,
+max_service_temp)` rechnet `ΔT = P·L/(k·A)`, addiert die Umgebung und meldet, ob der
+Peak die **Service-Temperatur** des Materials reißt. Konkreter Befund (im Test): eine
+LED mit `0,5 W` durch einen `5 mm`-PLA-Standoff (`A=20 mm²`) ergibt `ΔT ≈ 960 K` →
+**FAIL** — PLA leitet `~1800×` schlechter als Aluminium, der Pfad ist **nicht**
+kühlbar; derselbe Pfad in Aluminium: `ΔT ≈ 0,5 K` → **PASS**. Eine echte
+„validiere-vor-dem-Bauen"-Aussage, die das geschlossene Loch zur **gerechneten**
+Elektronik-Leistung schließt.
+
+**Beliebige Geometrie:** `peak_temperature(...)` gibt den Peak des Leitungsfeldes auf
+**jedem** vernetzten Teil — z. B. eine Platte, die eine **Punktquelle** zu gekühlten
+Rändern spreizt (kein geschlossener Ausdruck): der Peak sitzt an der Quelle, das Feld
+fällt monoton zum Senke-Rand, Energie ist exakt erhalten (`Σ Reaktionen + Quelle ≈ 0`).
+
+**Ehrliche Grenze:** lineare, isotrope, **stationäre** Leitung — kein
+Konvektions-/Strahlungs-Film, kein temperaturabhängiges `k`, **nicht** transient. Ein
+sauberer PASS **schrankt** die rein konduktive Erwärmung: eine real konvektierende
+Fläche senkt sie nur, also ist die Leitungs-Erwärmung **konservativ** für ein
+wärme-gesenktes Teil und **optimistisch** für ein Stillluft-Teil (deklariert, nicht
+versteckt). `solve_heat` braucht **mindestens eine** feste Temperatur (reines Neumann
+ist singulär → klarer Fehler). Modul `thermal.py`, getestet in `tests/test_thermal.py`.
+
+**Quelle:** Fourier-Wärmeleitung `q = −k∇T` (Fourier 1822); die FEM-Diskretisierung
+des skalaren Laplace-Operators `∫(∇N)ᵀk(∇N)dV` ist Standard (Zienkiewicz & Taylor,
+*The Finite Element Method*, Feldprobleme).
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
