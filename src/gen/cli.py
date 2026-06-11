@@ -19,6 +19,7 @@ import asyncio
 import sys
 
 from .config import Config, default_config
+from .completeness import completeness_warnings
 from .core.errors import GenesisError
 from .costing import bom_cost, format_cost
 from .core.state import (
@@ -529,6 +530,13 @@ def format_specification(spec: Specification) -> str:
 
     if not spec.components and not spec.steps:
         lines.append("Specification: none asserted — nothing could be grounded.")
+        lines.append("")
+
+    warnings = completeness_warnings(spec)
+    if warnings:
+        lines.append("Completeness warnings (the spec is sound but probably under-specified):")
+        for w in warnings:
+            lines.append(f"  ! {w}")
         lines.append("")
 
     if spec.gaps:

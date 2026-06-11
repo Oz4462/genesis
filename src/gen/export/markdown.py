@@ -14,6 +14,7 @@ not allow (an honest gap is printed as a gap, not hidden).
 
 from __future__ import annotations
 
+from ..completeness import completeness_warnings
 from ..core.state import BomDomain, Specification, ValueOrigin
 from ..costing import bom_cost, format_cost
 from ..verification.gates import gate_delta, geometry_envelope
@@ -159,6 +160,16 @@ def specification_to_markdown(spec: Specification) -> str:
         verdict = ("no provably broken geometry (PASS — necessary, not sufficient)"
                    if result.passed else f"FAIL: {[f.code for f in result.failures]}")
         a(f"- status: {verdict}")
+        a("")
+
+    warnings = completeness_warnings(spec)
+    if warnings:
+        a("## Completeness warnings")
+        a("")
+        a("> The spec is sound but probably under-specified:")
+        a("")
+        for w in warnings:
+            a(f"- {w}")
         a("")
 
     if spec.gaps:
