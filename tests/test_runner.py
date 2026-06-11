@@ -96,6 +96,17 @@ def test_cli_no_question_prints_help_returns_2(capsys):
     assert rc == 2
 
 
+def test_cli_assess_mode_prints_the_honest_verdict(capsys):
+    # the wired quality engine is reachable from the CLI, offline: the drive shaft
+    # verifies, the bracket honestly reports "no_physics_indicated" (not a fake pass).
+    rc = main(["--mode", "assess"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "physics_verified" in out          # drive shaft — physics validators fit
+    assert "no_physics_indicated" in out      # bracket — no physics measurands, surfaced honestly
+    assert "constraints consistent: True" in out
+
+
 def test_cli_real_mode_same_family_fails_closed_before_any_call(capsys):
     # Generator and verifier resolve to the same family -> the cross-model guard
     # must abort BEFORE any network/LLM call (build_live wires, it never calls).

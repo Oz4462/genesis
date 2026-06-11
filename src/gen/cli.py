@@ -666,11 +666,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("question", nargs="?", help="the research question / problem / idea")
     parser.add_argument("--demo", action="store_true", help="run the offline deterministic demo")
     parser.add_argument(
-        "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol"),
+        "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol", "assess"),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
              "spec = Phase γ build specification; capstone = a complete, fully "
-             "detailed γ-depth spec through all gates (demo-only) (default: report)",
+             "detailed γ-depth spec through all gates (demo-only); assess = the wired "
+             "quality engine's honest verdict (clarification + δ-physics + constraints + "
+             "grounding) over the demo specs (default: report)",
     )
     parser.add_argument(
         "--format", choices=("text", "md", "scad", "b123d", "stl"), default="text",
@@ -735,6 +737,42 @@ def main(argv: list[str] | None = None) -> int:
         for label, g in (("γ", ga), ("δ", gd), ("ERC", ge), ("CODE", gc)):
             print(f"Gate {label}: {'PASS' if g.passed else 'FAIL'} ({len(g.failures)} failures)")
         return 0 if all(g.passed for g in (ga, gd, ge, gc)) else 3
+
+    if args.mode == "assess":
+        # The wired quality engine: one honest verdict (clarification + delta-physics
+        # selection/gate + constraint consistency + grounding) over the demo specs.
+        # Deterministic, offline. The drive shaft is the part the physics validators
+        # fit; the bracket declares no physics measurands -> "no_physics_indicated".
+        from .demo import (
+            capstone_claims,
+            capstone_spec,
+            drive_shaft_spec,
+            drive_shaft_state,
+        )
+        from .pipeline import assess_specification
+
+        all_verified = True
+        for label, spec, claims in (
+            ("drive shaft (physics fits)", drive_shaft_spec(), drive_shaft_state().claims),
+            ("LED bracket (static, no physics measurands)", capstone_spec(), capstone_claims()),
+        ):
+            a = assess_specification(spec, claims=claims)
+            print(f"=== {label} ===")
+            print(f"  overall:               {a.overall}")
+            print(f"  physics: checked={a.physics_checked} complete={a.physics_complete} "
+                  f"ok={a.physics_ok}  ({len(a.physics_checks)} checks, {len(a.physics_gaps)} gaps)")
+            print(f"  constraints consistent: {a.constraints_consistent}")
+            print(f"  clarification needed:   {a.needs_clarification} "
+                  f"({len(a.clarification_questions)} questions)")
+            for q in a.clarification_questions:
+                print(f"     - {q.question}")
+            if a.corroboration is not None:
+                print(f"  corroboration:          ok={a.corroboration.ok} "
+                      f"({a.corroboration.n_verified} verified claims)")
+            print("")
+            if a.overall != "physics_verified" and a.overall != "no_physics_indicated":
+                all_verified = False
+        return 0 if all_verified else 3
 
     if args.demo:
         if args.mode == "report":
