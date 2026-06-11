@@ -49,15 +49,22 @@ def overhang_check(
     build_dir: tuple[float, float, float] = (0.0, 0.0, 1.0),
     max_overhang_deg: float = 45.0,
     tolerance: float | None = None,
+    support_density: float = 0.2,
 ) -> dict:
     """Inspect a solid for self-supporting printability under one build direction.
 
-    Returns ``{"needs_support", "overhang_area", "worst_overhang_deg"}``:
-    needs_support is True if any down-facing surface (off the build plate) is within
-    `max_overhang_deg` of straight-down; overhang_area is the flagged triangle area;
-    worst_overhang_deg is how far the steepest flagged surface tilts past the limit
-    toward horizontal (0 = exactly at the limit). Deterministic for fixed
-    `tolerance`.
+    Returns ``{"needs_support", "overhang_area", "worst_overhang_deg",
+    "support_volume"}``: needs_support is True if any down-facing surface (off the
+    build plate) is within `max_overhang_deg` of straight-down; overhang_area is the
+    flagged triangle area; worst_overhang_deg is how far the steepest flagged surface
+    tilts past the limit toward horizontal; support_volume is an UPPER-BOUND estimate
+    of the support material — the column volume from each overhang triangle down to
+    the plate (projected area × height-above-plate) times `support_density` (a
+    sparse-infill fraction). Deterministic for fixed `tolerance`.
+
+    Build direction is only required to be normalised internally; build_dir=(0,0,1)
+    means +Z is up. The support estimate is an upper bound because it counts the full
+    column to the plate even where material sits below the overhang.
     """
     _require_cadquery()  # clear error if OCP is missing
     solid = csg_to_solid(node, quantities)
@@ -71,6 +78,7 @@ def overhang_check(
     verts, tris = solid.tessellate(tol)
     overhang_area = 0.0
     worst = 0.0
+    column_volume = 0.0
     for i, j, k in tris:
         a, b, c = verts[i], verts[j], verts[k]
         cross = b.sub(a).cross(c.sub(a))
@@ -81,11 +89,15 @@ def overhang_check(
         centroid_z = (a.z + b.z + c.z) / 3.0
         phi = _angle_deg(normal, down)                # angle from straight-down
         if phi < max_overhang_deg and (centroid_z - zmin) > eps:
-            overhang_area += 0.5 * length             # triangle area
+            area = 0.5 * length
+            overhang_area += area
             worst = max(worst, max_overhang_deg - phi)
+            # projected (horizontal) area = |n·down| × area; column height to plate
+            column_volume += abs(normal[2]) * area * (centroid_z - zmin)
 
     return {
         "needs_support": overhang_area > 0.0,
         "overhang_area": overhang_area,
         "worst_overhang_deg": worst,
+        "support_volume": column_volume * support_density,
     }

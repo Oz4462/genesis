@@ -618,10 +618,17 @@ per Default nur eine **Halbkugel** baut (Vol = halb, nicht zentriert) — die
 BREP-Kugel-Übersetzung (§16) war falsch; jetzt voll & zentriert
 (`makeSphere(r, origin, +Z, -90, 90, 360)`), Vol = 4/3·π·r³.
 
+**Stützvolumen-Schätzung:** `overhang_check` liefert zusätzlich eine **Obere-
+Schranke** des Stützmaterials — die Säule unter jedem Überhang-Dreieck bis zur Platte
+(projizierte Fläche × Höhe) mal `support_density` (Sparse-Infill-Anteil). **Verifiziert
+gegen Handrechnung:** eine 20×20-Platte auf einer 4×4-Säule → Überhangfläche 384, Säule
+20 mm → `Volumen = 384·20·0,2 = 1536`; linear in der Dichte. (Obere Schranke, weil die
+Säule auch dort bis zur Platte zählt, wo Material darunter sitzt.)
+
 **Ehrliche Grenze:** Standard-45°-Regel, exakt für die modellierte Geometrie, eine
-Baurichtung (Default +Z); **keine** Orientierungs-Optimierung, kein Stützvolumen-/
-Kostenmodell — eine weitere Schicht. cadquery/OCP optional (Test skippt ohne).
-Modul `orientation.py`, getestet in `tests/test_orientation.py`.
+Baurichtung (Default +Z); **keine** Orientierungs-Optimierung; Stützvolumen ist eine
+Schätzung (obere Schranke). cadquery/OCP optional (Test skippt ohne). Modul
+`orientation.py`, getestet in `tests/test_orientation.py`.
 
 **Quelle:** 45°-Überhangregel für FDM (UltiMaker/Slicer-Standard, s. §11);
 Tessellierungs-basierte Überhang-Erkennung (Standard im Slicing).

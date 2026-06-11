@@ -68,3 +68,33 @@ def test_is_deterministic():
     a = overhang_check(_SPHERE, _QS, tolerance=0.1)
     b = overhang_check(_SPHERE, _QS, tolerance=0.1)
     assert a == b
+
+
+# --- support volume estimate ---------------------------------------------------
+
+def test_no_overhang_means_no_support_volume():
+    assert overhang_check(_BOX, _QS)["support_volume"] == 0.0
+
+
+def test_support_volume_is_the_column_under_the_overhang():
+    # a 20x20x2 plate (z in [10,12]) on a 4x4x20 pillar (z in [-10,10]): the plate's
+    # bottom overhangs everywhere except over the pillar -> overhang area 400-16=384,
+    # a column 20 mm tall (down to the plate at z=-10) under it.
+    pillar = GeometryNode(kind="box", params={"size_x": "p", "size_y": "p", "size_z": "ph"})
+    plate = GeometryNode(kind="translate", params={"x": "z0", "y": "z0", "z": "tz"},
+                         children=[GeometryNode(kind="box",
+                                                params={"size_x": "pl", "size_y": "pl", "size_z": "pt"})])
+    solid = GeometryNode(kind="union", children=[pillar, plate])
+    qs = {"p": _q("p", 4.0), "ph": _q("ph", 20.0), "pl": _q("pl", 20.0),
+          "pt": _q("pt", 2.0), "z0": _q("z0", 0.0), "tz": _q("tz", 11.0)}
+    density = 0.2
+    r = overhang_check(solid, qs, tolerance=0.5, support_density=density)
+    # support volume = overhang_area × column_height(20) × density, self-consistent
+    assert abs(r["support_volume"] - r["overhang_area"] * 20.0 * density) < 1.0
+    assert r["overhang_area"] > 380.0                  # ~ 400 - 16
+
+
+def test_support_volume_scales_with_density():
+    sparse = overhang_check(_SPHERE, _QS, support_density=0.1)["support_volume"]
+    dense = overhang_check(_SPHERE, _QS, support_density=0.4)["support_volume"]
+    assert abs(dense - 4.0 * sparse) < 1e-9            # linear in density
