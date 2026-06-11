@@ -540,3 +540,39 @@ unter demselben Beweis-Standard. Modul `circuit.py` (braucht numpy), getestet in
 
 **Quelle:** Modified Nodal Analysis (Standard-Schaltungsanalyse, Ho/Ruehli/Brennan
 1975; der DC-Kern von SPICE); Ohmsches Gesetz, Kirchhoff.
+
+---
+
+## 16. δ-BREP — exakte Geometrie über den OpenCASCADE-Kernel (optional)
+
+Die δ-1-Schicht (`verification/geometry.py`) rechnet über **achsenparallele
+Bounding-Boxes**: sound, aber **konservativ** — sie beweist Nicht-Überlapp
+(disjunkte AABBs) und exaktes Volumen nur in einfachen Fällen, **nie** ein False
+Positive, aber oft „keine Aussage". `brep.py` hebt das auf **exakte** Geometrie:
+die GENESIS-CSG wird in echte **OpenCASCADE-B-Rep-Festkörper** übersetzt (via
+cadquery/OCP) und der Kernel direkt gefragt — exaktes Volumen, Solid-Validität
+(`BRepCheck`), und **exakte Interferenz** (Volumen des echten Schnitts, nicht der
+Hüllboxen).
+
+**Der exakte-schlägt-konservativ-Gewinn:** Zwei Kugeln r=2 bei (0,0,0) und (3,3,0)
+— Mittelpunktabstand √18 = 4,24 > 4, die **Festkörper sind disjunkt** — aber ihre
+**AABBs überlappen** ([-2,2]³ vs [1,5]×[1,5]×[-2,2]). Die AABB-Schicht kann das
+nicht entscheiden; exaktes BREP beweist **keine** Interferenz. Genau die Lücke, die
+δ-1 ehrlich offenließ, schließt diese Schicht.
+
+**Verifiziert:** exaktes Volumen des Capstone-Halters = **57409,148 mm³** =
+unabhängig die analytische `geometry.volume_of` (zwei Methoden stimmen überein) und
+≤ AABB-Schranke (exakt überschreitet nie die sound Schranke); Halter ist valider
+Solid.
+
+**cadquery/OCP ist OPTIONAL:** lazy import, klare Fehlermeldung wenn fehlend — der
+Kern-Install (und CI) braucht **keinen** CAD-Kernel; der Test **skippt** ohne
+cadquery (`pytest.importorskip`). Geometrie-Konvention zentriert (wie §1 / OpenSCAD
+/ build123d). Modul `brep.py`, getestet in `tests/test_brep.py`.
+
+**Ehrliche Grenze:** exakt für die modellierte CSG starrer Körper — weiterhin
+**kein** physikalisches Urteil (Festigkeit/Herstellbarkeit; das ist Statik/DFM/FEM).
+Ein bestandener Geometrie-Check bleibt notwendig, nicht hinreichend.
+
+**Quelle:** OpenCASCADE Technology (B-Rep-Festkörperkernel) via cadquery; Boolesche
+CSG-Operationen (Requicha 1980, s. PHASE_GAMMA §10).
