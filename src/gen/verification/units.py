@@ -107,6 +107,9 @@ _PRESSURE = _FORCE / (_LENGTH * _LENGTH)              # Pa = M·L⁻¹·T⁻²
 _ENERGY = _FORCE * _LENGTH                            # J  = M·L²·T⁻²
 _POWER = _ENERGY / _TIME                              # W  = M·L²·T⁻³
 _FREQ = DIMENSIONLESS / _TIME                         # Hz = T⁻¹
+_VOLTAGE = _POWER / _CURRENT                          # V  = W/A
+_RESISTANCE = _VOLTAGE / _CURRENT                     # Ω  = V/A
+_CHARGE = _CURRENT * _TIME                            # Ah / C = I·T
 
 _KNOWN_UNITS: dict[str, Dimension] = {
     # dimensionless
@@ -121,9 +124,11 @@ _KNOWN_UNITS: dict[str, Dimension] = {
     "min": _TIME, "h": _TIME, "hr": _TIME, "day": _TIME,
     "t": _MASS,                                        # tonne
     "L_vol": _LENGTH.pow(3),                           # explicit volume alias
-    # named derived units
+    # named derived units (incl. the electrical set for the electronics domain)
     "N": _FORCE, "Pa": _PRESSURE, "bar": _PRESSURE,
-    "J": _ENERGY, "W": _POWER, "Hz": _FREQ, "V": _POWER / _CURRENT,
+    "J": _ENERGY, "W": _POWER, "Hz": _FREQ,
+    "V": _VOLTAGE, "ohm": _RESISTANCE, "Ω": _RESISTANCE,
+    "Ah": _CHARGE, "Wh": _ENERGY,
 }
 
 # SI prefixes -> (kept only to RECOGNIZE a prefixed unit; scale is irrelevant to
@@ -133,8 +138,8 @@ _PREFIXES = frozenset({
     "d", "c", "m", "u", "µ", "n", "p", "f", "a", "z", "y",
 })
 
-_ATOM_RE = re.compile(r"^([A-Za-zµ%]+|1)(\^-?\d+)?$")
-_ATOM_PAT = r"(?:[A-Za-zµ%]+|1)(?:\^-?\d+)?"
+_ATOM_RE = re.compile(r"^([A-Za-zµΩ%]+|1)(\^-?\d+)?$")
+_ATOM_PAT = r"(?:[A-Za-zµΩ%]+|1)(?:\^-?\d+)?"
 _UNIT_RE = re.compile(rf"\s*{_ATOM_PAT}\s*(?:[*/]\s*{_ATOM_PAT}\s*)*")
 
 
@@ -221,7 +226,9 @@ _ATOM_SCALE: dict[str, float] = {
     "min": 60.0, "h": 3600.0, "hr": 3600.0, "day": 86400.0,
     "t": 1e3,                                   # tonne = 1000 kg
     "L_vol": 1e-3,                              # litre = 1e-3 m³
-    "N": 1.0, "Pa": 1.0, "bar": 1e5, "J": 1.0, "W": 1.0, "Hz": 1.0, "V": 1.0,
+    "N": 1.0, "Pa": 1.0, "bar": 1e5, "J": 1.0, "W": 1.0, "Hz": 1.0,
+    "V": 1.0, "ohm": 1.0, "Ω": 1.0,
+    "Ah": 3600.0, "Wh": 3600.0,                # ampere-hour / watt-hour to SI base
 }
 
 

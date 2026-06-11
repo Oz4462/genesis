@@ -29,6 +29,7 @@ import re
 from ..core.errors import GenesisError, LLMOutputError, UnitError
 from ..core.state import (
     Approach,
+    BomDomain,
     BomItem,
     BomRole,
     Claim,
@@ -456,10 +457,16 @@ class Architect:
         component_id = str(raw.get("component_id")).strip() if raw.get("component_id") else None
         grounding = [cid for cid in _as_str_list(raw.get("grounding")) if cid in verified]
         sourcing = self._parse_sourcing(raw.get("sourcing"), bid, verified, log)
+        domain_raw = str(raw.get("domain") or "mechanical").strip().lower()
+        try:
+            domain = BomDomain(domain_raw)
+        except ValueError:
+            log(f"architect: BOM item {bid!r} unknown domain {domain_raw!r} -> mechanical")
+            domain = BomDomain.MECHANICAL
         return BomItem(
             id=bid, name=str(raw.get("name") or bid).strip(), role=role,
             count=count, component_id=component_id, grounding=grounding,
-            sourcing=sourcing,
+            sourcing=sourcing, domain=domain,
         )
 
     def _parse_sourcing(self, raw: object, bom_id: str, verified: dict[str, Claim], log):

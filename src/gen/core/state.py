@@ -319,6 +319,14 @@ class BomRole(enum.Enum):
     TOOL = "tool"
 
 
+class BomDomain(enum.Enum):
+    """Which bill of materials a line belongs to. The electronics BOM is kept
+    separate from the mechanical BOM (PHASE_GAMMA_DEPTH.md §4)."""
+
+    MECHANICAL = "mechanical"
+    ELECTRONIC = "electronic"
+
+
 @dataclass
 class Sourcing:
     """Procurement provenance for a BOM item — where to actually buy it.
@@ -367,6 +375,7 @@ class BomItem:
     component_id: str | None = None
     grounding: list[str] = field(default_factory=list)
     sourcing: "Sourcing | None" = None
+    domain: BomDomain = BomDomain.MECHANICAL
 
 
 @dataclass

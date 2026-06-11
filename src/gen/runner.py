@@ -335,6 +335,7 @@ def _specification_to_dict(spec: Specification) -> dict:
                 "count": b.count,
                 "component_id": b.component_id,
                 "grounding": list(b.grounding),
+                "domain": b.domain.value,
                 "sourcing": (
                     {
                         "supplier": b.sourcing.supplier,

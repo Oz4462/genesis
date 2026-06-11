@@ -42,24 +42,37 @@ grounding VERIFIED+α-sound; supplier & part_number **wörtlich** in einem
 Grounding-Claim; Preis als GROUNDED-Quantity (Wert wörtlich, C-4, Währung als
 Einheit). Kein Grounding ⟹ Sourcing wird gedroppt, Lücke ausgewiesen.
 
-### 2. Verbindungselemente & Passung
+### 2. Verbindungselemente & Passung ✅
 Norm-Schraube (M-Größe, Länge, Kopf) → Lochgröße im Druckteil (Durchgang vs.
 Gewinde vs. Heat-Set-Insert). **„Norm-Schraube → empfohlener Bohrdurchmesser" als
 belegte Referenz-Claims** (z. B. ISO 273), nie hardcodiert. Loch-Quantity grounded
-in diesem Claim; Fit über die bestehenden Ausdrucks-Constraints (Loch ≥ Welle +
-Spiel, `test_fits.py`). Loch-Typ (Durchgang/Gewinde/Insert) als DECISION.
+in diesem Claim — der Wert (4,5 mm) steht **wörtlich** im Claim (C-4). Fit über die
+bestehenden Ausdrucks-Constraints (Loch ≥ Welle + Spiel, `test_fits.py`). Loch-Typ
+(Durchgang/Gewinde/Insert) als DECISION. **Bewiesen:** `test_fasteners.py` —
+Durchgangsloch, Gewinde-Kernloch (tap drill), Heat-Set-Insert-Bohrung, je grounded;
+ein **erfundener** Bohrdurchmesser (nicht im Claim) → `VALUE_NOT_IN_GROUNDING`.
+Kein neuer Mechanismus; Referenzdaten kommen aus Live-α-Recherche.
 
-### 3. Komponenten-Kompatibilität
+### 3. Komponenten-Kompatibilität ✅
 „Was passt perfekt zusammen": Maße/Stecker/Spannung. Deterministisch wo möglich
-(Constraints zwischen grounded Spec-Quantities: `bore == shaft`, `v_supply ==
-v_device`); sonst belegte Empfehlung + ehrliche Lücke. Kein erfundenes „passt".
+(`eq`/`ge`-Constraints zwischen grounded Spec-Quantities: `shaft == bore`,
+`v_device == v_supply`, `i_supply >= i_draw`); sonst belegte Empfehlung + ehrliche
+Lücke. **Bewiesen:** `test_compatibility.py` — Wellen-Lager-Maß-Match,
+Spannungs-Match, Strom-Headroom, je Mismatch gefangen (`CONSTRAINT_VIOLATION`);
+keine undeklarierte Kompatibilität wird **erfunden** (`test_no_invented_compatibility`).
+Nicht-numerische Kompatibilität (Steckertyp) bleibt eine belegte Aussage, kein
+deterministischer Check — ehrlich über die Grenze.
 
-### 4. Elektronik (eigene Domäne)
-Getrennte **Elektronik-BOM** (`BomItem.domain = ELECTRONIC` oder
-`spec.electronics`). Empfohlene Geräte (Controller, Sensoren, Netzteil,
-Verkabelung) mit grounded Spec (Spannung V, Strom A, Leistung W, Pinout) je aus
-**Datenblatt-Claim**. Spannungs-/Strom-Kompatibilität als Constraints (elektrische
-Einheiten A/V/W/Ω/Ah). Jede Empfehlung belegt, sonst Lücke.
+### 4. Elektronik (eigene Domäne) ✅
+Getrennte **Elektronik-BOM** via `BomItem.domain = ELECTRONIC` (Default
+MECHANICAL); die CLI rendert „Bill of materials (mechanical)" und „(electronics)"
+getrennt. Empfohlene Geräte (Controller, Sensoren, Netzteil, Verkabelung) mit
+grounded Spec (Spannung V, Strom A, Leistung W, Widerstand Ω, Kapazität Ah) je aus
+**Datenblatt-Claim** — dieselben Sourcing-/Grounding-Regeln wie Mechanik. **Neue
+elektrische Einheiten** in `units.py`: V, ohm/Ω, Ah, Wh (+ Skalen: mAh→3,6,
+Ah→3600). Spannungs-/Strom-Kompatibilität als Constraints (§3). **Bewiesen:**
+`test_electronics.py` — Einheiten-Dimensionen/Skalen, grounded E-BOM-Zeile passt
+das Gate, CLI-Split mechanical/electronics.
 
 ### 5. Montage-Detail & Ort
 `Step` um **`tool`** (Werkzeug) + **`torque`** (Quantity N·m, grounded/decision)
