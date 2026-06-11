@@ -98,8 +98,8 @@ Eine Vision, die auf Übertreibung gebaut ist, kollabiert. Eine Vision, die auf 
 |---|---|---|
 | **alpha** | Halluzination ist strukturell unmoeglich | ERBRACHT (7/7 Tests) |
 | **beta** | Das System findet echte Loesungen + Alternativen fuer geloeste Probleme | ERBRACHT (GATE β, 26 Tests) |
-| **gamma** | Eine Idee wird zu einer Spezifikation, die ein Mensch ohne Rueckfrage umsetzt | ERBRACHT strukturell (GATE γ, 78 Tests; Live-Modellguete offen) |
-| **delta** | Loesungen werden simuliert/validiert vor jedem realen Aufwand | zu beweisen |
+| **gamma** | Eine Idee wird zu einer Spezifikation, die ein Mensch ohne Rueckfrage umsetzt | ERBRACHT strukturell (GATE γ + Einheiten/Constraints/CAD-Export; Live-Modellguete offen) |
+| **delta** | Loesungen werden simuliert/validiert vor jedem realen Aufwand | 1. Schicht ERBRACHT (GATE δ, deterministische Geometrie-Soundness, 21 Tests; FEM/Physik offen) |
 | **epsilon** | Es funktioniert ueber Domaenen hinweg (Robotik, Bio, Material, Business) | zu beweisen |
 | **zeta** | Es lernt aus realen Erfolgen/Misserfolgen und wird mit der Zeit besser | zu beweisen |
 

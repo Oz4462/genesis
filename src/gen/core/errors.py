@@ -114,6 +114,20 @@ class UnitError(GenesisError):
         super().__init__(f"Dimensional inconsistency: {detail}")
 
 
+class GeometryError(GenesisError):
+    """A geometry node could not be reduced to a bounding box.
+
+    Raised loudly (never a guessed extent) when AABB computation meets a node it
+    cannot resolve — an unknown geometry kind, a missing parameter, or a
+    parameter referencing an absent quantity. Phase δ validation assumes a
+    GATE-γ-validated spec but fails loudly rather than fabricating geometry
+    (PHASE_DELTA.md §3).
+    """
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(f"Geometry error: {detail}")
+
+
 class ExportError(GenesisError):
     """A specification could not be deterministically exported.
 

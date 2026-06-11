@@ -61,8 +61,8 @@ def test_bracket_exports_expected_openscad():
     expected = (
         "module c_bracket() {\n"
         "  difference() {\n"
-        "    cube([60, 80, 6]); // size_x=q_w, size_y=q_h, size_z=q_t\n"
-        "    cylinder(h=6, r=2.25); // height=q_t, radius=q_hole_r\n"
+        "    cube([60, 80, 6], center=true); // size_x=q_w, size_y=q_h, size_z=q_t\n"
+        "    cylinder(h=6, r=2.25, center=true); // height=q_t, radius=q_hole_r\n"
         "  }\n"
         "}\n"
         "c_bracket();"
@@ -87,7 +87,7 @@ def test_integral_and_fractional_values_render_cleanly():
     quantities = {q.id: q for q in (_q("a", 60.0), _q("b", 4.5), _q("c", 2.25))}
     geom = GeometryNode(kind="box", params={"size_x": "a", "size_y": "b", "size_z": "c"})
     out = component_to_openscad(Component(id="x", name="x", geometry=geom), quantities)
-    assert "cube([60, 4.5, 2.25]);" in out          # 60 not 60.0
+    assert "cube([60, 4.5, 2.25], center=true);" in out   # 60 not 60.0
 
 
 # --- loud failure (never a guessed number) ------------------------------------

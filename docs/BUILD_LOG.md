@@ -824,3 +824,48 @@ Nicht-Geometrie-Wert passt das Gate; GENESIS erfindet keine Domänenregel.
 über Ausdrücke + Plausibilität (positiv/Bereich/Monotonie/max-Bound) und einen
 deterministischen, rückverfolgbaren OpenSCAD-Export der 3D-Geometrie. Kein Live-Run.
 
+## build123d-Exporter (zweiter CAD-Adapter) + Phase δ (Geometrie-Validierung)  ✅
+
+**Auslöser:** Owner „weiter, mach alles" — gleiche Disziplin, Drift-/Halluzinations-
+Audit pro Aufgabe + Abschluss, keine Live-Runs.
+
+**Modul A — build123d-Exporter (`af39c6e`).** `export/build123d.py` rendert dieselbe
+CSG-Geometrie als build123d-Algebra-Python (`Box(l,w,h)`, `Cylinder(r,h)`, `Sphere(r)`,
+`+`/`-`/`&`, `Pos(x,y,z)*obj` — API aus build123d-Doku belegt). Werte aus quantity_ids,
+Traceability-Kommentar je Komponente, `ExportError` fail-loud. Geteilte Zahlen-
+formatierung `export/numfmt.py` (beide Back-Ends, kein Drift). CLI `--format b123d`.
+9 Tests. *Audit:* Vokabular Single-Source; API belegt; Rest-Risiko: kein OCCT-Binary.
+
+**Modul B — Phase δ, erste Schicht (Geometrie-Soundness).** Spezifikation
+`PHASE_DELTA.md`, Ergebnis `PHASE_DELTA_RESULT.md`. Research: AABB-Algebra
+(*Minimum bounding box*, Wikipedia) — Hüllbox, Überlapp-Region, Achsen-Überlapp-Test.
+- `verification/geometry.py`: `Aabb`, `aabb_of` (zentrierte Primitive: box ±size/2,
+  cylinder Z-Achse, sphere ±r; translate verschiebt; union=Hüllbox; difference=Minuend-
+  Bound; intersection=Überlapp/leer), `overlaps` (Achsentest), `GeometryError` fail-loud.
+- GATE δ `gate_delta`: D-1 `DEGENERATE_GEOMETRY`, D-2 `EMPTY_INTERSECTION`,
+  D-3 `DEAD_OPERATION` (Loch verfehlt Teil), D-4 `EMPTY_GEOMETRY_TREE`. Plus
+  `geometry_envelope` für die Mensch-Ausgabe. CLI zeigt „Geometric validation (δ)".
+- **Kern-Ehrlichkeit (getestet):** AABB ist konservativ → δ meldet **nur beweisbar**
+  tote/leere Operationen (disjunkte Boxen), **keine False Positives**, und **kein
+  Physik-Urteil** (dünne Wand besteht δ; `test_thin_wall_still_passes…`). Ein
+  bestandenes δ ist notwendig, nicht hinreichend.
+- 21 Tests (13 AABB, 8 GATE-δ).
+
+**Drift-Fund im Audit (behoben, root-cause):** δ-AABB nutzt zentrierte Primitive
+(wie build123d), OpenSCAD emittierte aber Ecke/Basis am Ursprung. Inkonsistenz bei
+absoluter Platzierung. Fix: OpenSCAD `cube([...], center=true)` + `cylinder(..., center=true)`
+→ δ/build123d/OpenSCAD teilen eine zentrierte Konvention. 2 Erwartungs-Strings
+aktualisiert, alle Tests grün.
+
+**Selbstkontrolle:**
+- [x] Research-before-edit: build123d-Doku (Algebra/Objects/Sphere), AABB-Algebra.
+- [x] Tests grün inkl. Negativ? **311 passed** (290 + 21 δ; build123d in 290), offline, 0.78 s.
+- [x] Drift je Modul geprüft (grep/Single-Source) — Konventions-Drift gefunden + gefixt.
+- [x] Laut statt still? `ExportError`/`GeometryError`; nie geratene Geometrie.
+- [x] Ehrliche Grenze? δ = Geometrie, kein Physik-Urteil — in Spec §0/§8, RESULT, CLI-Zeile, Test.
+- [x] Doku? PHASE_DELTA(.md/_RESULT.md), VISION-δ-Zeile, README, dieser Eintrag.
+
+**Gesamtstand:** **311 passed** (offline). Pipeline jetzt α→β→γ→δ: Fakt (α),
+Ansatz (β), Bauanleitung mit 6 Wächtern + Ausdrucks-Constraints + 2 CAD-Exporte (γ),
+geometrische Validierung vor dem Bauen (δ, 1. Schicht). Kein Live-Run.
+

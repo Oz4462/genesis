@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import re
 
-from ..core.errors import FormulaError, UnitError
+from ..core.errors import FormulaError, GeometryError, UnitError
 from ..core.interfaces import GateResult, GateFailure
 from ..core.state import (
     CONSTRAINT_KINDS,
@@ -39,6 +39,7 @@ from .derivation import (
     topological_values,
     within_tolerance,
 )
+from .geometry import aabb_of, overlaps
 from .units import Dimension, formula_dimension, parse_unit
 
 
@@ -1089,3 +1090,137 @@ def gate_gamma(
                     )
 
     return GateResult(gate="gamma", passed=not failures, failures=failures)
+
+
+# --- GATE δ -------------------------------------------------------------------
+
+def _walk_geometry_delta(
+    node: GeometryNode,
+    quantities: dict[str, Quantity],
+    component_name: str,
+    failures: list[GateFailure],
+) -> None:
+    """Recurse a CSG tree, flagging only PROVABLY dead/empty operations (D-2/D-3).
+
+    Soundness: a flag is raised only when bounding boxes are disjoint, which
+    means the solids provably do not overlap — never a false positive
+    (PHASE_DELTA.md §0). Overlapping boxes claim nothing.
+    """
+    if node.kind == "difference" and node.children:
+        body = aabb_of(node.children[0], quantities)
+        for tool in node.children[1:]:
+            if not overlaps(body, aabb_of(tool, quantities)):
+                failures.append(
+                    GateFailure(
+                        code="DEAD_OPERATION",
+                        detail=(
+                            f"component {component_name!r}: a difference subtracts a "
+                            f"{tool.kind!r} whose bounding box does not intersect the "
+                            "body — it provably removes nothing (e.g. a hole that "
+                            "misses the part)."
+                        ),
+                    )
+                )
+    if node.kind == "intersection" and len(node.children) >= 2:
+        boxes = [aabb_of(c, quantities) for c in node.children]
+        for i in range(len(boxes)):
+            for j in range(i + 1, len(boxes)):
+                if not overlaps(boxes[i], boxes[j]):
+                    failures.append(
+                        GateFailure(
+                            code="EMPTY_INTERSECTION",
+                            detail=(
+                                f"component {component_name!r}: an intersection combines "
+                                f"a {node.children[i].kind!r} and a {node.children[j].kind!r} "
+                                "whose bounding boxes are disjoint — the result is "
+                                "provably empty."
+                            ),
+                        )
+                    )
+    for child in node.children:
+        _walk_geometry_delta(child, quantities, component_name, failures)
+
+
+def gate_delta(state: RunState) -> GateResult:
+    """GATE δ — deterministic geometric validation of a γ specification.
+
+    Validates the CSG geometry *before any real effort*, claiming only what
+    follows with certainty from axis-aligned bounding boxes (PHASE_DELTA.md §4):
+
+      D-1 DEGENERATE_GEOMETRY   a component's envelope has a non-positive axis.
+      D-2 EMPTY_INTERSECTION    an intersection of provably non-overlapping parts.
+      D-3 DEAD_OPERATION        a difference whose tool provably removes nothing.
+      D-4 EMPTY_GEOMETRY_TREE   a fabricated component reduces to an empty region.
+
+    Honest asymmetry (the whole point, §0): a PASS means "no provably broken
+    geometric defect", NOT "physically valid / manufacturable / strong enough" —
+    δ never claims a physics judgement. A FAIL means "definitely broken". δ never
+    raises a false positive: it only flags disjoint bounding boxes.
+    """
+    spec = state.specification
+    if spec is None:
+        return GateResult(
+            gate="delta",
+            passed=False,
+            failures=[GateFailure(code="NO_SPECIFICATION", detail="No specification to validate.")],
+        )
+
+    quantities = {q.id: q for q in spec.quantities}
+    failures: list[GateFailure] = []
+
+    for comp in spec.components:
+        if comp.geometry is None:
+            continue
+        try:
+            envelope = aabb_of(comp.geometry, quantities)
+        except GeometryError as exc:
+            failures.append(
+                GateFailure(
+                    code="EMPTY_GEOMETRY_TREE",
+                    detail=f"component {comp.name!r}: geometry could not be bounded: {exc}",
+                )
+            )
+            continue
+        if envelope.empty:
+            failures.append(
+                GateFailure(
+                    code="EMPTY_GEOMETRY_TREE",
+                    detail=f"component {comp.name!r}: geometry reduces to a provably empty region.",
+                )
+            )
+        elif envelope.is_degenerate():
+            ex, ey, ez = envelope.extent
+            failures.append(
+                GateFailure(
+                    code="DEGENERATE_GEOMETRY",
+                    detail=(
+                        f"component {comp.name!r}: envelope has a non-positive axis "
+                        f"(extent {ex:g} x {ey:g} x {ez:g}) — no volume to build."
+                    ),
+                )
+            )
+        _walk_geometry_delta(comp.geometry, quantities, comp.name, failures)
+
+    return GateResult(gate="delta", passed=not failures, failures=failures)
+
+
+def geometry_envelope(state: RunState) -> dict[str, tuple[float, float, float]]:
+    """Per-component bounding-box extents (x, y, z) — the δ validation surface
+    shown to the human ('does it fit my build volume?'). Skips components without
+    geometry and any that cannot be bounded (those are δ failures, not envelopes).
+    """
+    spec = state.specification
+    out: dict[str, tuple[float, float, float]] = {}
+    if spec is None:
+        return out
+    quantities = {q.id: q for q in spec.quantities}
+    for comp in spec.components:
+        if comp.geometry is None:
+            continue
+        try:
+            box = aabb_of(comp.geometry, quantities)
+        except GeometryError:
+            continue
+        if not box.empty:
+            out[comp.id] = box.extent
+    return out

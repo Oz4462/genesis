@@ -57,11 +57,13 @@ def _emit(node: GeometryNode, quantities: dict[str, Quantity], depth: int) -> li
             sx, qx = _resolve(node, "size_x", quantities)
             sy, qy = _resolve(node, "size_y", quantities)
             sz, qz = _resolve(node, "size_z", quantities)
-            return [f"{pad}cube([{sx}, {sy}, {sz}]); // size_x={qx}, size_y={qy}, size_z={qz}"]
+            # center=true so OpenSCAD matches the centered-primitive convention
+            # shared by build123d and Phase δ's AABB math (PHASE_DELTA.md §1).
+            return [f"{pad}cube([{sx}, {sy}, {sz}], center=true); // size_x={qx}, size_y={qy}, size_z={qz}"]
         if kind == "cylinder":
             r, qr = _resolve(node, "radius", quantities)
             h, qh = _resolve(node, "height", quantities)
-            return [f"{pad}cylinder(h={h}, r={r}); // height={qh}, radius={qr}"]
+            return [f"{pad}cylinder(h={h}, r={r}, center=true); // height={qh}, radius={qr}"]
         if kind == "sphere":
             r, qr = _resolve(node, "radius", quantities)
             return [f"{pad}sphere(r={r}); // radius={qr}"]

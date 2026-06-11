@@ -8,15 +8,17 @@ Ein Mensch liefert ein Problem oder eine Idee. GENESIS recherchiert, **verifizie
 
 ## Status
 
-**Phase α + β + γ abgeschlossen und beweisbar korrekt — α/β auch live gegen echte Modelle bewiesen.**
+**Phase α + β + γ abgeschlossen und beweisbar korrekt; δ erste Schicht (Geometrie-Validierung) erbracht — α/β auch live gegen echte Modelle bewiesen.**
 
 Die vollständige α-Pipeline (Anti-Halluzination), der β-Lösungsraum und die γ-Spezifikation sind gebaut und getestet: Fakten-Ledger (Quellenzwang), Tool-Adapter (ehrliches Fetch), die Agenten (`scout`, `scholar`, `skeptic`, `conductor`, `synthesizer`, `architect`), Cross-Model-Verifikation, die Gates α, β und γ und die End-to-End-Verdrahtung mit CLI (`--mode report|solution|spec`).
 
 **Neu (Phase γ):** Eine Idee wird zu einer **vollständigen, umsetzbaren Bauanleitung** — Größen mit deklarierter Herkunft, parametrische 3D-Geometrie (CSG), Stückliste, Schritte mit Prüfkriterien, numerisch geprüfte Constraints, Entscheidungsblatt. Die fünf γ-Halluzinationsklassen sind strukturell verhindert (PHASE_GAMMA.md §0): kein Wert ohne wörtlichen Beleg im VERIFIED-Claim, keine LLM-Arithmetik (Code rechnet, GATE γ rechnet unabhängig nach), keine Referenz ins Nichts, keine versteckte Entscheidung, kein Schritt ohne Check — und lieber ehrliche Abstention als eine teilweise/gedriftete Anleitung. Zusätzlich prüft GATE γ die **dimensionale Homogenität** jeder Rechnung (Einheiten als abelsche Gruppe, `verification/units.py`) — der Mars-Climate-Orbiter-Wächter: kg + mm oder eine als Länge deklarierte Fläche werden abgefangen.
 
+**Phase δ (erste Schicht):** „validieren vor dem Bauen", aber nur was **deterministisch beweisbar** ist — keine erfundene Physik. GATE δ prüft die CSG-Geometrie über achsenparallele Bounding-Boxes: ein Loch, das das Teil verfehlt (`DEAD_OPERATION`), ein Schnitt nicht-berührender Teile (`EMPTY_INTERSECTION`), degenerierte Geometrie (`DEGENERATE_GEOMETRY`). Ehrliche Asymmetrie: ein **bestandenes** δ ist notwendig, nicht hinreichend (kein Festigkeits-/Herstellbarkeitsurteil); ein **gescheitertes** δ heißt „definitiv kaputt". Die Demo zeigt die Hüllbox + Status.
+
 ```
 $ python -m pytest tests/ -q
-290 passed
+311 passed
 ```
 
 Alle Tests laufen **ohne einen einzigen LLM-Token und ohne Netzwerk**. Das heißt: Die Garantie „kein Fakt ohne Quelle, keine widerlegte Aussage als Tatsache, Lücken werden als Lücken markiert, im Zweifel Abstention" ist **bewiesen** — und von einem unabhängigen, adversarialen Audit bestätigt (Details: `docs/phases/PHASE_ALPHA_RESULT.md`).
@@ -70,8 +72,9 @@ src/gen/
   verification/gates.py         GATEs α, β, γ — reine, getestete Verifikationslogik (+ Backstops)
   verification/derivation.py    Safe-Evaluator — DERIVED-Werte: Code rechnet, Gate rechnet nach
   verification/units.py         Dimensionsanalyse — Einheiten als abelsche Gruppe (C-15, Mars-Orbiter-Wächter)
+  verification/geometry.py      AABB-Algebra — Phase δ Bounding-Box-Soundness (sound, konservativ)
   verification/cross_model.py   Cross-Model-Pflicht + Confidence-Folding
-  export/openscad.py            CSG-Geometrie -> OpenSCAD-Quelltext (deterministisch, traceable)
+  export/openscad.py            CSG-Geometrie -> OpenSCAD-Quelltext (deterministisch, traceable, zentriert)
   export/build123d.py           CSG-Geometrie -> build123d-Python (Algebra-Modus, OCCT)
   config.py / runner.py / cli.py  Konfiguration, run(question)->Report, `python -m gen`
 sql/001_ledger.sql              Fakten-Ledger; Quellenzwang als DB-Constraint
@@ -84,7 +87,7 @@ Alles dreht sich um den `Claim` (`src/gen/core/state.py`): eine einzelne, prüfb
 
 ## Nächster Schritt
 
-Phase α + β + γ sind als Architektur vollständig bewiesen; α/β sind zusätzlich live (Ollama, Wikipedia, Postgres) verifiziert. Die ehrlichen nächsten Schritte: (1) der γ-Live-Beweis — `--mode spec` gegen lokale Ollama-Modelle fahren und die reale Struktur-/Formulierungsqualität messen (die Garantien gelten unabhängig davon); (2) CAD-Export-Adapter (CSG → OpenSCAD/build123d, PHASE_GAMMA.md §10); (3) externe Discovery-Quellen produktionsreif machen (Semantic-Scholar-API-Key, höfliches Rate-Limiting). Danach: Phase δ (Simulation/Validierung). Siehe `docs/phases/PHASE_GAMMA_RESULT.md` §Methodik.
+Phase α + β + γ sind als Architektur vollständig bewiesen; α/β sind zusätzlich live (Ollama, Wikipedia, Postgres) verifiziert; δ liefert die erste deterministische Validierungs-Schicht (Geometrie). Die CAD-Export-Adapter (OpenSCAD + build123d) sind gebaut. Die ehrlichen nächsten Schritte: (1) der γ/δ-Live-Beweis — `--mode spec` gegen lokale Ollama-Modelle (die Garantien gelten unabhängig davon); (2) weitere δ-Schichten mit echten Modellen (Toleranz/Passung deterministisch, FEM/CFD hinter Adaptern), jede unter demselben Beweis-Standard; (3) externe Discovery-Quellen produktionsreif machen. Siehe `docs/phases/PHASE_DELTA_RESULT.md` und `PHASE_GAMMA_RESULT.md`.
 
 ## Lizenz
 

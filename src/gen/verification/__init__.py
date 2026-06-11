@@ -29,13 +29,27 @@ from .derivation import (
     topological_values,
     within_tolerance,
 )
-from .gates import claim_soundness_failures, gate_alpha, gate_beta, gate_gamma, value_in_text
+from .gates import (
+    claim_soundness_failures,
+    gate_alpha,
+    gate_beta,
+    gate_delta,
+    gate_gamma,
+    geometry_envelope,
+    value_in_text,
+)
+from .geometry import Aabb, aabb_of, overlaps
 from .units import DIMENSIONLESS, Dimension, formula_dimension, parse_unit
 
 __all__ = [
     "gate_alpha",
     "gate_beta",
     "gate_gamma",
+    "gate_delta",
+    "geometry_envelope",
+    "Aabb",
+    "aabb_of",
+    "overlaps",
     "claim_soundness_failures",
     "value_in_text",
     "evaluate_formula",

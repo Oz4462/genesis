@@ -21,7 +21,9 @@ import sys
 from .config import Config, default_config
 from .core.errors import GenesisError
 from .core.state import (
+    Question,
     Report,
+    RunState,
     SolutionReport,
     SourceCandidate,
     Specification,
@@ -36,6 +38,7 @@ from .runner import Dependencies, run, run_solution, run_specification
 from .tools.http import HttpResponse, default_http_get
 from .tools.search import SemanticScholarBackend, WikipediaBackend
 from .verification.cross_model import assert_different_families
+from .verification.gates import gate_delta, geometry_envelope
 
 # --- offline demo world (deterministic) --------------------------------------
 
@@ -454,6 +457,20 @@ def format_specification(spec: Specification) -> str:
             lines.append(f"  • {d.title}: {d.choice} — {d.rationale}")
         lines.append("")
 
+    if spec.components:
+        # Phase δ: deterministic geometric validation (envelope + provable defects)
+        lines.append("Geometric validation (δ — geometry only, no physics judgement):")
+        envelope = geometry_envelope(_spec_state(spec))
+        for cid, (ex, ey, ez) in envelope.items():
+            lines.append(f"  • {cid} envelope: {ex:g} x {ey:g} x {ez:g} (bounding box)")
+        result = gate_delta(_spec_state(spec))
+        if result.passed:
+            lines.append("  • status: no provably broken geometry (PASS — necessary, not sufficient)")
+        else:
+            for f in result.failures:
+                lines.append(f"  • {f.code}: {f.detail}")
+        lines.append("")
+
     if not spec.components and not spec.steps:
         lines.append("Specification: none asserted — nothing could be grounded.")
         lines.append("")
@@ -470,6 +487,14 @@ def format_specification(spec: Specification) -> str:
             lines.append(f"    {cid}")
     lines.append("=" * 64)
     return "\n".join(lines)
+
+
+def _spec_state(spec: Specification) -> RunState:
+    """Wrap a spec in a minimal RunState so the δ gate (which reads
+    state.specification) can validate it for the CLI surface."""
+    st = RunState(question=Question(raw=spec.idea, run_id=spec.run_id))
+    st.specification = spec
+    return st
 
 
 def render_spec(spec: Specification, fmt: str) -> str:

@@ -44,9 +44,11 @@ tests/                    Tests, inkl. Gate-Akzeptanztests
 ```
 
 ## Aktueller Fokus
-**Phase α + β + γ abgeschlossen** (232 Tests offline, α/β zusätzlich live bewiesen).
-γ: Idee → vollständige Spezifikation (Quantities mit Herkunftszwang, CSG-Geometrie,
-BOM, Schritte mit Checks, Constraints, Entscheidungsblatt) hinter GATE γ —
-fünf Halluzinationsklassen strukturell verhindert (`docs/phases/PHASE_GAMMA.md` §0).
-Nächste ehrliche Schritte: γ-Live-Beweis (`--mode spec` gegen Ollama),
-CAD-Export-Adapter (CSG → OpenSCAD/build123d), danach Phase δ (Simulation).
+**Phase α + β + γ abgeschlossen + δ erste Schicht** (311 Tests offline, α/β live bewiesen).
+γ: Idee → vollständige Spezifikation hinter GATE γ (6 Wächter: Wert-Wortlaut,
+Code-Arithmetik, Referenz, Entscheidung, Vollständigkeit, dimensionale Homogenität),
+Ausdrucks-Constraints + Plausibilität, 2 CAD-Exporte (OpenSCAD + build123d).
+δ: deterministische Geometrie-Validierung (GATE δ, AABB) — tote/leere Operationen,
+ohne erfundenes Physik-Urteil (`docs/phases/PHASE_DELTA.md`).
+Nächste ehrliche Schritte: γ/δ-Live-Beweis (`--mode spec` gegen Ollama, vom Owner
+zurückgestellt), weitere δ-Schichten mit echten Modellen (Toleranz/FEM hinter Adaptern).
