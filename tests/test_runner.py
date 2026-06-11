@@ -107,6 +107,22 @@ def test_cli_assess_mode_prints_the_honest_verdict(capsys):
     assert "constraints consistent: True" in out
 
 
+def test_cli_demo_spec_appends_the_quality_assessment(capsys):
+    # a gamma spec run (the same code path as a live `--mode spec`) now surfaces the
+    # wired engine's honest verdict as a footer, not just the raw spec.
+    rc = main(["--demo", "--mode", "spec"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "Quality assessment" in out and "constraints consistent:" in out
+
+
+def test_cli_demo_spec_scad_format_stays_clean(capsys):
+    # machine formats must NOT get the human assessment footer (it would corrupt the source)
+    rc = main(["--demo", "--mode", "spec", "--format", "scad"])
+    out = capsys.readouterr().out
+    assert rc == 0 and "Quality assessment" not in out
+
+
 def test_cli_real_mode_same_family_fails_closed_before_any_call(capsys):
     # Generator and verifier resolve to the same family -> the cross-model guard
     # must abort BEFORE any network/LLM call (build_live wires, it never calls).

@@ -649,6 +649,32 @@ def render_spec(spec: Specification, fmt: str) -> str:
     return format_specification(spec)
 
 
+def format_assessment_footer(spec) -> str:
+    """A concise honest quality verdict appended to a text-format γ spec: the wired
+    engine's overall status plus the physics / constraint / clarification signals.
+    Deterministic, offline — derived from the spec alone (no extra model call)."""
+    from .pipeline import assess_specification
+
+    a = assess_specification(spec)
+    lines = [
+        "",
+        "Quality assessment (the wired engine's honest verdict):",
+        f"  overall:                {a.overall}",
+        f"  physics:                checked={a.physics_checked} ok={a.physics_ok} "
+        f"({len(a.physics_checks)} checks, {len(a.physics_gaps)} gaps)",
+        f"  constraints consistent: {a.constraints_consistent}",
+    ]
+    if a.needs_clarification:
+        lines.append(f"  clarification needed:   {len(a.clarification_questions)} question(s)")
+        for q in a.clarification_questions[:5]:
+            lines.append(f"     - {q.question}")
+    if a.physics_gaps:
+        lines.append("  physics gaps (indicated but unrunnable):")
+        for gap in a.physics_gaps[:5]:
+            lines.append(f"     - {gap}")
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     # The report header contains 'α'; a default Windows console (cp1252) cannot
     # encode it and print() would crash. Make stdout UTF-8 so the CLI is robust
@@ -796,6 +822,8 @@ def main(argv: list[str] | None = None) -> int:
                                   checkpoint_dir=args.checkpoint_dir)
             )
             print(render_spec(spec, args.format))
+            if args.format == "text":
+                print(format_assessment_footer(spec))
         return 0
 
     if not args.question:
@@ -821,6 +849,8 @@ def main(argv: list[str] | None = None) -> int:
                                   checkpoint_dir=args.checkpoint_dir)
             )
             output = render_spec(spec, args.format)
+            if args.format == "text":
+                output += "\n" + format_assessment_footer(spec)
     except GenesisError as exc:
         # Honest abort: misconfiguration (same family), dead Ollama server, or a
         # systemically failing backend — never a fabricated or empty "success".
