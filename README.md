@@ -16,16 +16,17 @@ Die vollständige α-Pipeline (Anti-Halluzination), der β-Lösungsraum und die 
 
 ```
 $ python -m pytest tests/ -q
-257 passed
+281 passed
 ```
 
 Alle Tests laufen **ohne einen einzigen LLM-Token und ohne Netzwerk**. Das heißt: Die Garantie „kein Fakt ohne Quelle, keine widerlegte Aussage als Tatsache, Lücken werden als Lücken markiert, im Zweifel Abstention" ist **bewiesen** — und von einem unabhängigen, adversarialen Audit bestätigt (Details: `docs/phases/PHASE_ALPHA_RESULT.md`).
 
 ```
-$ python -m gen --demo                 # deterministischer α-Lauf, offline
-$ python -m gen --demo --mode spec     # deterministische γ-Bauanleitung, offline
-$ python -m gen "Frage..."             # Live-α: lokale Ollama-Modelle + Wikipedia
-$ python -m gen --mode spec "Idee..."  # Live-γ: Idee -> belegte Spezifikation
+$ python -m gen --demo                       # deterministischer α-Lauf, offline
+$ python -m gen --demo --mode spec           # deterministische γ-Bauanleitung, offline
+$ python -m gen --demo --mode spec --format scad  # CSG-Geometrie als OpenSCAD-Quelltext
+$ python -m gen "Frage..."                   # Live-α: lokale Ollama-Modelle + Wikipedia
+$ python -m gen --mode spec "Idee..."        # Live-γ: Idee -> belegte Spezifikation
 ```
 
 **Live-Betrieb (neu):** Ein realer `OllamaLLM`-Adapter (Generator- und Verifier-Familie getrennt, vor jedem Aufruf erzwungen), ein keyloses `WikipediaBackend` als Discovery-Workhorse und der `PostgresLedgerStore` sind angebunden. Der Postgres-Ledger ist gegen eine echte PostgreSQL-Instanz verifiziert — alle drei Provenance-Schichten greifen, inklusive des DB-Triggers (`scripts/postgres_smoke.py`). Reale End-to-End-Läufe gegen lokale Ollama-Modelle (Generator ≠ Verifier-Familie) belegen beide Seiten der Garantie empirisch, ohne Cloud-Key (`scripts/live_smoke.py`):
@@ -69,6 +70,7 @@ src/gen/
   verification/derivation.py    Safe-Evaluator — DERIVED-Werte: Code rechnet, Gate rechnet nach
   verification/units.py         Dimensionsanalyse — Einheiten als abelsche Gruppe (C-15, Mars-Orbiter-Wächter)
   verification/cross_model.py   Cross-Model-Pflicht + Confidence-Folding
+  export/openscad.py            CSG-Geometrie -> OpenSCAD-Quelltext (deterministisch, traceable)
   config.py / runner.py / cli.py  Konfiguration, run(question)->Report, `python -m gen`
 sql/001_ledger.sql              Fakten-Ledger; Quellenzwang als DB-Constraint
 tests/                          102 Tests, inkl. Gate-Akzeptanz & 4 Frageklassen

@@ -534,6 +534,119 @@ def test_happy_state_derivations_are_dimensionally_clean():
     assert "DIMENSION_MISMATCH" not in _codes(state)
 
 
+# --- Maß (C-13): constraints over arithmetic expressions -------------------------
+
+def test_expression_constraint_holds():
+    # "wall thickness >= 0.1 * width": q_t=6 >= 0.1*60=6 -> holds (eq boundary)
+    state = _happy_state()
+    state.specification.constraints.append(
+        Constraint(id="k_wall", kind="ge", left="q_t", right="0.1 * q_w",
+                   reason="wall must be at least a tenth of the width")
+    )
+    result = gate_gamma(state)
+    assert result.passed, [f"{f.code}: {f.detail}" for f in result.failures]
+
+
+def test_expression_constraint_violation():
+    state = _happy_state()
+    # q_t=6 must be >= 0.2*q_w=12 -> violated
+    state.specification.constraints.append(
+        Constraint(id="k_wall", kind="ge", left="q_t", right="0.2 * q_w", reason="x")
+    )
+    assert "CONSTRAINT_VIOLATION" in _codes(state)
+
+
+def test_expression_constraint_unknown_id_is_dangling():
+    state = _happy_state()
+    state.specification.constraints.append(
+        Constraint(id="k_x", kind="ge", left="q_t", right="0.1 * q_ghost", reason="x")
+    )
+    assert "DANGLING_REFERENCE" in _codes(state)
+
+
+def test_expression_constraint_dimension_mismatch():
+    state = _happy_state()
+    # comparing a thickness (mm) to a load expression (kg) -> dimensions differ
+    state.specification.constraints.append(
+        Constraint(id="k_x", kind="le", left="q_t", right="q_load * 2", reason="x")
+    )
+    assert "UNIT_MISMATCH" in _codes(state)
+
+
+def test_expression_constraint_mixes_units_of_same_dimension():
+    state = _happy_state()
+    spec = state.specification
+    # q_t is mm; add a length in cm and compare -> same dimension, different unit
+    spec.quantities.append(_decision_q("q_cm", "length in cm", 1.0, "cm"))
+    spec.constraints.append(
+        Constraint(id="k_mix", kind="ge", left="q_t", right="q_cm", reason="x")
+    )
+    assert "UNIT_MISMATCH" in _codes(state)
+
+
+def test_internal_incommensurable_addition_in_constraint_fails():
+    state = _happy_state()
+    # left expression itself adds kg to mm -> dimensional nonsense inside the expr
+    state.specification.constraints.append(
+        Constraint(id="k_x", kind="ge", left="q_load + q_t", right="q_design", reason="x")
+    )
+    assert "DIMENSION_MISMATCH" in _codes(state)
+
+
+# --- Plausibility constraints (declared, never invented) -------------------------
+
+def test_positivity_plausibility_constraint():
+    state = _happy_state()
+    state.specification.constraints.append(
+        Constraint(id="k_pos", kind="gt", left="q_t", right="0",
+                   reason="thickness must be positive")
+    )
+    assert gate_gamma(state).passed
+    # violate it: a negative thickness is now caught because the human declared it
+    state.specification.quantities[
+        next(i for i, q in enumerate(state.specification.quantities) if q.id == "q_t")
+    ].value = -1.0
+    assert "CONSTRAINT_VIOLATION" in _codes(state)
+
+
+def test_range_and_monotonic_plausibility():
+    state = _happy_state()
+    spec = state.specification
+    spec.quantities.append(_decision_q("q_min", "min width", 40.0, "mm"))
+    spec.quantities.append(_decision_q("q_max", "max width", 80.0, "mm"))
+    spec.constraints.append(Constraint(id="k_lo", kind="ge", left="q_w", right="q_min", reason="range lo"))
+    spec.constraints.append(Constraint(id="k_hi", kind="le", left="q_w", right="q_max", reason="range hi"))
+    # monotonic: height >= width >= thickness
+    spec.constraints.append(Constraint(id="k_m1", kind="ge", left="q_h", right="q_w", reason="mono"))
+    spec.constraints.append(Constraint(id="k_m2", kind="ge", left="q_w", right="q_t", reason="mono"))
+    assert gate_gamma(state).passed
+
+
+def test_max_bound_constraint():
+    state = _happy_state()
+    # wall thickness must be at least max(2 mm, 0.1 * width): 6 >= max(2, 6) -> holds
+    state.specification.constraints.append(
+        Constraint(id="k_wall", kind="ge", left="q_t", right="max(2, 0.1 * q_w)",
+                   reason="wall >= max(2mm, a tenth of width)")
+    )
+    result = gate_gamma(state)
+    assert result.passed, [f"{f.code}: {f.detail}" for f in result.failures]
+
+
+def test_gate_never_invents_a_plausibility_rule():
+    # THE anti-hallucination guarantee for plausibility: with NO declared
+    # constraint, the gate must NOT silently impose "thickness > 0" or any other
+    # domain rule. GENESIS does not invent facts — only checks what was declared.
+    state = _happy_state()
+    spec = state.specification
+    spec.constraints = []                                   # remove all constraints
+    # a free (non-geometry) decision quantity with an implausible value
+    spec.quantities.append(_decision_q("q_free", "unconstrained margin", -5.0, "mm"))
+    result = gate_gamma(state)
+    # the gate passes: it invented no positivity rule for q_free
+    assert result.passed, [f"{f.code}: {f.detail}" for f in result.failures]
+
+
 # --- β-Kette (C-14): anchoring ----------------------------------------------------
 
 def test_content_without_anchor_fails():

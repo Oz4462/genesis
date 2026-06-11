@@ -135,6 +135,18 @@ def test_unit_conversion_is_dimensionally_consistent():
     assert formula_dimension("q_cm * 10", dims) == parse_unit("mm")
 
 
+def test_min_max_require_homogeneous_args():
+    # max(2mm-floor, 0.1 * width) — both length -> result length
+    dims = {"q_floor": parse_unit("mm"), "q_w": parse_unit("mm")}
+    assert formula_dimension("max(q_floor, 0.1 * q_w)", dims) == parse_unit("mm")
+
+
+def test_min_max_over_incommensurable_dims_raises():
+    dims = {"q_mass": parse_unit("kg"), "q_len": parse_unit("mm")}
+    with pytest.raises(UnitError):
+        formula_dimension("max(q_mass, q_len)", dims)
+
+
 def test_unknown_formula_input_raises():
     with pytest.raises(UnitError):
         formula_dimension("ghost * 2", {"a": parse_unit("m")})

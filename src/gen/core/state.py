@@ -355,11 +355,15 @@ CONSTRAINT_KINDS: frozenset[str] = frozenset({"le", "lt", "ge", "gt", "eq"})
 
 @dataclass
 class Constraint:
-    """A numerically checked compatibility condition between two quantities.
+    """A numerically checked compatibility condition between two expressions.
 
-    e.g. hole diameter >= screw diameter. GATE γ evaluates it (C-13) and
-    requires matching units (C-12). `reason` states why it must hold — for the
-    human, not a fact.
+    `left` and `right` are arithmetic EXPRESSIONS over quantity_ids (a bare id
+    is the trivial case, so old two-quantity constraints are unchanged), e.g.
+    ``"q_hole_d" >= "q_screw_d"``, ``"q_t" >= "0.1 * q_w"``, or a plausibility
+    bound ``"q_t" > "0"``. GATE γ resolves every referenced id (C-8), requires
+    both sides to be dimensionally comparable (C-12/C-15; a pure numeric literal
+    side is dimension-agnostic), and evaluates the comparison (C-13). `reason`
+    states why it must hold — for the human, not a fact.
     """
 
     id: str

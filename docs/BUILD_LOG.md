@@ -776,3 +776,51 @@ dimensionale Unsinnigkeit fiel komplett durch. Mars-Orbiter-Klasse, ungefangen.
 Deklaration, Vollständigkeit/Baubarkeit, **dimensionale Homogenität**. Kein
 Live-Run (Owner-Vorgabe) — alle Garantien offline beweisbar.
 
+## Phase γ — drei Module: Ausdrucks-Constraints + OpenSCAD-Export + Plausibilität  ✅
+
+**Auslöser:** Owner „1-2-3, aber bei jeder Aufgabe und jedem Abschluss Drift- und
+Halluzinations-Prüfung." Strikt sequenziell gebaut (finish-or-fail), je mit
+Selbst-Audit. Keine Live-Runs.
+
+**Modul 1 — Constraints über arithmetische Ausdrücke.** `Constraint.left/right`
+sind jetzt Ausdrücke über quantity_ids (bare id = trivial → 100% backward-kompatibel).
+GATE γ C-13 generalisiert: Referenzen aufgelöst (C-8), beide Seiten dimensional
+verglichen (C-12/C-15; reine Literal-Seite dimension-agnostisch), Vergleich
+ausgewertet. Neue Helfer `referenced_names`/`is_numeric_literal` im Safe-AST.
+Beispiel `q_t ge 0.1 * q_w`. *Drift-Audit:* grep bestätigt kein Code-Pfad behandelt
+left/right mehr als strikte Id (cli/runner serialisieren nur Strings). *Halluzination:*
+nur stdlib `ast` + eigene Evaluatoren.
+
+**Modul 2 — CSG → OpenSCAD-Exporter.** Neues `export/`-Paket. `specification_to_openscad`/
+`component_to_openscad` rendern den GeometryNode-Baum deterministisch (`cube`/`cylinder`/
+`sphere`/`union|difference|intersection`/`translate`; Syntax aus OpenSCAD-Sprachhandbuch
+recherchiert). Werte aus quantity_ids aufgelöst + als Kommentar annotiert (Traceability).
+`ExportError` (neu in errors.py) bei unbekannten kinds/fehlenden Params/absenten
+Quantities — nie geraten. CLI `--format scad`. *Drift-Audit:* Geometrie-Vokabular =
+Single Source in `state.py`, von Gate + Exporter geteilt. *Halluzination:* OpenSCAD-Syntax
+belegt; Zahlen nie geraten. *Ehrliche Grenze:* noch nicht durch echtes OpenSCAD-Binary
+gerendert (keins in der Umgebung).
+
+**Modul 3 — Plausibilitäts-Constraints (deklariert, nie erfunden).** Ausdrucks-Grammatik
+um `min(...)`/`max(...)` erweitert (die EINZIGEN erlaubten Calls — `__import__`/`pow`/
+Attribut-Calls bleiben abgelehnt, getestet). `min`/`max` dimensional homogen, Literal-
+Argumente dimension-agnostisch (engineering-Bound `q_t ge max(2, 0.1*q_w)`). Deklarierbar:
+Positivität, Bereich, Monotonie-Kette. **Kern-Garantie als Test:**
+`test_gate_never_invents_a_plausibility_rule` — ein unconstrained, implausibler
+Nicht-Geometrie-Wert passt das Gate; GENESIS erfindet keine Domänenregel.
+
+**Selbstkontrolle (je Modul + gesamt):**
+- [x] Research-before-edit: OpenSCAD-Sprachhandbuch (cube/cylinder/sphere/translate/
+      difference), Modul-1/3 reuse der belegten Safe-AST-Grammatik. Nichts erfunden.
+- [x] Tests grün inkl. Negativtests? **281 passed** (257 + 24: 9 OpenSCAD, 6
+      Ausdruck-Constraints, 5 min/max, 4 Plausibilität/Anti-Invention), offline, 0.77 s.
+- [x] Drift je Modul geprüft (grep/Single-Source) — sauber.
+- [x] Laut statt still? `ExportError`/`FormulaError`/`UnitError`; nie geratene Ausgabe.
+- [x] Keine Regression? Alle 257 vorherigen unverändert; Demo `--mode spec` +
+      `--format scad` laufen.
+- [x] Doku? PHASE_GAMMA §5/§10, PHASE_GAMMA_RESULT (Abschnitte), README, dieser Eintrag.
+
+**Gesamtstand:** **281 passed** (offline). γ liefert jetzt zusätzlich: Constraints
+über Ausdrücke + Plausibilität (positiv/Bereich/Monotonie/max-Bound) und einen
+deterministischen, rückverfolgbaren OpenSCAD-Export der 3D-Geometrie. Kein Live-Run.
+

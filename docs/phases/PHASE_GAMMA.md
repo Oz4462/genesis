@@ -284,7 +284,7 @@ existieren und verankert sein. Defense-in-depth: Das Gate vertraut dem
 | C-10 | `INCOMPLETE_STEP` | Jeder Schritt hat nicht-leere `action` und nicht-leeren `check`; Schritt-Indizes eindeutig; BOM-`count` ≥ 1. | Vollständigkeit |
 | C-11 | `UNBUILDABLE_ORDER` | Jede Step-`input` ist zum Schrittzeitpunkt verfügbar (BomItem oder Output eines früheren Schritts); kein Artefakt doppelt definiert. | Vollständigkeit |
 | C-12 | `UNIT_MISMATCH` | Jede Quantity trägt eine nicht-leere Einheit (`"1"` für dimensionslos); Constraints vergleichen nur gleiche Einheiten. | Maß |
-| C-13 | `CONSTRAINT_VIOLATION` | Jede deklarierte Constraint hält numerisch (le/lt/ge/gt/eq; eq mit `derivation_tolerance`). | Maß |
+| C-13 | `CONSTRAINT_VIOLATION` | Jede deklarierte Constraint hält numerisch (le/lt/ge/gt/eq; eq mit `derivation_tolerance`). `left`/`right` sind **arithmetische Ausdrücke** über quantity_ids (bare id = trivial), z. B. `q_t ge 0.1 * q_w` oder Plausibilität `q_t gt 0`. Referenzen werden aufgelöst (C-8), Seiten dimensional verglichen (C-12/C-15; eine reine Literal-Seite ist dimension-agnostisch). | Maß |
 | C-15 | `DIMENSION_MISMATCH` | Jede DERIVED-Quantity ist **dimensional homogen**: ihre Formel addiert/subtrahiert nur dimensionsgleiche Größen, und die aus den Input-Einheiten errechnete Dimension stimmt mit der deklarierten Einheit überein. Einheiten als abelsche Gruppe (`verification/units.py`); unabhängig vom Zahlen-Nachrechnen (C-6). Fängt die Mars-Climate-Orbiter-Klasse (kg + mm; Fläche als Länge deklariert). | Maß |
 | C-14 | `SPEC_NOT_ANCHORED` | Behauptet die Spezifikation Inhalt (Komponenten ODER Schritte), muss `approach_id` auf einen existierenden, verankerten Approach des Laufs zeigen. | β-Kette |
 
@@ -414,9 +414,37 @@ phase_gamma:
   Einheit. Der `architect` droppt dimensional inkonsistente Größen vorab. Fängt
   die Mars-Climate-Orbiter-Klasse. Quellen unten.
 
+**Erledigt (war zuvor offen):**
+- **CSG-Export nach OpenSCAD — GEBAUT.** `export/openscad.py` rendert den
+  GeometryNode-Baum deterministisch zu OpenSCAD-Quelltext (`cube([x,y,z])`,
+  `cylinder(h=,r=)`, `sphere(r=)`, `union/difference/intersection{}`,
+  `translate([..]){}` — Syntax aus dem OpenSCAD-Sprachhandbuch). Jeder Wert wird
+  aus seiner quantity_id aufgelöst und mit ihr als Kommentar annotiert
+  (Traceability bis zum Ledger). Unbekannte kinds / fehlende Params / absente
+  Quantities → `ExportError` (laut, nie eine geratene Zahl). CLI:
+  `python -m gen --demo --mode spec --format scad`. Geometrie-Vokabular ist
+  Single Source of Truth in `core/state.py` (Gate + Exporter teilen es).
+  **Ehrliche Grenze:** Die Ausgabe ist syntaktisch aus der Doku belegt und
+  strukturell getestet (exakter String-Vergleich), aber noch **nicht** durch ein
+  echtes OpenSCAD-Binary gerendert (kein OpenSCAD in dieser Umgebung) — das ist
+  der reale Dependency-Check für den Live-Schritt.
+
+**Erledigt — Plausibilität & Ausdrucks-Algebra (deklariert, nie erfunden):**
+- Constraints sind **arithmetische Ausdrücke** über quantity_ids inkl. Literalen
+  und `min(...)`/`max(...)` (die einzigen erlaubten Calls; alles andere, z. B.
+  `__import__`, bleibt abgelehnt). Damit deklarierbar: Positivität (`q_t gt 0`),
+  Bereich (`ge`/`le`-Paar), Monotonie (Kette), engineering-Bounds
+  (`q_t ge max(2, 0.1 * q_w)`). `min`/`max` sind dimensional homogen (Literal-
+  Argumente sind dimension-agnostisch wie eine Literal-Seite).
+- **Anti-Halluzinations-Garantie (getestet):** Das Gate prüft nur **deklarierte**
+  Plausibilität — es **erfindet nie** eine Domänenregel. Ein unconstrained, sogar
+  implausibler Nicht-Geometrie-Wert passt das Gate (GENESIS erfindet keine Fakten;
+  `test_gate_never_invents_a_plausibility_rule`). Geometrie-Maße bleiben
+  strukturell > 0 (C-9) — das ist Validität, keine Domänenbehauptung.
+
 **Bewusst offen (nicht blockierend):**
-- Konkreter CAD-Export (OpenSCAD-Text vs. build123d-Python) — hinter einem
-  Adapter; die CSG-Struktur (§3.3) ist auf beide abbildbar. Live-Schritt.
+- build123d-Python-Export als zweiter Adapter — die CSG-Struktur (§3.3) ist auch
+  darauf abbildbar.
 - **Magnitude/Skalen-Korrektheit innerhalb einer Dimension.** C-15 fängt
   *Dimensions*-Fehler (kg + mm, Fläche-als-Länge), **nicht** falsche Skalenfaktoren
   derselben Dimension (cm→mm via `*100` statt `*10` bleibt dimensional valide).

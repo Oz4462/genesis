@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import re
 
-from ..core.errors import UnitError
+from ..core.errors import FormulaError, UnitError
 from ..core.interfaces import GateResult, GateFailure
 from ..core.state import (
     CONSTRAINT_KINDS,
@@ -31,7 +31,14 @@ from ..core.state import (
     RunState,
     ValueOrigin,
 )
-from .derivation import DEFAULT_TOLERANCE, topological_values, within_tolerance
+from .derivation import (
+    DEFAULT_TOLERANCE,
+    evaluate_formula,
+    is_numeric_literal,
+    referenced_names,
+    topological_values,
+    within_tolerance,
+)
 from .units import Dimension, formula_dimension, parse_unit
 
 
@@ -489,7 +496,9 @@ def gate_gamma(
       Drift        C-8 DANGLING_REFERENCE (incl. duplicate ids),
                    C-9 INVALID_GEOMETRY
       Vollständig  C-10 INCOMPLETE_STEP, C-11 UNBUILDABLE_ORDER
-      Maß          C-12 UNIT_MISMATCH, C-13 CONSTRAINT_VIOLATION,
+      Maß          C-12 UNIT_MISMATCH, C-13 CONSTRAINT_VIOLATION (constraints
+                   are arithmetic expressions over quantity_ids, e.g.
+                   "q_t >= 0.1 * q_w" or "q_t > 0"),
                    C-15 DIMENSION_MISMATCH (derivations are dimensionally
                    homogeneous; the Mars-Climate-Orbiter guard, Kennedy 2009)
       β-Kette      C-14 SPEC_NOT_ANCHORED
@@ -568,6 +577,18 @@ def gate_gamma(
                 )
             )
         bom_ids.add(item.id)
+
+    # Unit -> Dimension cache, shared by the constraint section (C-13) and the
+    # derivation dimensional check (C-15). Returns None for an unparseable unit.
+    unit_dim_cache: dict[str, Dimension | None] = {}
+
+    def _dim_of_unit(unit: str) -> Dimension | None:
+        if unit not in unit_dim_cache:
+            try:
+                unit_dim_cache[unit] = parse_unit(unit)
+            except UnitError:
+                unit_dim_cache[unit] = None
+        return unit_dim_cache[unit]
 
     # --- Wert: C-1..C-5 over quantities ----------------------------------------
     for q in quantities.values():
@@ -731,18 +752,8 @@ def gate_gamma(
         for cid in item.grounding:
             check_claim_ref(cid, f"BOM item {item.id!r}")
 
-    for constraint in spec.constraints:
-        for side, qid in (("left", constraint.left), ("right", constraint.right)):
-            if qid not in quantities:
-                failures.append(
-                    GateFailure(
-                        code="DANGLING_REFERENCE",
-                        detail=(
-                            f"constraint {constraint.id!r} {side} references unknown "
-                            f"quantity {qid!r}"
-                        ),
-                    )
-                )
+    # (constraint reference resolution is handled in the unified constraint
+    #  section below, since left/right are now arithmetic expressions, C-13)
 
     # --- Vollständigkeit: C-10/C-11 over the steps --------------------------------
     seen_indexes: set[int] = set()
@@ -828,22 +839,16 @@ def gate_gamma(
                 )
             )
 
+    # --- Maß: C-13 constraints over arithmetic EXPRESSIONS ------------------------
+    # left/right are arithmetic expressions over quantity_ids (a bare id is the
+    # trivial case — fully backward compatible). This lets a spec declare bounds
+    # like "wall thickness >= 0.1 * width" or "q_t > 0" (plausibility). Every
+    # referenced id must resolve (C-8), both sides must be dimensionally
+    # comparable (C-12/C-15, with a literal side being dimension-agnostic), and
+    # the comparison must hold numerically (C-13).
+    value_bindings = {q.id: float(q.value) for q in quantities.values()}
+
     for constraint in spec.constraints:
-        left = quantities.get(constraint.left)
-        right = quantities.get(constraint.right)
-        if left is None or right is None:
-            continue  # DANGLING_REFERENCE already recorded above
-        if left.unit.strip() != right.unit.strip():
-            failures.append(
-                GateFailure(
-                    code="UNIT_MISMATCH",
-                    detail=(
-                        f"constraint {constraint.id!r} compares {left.unit!r} with "
-                        f"{right.unit!r} — units must match."
-                    ),
-                )
-            )
-            continue
         if constraint.kind not in CONSTRAINT_KINDS:
             failures.append(
                 GateFailure(
@@ -852,7 +857,93 @@ def gate_gamma(
                 )
             )
             continue
-        lv, rv = float(left.value), float(right.value)
+
+        # resolve referenced ids in both expressions (C-8)
+        try:
+            refs = referenced_names(constraint.left) | referenced_names(constraint.right)
+        except FormulaError as exc:
+            failures.append(
+                GateFailure(
+                    code="DANGLING_REFERENCE",
+                    detail=f"constraint {constraint.id!r} has an unparseable expression: {exc}",
+                )
+            )
+            continue
+        missing = sorted(r for r in refs if r not in quantities)
+        if missing:
+            for r in missing:
+                failures.append(
+                    GateFailure(
+                        code="DANGLING_REFERENCE",
+                        detail=f"constraint {constraint.id!r} references unknown quantity {r!r}",
+                    )
+                )
+            continue
+
+        # dimensional comparability (C-12/C-15) with a literal-side exception
+        ref_dims = {r: _dim_of_unit(quantities[r].unit) for r in refs}
+        if any(d is None for d in ref_dims.values()):
+            failures.append(
+                GateFailure(
+                    code="UNIT_MISMATCH",
+                    detail=f"constraint {constraint.id!r} references a quantity with an unparseable unit.",
+                )
+            )
+            continue
+        # scale-mixing guard: same dimension must use one unit string (no m vs cm)
+        by_dim: dict[Dimension, set[str]] = {}
+        for r in refs:
+            by_dim.setdefault(ref_dims[r], set()).add(quantities[r].unit.strip())  # type: ignore[arg-type]
+        mixed = [units for units in by_dim.values() if len(units) > 1]
+        if mixed:
+            failures.append(
+                GateFailure(
+                    code="UNIT_MISMATCH",
+                    detail=(
+                        f"constraint {constraint.id!r} mixes different units of the same "
+                        f"dimension ({sorted(next(iter(mixed)))}) — convert first."
+                    ),
+                )
+            )
+            continue
+
+        left_literal = is_numeric_literal(constraint.left)
+        right_literal = is_numeric_literal(constraint.right)
+        try:
+            left_dim = formula_dimension(constraint.left, ref_dims)  # type: ignore[arg-type]
+            right_dim = formula_dimension(constraint.right, ref_dims)  # type: ignore[arg-type]
+        except UnitError as exc:
+            failures.append(
+                GateFailure(
+                    code="DIMENSION_MISMATCH",
+                    detail=f"constraint {constraint.id!r}: {exc}",
+                )
+            )
+            continue
+        if not (left_literal or right_literal) and left_dim != right_dim:
+            failures.append(
+                GateFailure(
+                    code="UNIT_MISMATCH",
+                    detail=(
+                        f"constraint {constraint.id!r} compares {left_dim.render()} with "
+                        f"{right_dim.render()} — dimensions must match."
+                    ),
+                )
+            )
+            continue
+
+        # numeric evaluation (C-13)
+        try:
+            lv = evaluate_formula(constraint.left, value_bindings)
+            rv = evaluate_formula(constraint.right, value_bindings)
+        except FormulaError as exc:
+            failures.append(
+                GateFailure(
+                    code="CONSTRAINT_VIOLATION",
+                    detail=f"constraint {constraint.id!r} could not be evaluated: {exc}",
+                )
+            )
+            continue
         holds = {
             "le": lv <= rv,
             "lt": lv < rv,
@@ -865,8 +956,8 @@ def gate_gamma(
                 GateFailure(
                     code="CONSTRAINT_VIOLATION",
                     detail=(
-                        f"constraint {constraint.id!r} violated: {constraint.left}="
-                        f"{lv} {constraint.kind} {constraint.right}={rv} "
+                        f"constraint {constraint.id!r} violated: ({constraint.left})="
+                        f"{lv} {constraint.kind} ({constraint.right})={rv} "
                         f"({constraint.reason})"
                     ),
                 )
@@ -877,16 +968,7 @@ def gate_gamma(
     # right NUMBER yet be dimensional nonsense (kg + mm), or an area declared as a
     # length. Dimensional analysis is "a first check on the correctness of an
     # equation" (Kennedy 2009); it guards the Mars-Climate-Orbiter failure class.
-    unit_dim_cache: dict[str, Dimension | None] = {}
-
-    def _dim_of_unit(unit: str) -> Dimension | None:
-        if unit not in unit_dim_cache:
-            try:
-                unit_dim_cache[unit] = parse_unit(unit)
-            except UnitError:
-                unit_dim_cache[unit] = None
-        return unit_dim_cache[unit]
-
+    # (_dim_of_unit is defined once near the top of gate_gamma and shared here.)
     for q in quantities.values():
         if q.origin is not ValueOrigin.DERIVED or q.derivation is None:
             continue

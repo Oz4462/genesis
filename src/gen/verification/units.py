@@ -243,4 +243,39 @@ def _dim_node(node: ast.AST, formula: str, dims: dict[str, Dimension]) -> Dimens
                 f"{right.render()} — incommensurable"
             )
         return left
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in ("min", "max")
+        and not node.keywords
+        and node.args
+    ):
+        # min/max compare their arguments, so the non-literal ones must share one
+        # dimension; the result carries it. A pure numeric literal argument (e.g.
+        # the 2 in ``max(2, 0.1 * q_w)``) is a bound in the other arguments' unit,
+        # so it is dimension-agnostic — the same rule as a literal constraint side.
+        non_literal_dims = [
+            _dim_node(a, formula, dims) for a in node.args if not _is_numeric_literal_node(a)
+        ]
+        if not non_literal_dims:
+            return DIMENSIONLESS  # all arguments are literals
+        first = non_literal_dims[0]
+        for d in non_literal_dims[1:]:
+            if d != first:
+                raise UnitError(
+                    f"formula {formula!r}: {node.func.id}() over incommensurable "
+                    f"dimensions {first.render()} and {d.render()}"
+                )
+        return first
     raise UnitError(f"formula {formula!r}: disallowed syntax {type(node).__name__}")
+
+
+def _is_numeric_literal_node(node: ast.AST) -> bool:
+    """True for a bare numeric constant, optionally with a unary sign."""
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+        node = node.operand
+    return (
+        isinstance(node, ast.Constant)
+        and not isinstance(node.value, bool)
+        and isinstance(node.value, (int, float))
+    )

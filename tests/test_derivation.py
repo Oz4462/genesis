@@ -132,3 +132,23 @@ def test_undeclared_name_in_formula_is_drift():
 def test_within_tolerance_is_relative():
     assert within_tolerance(1e9, 1e9 + 0.5, tolerance=1e-9)
     assert not within_tolerance(1.0, 1.1, tolerance=1e-9)
+
+
+# --- min/max: the only permitted calls ----------------------------------------
+
+def test_min_max_evaluate():
+    assert evaluate_formula("max(2, 0.1 * w)", {"w": 60.0}) == 6.0
+    assert evaluate_formula("max(2, 0.1 * w)", {"w": 10.0}) == 2.0   # floor wins
+    assert evaluate_formula("min(a, b, c)", {"a": 5.0, "b": 3.0, "c": 9.0}) == 3.0
+
+
+def test_other_calls_still_rejected():
+    # the min/max allowance must NOT open the door to arbitrary calls
+    for bad in ("__import__('os')", "open('x')", "abs(a)", "pow(a, 2)", "a.bit_length()"):
+        with pytest.raises(FormulaError):
+            evaluate_formula(bad, {"a": 1.0})
+
+
+def test_min_max_referenced_names():
+    from gen.verification.derivation import referenced_names
+    assert referenced_names("max(q_floor, 0.1 * q_w)") == {"q_floor", "q_w"}

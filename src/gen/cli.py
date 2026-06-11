@@ -30,6 +30,7 @@ from .core.state import (
 from .llm.base import ScriptedLLM
 from .llm.ollama import OllamaLLM
 from .ledger.store import InMemoryLedgerStore
+from .export.openscad import specification_to_openscad
 from .runner import Dependencies, run, run_solution, run_specification
 from .tools.http import HttpResponse, default_http_get
 from .tools.search import SemanticScholarBackend, WikipediaBackend
@@ -470,6 +471,13 @@ def format_specification(spec: Specification) -> str:
     return "\n".join(lines)
 
 
+def render_spec(spec: Specification, fmt: str) -> str:
+    """Render a γ spec as the human instruction ('text') or OpenSCAD ('scad')."""
+    if fmt == "scad":
+        return specification_to_openscad(spec)
+    return format_specification(spec)
+
+
 def main(argv: list[str] | None = None) -> int:
     # The report header contains 'α'; a default Windows console (cp1252) cannot
     # encode it and print() would crash. Make stdout UTF-8 so the CLI is robust
@@ -490,6 +498,11 @@ def main(argv: list[str] | None = None) -> int:
         "--mode", choices=("report", "solution", "spec"), default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
              "spec = Phase γ build specification (default: report)",
+    )
+    parser.add_argument(
+        "--format", choices=("text", "scad"), default="text",
+        help="spec mode only: 'text' = human-readable instruction (default); "
+             "'scad' = OpenSCAD source of the CSG geometry",
     )
     parser.add_argument("--checkpoint-dir", default=None, help="write a run checkpoint here")
     parser.add_argument(
@@ -523,7 +536,7 @@ def main(argv: list[str] | None = None) -> int:
                 run_specification(idea, deps, config=cfg, run_id="demo-bracket",
                                   checkpoint_dir=args.checkpoint_dir)
             )
-            print(format_specification(spec))
+            print(render_spec(spec, args.format))
         return 0
 
     if not args.question:
@@ -548,7 +561,7 @@ def main(argv: list[str] | None = None) -> int:
                 run_specification(args.question, deps, config=cfg,
                                   checkpoint_dir=args.checkpoint_dir)
             )
-            output = format_specification(spec)
+            output = render_spec(spec, args.format)
     except GenesisError as exc:
         # Honest abort: misconfiguration (same family), dead Ollama server, or a
         # systemically failing backend — never a fabricated or empty "success".

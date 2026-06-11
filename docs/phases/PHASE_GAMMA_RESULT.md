@@ -16,15 +16,25 @@ Constraints und Entscheidungsblatt. Die α- und β-Garantien bleiben
 unangetastet).
 
 ```
-pytest -q  ->  257 passed (0.79s, ohne LLM-Token, ohne Netzwerk)
+pytest -q  ->  281 passed (0.77s, ohne LLM-Token, ohne Netzwerk)
 ```
 
-(154 bestehende α+β-Tests unverändert + 103 γ: 18 Safe-Evaluator, 17
-Dimensionsanalyse, 49 GATE-γ, 12 architect, 7 Akzeptanz/End-to-End.)
+(154 bestehende α+β-Tests unverändert + 127 γ: 21 Safe-Evaluator, 19
+Dimensionsanalyse, 9 OpenSCAD-Export, 61 GATE-γ, 12 architect, 7
+Akzeptanz/End-to-End.)
 
-**Nachgehärtet (Recherche-getrieben, 2026-06-11):** Dimensionale Homogenität als
-sechster Wächter — die in §10 zuvor offen markierte Einheiten-Algebra ist jetzt
-gebaut (GATE γ C-15, `verification/units.py`). Siehe Abschnitt „Dimensionsanalyse"
+**Nachgehärtet (Recherche-getrieben, 2026-06-11), drei Module je mit Drift- und
+Halluzinations-Audit:**
+- **Dimensionale Homogenität** (GATE γ C-15, `verification/units.py`) — sechster
+  Wächter; die zuvor offene Einheiten-Algebra. Mars-Climate-Orbiter-Klasse.
+- **Constraints über Ausdrücke + Plausibilität** (C-13 generalisiert) —
+  `left`/`right` sind Ausdrücke über quantity_ids inkl. `min`/`max`; deklarierbare
+  Positivität/Bereich/Monotonie/engineering-Bounds. Das Gate **erfindet nie** eine
+  Domänenregel (getestet).
+- **CSG → OpenSCAD-Export** (`export/openscad.py`) — deterministischer, traceable
+  Geometrie-Export; reale, öffenbare Artefakt-Ausgabe.
+
+Siehe Abschnitte „Dimensionsanalyse", „Ausdrucks-Constraints" und „CSG-Export"
 unten.
 
 Zentrale γ-Invariante, die die α/β-Kette fortsetzt — **die fünf Zwänge**
@@ -95,8 +105,41 @@ pound-force·s vs newton·s).
 bleibt dimensional valide). Magnitude prüfen das Zahlen-Nachrechnen (C-6) und der
 Wortlaut-Anker (C-4) — C-15 ist eine orthogonale, unabhängige Schicht.
 
+### Ausdrucks-Constraints + Plausibilität (Module 1 & 3)
+
+`Constraint.left/right` sind jetzt **arithmetische Ausdrücke** über quantity_ids
+(bare id = trivial, voll backward-kompatibel) inklusive Literalen und
+`min(...)`/`max(...)` — die einzigen erlaubten Calls (`__import__` & Co. bleiben
+abgelehnt, getestet). GATE γ löst jede Referenz auf (C-8), prüft dimensionale
+Vergleichbarkeit beider Seiten (C-12/C-15; reine Literal-Seite dimension-agnostisch)
+und wertet die Vergleichsbedingung aus (C-13). Damit deklarierbar: Positivität
+(`q_t gt 0`), Bereich, Monotonie-Kette, engineering-Bounds (`q_t ge max(2, 0.1*q_w)`).
+
+**Anti-Halluzinations-Garantie (getestet, `test_gate_never_invents_a_plausibility_rule`):**
+Das Gate prüft ausschließlich **deklarierte** Plausibilität und **erfindet keine**
+Domänenregel — ein unconstrained, implausibler Nicht-Geometrie-Wert passt das Gate.
+Geometrie-Maße bleiben strukturell > 0 (C-9, Validität ≠ Domänenbehauptung).
+Belege: `test_units.py` (min/max-Homogenität), `test_derivation.py` (nur min/max
+erlaubt), `test_gate_gamma.py` (Ausdruck-hält/-Verletzung/-Dangling/-Dim/-Mixing,
+Positivität, Bereich+Monotonie, max-Bound, Anti-Invention).
+
+### CSG-Export nach OpenSCAD (Modul 2)
+
+`export/openscad.py` rendert den GeometryNode-Baum deterministisch zu
+OpenSCAD-Quelltext (Syntax aus dem OpenSCAD-Sprachhandbuch belegt). Jeder Wert wird
+aus seiner quantity_id aufgelöst und mit ihr annotiert (Traceability bis zum
+Ledger). Fehlerfälle (unbekannte kinds / fehlende Params / absente Quantities) →
+`ExportError`, nie eine geratene Zahl. Geometrie-Vokabular ist Single Source of
+Truth in `core/state.py` (Gate + Exporter teilen es). CLI:
+`python -m gen --demo --mode spec --format scad`. Belege: `test_openscad.py` (9,
+inkl. exaktem String-Vergleich + 4 Fehlerfällen). **Ehrliche Grenze:** Output ist
+syntaktisch belegt und strukturell getestet, aber noch nicht durch ein echtes
+OpenSCAD-Binary gerendert (kein OpenSCAD in der Umgebung).
+
 **Was damit NICHT bewiesen ist (offen, ehrlich):**
 
+- **OpenSCAD-Binary-Rendering** des Exports (keine OpenSCAD-Installation) — der
+  reale Dependency-Check für den Live-CAD-Schritt.
 - **Semantische „Ohne-Rückfrage"-Qualität realer Modelle.** G5 ist die
   strukturelle Approximation (Aktion+Check, Baubarkeit, Referenz-Vollständigkeit).
   Ob die Aktionstexte echter lokaler Modelle gut genug formuliert sind, misst

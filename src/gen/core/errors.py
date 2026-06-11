@@ -114,6 +114,20 @@ class UnitError(GenesisError):
         super().__init__(f"Dimensional inconsistency: {detail}")
 
 
+class ExportError(GenesisError):
+    """A specification could not be deterministically exported.
+
+    Raised loudly (never emit guessed output) when an exporter meets a node it
+    cannot faithfully render — an unknown geometry kind, a missing parameter, or
+    a parameter referencing a quantity that is absent. The exporter assumes a
+    GATE-γ-validated spec, but fails loudly rather than fabricating a number
+    (PHASE_GAMMA.md §0: no silent defaults at factual things).
+    """
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(f"Export failed: {detail}")
+
+
 class FetchFailedError(GenesisError):
     """A source could not be retrieved. The source must NOT be cited as fact."""
 

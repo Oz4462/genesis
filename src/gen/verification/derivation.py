@@ -23,6 +23,23 @@ from ..core.state import Derivation
 DEFAULT_TOLERANCE = 1e-9
 
 _ALLOWED_BINOPS = (ast.Add, ast.Sub, ast.Mult, ast.Div)
+_ALLOWED_CALLS = ("min", "max")
+
+
+def _is_allowed_call(node: ast.AST) -> bool:
+    """True for a bare ``min(...)``/``max(...)`` call with positional args only.
+
+    These are the ONLY calls the grammar permits — a controlled extension so a
+    spec can express engineering bounds like ``max(2, 0.1 * q_w)``. Any other
+    call (``__import__(...)``, attribute calls, keyword args) is still rejected.
+    """
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in _ALLOWED_CALLS
+        and not node.keywords
+        and len(node.args) >= 1
+    )
 
 
 def evaluate_formula(formula: str, bindings: dict[str, float]) -> float:
@@ -61,7 +78,63 @@ def _eval_node(node: ast.AST, formula: str, bindings: dict[str, float]) -> float
         if right == 0.0:
             raise FormulaError(formula, "division by zero")
         return left / right
+    if _is_allowed_call(node):
+        assert isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        args = [_eval_node(a, formula, bindings) for a in node.args]
+        return min(args) if node.func.id == "min" else max(args)
     raise FormulaError(formula, f"disallowed syntax: {type(node).__name__}")
+
+
+def referenced_names(formula: str) -> set[str]:
+    """The set of identifier names a formula references. Raises FormulaError on
+    anything outside the grammar (same discipline as evaluate_formula), so a
+    malformed constraint expression fails loudly rather than silently resolving
+    to nothing. Used by GATE γ to resolve constraint-expression references.
+    """
+    try:
+        tree = ast.parse(formula, mode="eval")
+    except SyntaxError as exc:
+        raise FormulaError(formula, f"not parseable: {exc.msg}") from None
+    names: set[str] = set()
+
+    def walk(node: ast.AST) -> None:
+        if isinstance(node, ast.Name):
+            names.add(node.id)
+        elif isinstance(node, ast.Constant):
+            if isinstance(node.value, bool) or not isinstance(node.value, (int, float)):
+                raise FormulaError(formula, f"non-numeric constant {node.value!r}")
+        elif isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+            walk(node.operand)
+        elif isinstance(node, ast.BinOp) and isinstance(node.op, _ALLOWED_BINOPS):
+            walk(node.left)
+            walk(node.right)
+        elif _is_allowed_call(node):
+            assert isinstance(node, ast.Call)
+            for arg in node.args:
+                walk(arg)
+        else:
+            raise FormulaError(formula, f"disallowed syntax: {type(node).__name__}")
+
+    walk(tree.body)
+    return names
+
+
+def is_numeric_literal(formula: str) -> bool:
+    """True if the whole expression is a bare numeric constant (optionally with a
+    unary sign): "0", "5", "-3", "+2.5". Such a side carries no quantity and no
+    dimension, so a constraint comparing a quantity to a literal bound is
+    dimension-agnostic (e.g. ``q_t > 0`` is valid for any unit of q_t).
+    """
+    try:
+        tree = ast.parse(formula, mode="eval")
+    except SyntaxError:
+        return False
+    node = tree.body
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+        node = node.operand
+    return isinstance(node, ast.Constant) and not isinstance(node.value, bool) and isinstance(
+        node.value, (int, float)
+    )
 
 
 def topological_values(
