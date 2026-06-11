@@ -18,7 +18,7 @@ Die vollständige α-Pipeline (Anti-Halluzination), der β-Lösungsraum und die 
 
 ```
 $ python -m pytest tests/ -q
-311 passed
+318 passed
 ```
 
 Alle Tests laufen **ohne einen einzigen LLM-Token und ohne Netzwerk**. Das heißt: Die Garantie „kein Fakt ohne Quelle, keine widerlegte Aussage als Tatsache, Lücken werden als Lücken markiert, im Zweifel Abstention" ist **bewiesen** — und von einem unabhängigen, adversarialen Audit bestätigt (Details: `docs/phases/PHASE_ALPHA_RESULT.md`).
@@ -72,7 +72,7 @@ src/gen/
   verification/gates.py         GATEs α, β, γ — reine, getestete Verifikationslogik (+ Backstops)
   verification/derivation.py    Safe-Evaluator — DERIVED-Werte: Code rechnet, Gate rechnet nach
   verification/units.py         Dimensionsanalyse — Einheiten als abelsche Gruppe (C-15, Mars-Orbiter-Wächter)
-  verification/geometry.py      AABB-Algebra — Phase δ Bounding-Box-Soundness (sound, konservativ)
+  verification/geometry.py      AABB-Algebra + Volumen — Phase δ (sound; exakt-wo-beweisbar, sonst Schranke)
   verification/cross_model.py   Cross-Model-Pflicht + Confidence-Folding
   export/openscad.py            CSG-Geometrie -> OpenSCAD-Quelltext (deterministisch, traceable, zentriert)
   export/build123d.py           CSG-Geometrie -> build123d-Python (Algebra-Modus, OCCT)

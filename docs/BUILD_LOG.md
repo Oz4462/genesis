@@ -869,3 +869,32 @@ aktualisiert, alle Tests grün.
 Ansatz (β), Bauanleitung mit 6 Wächtern + Ausdrucks-Constraints + 2 CAD-Exporte (γ),
 geometrische Validierung vor dem Bauen (δ, 1. Schicht). Kein Live-Run.
 
+## Phase δ — Volumen-Eigenschaft (exakt-wo-beweisbar, sonst Schranke)  ✅
+
+**Auslöser:** Owner „weiter" — δ vertieft um eine reale, vor dem Bauen berechnete
+Eigenschaft (Materialmenge), gleiche Ehrlichkeits-Disziplin, keine Live-Runs.
+
+**Gebaut:** `verification/geometry.py` `volume_of(node, quantities) -> Volume(value,
+exact, note)`. `value` ist **immer eine sound obere Schranke**; `exact` nur wo
+beweisbar (Standardformeln box/cylinder/sphere; translate erhält; union exakt bei
+paarweise disjunkten Kindern, sonst Σ als Schranke; difference exakt nur bei
+Box-Minuend + enthaltenen, paarweise disjunkten Werkzeugen, sonst vol(Minuend) als
+Schranke; intersection min(Teile) als Schranke). Kern-Einsicht: Box-Solid = AABB ⟹
+AABB-Enthaltensein = Solid-Enthaltensein → „Loch im Block" exakt. CLI zeigt
+`volume: <v> <unit>³ (exact)` oder `<= <v> (upper bound — Grund)`; Einheit nur wenn
+eindeutig.
+
+**Selbstkontrolle:**
+- [x] Research/Standardformeln (nicht erfunden); Schranken mathematisch sound
+      (∪≤Σ, difference≤Minuend, ∩≤Teil; Box-Enthaltensein exakt).
+- [x] Tests grün inkl. inexakt-Fälle? **318 passed** (311 + 7 Volumen), offline, 0.75 s.
+- [x] Drift? grep: Volumen nur in `geometry.py` berechnet (gates/units matchen nur
+      Kommentar „no volume to build"); cli ruft nur `volume_of`. Single-Source.
+- [x] Halluzination? `value` nie als exakt ausgegeben, wenn nicht beweisbar
+      (`exact`-Flag + `note`); Einheit nur bei Eindeutigkeit.
+- [x] Doku? PHASE_DELTA §1/§3.1, PHASE_DELTA_RESULT (Abschnitt), README, dieser Eintrag.
+
+**Gesamtstand:** **318 passed** (offline). δ liefert jetzt Validierung **und** eine
+ehrliche, deterministische Volumen-Eigenschaft (exakt-wo-beweisbar). Masse = Volumen
+× deklarierte Dichte ist die saubere nächste Erweiterung. Kein Live-Run.
+

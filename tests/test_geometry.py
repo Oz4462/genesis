@@ -16,9 +16,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import pytest  # noqa: E402
 
+import math  # noqa: E402
+
 from gen.core.errors import GeometryError  # noqa: E402
 from gen.core.state import GeometryNode, Quantity, ValueOrigin  # noqa: E402
-from gen.verification.geometry import Aabb, aabb_of, overlaps  # noqa: E402
+from gen.verification.geometry import Aabb, aabb_of, overlaps, volume_of  # noqa: E402
 
 
 def _q(qid: str, value: float) -> Quantity:
@@ -126,3 +128,77 @@ def test_missing_param_raises():
 def test_absent_quantity_raises():
     with pytest.raises(GeometryError):
         aabb_of(GeometryNode(kind="sphere", params={"radius": "ghost"}), {})
+
+
+# --- volume: exact where provable, else a sound upper bound -------------------
+
+def test_primitive_volumes_are_exact():
+    q = _qs(("x", 2.0), ("y", 3.0), ("z", 4.0), ("r", 5.0), ("h", 6.0))
+    box = volume_of(GeometryNode(kind="box", params={"size_x": "x", "size_y": "y", "size_z": "z"}), q)
+    assert box.exact and box.value == 24.0
+    cyl = volume_of(GeometryNode(kind="cylinder", params={"radius": "r", "height": "h"}), q)
+    assert cyl.exact and cyl.value == pytest.approx(math.pi * 25 * 6)
+    sph = volume_of(GeometryNode(kind="sphere", params={"radius": "r"}), q)
+    assert sph.exact and sph.value == pytest.approx((4 / 3) * math.pi * 125)
+
+
+def test_translate_preserves_volume():
+    q = _qs(("s", 2.0), ("d", 10.0), ("z0", 0.0))
+    geom = GeometryNode(kind="translate", params={"x": "d", "y": "z0", "z": "z0"},
+                        children=[GeometryNode(kind="box", params={"size_x": "s", "size_y": "s", "size_z": "s"})])
+    assert volume_of(geom, q).value == 8.0
+
+
+def test_hole_in_block_is_exact_difference():
+    # box 60x80x6 minus a centered through-hole cylinder r=2.25 h=6 -> exact
+    q = _qs(("w", 60.0), ("h", 80.0), ("t", 6.0), ("r", 2.25))
+    geom = GeometryNode(kind="difference", children=[
+        GeometryNode(kind="box", params={"size_x": "w", "size_y": "h", "size_z": "t"}),
+        GeometryNode(kind="cylinder", params={"radius": "r", "height": "t"}),
+    ])
+    vol = volume_of(geom, q)
+    assert vol.exact
+    assert vol.value == pytest.approx(60 * 80 * 6 - math.pi * 2.25 ** 2 * 6)
+
+
+def test_disjoint_union_is_exact_sum():
+    q = _qs(("s", 2.0), ("far", 100.0), ("z0", 0.0))
+    a = GeometryNode(kind="box", params={"size_x": "s", "size_y": "s", "size_z": "s"})
+    b = GeometryNode(kind="translate", params={"x": "far", "y": "z0", "z": "z0"}, children=[a])
+    vol = volume_of(GeometryNode(kind="union", children=[a, b]), q)
+    assert vol.exact and vol.value == 16.0          # two disjoint 2x2x2 boxes
+
+
+def test_overlapping_union_is_upper_bound_not_exact():
+    q = _qs(("s", 4.0), ("near", 1.0), ("z0", 0.0))
+    a = GeometryNode(kind="box", params={"size_x": "s", "size_y": "s", "size_z": "s"})
+    b = GeometryNode(kind="translate", params={"x": "near", "y": "z0", "z": "z0"}, children=[a])
+    vol = volume_of(GeometryNode(kind="union", children=[a, b]), q)
+    assert not vol.exact
+    assert vol.value == 128.0                        # Σ parts (sound upper bound)
+    assert "upper bound" in vol.note
+
+
+def test_uncontained_difference_is_upper_bound():
+    # the tool sticks out of the body -> not provably contained -> inexact bound
+    q = _qs(("s", 4.0), ("r", 1.0), ("big", 50.0), ("far", 3.0), ("z0", 0.0))
+    geom = GeometryNode(kind="difference", children=[
+        GeometryNode(kind="box", params={"size_x": "s", "size_y": "s", "size_z": "s"}),
+        GeometryNode(kind="translate", params={"x": "far", "y": "z0", "z": "z0"},
+                     children=[GeometryNode(kind="cylinder", params={"radius": "r", "height": "big"})]),
+    ])
+    vol = volume_of(geom, q)
+    assert not vol.exact
+    assert vol.value == 64.0                         # vol of minuend (upper bound)
+
+
+def test_difference_with_non_box_minuend_is_inexact():
+    # minuend is a cylinder (solid != AABB) -> can't prove containment -> inexact
+    q = _qs(("r", 10.0), ("h", 10.0), ("sr", 1.0))
+    geom = GeometryNode(kind="difference", children=[
+        GeometryNode(kind="cylinder", params={"radius": "r", "height": "h"}),
+        GeometryNode(kind="sphere", params={"radius": "sr"}),
+    ])
+    vol = volume_of(geom, q)
+    assert not vol.exact
+    assert vol.value == pytest.approx(math.pi * 100 * 10)   # vol of the cylinder minuend

@@ -38,7 +38,7 @@ from .gates import (
     geometry_envelope,
     value_in_text,
 )
-from .geometry import Aabb, aabb_of, overlaps
+from .geometry import Aabb, Volume, aabb_of, overlaps, volume_of
 from .units import DIMENSIONLESS, Dimension, formula_dimension, parse_unit
 
 __all__ = [
@@ -50,6 +50,8 @@ __all__ = [
     "Aabb",
     "aabb_of",
     "overlaps",
+    "Volume",
+    "volume_of",
     "claim_soundness_failures",
     "value_in_text",
     "evaluate_formula",

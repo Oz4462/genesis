@@ -22,6 +22,7 @@ region, the per-axis overlap test). See PHASE_DELTA.md §8.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from ..core.errors import GeometryError
@@ -163,3 +164,117 @@ def _intersection(boxes: list[Aabb]) -> Aabb:
     if min_x > max_x or min_y > max_y or min_z > max_z:
         return _EMPTY
     return Aabb(min_x, min_y, min_z, max_x, max_y, max_z)
+
+
+# --- volume (deterministic, exact where provable) ----------------------------
+
+@dataclass(frozen=True)
+class Volume:
+    """A CSG volume estimate. ``value`` is ALWAYS a sound UPPER BOUND on the true
+    volume (in the geometry's length-unit cubed). ``exact`` is True only when the
+    value is provably the exact volume — otherwise it is an honest upper bound and
+    ``note`` says why it could not be computed exactly. GENESIS never presents an
+    estimated volume as exact (PHASE_DELTA.md §0 honesty, applied to a property).
+    """
+
+    value: float
+    exact: bool
+    note: str = ""
+
+
+def _contains(outer: Aabb, inner: Aabb) -> bool:
+    """True iff `inner` is fully inside `outer` on every axis (closed)."""
+    if outer.empty or inner.empty:
+        return False
+    return (
+        outer.min_x <= inner.min_x and inner.max_x <= outer.max_x
+        and outer.min_y <= inner.min_y and inner.max_y <= outer.max_y
+        and outer.min_z <= inner.min_z and inner.max_z <= outer.max_z
+    )
+
+
+def _is_box_solid(node: GeometryNode) -> bool:
+    """True if the node's solid region equals its AABB — i.e. a box, or a
+    translate of a box. For such a region, AABB containment of a tool implies
+    SOLID containment, which is what makes an exact difference provable."""
+    if node.kind == "box":
+        return True
+    if node.kind == "translate" and node.children:
+        return _is_box_solid(node.children[0])
+    return False
+
+
+def _disjoint_pairwise(boxes: list[Aabb]) -> bool:
+    for i in range(len(boxes)):
+        for j in range(i + 1, len(boxes)):
+            if overlaps(boxes[i], boxes[j]):
+                return False
+    return True
+
+
+def volume_of(node: GeometryNode, quantities: dict[str, Quantity]) -> Volume:
+    """Deterministic CSG volume — exact where provable, else a sound upper bound.
+
+    Primitive volumes are exact (box = x·y·z, cylinder = π·r²·h, sphere =
+    4/3·π·r³ — standard formulas). For composites:
+      * union: exact = Σ parts when the children are pairwise disjoint (provable
+        via AABB); otherwise Σ parts is a sound upper bound (union ≤ Σ).
+      * difference: exact = vol(A) − Σ vol(tool) only when A's solid equals its
+        AABB (a box), every tool is contained in A, and tools are pairwise
+        disjoint; otherwise vol(A) is a sound upper bound (removing only shrinks).
+      * intersection: min(parts) is a sound upper bound (∩ ≤ each part); exactness
+        is not claimed in general.
+    Raises ``GeometryError`` (via aabb_of / value lookup) on an unrenderable node.
+    """
+    kind = node.kind
+
+    if kind in GEOMETRY_PRIMITIVES:
+        if kind == "box":
+            x = _value(node, "size_x", quantities)
+            y = _value(node, "size_y", quantities)
+            z = _value(node, "size_z", quantities)
+            return Volume(x * y * z, exact=True)
+        if kind == "cylinder":
+            r = _value(node, "radius", quantities)
+            h = _value(node, "height", quantities)
+            return Volume(math.pi * r * r * h, exact=True)
+        if kind == "sphere":
+            r = _value(node, "radius", quantities)
+            return Volume((4.0 / 3.0) * math.pi * r * r * r, exact=True)
+
+    if kind in GEOMETRY_TRANSFORMS:
+        if kind == "translate":
+            if not node.children:
+                raise GeometryError("translate has no child")
+            return volume_of(node.children[0], quantities)  # translation preserves volume
+
+    if kind in GEOMETRY_OPERATIONS:
+        if not node.children:
+            raise GeometryError(f"{kind} has no children")
+        parts = [volume_of(c, quantities) for c in node.children]
+        boxes = [aabb_of(c, quantities) for c in node.children]
+        if kind == "union":
+            upper = sum(p.value for p in parts)
+            exact = all(p.exact for p in parts) and _disjoint_pairwise(boxes)
+            note = "" if exact else "overlapping geometry — value is an upper bound (union ≤ Σ parts)"
+            return Volume(upper, exact=exact, note=note)
+        if kind == "difference":
+            a = parts[0]
+            tools = parts[1:]
+            tool_boxes = boxes[1:]
+            contained = all(_contains(boxes[0], tb) for tb in tool_boxes)
+            tools_disjoint = _disjoint_pairwise(tool_boxes)
+            if a.exact and _is_box_solid(node.children[0]) and contained and tools_disjoint and all(t.exact for t in tools):
+                return Volume(a.value - sum(t.value for t in tools), exact=True)
+            return Volume(
+                a.value, exact=False,
+                note="tool not provably contained / minuend not a box — value is an upper bound (vol of minuend)",
+            )
+        if kind == "intersection":
+            upper = min(p.value for p in parts)
+            return Volume(
+                upper, exact=False,
+                note="intersection volume not computed exactly — value is an upper bound (∩ ≤ each part)",
+            )
+
+    raise GeometryError(f"unknown geometry kind {kind!r}")

@@ -39,6 +39,7 @@ from .tools.http import HttpResponse, default_http_get
 from .tools.search import SemanticScholarBackend, WikipediaBackend
 from .verification.cross_model import assert_different_families
 from .verification.gates import gate_delta, geometry_envelope
+from .verification.geometry import volume_of
 
 # --- offline demo world (deterministic) --------------------------------------
 
@@ -458,11 +459,15 @@ def format_specification(spec: Specification) -> str:
         lines.append("")
 
     if spec.components:
-        # Phase δ: deterministic geometric validation (envelope + provable defects)
+        # Phase δ: deterministic geometric validation (envelope + volume + defects)
         lines.append("Geometric validation (δ — geometry only, no physics judgement):")
         envelope = geometry_envelope(_spec_state(spec))
+        quantities = {q.id: q for q in spec.quantities}
         for cid, (ex, ey, ez) in envelope.items():
             lines.append(f"  • {cid} envelope: {ex:g} x {ey:g} x {ez:g} (bounding box)")
+            comp = next((c for c in spec.components if c.id == cid), None)
+            if comp is not None and comp.geometry is not None:
+                lines.append(_volume_line(comp, quantities))
         result = gate_delta(_spec_state(spec))
         if result.passed:
             lines.append("  • status: no provably broken geometry (PASS — necessary, not sufficient)")
@@ -487,6 +492,36 @@ def format_specification(spec: Specification) -> str:
             lines.append(f"    {cid}")
     lines.append("=" * 64)
     return "\n".join(lines)
+
+
+def _geometry_unit(geometry, quantities) -> str | None:
+    """The common length unit of a geometry's referenced quantities, or None if
+    mixed/unknown — so a volume is only labelled with a unit when it is unambiguous."""
+    units: set[str] = set()
+
+    def walk(node) -> None:
+        for qid in node.params.values():
+            q = quantities.get(qid)
+            if q is not None:
+                units.add(q.unit.strip())
+        for child in node.children:
+            walk(child)
+
+    walk(geometry)
+    return next(iter(units)) if len(units) == 1 else None
+
+
+def _volume_line(comp, quantities) -> str:
+    """A δ volume line: exact volume or an honest upper bound, with unit³ if known."""
+    try:
+        vol = volume_of(comp.geometry, quantities)
+    except Exception:  # noqa: BLE001 - a bad geometry is already a δ failure
+        return "      volume: not computable"
+    unit = _geometry_unit(comp.geometry, quantities)
+    unit_str = f" {unit}³" if unit else ""
+    if vol.exact:
+        return f"      volume: {vol.value:g}{unit_str} (exact)"
+    return f"      volume: <= {vol.value:g}{unit_str} (upper bound — {vol.note})"
 
 
 def _spec_state(spec: Specification) -> RunState:

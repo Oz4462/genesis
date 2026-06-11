@@ -72,6 +72,8 @@ Primitive sind am Ursprung **zentriert**; `translate` verschiebt das Zentrum.
 - AABB-Algebra über den GeometryNode-Baum (`verification/geometry.py`).
 - GATE δ: deterministische, LLM-freie Prüfung (s. §4).
 - Envelope-Report je Komponente (Maße der Hüllbox).
+- **Volumen-Eigenschaft** (`volume_of`, s. §3.1): exakt-wo-beweisbar, sonst sound
+  obere Schranke — eine reale Materialmengen-Größe **vor** dem Bauen.
 - Reproduzierbar, offline, ohne LLM-Token (wie α/β/γ).
 
 **Explizit NICHT in Scope (spätere δ-Schichten / Live):**
@@ -124,6 +126,31 @@ Zwei AABBs **überlappen** ⟺ sie überlappen auf **jeder** Achse
 den δ braucht — und er ist exakt und sound.
 
 ---
+
+## 3.1 Volumen als deterministische Eigenschaft (`volume_of`)
+
+`volume_of(node, quantities) -> Volume(value, exact, note)`. `value` ist **immer
+eine sound obere Schranke** der wahren Volumen (in der Längeneinheit hoch drei);
+`exact=True` nur, wenn beweisbar exakt — sonst ehrliche Schranke + `note`. GENESIS
+gibt nie eine geschätzte Volumen als exakt aus (dieselbe §0-Ehrlichkeit, auf eine
+Eigenschaft angewandt).
+
+- **Primitive (exakt):** box = x·y·z, cylinder = π·r²·h, sphere = 4/3·π·r³
+  (Standardformeln). `translate` erhält das Volumen.
+- **union:** exakt = Σ Teile, wenn die Kinder **paarweise disjunkt** sind
+  (beweisbar via AABB); sonst ist Σ Teile eine sound obere Schranke (∪ ≤ Σ).
+- **difference:** exakt = vol(A) − Σ vol(tool) **nur**, wenn A-Solid = seine AABB
+  (eine Box), jedes Werkzeug in A **enthalten** und die Werkzeuge paarweise
+  disjunkt sind; sonst ist vol(A) eine sound obere Schranke (Subtraktion
+  schrumpft nur). *Schlüssel:* ein Box-Solid **ist** exakt seine AABB, also folgt
+  Solid-Enthaltensein aus AABB-Enthaltensein — der häufige „Loch im Block" ist
+  exakt.
+- **intersection:** min(Teile) ist eine sound obere Schranke (∩ ≤ jedes Teil);
+  Exaktheit wird nicht behauptet.
+
+CLI: der δ-Abschnitt zeigt je Komponente `volume: <v> <unit>³ (exact)` oder
+`volume: <= <v> (upper bound — <Grund>)`. (Masse = Volumen × Dichte ist eine
+saubere Erweiterung, sobald eine Dichte als DECISION deklariert ist.)
 
 ## 4. Das Verifikations-Gate (GATE δ)
 

@@ -11,10 +11,14 @@ achsenparallele Bounding-Box (AABB). δ liest die γ-validierte Spezifikation un
 fügt nur Validierung hinzu — α/β/γ bleiben unberührt.
 
 ```
-pytest -q  ->  311 passed (0.78s, ohne LLM-Token, ohne Netzwerk)
+pytest -q  ->  318 passed (0.75s, ohne LLM-Token, ohne Netzwerk)
 ```
 
-(290 vorherige + 21 δ: 13 AABB-Geometrie, 8 GATE-δ.)
+(290 vorherige + 28 δ: 20 AABB-Geometrie/Volumen, 8 GATE-δ.)
+
+**Erweitert:** deterministische **Volumen-Eigenschaft** (`volume_of`) — exakt-wo-
+beweisbar, sonst sound obere Schranke; im CLI-δ-Abschnitt sichtbar. Siehe Abschnitt
+„Volumen" unten.
 
 Zentrale δ-Invariante (α→β→γ→δ-Kette): **keine nachweislich tote oder leere
 Geometrie-Operation bleibt unbemerkt — und δ behauptet kein Urteil, das es nicht
@@ -74,6 +78,26 @@ Modellen (FEM/CFD/Toleranzanalyse), die denselben Beweis-Standard tragen werden.
 Ein **bestandenes** δ ist eine **notwendige**, keine hinreichende Bedingung für
 eine baubare Lösung. Genau diese Asymmetrie macht δ GENESIS-konform: nur behaupten,
 was beweisbar ist.
+
+## Volumen (deterministische Eigenschaft, `volume_of`)
+
+Eine reale Materialmengen-Größe, berechnet **vor** dem Bauen — mit derselben
+Ehrlichkeit wie δ selbst: `value` ist **immer eine sound obere Schranke**,
+`exact=True` nur wo beweisbar. Primitive exakt (box/cylinder/sphere,
+Standardformeln); `translate` erhält; **union** exakt bei paarweise disjunkten
+Kindern (sonst Σ als Schranke); **difference** exakt nur bei Box-Minuend +
+enthaltenen, paarweise disjunkten Werkzeugen (sonst vol(Minuend) als Schranke);
+**intersection** min(Teile) als Schranke. Der häufige „Loch im Block" ist exakt
+(Box-Solid = AABB ⟹ AABB-Enthaltensein = Solid-Enthaltensein).
+
+**Belege:** `test_geometry.py` (7 Volumen-Tests: exakte Primitive, translate-
+erhält, exaktes Loch-im-Block, disjunkte-union-exakt, überlappende-union-Schranke,
+unenthaltenes-difference-Schranke, Nicht-Box-Minuend-inexakt). Demo:
+`c_bracket volume: 28704.6 mm³ (exact)`.
+
+**Ehrliche Grenze:** Bei überlappender/unenthaltener/Schnitt-Geometrie nur eine
+obere Schranke (nie als exakt ausgegeben). Einheit nur gezeigt, wenn eindeutig.
+Masse = Volumen × Dichte folgt, sobald eine Dichte als DECISION deklariert ist.
 
 ## Phase δ: Fazit
 
