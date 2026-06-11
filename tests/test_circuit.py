@@ -31,6 +31,7 @@ from gen.circuit import (  # noqa: E402
     solve_ac,
     solve_dc,
     solve_dc_nonlinear,
+    solve_transient,
 )
 
 
@@ -142,3 +143,46 @@ def test_diode_blocks_reverse():
 def test_no_diode_falls_back_to_linear_dc():
     _, i = solve_dc_nonlinear([VoltageSource("VCC", "0", 12.0, "PSU"), Resistor("VCC", "0", 8.0)])
     assert math.isclose(i["PSU"], 1.5, rel_tol=1e-9)
+
+
+# --- transient (time-domain) analysis vs the analytic RC / RL response ----------
+
+def test_rc_charging_follows_the_exponential():
+    R, C = 1000.0, 1e-6
+    tau = R * C
+    t, h = solve_transient(
+        [VoltageSource("IN", "0", 5.0, "S"), Resistor("IN", "OUT", R), Capacitor("OUT", "0", C)],
+        t_end=5 * tau, dt=tau / 200,
+    )
+    import numpy as np
+    t = np.array(t)
+    vout = np.array(h["OUT"])
+    for k in (1, 3, 5):                              # at t = 1,3,5 tau
+        i = int(np.argmin(np.abs(t - k * tau)))
+        analytic = 5.0 * (1.0 - math.exp(-t[i] / tau))
+        assert abs(vout[i] - analytic) < 0.02 * 5.0  # within 2% of full scale
+
+
+def test_rc_charging_converges_with_smaller_step():
+    R, C = 1000.0, 1e-6
+    tau = R * C
+    analytic = 5.0 * (1.0 - math.exp(-1.0))         # at t = tau
+    errs = []
+    for n in (50, 400):
+        t, h = solve_transient(
+            [VoltageSource("IN", "0", 5.0, "S"), Resistor("IN", "OUT", R), Capacitor("OUT", "0", C)],
+            t_end=tau, dt=tau / n,
+        )
+        errs.append(abs(h["OUT"][-1] - analytic))
+    assert errs[1] < errs[0]                          # finer step -> smaller error
+
+
+def test_rl_voltage_decays_as_the_inductor_saturates():
+    R, L = 1000.0, 1e-3
+    tau = L / R
+    _, h = solve_transient(
+        [VoltageSource("IN", "0", 5.0, "S"), Resistor("IN", "M", R), Inductor("M", "0", L)],
+        t_end=6 * tau, dt=tau / 100,
+    )
+    assert h["M"][1] > 4.5                            # inductor blocks initially
+    assert h["M"][-1] < 0.2                           # then saturates (short)

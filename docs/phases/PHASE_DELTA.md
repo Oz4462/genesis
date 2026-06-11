@@ -544,10 +544,17 @@ SPICE-Innenschleife) mit SPICE-Spannungsbegrenzung (`pnjlim`, gegen Exponential-
 Schaltungen exakt (`Vd` bis 1e-7), Sperrrichtung blockiert. Konvergiert nicht →
 `RuntimeError` (nie ein still-falscher Arbeitspunkt).
 
-**Ehrliche Grenze:** DC (linear + **nichtlinear/Diode**) + **linearer AC** (R, C,
-L, Dioden, Quellen). Die **Transienten**-Analyse (Zeitintegration) bleibt eine
-weitere Schicht unter demselben Beweis-Standard. Modul `circuit.py` (braucht numpy),
-getestet in `tests/test_circuit.py`.
+**Transienten-Erweiterung (Zeitbereich):** `solve_transient` integriert per
+**Backward-Euler-Companion-Modellen** (Kondensator → Leitwert C/dt + Memory-
+Stromquelle; Spule → dt/L + Vorstrom-Quelle), je Zeitschritt via `solve_dc` gelöst
+(unbedingt stabil). **Verifiziert** gegen die analytische RC-Ladekurve
+`V_C=V(1−e^{−t/RC})` (auf <2 % bei dt=τ/200, **konvergiert** mit kleinerem Schritt)
+und RL-Sättigung. 
+
+**Ehrliche Grenze:** DC (linear + **nichtlinear/Diode**) + **linearer AC** +
+**Transient** (linear, Backward-Euler). Nichtlineare Transienten (Diode im
+Zeitschritt) wären die Kombination beider Companion-Schleifen — eine weitere Schicht.
+Modul `circuit.py` (braucht numpy), getestet in `tests/test_circuit.py`.
 
 **Quelle:** Modified Nodal Analysis (Standard-Schaltungsanalyse, Ho/Ruehli/Brennan
 1975; der DC-Kern von SPICE); Ohmsches Gesetz, Kirchhoff.

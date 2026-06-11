@@ -224,6 +224,61 @@ def _pnjlim(vnew: float, vold: float, vt: float, vcrit: float) -> float:
     return vnew
 
 
+def solve_transient(
+    components,
+    t_end: float,
+    dt: float,
+    ground: str = GROUND,
+) -> tuple[list[float], dict[str, list[float]]]:
+    """Transient (time-domain) analysis by Backward-Euler companion models.
+
+    Each capacitor becomes, at every step, a conductance C/dt plus a current source
+    carrying its previous-voltage memory; each inductor a conductance dt/L plus a
+    current source carrying its previous current. The resulting resistive network is
+    solved by `solve_dc` at each step. Backward Euler is unconditionally stable.
+
+    Returns ``(times, node_history)`` where node_history maps each node to its
+    voltage at each time in `times` (starting from a zero-state t=0). Deterministic.
+    """
+    caps = [c for c in components if isinstance(c, Capacitor)]
+    inds = [c for c in components if isinstance(c, Inductor)]
+    linear = [c for c in components if not isinstance(c, (Capacitor, Inductor))]
+    nodes = sorted({nd for c in components for nd in _nodes(c)} - {ground})
+
+    v_prev = {nd: 0.0 for nd in nodes}
+    v_prev[ground] = 0.0
+    i_ind = [0.0 for _ in inds]                    # inductor branch currents (state)
+
+    times = [0.0]
+    history: dict[str, list[float]] = {nd: [0.0] for nd in nodes}
+
+    n_steps = int(round(t_end / dt))
+    for step in range(1, n_steps + 1):
+        companions: list[object] = []
+        for c in caps:
+            g = c.farads / dt
+            companions.append(Resistor(c.a, c.b, 1.0 / g))
+            # memory current: i_eq = g·V_prev(a,b), injected b -> a
+            companions.append(CurrentSource(c.b, c.a, g * (v_prev[c.a] - v_prev[c.b])))
+        for k, c in enumerate(inds):
+            g = dt / c.henries
+            companions.append(Resistor(c.a, c.b, 1.0 / g))
+            # the previous inductor current is the companion source (a -> b)
+            companions.append(CurrentSource(c.a, c.b, i_ind[k]))
+
+        node_v, _ = solve_dc(linear + companions, ground)
+        # advance inductor currents: i_n = i_{n-1} + (dt/L)·V_L
+        for k, c in enumerate(inds):
+            vl = node_v[c.a] - node_v[c.b]
+            i_ind[k] = i_ind[k] + dt / c.henries * vl
+        v_prev = {nd: node_v[nd] for nd in nodes}
+        v_prev[ground] = 0.0
+        times.append(step * dt)
+        for nd in nodes:
+            history[nd].append(node_v[nd])
+    return times, history
+
+
 def solve_ac(
     components, omega: float, ground: str = GROUND
 ) -> dict[str, complex]:
