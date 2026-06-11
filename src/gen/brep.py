@@ -70,7 +70,9 @@ def csg_to_solid(node: GeometryNode, quantities: dict[str, Quantity]):
             return Solid.makeCylinder(r, h, Vector(0, 0, -h / 2), Vector(0, 0, 1))
         if node.kind == "sphere":
             r = _val(node.params["radius"], quantities)
-            return Solid.makeSphere(r)
+            # full sphere centered at the origin: makeSphere's defaults make only a
+            # hemisphere (latitude 0..90), so the angles must be given explicitly.
+            return Solid.makeSphere(r, Vector(0, 0, 0), Vector(0, 0, 1), -90, 90, 360)
 
     if node.kind in GEOMETRY_TRANSFORMS:  # translate
         child = csg_to_solid(node.children[0], quantities)

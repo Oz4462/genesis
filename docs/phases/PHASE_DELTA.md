@@ -590,6 +590,37 @@ CSG-Operationen (Requicha 1980, s. PHASE_GAMMA §10).
 
 ---
 
+## 20. Orientierungsabhängiges DFM — Überhang/Stützen-Erkennung über das BREP
+
+§11 prüft Wandstärke/Loch aus den Größen; die **orientierungsabhängige** Regel
+(„eine Fläche steiler als 45° aus der Senkrechten braucht Stützen") braucht die
+echte Geometrie **und** eine **Baurichtung**, die die CSG allein nicht trägt.
+`orientation.py` ergänzt sie über den OCCT-Kernel: Solid bauen, **tessellieren**,
+und jedes Dreieck prüfen — eine nach unten weisende Fläche, deren Normale innerhalb
+`max_overhang_deg` der Senkrecht-nach-unten liegt, braucht Stützen (außer dem
+Bauplatten-Kontakt am z-Minimum). Tessellierung = der Standard-Slicer-Ansatz;
+Dreieck-Winding für einen validen Solid ist konsistent auswärts.
+
+**Der orientierungsabhängige Beweis:** **dasselbe** Capstone-Teil braucht **flach**
+gedruckt (+Z) **keine** Stützen (das Durchgangsloch ist senkrecht), **auf der Seite**
+gedruckt (+X) aber **schon** (das Loch wird waagerecht → Überhang; Fläche ~1003).
+Kugel → Stützen (untere Kappe); Box / vertikaler Zylinder → keine.
+
+**Bug im Verify-Loop gefangen+gefixt:** dabei fiel auf, dass `Solid.makeSphere(r)`
+per Default nur eine **Halbkugel** baut (Vol = halb, nicht zentriert) — die
+BREP-Kugel-Übersetzung (§16) war falsch; jetzt voll & zentriert
+(`makeSphere(r, origin, +Z, -90, 90, 360)`), Vol = 4/3·π·r³.
+
+**Ehrliche Grenze:** Standard-45°-Regel, exakt für die modellierte Geometrie, eine
+Baurichtung (Default +Z); **keine** Orientierungs-Optimierung, kein Stützvolumen-/
+Kostenmodell — eine weitere Schicht. cadquery/OCP optional (Test skippt ohne).
+Modul `orientation.py`, getestet in `tests/test_orientation.py`.
+
+**Quelle:** 45°-Überhangregel für FDM (UltiMaker/Slicer-Standard, s. §11);
+Tessellierungs-basierte Überhang-Erkennung (Standard im Slicing).
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).

@@ -386,10 +386,10 @@ def capstone_spec() -> Specification:
             "The 50 MPa in-plane strength assumes a good print (high infill, correct "
             "temperature) at the declared on-edge orientation; a poor or wrongly "
             "oriented print is weaker.",
-            "Orientation-dependent DFM rules (overhangs steeper than 45°, bridge "
-            "spans, support generation) are NOT checked — they need a build-"
-            "orientation model the CSG does not yet carry; only wall thickness and "
-            "hole printability are verified.",
+            "Overhang/support is orientation-dependent and checked separately "
+            "(orientation.overhang_check over the BREP): the bracket printed flat "
+            "(+Z) needs no support; printed on its side the hole overhangs. Bridge "
+            "spans and support-volume cost are still not modelled.",
         ],
         claim_ids_used=[c.id for c in capstone_claims()], produced_by="capstone",
     )
