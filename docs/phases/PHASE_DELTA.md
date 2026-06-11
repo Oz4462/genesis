@@ -1292,11 +1292,52 @@ werfender Validator (Durchmesser 0) → `PHYSICS_CHECK_ERROR` (kein stiller Pass
 Batch meldet **jeden** distinkten Fehlercode; leere Liste besteht vakuös; `run_physics_checks`
 liefert die Evidenz (gerechnete Sicherheitsfaktoren) pro Check.
 
-**Ehrliche Grenze:** das Gate rechnet die deklarierten Checks nach — es **wählt** sie (noch)
-nicht autonom aus der Spezifikation und **löst** die quantity_ids→Inputs (noch) nicht selbst
-auf; das ist der nächste Integrations-Schritt (ein Agent, der `PhysicsCheck`s aus Geometrie +
-Material + Lasten der Spec emittiert, analog zum Derivation-System). Modul
-`physics_validation.py`, getestet in `tests/test_physics_validation.py`.
+**Ehrliche Grenze:** das Gate rechnet die deklarierten Checks nach; die **autonome Auswahl**
+aus der Spezifikation liefert §39. Modul `physics_validation.py`, getestet in
+`tests/test_physics_validation.py`.
+
+---
+
+## 39. Auto-Select — die Spec wählt ihre Checks selbst (`physics_selection.py`)
+
+§38 rechnet eine Liste deklarierter `PhysicsCheck`s nach — aber jemand muss die Liste
+**bauen**. Diese Schicht baut sie **aus der Spezifikation**, sodass das Gate seine Checks
+**selbst** wählt. Es ist das deterministische, LLM-freie Pendant zum Derivation-System: wo
+eine `Derivation` Quantities per `quantity_id` referenziert, referenziert ein `CheckRecipe`
+sie per deklariertem **`measurand`**-Tag — genau die explizite, **nicht** geratene Verknüpfung,
+die GATE γ C-17 schon nutzt, um zu beweisen, dass zwei Quantities sich nicht widersprechen.
+
+Jedes Rezept deklariert einen **Trigger**-Measurand (dessen Anwesenheit bedeutet, dass das
+Design diese Physik hat — `"shaft.torque"` ⇒ es gibt eine Welle in Torsion) und den
+Measurand+Einheit jeder Validator-Eingabe. `select_physics_checks(spec)`:
+- **überspringt** ein Rezept ohne Trigger — das Design hat diese Physik schlicht nicht (kein
+  Check, **keine Lücke**: Stille ist hier korrekt);
+- **emittiert** einen fertigen `PhysicsCheck`, wenn der Trigger da ist und **jede** Eingabe
+  auflöst — wobei jede Quantity **einheiten-korrekt konvertiert** wird (saubere Konversion via
+  `units.py`, kein stilles Magnituden-Raten);
+- **meldet eine Lücke**, wenn der Trigger da ist, aber eine Eingabe fehlt, dimensional
+  unverträglich oder in opaker Einheit ist — ein **indizierter-aber-nicht-rechenbarer** Check
+  wird gemeldet, nie still verworfen und nie mit falscher Einheit gefüttert.
+
+So ist die Auswahl **konstruktiv ehrlich**: eine vom Spec deklarierte Physik-Sorge wird
+entweder ein echter, einheiten-korrekter Check **oder** eine explizite Lücke.
+`evaluate_spec_physics(spec)` macht den ganzen Fluss: selektieren → GATE δ-Physik laufen →
+`{gate, checks, gaps}`.
+
+**Verifiziert** (7 Tests, py 3.11 + 3.13): eine Welle+Ermüdungs-Spec liefert genau die
+`{torsion, fatigue}`-Checks und das Gate besteht; ein in **`N·m`** deklariertes Drehmoment
+erreicht den Validator **einheiten-korrekt als `5000 N·mm`** (×1000); fehlende
+`material.shear_strength` bei vorhandenem `shaft.torque` → **Lücke** (kein stiller Drop);
+ein Durchmesser in `kg` → **Lücke** („not dimensionally mm"); kein Trigger → **nichts**;
+ein selektierter aber **versagender** Check (Schub 3,18 MPa > Festigkeit 2 MPa) lässt das
+Gate **scheitern** (`PHYSICS_CHECK_FAILED`).
+
+**Ehrliche Grenze:** das Rezept-Katalog (`RECIPES`, aktuell 6: Torsion, Ermüdung, Knicken,
+Druckbehälter, Resonanz, Kerbermüdung) ist **erweiterbar** — ein neuer Validator wird
+auto-wählbar durch ein neues Rezept. Nicht-Quantity-Konfiguration (Lagerungsfall, Wandmodell)
+nutzt vorerst deklarierte Defaults im Rezept (`extra`); ihre Herleitung aus Spec-`Decision`s
+ist der nächste Schliff. Modul `physics_selection.py`, getestet in
+`tests/test_physics_selection.py`.
 
 ---
 
