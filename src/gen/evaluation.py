@@ -31,19 +31,23 @@ from .core.state import (
     Specification,
     ValueOrigin,
 )
-from .demo import capstone_state
+from .demo import capstone_state, drive_shaft_state
+from .physics_selection import evaluate_spec_physics
 from .verification.gates import gate_gamma
 
 
 @dataclass
 class Case:
-    """One evaluation case: a name, the state, and whether it SHOULD pass GATE γ.
-    `hallucination_class` labels what an unsound case tries to sneak through."""
+    """One evaluation case: a name, the state, and whether it SHOULD pass its gate.
+    `hallucination_class` labels what an unsound case tries to sneak through; `gate`
+    selects which gate scores it ("gamma" — the anti-hallucination spec gate — or
+    "physics" — the δ-physics validator gate)."""
 
     name: str
     state: RunState
     expected_pass: bool
     hallucination_class: str = ""
+    gate: str = "gamma"
 
 
 def _claim(cid: str, text: str) -> Claim:
@@ -125,6 +129,31 @@ def anti_hallucination_cases() -> list[Case]:
     ]
 
 
+def _shaft_mutated(mutate) -> RunState:
+    st = drive_shaft_state()
+    mutate(st)
+    return st
+
+
+def physics_cases() -> list[Case]:
+    """Sound + unsound cases for the δ-physics gate: a sound drive shaft passes; an
+    over-stressed shaft must be CAUGHT (a failed margin), and a contradictory geometry
+    (zero diameter) must be SURFACED (a validator error), never silently passed."""
+    return [
+        Case("drive shaft (sound design)", drive_shaft_state(), True, gate="physics"),
+        Case("over-stressed shaft (d=5 mm)", _shaft_mutated(_set_value("q_shaft_d", 5.0)),
+             False, "physics-margin-not-cleared", gate="physics"),
+        Case("contradictory geometry (d=0)", _shaft_mutated(_set_value("q_shaft_d", 0.0)),
+             False, "physics-uncomputable-input", gate="physics"),
+    ]
+
+
+def all_cases() -> list[Case]:
+    """The full multi-gate discrimination set — the anti-hallucination γ gate AND the
+    δ-physics gate, sound and unsound, scored together."""
+    return anti_hallucination_cases() + physics_cases()
+
+
 @dataclass
 class EvalReport:
     total: int
@@ -132,16 +161,38 @@ class EvalReport:
     leaks: list[str]          # unsound cases that wrongly PASSED (must be empty)
     false_alarms: list[str]   # sound cases that wrongly FAILED
     verdicts: list[tuple[str, bool, bool]]  # (name, expected_pass, actual_pass)
+    n_unsound: int = 0        # how many cases SHOULD fail (the leak denominator)
+    n_sound: int = 0          # how many cases SHOULD pass (the false-alarm denominator)
+
+    @property
+    def leak_rate(self) -> float:
+        """Fraction of unsound cases that wrongly passed — the false-accept rate of the
+        guarantee. MUST be 0."""
+        return len(self.leaks) / self.n_unsound if self.n_unsound else 0.0
+
+    @property
+    def false_alarm_rate(self) -> float:
+        """Fraction of sound cases wrongly blocked (over-blocking)."""
+        return len(self.false_alarms) / self.n_sound if self.n_sound else 0.0
+
+
+def _gate_verdict(case: Case) -> bool:
+    """Pass/fail of `case` under its declared gate. Pure, deterministic, offline."""
+    if case.gate == "gamma":
+        return gate_gamma(case.state).passed
+    if case.gate == "physics":
+        return evaluate_spec_physics(case.state.specification)["gate"].passed
+    raise ValueError(f"unknown gate {case.gate!r} in case {case.name!r}")
 
 
 def evaluate(cases: list[Case]) -> EvalReport:
-    """Run GATE γ over every case and score the discrimination."""
+    """Run each case under its gate and score the discrimination (leaks / false alarms)."""
     leaks: list[str] = []
     false_alarms: list[str] = []
     verdicts: list[tuple[str, bool, bool]] = []
     correct = 0
     for c in cases:
-        actual = gate_gamma(c.state).passed
+        actual = _gate_verdict(c)
         verdicts.append((c.name, c.expected_pass, actual))
         if actual == c.expected_pass:
             correct += 1
@@ -149,7 +200,9 @@ def evaluate(cases: list[Case]) -> EvalReport:
             false_alarms.append(c.name)
         else:  # not expected_pass and actual -> a hallucination slipped through
             leaks.append(c.name)
-    return EvalReport(len(cases), correct, leaks, false_alarms, verdicts)
+    n_unsound = sum(1 for c in cases if not c.expected_pass)
+    return EvalReport(len(cases), correct, leaks, false_alarms, verdicts,
+                      n_unsound=n_unsound, n_sound=len(cases) - n_unsound)
 
 
 def format_report(report: EvalReport) -> str:
@@ -159,6 +212,8 @@ def format_report(report: EvalReport) -> str:
         lines.append(f"  {mark}{'PASS' if act else 'FAIL'} (expected {'PASS' if exp else 'FAIL'})  {name}")
     lines.append("")
     lines.append(f"  score: {report.correct}/{report.total} correct")
-    lines.append(f"  leaks (hallucinations that passed): {len(report.leaks)}  <- must be 0")
-    lines.append(f"  false alarms (sound specs blocked): {len(report.false_alarms)}")
+    lines.append(f"  leaks (hallucinations that passed): {len(report.leaks)}  "
+                 f"(rate {report.leak_rate:.0%})  <- must be 0")
+    lines.append(f"  false alarms (sound specs blocked): {len(report.false_alarms)}  "
+                 f"(rate {report.false_alarm_rate:.0%})")
     return "\n".join(lines)

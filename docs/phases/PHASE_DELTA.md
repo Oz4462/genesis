@@ -1372,6 +1372,41 @@ Bestands-Gate-Test berührt). Spec `demo.drive_shaft_spec`/`drive_shaft_state`, 
 
 ---
 
+## 41. Eval-Harness Multi-Gate — die Garantie wird gemessen, auch für δ-Physik (`evaluation.py`)
+
+Die VISION verlangt, dass die Anti-Halluzinations-Garantie **gemessen** wird, nicht behauptet
+— und SOTA-Faktualität (FActScore, HalluLens, ACL 2025) misst Diskriminierung über kuratierte
+**sound/unsound**-Sätze. `evaluation.py` aggregiert die Gates zu **einer** Metrik über solche
+Fälle: passt das Gate **jeden** soliden Fall (inkl. ehrlicher Abstention) und failt es **jeden**
+unsoliden? Die nicht-verhandelbare Zahl ist **`leaks == 0`** (kein Halluzinations-Leck rutscht
+durch); dazu die `false_alarms` (Über-Blockieren).
+
+**Erweiterung (dieser Schritt):** das Harness ist jetzt **Multi-Gate**. Neben dem γ-Gate
+(7 Fälle, je eine Halluzinations-Klasse: C-4 erfundener Preis, C-6 gebrochene Derivation, C-2
+Wert in fehlendem Claim, C-17 Faktenwiderspruch, C-15 Dimensionsunsinn, + Capstone + Abstention)
+misst es nun auch das **δ-Physik-Gate** (§38): eine **solide** Antriebswelle besteht; eine
+**überbeanspruchte** Welle (`d=5 mm` → `τ ≈ 6112 MPa ≫ 260`) **muss gefangen** werden
+(`PHYSICS_CHECK_FAILED`); eine **widersprüchliche** Geometrie (`d=0`) **muss aufgedeckt** werden
+(`PHYSICS_CHECK_ERROR`), nie still bestanden. Plus **Raten-Metriken**: `leak_rate` (False-Accept
+der Garantie, Nenner = Anzahl unsolider Fälle) und `false_alarm_rate`.
+
+**Verifiziert** (10 Fälle über beide Gates, py 3.11 + 3.13): `10/10 correct`, **`leaks = 0`
+(rate 0 %)**, `false_alarms = 0`. Jeder unsolide δ-Physik-Fall failt das Gate, jeder solide
+besteht. Offline, LLM-frei — gemessen wird die **deterministische Diskriminierung** der Gates,
+nicht Live-Modell-Qualität (das braucht die aufgeschobenen, gemessenen Modell-Läufe).
+
+**Ehrliche Grenze:** dies ist die **Offline-Gate-Diskriminierungs-Schicht** der Eval-Achse.
+Die FActScore-artige atomare Claim-Bewertung gegen ein Gold-Set und die HalluLens-Nonsense→
+Abstention-Prüfung auf **Live**-Pipeline-Läufen sind der nächste Teil — sie brauchen gemessene
+Modell-Läufe (per Owner-Direktive bis „real-use ready" aufgeschoben). Modul `evaluation.py`,
+getestet in `tests/test_evaluation.py`; CLI `python -m gen --mode eval`.
+
+**Quelle:** FActScore (Min et al. 2023, atomare Claim-Zerlegung); HalluLens (ACL 2025,
+LongWiki/PreciseQA/Nonsense); *Trust but Verify — Survey on Verification Design* (arXiv
+2508.16665): „combine multiple verification signals", „integrate symbolic/formal methods".
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
