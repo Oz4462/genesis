@@ -722,6 +722,55 @@ PLA `E≈3500 MPa`, `ν≈0,35` deklariert. gmsh optional (Test skippt ohne). Mo
 
 ---
 
+## 24. Quadratische Tets (T10) — der Konzentrations-Peak auf grobem Netz
+
+§22/§23 lesen den Peak mit dem **4-Knoten-Tet** (CST, **konstante** Dehnung): jedes
+Element trägt nur einen Spannungswert, also unterschätzt ein grobes Netz den Gradient
+an einer Kerbe und konvergiert langsam. Der **10-Knoten-Tet** (T10: 4 Ecken + 6
+Kantenmitten, `fem3d_quadratic.py`) hat **quadratische** Formfunktionen und damit
+**lineare** Dehnung — er erfasst dasselbe Konzentrationsfeld mit weit weniger
+Elementen. Reines numpy, 4-Punkt-Gauß-Integration (exakt für dieses Element).
+
+**Verifiziert, nicht behauptet — zwei Ebenen:**
+- **Element (ohne Mesher):** der **lineare Patch-Test** — ein lineares Verschiebungs-
+  feld liefert an **jedem** Gauß-Punkt **exakt** die aufgeprägte konstante Dehnung
+  (`atol 1e-12`); die Steifigkeit hat den **Starrkörper-Nullraum** (eine
+  Translation trägt keine Kraft) und ist symmetrisch. Das pinnt die Element-Mathematik
+  ohne jede externe Abhängigkeit.
+- **Netz (gmsh order-2):** auf einer Box reproduziert das Element **Zug exakt**
+  (`σ_xx = 210` MPa, `std < 1e-6`, Maschinengenauigkeit); auf der Platte-mit-Loch
+  erreicht T10 auf einem **groben** Netz (503 Tets) den analytischen Howland/Heywood-
+  **Brutto-Kt ≈ 3,14** (für `d/W = 0,2`) — `Kt_T10 = 3,15` —, während der **gleiche**
+  grobe Netz mit dem linearen T4 noch **unterschätzt** (`Kt_T4 = 3,07`). Genau die
+  „schnellere Konvergenz", um die es geht: weniger Elemente für denselben Peak.
+
+**Schlüsseldetail (ehrlich):** der Peak wird bei T10 an den **Element-Knoten**
+zurückgewonnen (`t10_nodal_stresses`), nicht im Element-Schwerpunkt — eine
+Spannungskonzentration sitzt auf einem **Rand**knoten, der Schwerpunkt-Wert unter-
+liest sie. Erst die **lineare** Dehnung des T10 macht diese Knoten-Rückgewinnung
+sinnvoll (T4 ist konstant, Knoten = Schwerpunkt). So wird der Vorteil sauber sichtbar
+und nicht durch die Abtast-Methode verdeckt.
+
+**Mesher-Detail:** der strukturierte 6-Tet-Hex-Split ist für quadratische Elemente
+**degeneriert** (seine kreuzenden inneren Diagonalen legen zwei verschiedene Knoten
+auf dieselbe Kantenmitte → das Netz ist nicht konform), daher kommt das T10-Netz aus
+gmsh `setOrder(2)`, dessen 6 Kantenknoten **geometrisch** (Mittelpunkt-Match) in die
+lokale Reihenfolge dieses Moduls sortiert werden — unabhängig von gmshs eigener
+Kantennummerierung.
+
+**Ehrliche Grenze:** lineare isotrope Elastizität, statisch; der gmsh-Mesher ist
+optional (Test skippt ohne). Die Knoten-Rückgewinnung ist eine **ungemittelte** obere
+Peak-Schätzung (Standard-FEM-Praxis), kein gemittelter Knotenwert. Module
+`fem3d_quadratic.py` + die T10-Variante in `plate_hole.py`, getestet in
+`tests/test_fem3d_quadratic.py`.
+
+**Quelle:** Zienkiewicz & Taylor, *The Finite Element Method* (quadratische
+Tetraeder, lineare Dehnung, schnellere Konvergenz); Howland (1930) / Heywood-
+Endbreiten-Korrektur für den Brutto-Kt der gelochten Streifenplatte (`d/W = 0,2 →
+Kt ≈ 3,14`).
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
