@@ -469,3 +469,90 @@ def protocol_state() -> RunState:
                              grounding=["c_bio_anchor"])]
     st.specification = protocol_spec()
     return st
+
+
+# --- delta mechanical domain: a load-bearing part the physics validators fit -----
+# The bracket is a STATIC flat part whose stress/shear are already checked by the
+# gamma constraints; the delta-physics validators (torsion, fatigue, resonance, ...)
+# do not apply to it. This second spec is a part where they DO: a rotating drive
+# shaft, with quantities tagged by `measurand` so physics_selection auto-builds the
+# applicable checks and gate_delta_physics returns one verdict end to end. Material
+# properties are grounded in claims (as the bracket's are); the engineering inputs
+# (torque, diameter, speeds) are declared design choices.
+
+def drive_shaft_claims() -> list[Claim]:
+    return [
+        _claim("c_shaft_anchor",
+               "Rotating drive shafts transmit torque between machine elements."),
+        _claim("c_steel_g", "Structural steel has a shear modulus of about 80 GPa."),
+        _claim("c_steel_tau",
+               "AISI 1045 medium-carbon steel has a shear strength of about 260 MPa."),
+        _claim("c_steel_uts",
+               "AISI 1045 cold-drawn steel has an ultimate tensile strength of about "
+               "585 MPa."),
+        _claim("c_steel_se",
+               "AISI 1045 steel has a bending endurance limit of about 290 MPa."),
+    ]
+
+
+def _gm(qid, name, value, unit, grounding, measurand):
+    return Quantity(id=qid, name=name, value=value, unit=unit,
+                    origin=ValueOrigin.GROUNDED, grounding=grounding, measurand=measurand)
+
+
+def _dm(qid, name, value, unit, rationale, measurand):
+    return Quantity(id=qid, name=name, value=value, unit=unit,
+                    origin=ValueOrigin.DECISION, rationale=rationale, measurand=measurand)
+
+
+def drive_shaft_spec() -> Specification:
+    quantities = [
+        # torsion: a rated torque twisting a steel shaft of chosen size
+        _dm("q_torque", "transmitted torque", 150.0, "N*m",
+            "rated drive torque (declared in N*m to exercise unit conversion to N*mm)",
+            "shaft.torque"),
+        _dm("q_shaft_d", "shaft diameter", 25.0, "mm", "chosen shaft size", "shaft.diameter"),
+        _dm("q_shaft_L", "shaft length between bearings", 600.0, "mm",
+            "bearing span", "shaft.length"),
+        _gm("q_steel_g", "steel shear modulus", 80000.0, "MPa", ["c_steel_g"],
+            "material.shear_modulus"),
+        _gm("q_steel_tau", "steel shear strength", 260.0, "MPa", ["c_steel_tau"],
+            "material.shear_strength"),
+        # rotating-bending fatigue: an alternating bending stress on the spinning shaft
+        _dm("q_bend_amp", "rotating-bending stress amplitude", 80.0, "MPa",
+            "alternating bending at the load span", "fatigue.stress_amplitude"),
+        _dm("q_bend_mean", "mean (steady) stress", 20.0, "MPa",
+            "steady stress component", "fatigue.mean_stress"),
+        _gm("q_steel_uts", "steel ultimate tensile strength", 585.0, "MPa", ["c_steel_uts"],
+            "material.uts"),
+        _gm("q_steel_se", "steel endurance limit", 290.0, "MPa", ["c_steel_se"],
+            "material.endurance_limit"),
+        # whirl resonance: keep the first whirl mode well above the running speed
+        _dm("q_op_speed", "operating rotation frequency", 50.0, "Hz",
+            "3000 rpm = 50 Hz", "vibration.excitation_frequency"),
+        _dm("q_whirl", "first whirl natural frequency", 150.0, "Hz",
+            "first lateral/whirl mode, kept 3x above the running speed",
+            "vibration.first_natural_frequency"),
+    ]
+    return Specification(
+        run_id="drive_shaft",
+        idea="A rotating drive shaft sized against torsion, rotating-bending fatigue, "
+             "and whirl resonance",
+        approach_id="ap_shaft", quantities=quantities,
+        gaps=[
+            "Keyway / shoulder stress concentrations are not modelled in the nominal "
+            "checks — apply a fatigue notch factor K_f (notch_fatigue) separately.",
+            "Bearing life, the coupling, and the shaft-to-hub connection are out of "
+            "scope; only the shaft body's torsion, fatigue and whirl are checked.",
+        ],
+        claim_ids_used=[c.id for c in drive_shaft_claims()], produced_by="drive_shaft",
+    )
+
+
+def drive_shaft_state() -> RunState:
+    st = RunState(question=Question(raw="rotating drive shaft", run_id="drive_shaft"))
+    st.claims = drive_shaft_claims()
+    st.approaches = [Approach(id="ap_shaft", name="Rotating drive shaft",
+                             grounding=["c_shaft_anchor"])]
+    st.specification = drive_shaft_spec()
+    return st

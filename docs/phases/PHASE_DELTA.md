@@ -1341,6 +1341,37 @@ ist der nächste Schliff. Modul `physics_selection.py`, getestet in
 
 ---
 
+## 40. End-to-End auf einer echten Spec — die Antriebswelle (`demo.drive_shaft_spec`)
+
+Der Capstone-Halter ist ein **statisches** Flachteil, dessen Spannung/Schub bereits die
+γ-Constraints prüfen — die δ-Physik-Validatoren (Torsion/Knicken/Resonanz…) passen darauf
+**nicht**; sie ihm aufzuzwingen wäre unehrlich. Der ehrliche End-to-End-Beweis läuft daher
+auf einer **zweiten realen Spec** (wie `protocol_spec` die Bio-Domäne zeigt): eine
+**rotierende Antriebswelle**, deren `Quantity`s mit `measurand`-Tags versehen sind, sodass
+die ganze Kette von §39→§38 ohne Handarbeit greift.
+
+`evaluate_spec_physics(drive_shaft_spec())` **wählt aus der Spec genau die drei zutreffenden
+Checks** — Torsion (`shaft.torque`), Rotationsbiege-**Ermüdung** (`fatigue.stress_amplitude`),
+Whirl-**Resonanz** (`vibration.excitation_frequency`) — und **keine** unpassenden (kein
+`column.axial_load` → kein Knicken, kein `vessel.pressure` → kein Druckbehälter, kein
+`notch.kt` → keine Kerbermüdung). Das in `N·m` deklarierte Drehmoment erreicht den Validator
+**einheiten-korrekt als `150000 N·mm`**. Verdikt **bestanden, 0 Lücken**, mit gerechneten
+Sicherheitsfaktoren als Evidenz: Torsion `5.32` (`τ_max=16T/(πd³)≈48.9 MPa` vs `260 MPa`),
+Ermüdung `3.23` (Goodman `1/(80/290+20/585)`), Resonanz `3.00` (`150 Hz` über `50 Hz`
+Betriebsdrehzahl). Material-Eigenschaften sind in Claims **gegroundet** (wie beim Halter), die
+Auslegungs-Eingaben deklarierte Entscheidungen; deklarierte `gaps` (Passfedernut-Kerbe,
+Lagerlebensdauer, Kupplung) bleiben ehrlich offen.
+
+Damit ist die δ-Physik-Engine **durchverdrahtet bewiesen**: von measurand-getaggten
+Spec-Quantities über die autonome Check-Auswahl und das ehrliche Gate bis zum Verdikt mit
+Beweiskette — deterministisch, LLM-frei, gegen Closed-Form verifiziert.
+
+**Verifiziert:** 5 Tests (py 3.11 + 3.13), `demo.py`-Ergänzung rein additiv (kein
+Bestands-Gate-Test berührt). Spec `demo.drive_shaft_spec`/`drive_shaft_state`, getestet in
+`tests/test_drive_shaft_physics.py`.
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
