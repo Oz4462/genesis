@@ -71,6 +71,8 @@ def test_rendered_spec_has_all_depth_sections():
     assert "Site & environment" in out and "available space: 200 mm x 200 mm x 200 mm" in out
     assert "volume:" in out and "mass:" in out
     assert "no provably broken geometry" in out
+    # cost roll-up: honest partial (only the screw is priced)
+    assert "Estimated cost: 0.84 EUR (partial" in out
 
 
 # --- the invariant: drop one claim -> the dependent detail fails ---------------

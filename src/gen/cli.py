@@ -20,6 +20,7 @@ import sys
 
 from .config import Config, default_config
 from .core.errors import GenesisError
+from .costing import bom_cost, format_cost
 from .core.state import (
     BomDomain,
     Question,
@@ -460,6 +461,8 @@ def format_specification(spec: Specification) -> str:
             lines.append("Bill of materials (electronics):")
             _bom_lines(elec)
             lines.append("")
+        lines.append(f"Estimated cost: {format_cost(bom_cost(spec))}")
+        lines.append("")
 
     if spec.steps:
         qmap2 = {q.id: q for q in spec.quantities}
