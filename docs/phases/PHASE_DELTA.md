@@ -576,3 +576,42 @@ Ein bestandener Geometrie-Check bleibt notwendig, nicht hinreichend.
 
 **Quelle:** OpenCASCADE Technology (B-Rep-Festkörperkernel) via cadquery; Boolesche
 CSG-Operationen (Requicha 1980, s. PHASE_GAMMA §10).
+
+---
+
+## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
+
+Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
+Software hat den **stärksten** deterministischen Validator überhaupt: **ausführen.**
+Ein `CodeArtifact` ist `source` + ein `check`; `gate_code` führt beides in einem
+**isolierten Subprozess** (`python -I`) mit hartem Timeout aus und besteht nur,
+wenn der Prozess mit 0 endet — **kein Modell-Urteil, die Maschine entscheidet.**
+Das ist die reinste Form von „validieren vor dem Bauen": hier **ist** Bauen
+Ausführen, und Validierung ist empirische Ausführung. Deterministisch, offline,
+kein LLM.
+
+| Code | Defekt |
+|---|---|
+| `UNSUPPORTED_LANGUAGE` | Sprache ohne lokale Runtime (nur Python läuft deterministisch hier) — **gemeldet, nicht gefaked** |
+| `CODE_TIMEOUT` | der Check überschritt das Zeitlimit |
+| `CODE_CHECK_FAILED` | Prozess ≠ 0 (fehlgeschlagene Assertion, Syntaxfehler, Exception) → Deliverable kaputt |
+
+**Capstone:** ein echter Software-Baustein — `led_resistance(v,a)=v/a`, der genau
+den Arbeitspunkt-Widerstand berechnet, den die DC-Analyse (§15) nutzt — wird **real
+ausgeführt** (3 Assertions inkl. Guard für i≤0) und besteht. **Zähne** (je ein
+Test): fehlschlagende Assertion → `CODE_CHECK_FAILED`; Syntaxfehler → dito; C statt
+Python → `UNSUPPORTED_LANGUAGE`. Der Capstone läuft jetzt durch **vier** Gates:
+γ + δ + ERC + CODE.
+
+**Ehrliche Grenze:** ein **bestandener** CODE-Check heißt „kompiliert + die
+deklarierten Checks bestehen" — für das geprüfte Verhalten **hinreichend**, beweist
+aber nicht, dass die Checks selbst vollständig sind. Nur Python hat hier eine
+garantierte Runtime; andere Sprachen brauchen ihre Toolchain. **Sicherheit:** spec-
+gelieferten Code auszuführen ist ein Sandbox-Thema; isolierter Subprozess + Timeout
+ist eine pragmatische Grenze, **keine** gehärtete Sandbox — ein Produktions-Deploy
+gehört in eine echte Sandbox (`rules/95`). Modul `software.py` + `gate_code`,
+getestet in `tests/test_software.py`.
+
+**Quelle:** Test-/Ausführungs-getriebene Validierung ist der Goldstandard
+deterministischer Software-Verifikation (CI/CD; „the build is green"); GENESIS
+hebt sie auf Spec-Ebene.

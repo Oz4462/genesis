@@ -315,8 +315,8 @@ def specification_from_dict(d: dict):
     what makes a checkpoint a faithful, reproducible record (acceptance A5).
     """
     from .core.state import (
-        BomDomain, BomItem, BomRole, Component, Constraint, Decision, Derivation,
-        Net, Netlist, Pin, PinType, Quantity, SiteRequirements, Sourcing,
+        BomDomain, BomItem, BomRole, CodeArtifact, Component, Constraint, Decision,
+        Derivation, Net, Netlist, Pin, PinType, Quantity, SiteRequirements, Sourcing,
         Specification, Step, ValueOrigin,
     )
 
@@ -397,6 +397,12 @@ def specification_from_dict(d: dict):
         decisions=[_decision(x) for x in d.get("decisions") or []],
         site=site,
         netlist=netlist,
+        code_artifacts=[
+            CodeArtifact(id=a["id"], name=a["name"], language=a["language"],
+                         source=a["source"], check=a["check"],
+                         description=a.get("description", ""))
+            for a in d.get("code_artifacts") or []
+        ],
         gaps=list(d.get("gaps") or []),
         claim_ids_used=list(d.get("claim_ids_used") or []),
         produced_by=d.get("produced_by", ""), model=d.get("model", ""),
@@ -518,6 +524,13 @@ def _specification_to_dict(spec: Specification) -> dict:
             if spec.netlist
             else None
         ),
+        "code_artifacts": [
+            {
+                "id": a.id, "name": a.name, "language": a.language,
+                "source": a.source, "check": a.check, "description": a.description,
+            }
+            for a in spec.code_artifacts
+        ],
         "gaps": list(spec.gaps),
         "claim_ids_used": list(spec.claim_ids_used),
         "produced_by": spec.produced_by,

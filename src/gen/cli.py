@@ -43,7 +43,7 @@ from .runner import Dependencies, run, run_solution, run_specification
 from .tools.http import HttpResponse, default_http_get
 from .tools.search import SemanticScholarBackend, WikipediaBackend
 from .verification.cross_model import assert_different_families
-from .verification.gates import gate_delta, gate_erc, geometry_envelope
+from .verification.gates import gate_code, gate_delta, gate_erc, geometry_envelope
 from .verification.geometry import geometry_length_unit, mass_of, volume_of
 
 # --- offline demo world (deterministic) --------------------------------------
@@ -541,6 +541,18 @@ def format_specification(spec: Specification) -> str:
                 lines.append(f"  • {f.code}: {f.detail}")
         lines.append("")
 
+    if spec.code_artifacts:
+        lines.append("Software validation (CODE — proven by execution):")
+        code = gate_code(_spec_state(spec))
+        for art in spec.code_artifacts:
+            lines.append(f"  • {art.name} ({art.language}): {art.description}")
+        if code.passed:
+            lines.append("  • status: all code checks pass (the machine executed them)")
+        else:
+            for f in code.failures:
+                lines.append(f"  • {f.code}: {f.detail}")
+        lines.append("")
+
     if not spec.components and not spec.steps:
         lines.append("Specification: none asserted — nothing could be grounded.")
         lines.append("")
@@ -681,9 +693,11 @@ def main(argv: list[str] | None = None) -> int:
         print(render_spec(spec, args.format))
         ga = gate_gamma(state)
         gd = gate_delta(state)
-        print(f"Gate γ: {'PASS' if ga.passed else 'FAIL'} ({len(ga.failures)} failures)")
-        print(f"Gate δ: {'PASS' if gd.passed else 'FAIL'} ({len(gd.failures)} failures)")
-        return 0 if (ga.passed and gd.passed) else 3
+        ge = gate_erc(state)
+        gc = gate_code(state)
+        for label, g in (("γ", ga), ("δ", gd), ("ERC", ge), ("CODE", gc)):
+            print(f"Gate {label}: {'PASS' if g.passed else 'FAIL'} ({len(g.failures)} failures)")
+        return 0 if all(g.passed for g in (ga, gd, ge, gc)) else 3
 
     if args.demo:
         if args.mode == "report":

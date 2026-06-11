@@ -528,6 +528,29 @@ class Netlist:
 
 
 @dataclass
+class CodeArtifact:
+    """A software deliverable whose correctness is proven by EXECUTION.
+
+    The software-domain analogue of geometry/statics: instead of a formula the gate
+    re-checks, the deliverable is `source` code plus a `check` that exercises it;
+    GATE CODE runs them and passes only if the checks pass. This is the strongest
+    deterministic validator GENESIS has — the machine executes, no model judgement.
+
+    `language`  currently only "python" runs deterministically with a local runtime.
+    `source`    the code under test.
+    `check`     assertions exercising `source`; a non-zero exit (e.g. AssertionError)
+                means the deliverable is broken.
+    """
+
+    id: str
+    name: str
+    language: str
+    source: str
+    check: str
+    description: str = ""
+
+
+@dataclass
 class SiteRequirements:
     """Where to set the thing up and what the location must provide.
 
@@ -566,6 +589,7 @@ class Specification:
     decisions: list[Decision] = field(default_factory=list)
     site: "SiteRequirements | None" = None
     netlist: "Netlist | None" = None
+    code_artifacts: list["CodeArtifact"] = field(default_factory=list)
     gaps: list[str] = field(default_factory=list)
     claim_ids_used: list[str] = field(default_factory=list)
     produced_by: str = ""

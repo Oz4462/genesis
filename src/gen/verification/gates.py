@@ -44,6 +44,7 @@ from .derivation import (
 from .geometry import aabb_of, overlaps
 from .units import Dimension, formula_dimension, parse_unit, unit_scale
 from ..uncertainty import combine_standard_uncertainty
+from ..software import SUPPORTED_LANGUAGES, run_python_artifact
 
 
 def claim_soundness_failures(
@@ -1638,6 +1639,70 @@ def gate_erc(state: RunState) -> GateResult:
             )
 
     return GateResult(gate="erc", passed=not failures, failures=failures)
+
+
+def gate_code(state: RunState) -> GateResult:
+    """GATE CODE — validate software deliverables by EXECUTION.
+
+    The strongest deterministic validator in GENESIS: every code artifact in the
+    spec is run (source + its check) in an isolated subprocess; the gate passes
+    only if every check exits zero. No formula, no model judgement — the machine
+    executes and decides (PHASE_DELTA.md §17).
+
+      S-1 UNSUPPORTED_LANGUAGE  the artifact's language has no local runtime here
+                                (only Python runs deterministically) — reported,
+                                not faked.
+      S-2 CODE_TIMEOUT          the check exceeded the wall-clock limit.
+      S-3 CODE_CHECK_FAILED     the process exited non-zero (failed assertion,
+                                syntax error, exception) — the deliverable is broken.
+
+    A spec with no code artifacts passes trivially. Honest asymmetry: a PASS means
+    "compiles and the declared checks pass" — necessary and, for the checked
+    behaviour, sufficient; it does not prove the checks themselves are complete.
+    """
+    import subprocess
+
+    spec = state.specification
+    if spec is None:
+        return GateResult(
+            gate="code",
+            passed=False,
+            failures=[GateFailure(code="NO_SPECIFICATION", detail="No specification to validate.")],
+        )
+
+    failures: list[GateFailure] = []
+    for art in spec.code_artifacts:
+        if art.language not in SUPPORTED_LANGUAGES:
+            failures.append(
+                GateFailure(
+                    code="UNSUPPORTED_LANGUAGE",
+                    detail=(
+                        f"code artifact {art.id!r} is {art.language!r}; only "
+                        f"{list(SUPPORTED_LANGUAGES)} run deterministically here."
+                    ),
+                )
+            )
+            continue
+        try:
+            passed, output = run_python_artifact(art.source, art.check)
+        except subprocess.TimeoutExpired:
+            failures.append(
+                GateFailure(
+                    code="CODE_TIMEOUT",
+                    detail=f"code artifact {art.id!r} ({art.name!r}) exceeded the time limit.",
+                )
+            )
+            continue
+        if not passed:
+            tail = output.strip().splitlines()[-1] if output.strip() else "no output"
+            failures.append(
+                GateFailure(
+                    code="CODE_CHECK_FAILED",
+                    detail=f"code artifact {art.id!r} ({art.name!r}) failed its check: {tail}",
+                )
+            )
+
+    return GateResult(gate="code", passed=not failures, failures=failures)
 
 
 def geometry_envelope(state: RunState) -> dict[str, tuple[float, float, float]]:

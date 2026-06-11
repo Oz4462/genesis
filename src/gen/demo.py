@@ -44,6 +44,7 @@ from .core.state import (
     BomRole,
     Claim,
     ClaimStatus,
+    CodeArtifact,
     Component,
     Constraint,
     Decision,
@@ -324,6 +325,30 @@ def capstone_spec() -> Specification:
                      rationale="dissipate power-supply heat"),
         ],
     )
+    # software deliverable: a tiny helper that computes the LED operating-point
+    # resistance the DC analysis uses. GATE CODE proves it correct by EXECUTION
+    # (the machine runs the check), the strongest deterministic validator.
+    code_artifacts = [
+        CodeArtifact(
+            id="ca_led_r", name="led_resistance", language="python",
+            description="operating-point resistance R = V / I of the LED strip",
+            source=(
+                "def led_resistance(volts, amps):\n"
+                "    '''Operating-point resistance of a load drawing `amps` at `volts`.'''\n"
+                "    if amps <= 0:\n"
+                "        raise ValueError('current must be positive')\n"
+                "    return volts / amps\n"
+            ),
+            check=(
+                "assert led_resistance(12, 1.5) == 8.0\n"
+                "assert led_resistance(12, 2) == 6.0\n"
+                "try:\n"
+                "    led_resistance(12, 0); raise SystemExit('no guard')\n"
+                "except ValueError:\n"
+                "    pass\n"
+            ),
+        ),
+    ]
     # electrical netlist: the PSU drives the LED strip over a 12 V rail + ground.
     # The deterministic ERC (gate_erc) proves the wiring is sound — no SPICE.
     netlist = Netlist(
@@ -343,7 +368,7 @@ def capstone_spec() -> Specification:
         idea="A wall-mounted LED shelf bracket carrying the verified load",
         approach_id="ap1", quantities=quantities, components=components, bom=bom,
         steps=steps, constraints=constraints, decisions=decisions, site=site,
-        netlist=netlist,
+        netlist=netlist, code_artifacts=code_artifacts,
         gaps=[
             # The σ-check now counts the safety factor, the Kirsch hole stress raiser,
             # the print orientation and the fastener shear. What honestly remains is
