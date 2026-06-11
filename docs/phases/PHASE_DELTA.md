@@ -1141,6 +1141,165 @@ Stresses*, Trans. ASME 74:765; Norton (1929), *The Creep of Steel at High Temper
 
 ---
 
+## 34. Kerbermüdung — vom statischen Kerbfaktor zur Dauerfestigkeit (`notch_fatigue.py`)
+
+Ein geometrischer Spannungssammler (`K_t` aus Bohrung, Hohlkehle, Nut, Gewinde) erhöht
+statisch die Spitzenspannung — aber unter **zyklischer** Last wird die Dauerfestigkeit
+**nicht** um den vollen `K_t` reduziert. Reale Werkstoffe zeigen **Kerbempfindlichkeit**
+`q ∈ [0, 1]`: der steile Spannungsgradient an einer scharfen Kerbe lässt das Material die
+Spitze teilweise „ausmitteln". Diese Schicht schlägt die Brücke von der statischen
+Kerbgeometrie (§9 `K_t`) zur Hochzyklen-Lebensdauer (§28).
+
+Drei geschlossene Formen (Peterson/Neuber): **Kerbempfindlichkeit** `q = 1/(1 + a/r)`
+(`a` Werkstoffkonstante, `r` Kerbradius); **Kerbermüdungsfaktor** `K_f = 1 + q·(K_t − 1)`;
+**kerbreduzierte Dauerfestigkeit** `Se_notched = Se/K_f`.
+
+**Verifiziert, nicht behauptet:** Anker `K_t=3, r=1 mm, a=0.25 mm → q=0.8, K_f=2.6,
+Se_notched=Se/2.6 = 76.92 MPa` (bei `Se=200`); stumpfe Kerbe `a/r→0 → q→1 → K_f→K_t`;
+scharfe winzige Kerbe `a/r→∞ → q→0 → K_f→1`; `1 < K_f < K_t` für jedes endliche `r`.
+10 Tests grün auf py 3.11 **und** 3.13.
+
+**Ehrliche Grenze:** empirische Peterson-Kerbempfindlichkeit für stress-basierte
+Hochzyklen-Ermüdung von Metallen; `q` ist ein **empirischer Fit**, und die Konstante `a`
+(≈ 0,01..0,02 mm für Stähle) hängt vom Werkstoff ab und **muss geliefert werden** — das
+Modul erfindet `a` nicht. `K_t` wird als bekannt vorausgesetzt (Diagramm/FEA). Keine
+Niedrigzyklen-Plastizität, keine Bruchmechanik (§35), kein mehrachsiger Kerbzustand.
+**Quelle:** R. E. Peterson, *Stress Concentration Factors* (Wiley 1974); Shigley & Budynas,
+*Mechanical Engineering Design*, Kap. 6.
+
+---
+
+## 35. Bruchmechanik — der rissgetriebene Versagensfall (`fracture.py`)
+
+Spannungscheck, `fatigue.py`, `buckling.py` und `torsion.py` sehen **keinen Riss**. Ein
+Bauteil mit Fehler der Länge `a` versagt, wenn die Spannungsintensität `K = Y·σ·√(π·a)`
+die Bruchzähigkeit `K_IC` erreicht (Sprödbruch weit unter Fließen); ein unterkritischer
+Riss **wächst** pro Lastzyklus (Paris).
+
+- Spannungsintensität `K = Y·σ·√(π·a)` (Irwin); Anker `Y=1, σ=100, a=1 → K=100√π =
+  177.245 MPa·√mm`.
+- Kritische Risslänge `a_c = (1/π)·(K_IC/(Y·σ))²` invertiert `K` exakt (`a_c` zurück →
+  `K==K_IC` maschinengenau); Anker `K_IC=2000, Y=1, σ=100 → a_c=400/π = 127.324 mm`.
+- `fracture_check` liefert `{stress_intensity, critical_crack_size, safety_factor=K_IC/K,
+  ok}`.
+- **Paris-Lebensdauer** (geschlossenes Integral, `m≠2`): `paris_life(C=1e-11, m=3, Δσ=100,
+  a_i=1, a_f=10, Y=1.12) = 17480.85 Zyklen`, stimmt mit unabhängiger Trapez-Integration auf
+  `2.96e-11`; größerer Anfangsriss → weniger Zyklen (`a_i=4 → 4698`). `m==2` wirft
+  `NotImplementedError` statt eines falschen Werts. 14 Tests grün (py 3.11 + 3.13).
+
+**Ehrliche Grenze:** Small-Scale-Yielding-LEFM eines idealen Durchrisses mit konstantem
+Geometriefaktor `Y`. Kein elastisch-plastischer Bruch (J-Integral/CTOD), kein variierendes
+`Y(a/W)`, kein `ΔK_th`-Schwellwert, keine Rissschließung/R-Verhältnis, nur Mode I.
+`K`/`K_IC` in `MPa·√mm` (Handbuch meist `MPa·√m`; `1 MPa·√m ≈ 31.62 MPa·√mm`).
+**Quelle:** G. R. Irwin, J. Appl. Mech. 24 (1957) — Spannungsintensität; P. C. Paris &
+F. Erdogan, J. Basic Eng. 85 (1963) — `da/dN = C·(ΔK)^m`.
+
+---
+
+## 36. Plattenbiegung — die 2-D-Druckdurchbiegung eines flachen Panels (`plate_bending.py`)
+
+Die Balken-/Stab-Schichten tragen Last entlang EINER Achse, die Druckbehälter-Schicht
+(§32) eine Membranspannung in einer gekrümmten Schale. Keine sieht das Versagen einer
+flachen Platte: ein Panel, ein Gehäusedeckel, eine Fensterscheibe, eine Leiterplatte, ein
+Tankboden — am Rand eingespannt oder gelenkig gelagert und von gleichförmigem Druck `q`
+belastet. Die Platte hat keine Achse zum Abtragen; sie muss in zwei Richtungen zugleich
+BIEGEN und baut eine Biegespannung auf, die ein sprödes Fenster reißt oder einen dünnen
+Deckel fließen lässt, lange bevor ein 1-D-Check warnt.
+
+Geschlossene Kirchhoff-Formen für die KREISPLATTE (Radius R, Dicke t, Druck q):
+Biegesteifigkeit `D = E·t³/(12(1−ν²))` (2-D-Analogon zu `E·I`, kubisch in t); EINGESPANNT
+`w_max = q·R⁴/(64·D)` (Mitte), max. Spannung am RAND `σ = 3·q·R²/(4·t²)`; GELENKIG (weicher,
+biegt MEHR) `w_max = (5+ν)·q·R⁴/(64·(1+ν)·D)`, max. Spannung in der MITTE
+`σ = 3·(3+ν)·q·R²/(8·t²)`.
+
+**Verifiziert** (py 3.11 + 3.13, 13 Tests): gelenkig biegt mehr als eingespannt, Verhältnis
+`w_ss/w_clamped = (5+ν)/(1+ν) = 4.077` (ν=0,3); `D ∝ t³`, Durchbiegung `∝ R⁴` und `∝ 1/t³`;
+Stahl-Anker `q=0.1 MPa, R=100 mm, t=5 mm → eingespannt w_max=0.065 mm, σ_max=30.0 MPa`
+(gelenkig `0.265 mm`/`49.5 MPa`).
+
+**Ehrliche Grenze:** linear-elastische KLEIN-Durchbiegungs-Theorie (Kirchhoff) einer dünnen,
+flachen, isotropen KREISPLATTE unter GLEICHFÖRMIGEM Druck; keine großen Durchbiegungen (bei
+`w ≈ t` versteift Membranwirkung → diese Formen ÜBERschätzen), keine rechteckigen Formen
+(Roark-Seitenverhältnis), keine Punkt-/Teillasten, keine Lochspitzen.
+**Quelle:** Timoshenko & Woinowsky-Krieger (1959), *Theory of Plates and Shells*, Kap. 3;
+Young & Budynas, *Roark's Formulas for Stress and Strain* (flache Kreisplatte).
+
+---
+
+## 37. Schraubenvorspannung & Lastaufteilung — das Versagen, das die Nennspannung übersieht (`bolted_joint.py`)
+
+Die Spannungsprüfung und der Schraubenschub-Check (§9) bemessen den Bolzen gegen die
+**äußere** Last allein. Beide übersehen, was eine angezogene Schraube real tut: das
+Drehmoment **spannt** sie auf Zug **vor** und klemmt die Fügeteile auf Druck. Unter dieser
+Vorspannung **addiert** sich eine äußere Zuglast P nicht einfach — sie wird zwischen Schraube
+und Fügeteilen nach ihren **Steifigkeiten** aufgeteilt: die Schraube sieht nur den Bruchteil
+`C` von P, während die Klemmkraft sinkt. Zwei Dinge gehen schief, die `P/A_t` verfehlt: die
+vorgespannte Schraube ist viel näher an der Streckgrenze (`F_i + C·P ≫ P`), und die
+Verbindung kann sich **öffnen** (Separation) — die Teile verlieren jede Klemmung.
+
+Fünf Geschlossenformen (Shigley/VDI 2230): Vorspannung `F_i = T/(K·d)` (Nut-Faktor `K≈0.2`);
+Steifigkeitsfaktor `C = k_b/(k_b+k_m)` (Schrauben-Lastanteil, in `[0,1]`); Schraubenlast
+`F_bolt = F_i + C·P`; Separationslast `P_sep = F_i/(1−C)` (wo `F_m = F_i − (1−C)·P` Null
+erreicht). Plus `bolted_joint_check`: `bolt_stress`, `separation_margin`, `yield_safety`,
+`ok` nur wenn **weder** Separation **noch** Fließen.
+
+**Verifiziert:** Anker `T=10000 N·mm, d=10, K=0.2 → F_i=5000 N`; `k_b=k_m → C=0.5`,
+`F_i=5000 → P_sep=10000 N`; `F_m=0` exakt bei `P=P_sep`. Beispiel `T=50000 N·mm, A_t=58 mm²,
+P=10000 N, k_b=1, k_m=2, S_p=640 MPa → F_i=25000 N, C=1/3, σ_bolt=488.5 MPa, P_sep=37500 N,
+ok`. **Eingebaute Einsicht:** naive `P/A_t=172.4 MPa` unterschlägt die Vorspannung, die wahre
+`(F_i+C·P)/A_t=488.5 MPa` ist `2.83×` höher; `P=40000>P_sep → ok=False`. 20 Tests grün
+(py 3.11 + 3.13).
+
+**Ehrliche Grenze:** statische, linear-elastische Lastaufteilung einer **konzentrisch**
+belasteten, vorgespannten Verbindung (Standard-Federmodell). NICHT: Drehmoment-Streuung (`K`
+schwankt ~±25 % → `F_i` ist eine Schätzung), exzentrische/abhebelnde Lasten, Setzen/Kriechen
+(Vorspannverlust), Schraubenermüdung (dafür `fatigue.py` auf `C·P/2`), Lochleibung; `k_m`
+(Rotscher/VDI-Kegel) wird als Eingabe genommen.
+**Quelle:** Shigley & Budynas, *Mechanical Engineering Design* (`C = k_b/(k_b+k_m)`,
+`F_b = F_i + C·P`, `P_0 = F_i/(1−C)`); VDI 2230; `T = K·F_i·d`.
+
+---
+
+## 38. GATE δ-Physik — die Validatoren werden zur Engine (`physics_validation.py`)
+
+Die §§9–37 liefern je **einen** Validator für **einen** Versagensmodus, isoliert. Diese
+Schicht ist das **Gate**, das sie in die Pipeline verdrahtet: eine **Validator-Registry**
+(`VALIDATORS`, aktuell **13** — Torsion, Knicken, Ermüdung, Kontakt, Druckbehälter, Kriechen,
+Übertemperatur, Thermo-Mismatch, Resonanz, Kerbermüdung, Bruch, Platte, Schraube) plus
+`gate_delta_physics(checks)`, das eine Liste deklarierter `PhysicsCheck`s (Validator-Name +
+aufgelöste numerische Inputs) ausführt und **ein** `GateResult` zurückgibt.
+
+Es trägt die Anti-Halluzinations-Disziplin in die Physik-Schicht — drei **harte**
+Fehlermodi, **nie** ein stiller Pass:
+- `PHYSICS_UNKNOWN_VALIDATOR` — ein Check nennt einen Validator, für den **kein Code**
+  existiert: das Gate zertifiziert nichts, was es nicht rechnen kann.
+- `PHYSICS_CHECK_ERROR` — der Validator **wirft** auf seinen Inputs (widersprüchliche
+  Geometrie/Material): die nicht-rechenbare Prüfung wird **gemeldet**, nicht verschluckt.
+- `PHYSICS_CHECK_FAILED` — der Validator rechnet, aber die Marge ist nicht erfüllt
+  (mit Sicherheitsfaktor als Evidenz).
+
+Das Verdikt ist damit **konstruktiv ehrlich**: das Gate besteht ein Design nur, wenn jeder
+deklarierte Check **wirklich gerechnet** wurde und seine eigene Marge hielt. Eine leere Liste
+besteht vakuös (nichts deklariert → nichts kann versagen) — das Pendant dazu, dass die
+Spec-Gates eine leere Spezifikation bestehen. Der `PhysicsCheck` trägt **aufgelöste** Werte,
+genau wie die Spec-Gates auf deklarierten `Quantity`s operieren: in der vollen Pipeline emittiert
+ein Agent die Checks aus der Spezifikation (quantity_ids → Werte, wie Derivations aufgelöst
+werden), und dieses Gate ist der deterministische, LLM-freie Backstop, der sie nachrechnet.
+
+**Verifiziert** (8 Tests, py 3.11 + 3.13): alle-ok → `passed`; ein versagender Check → `not
+passed` + `PHYSICS_CHECK_FAILED`; unbekannter Validator → `PHYSICS_UNKNOWN_VALIDATOR`; ein
+werfender Validator (Durchmesser 0) → `PHYSICS_CHECK_ERROR` (kein stiller Pass); gemischter
+Batch meldet **jeden** distinkten Fehlercode; leere Liste besteht vakuös; `run_physics_checks`
+liefert die Evidenz (gerechnete Sicherheitsfaktoren) pro Check.
+
+**Ehrliche Grenze:** das Gate rechnet die deklarierten Checks nach — es **wählt** sie (noch)
+nicht autonom aus der Spezifikation und **löst** die quantity_ids→Inputs (noch) nicht selbst
+auf; das ist der nächste Integrations-Schritt (ein Agent, der `PhysicsCheck`s aus Geometrie +
+Material + Lasten der Spec emittiert, analog zum Derivation-System). Modul
+`physics_validation.py`, getestet in `tests/test_physics_validation.py`.
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
