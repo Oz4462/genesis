@@ -621,6 +621,35 @@ Tessellierungs-basierte Überhang-Erkennung (Standard im Slicing).
 
 ---
 
+## 21. 3-D-Kontinuums-FEM — tetraedrische Linear-Elastizität (numpy)
+
+§14 ist 1-D-Balken-FEM. Das echte **Kontinuums-Spannungsfeld** — das an einer
+Bohrung auf die Kirsch-Konzentration steigt, die die Statik-Schicht nur konservativ
+schrankt (Kt=3) — braucht ein **3-D-Kontinuums-FEM**. `fem3d.py` ist eines: das
+**konstant-Dehnungs-4-Knoten-Tetraeder** der linearen isotropen Elastizität,
+assembliert und gelöst in **reinem numpy**, mit eingebautem strukturiertem Box-
+Mesher (jede Hex-Zelle → 6 Tets) — **kein externer Solver (CalculiX/FreeCAD), kein
+Mesher (gmsh)**.
+
+**Exakt verifiziert:** das konstant-Dehnungs-Tetraeder reproduziert einen
+**gleichförmigen** Spannungszustand **exakt** — ein verschiebungsgesteuerter Stab
+liefert `σ = E·δ/L` bis Maschinengenauigkeit (std 4,5e-13), perfekt gleichförmig,
+mit `σ_yy=σ_zz=0` und der **korrekten Poisson-Querkontraktion** `u_y=−ν·ε·L_y`;
+ein kraftgesteuerter Stab liefert `mean σ_xx = F/A` exakt (Gleichgewicht). Von-Mises
+geprüft.
+
+**Ehrliche Grenze:** lineare (Klein-Dehnungs-) isotrope Elastizität, statisch — keine
+Plastizität/Kontakt/Großverformung. Ein **konformes Netz eines gelochten Teils**
+(um das Kt-Feld selbst zu **rechnen** statt zu schranken) braucht einen
+unstrukturierten Mesher (gmsh) — die nächste Schicht; **dieser Solver liefert die
+Maschine, die sie speisen würde.** Modul `fem3d.py` (braucht numpy), getestet in
+`tests/test_fem3d.py`.
+
+**Quelle:** Konstant-Dehnungs-Tetraeder / lineare FEM-Elastizität (Standard, z. B.
+Zienkiewicz/Cook); isotrope Elastizitätsmatrix (Lamé λ, μ).
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
