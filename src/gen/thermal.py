@@ -15,12 +15,19 @@ Q = k·A·ΔT/L to machine precision on any mesh — the thermal twin of the
 "uniform stress is exact" elasticity test. The conducted heat read from the FEM
 reactions equals the closed form exactly; the test pins both.
 
+The TRANSIENT extension (heat capacity C·Ṫ + K·T = q, Backward-Euler) answers the
+time question — "how long until it reaches the glass transition?" — and is verified
+the same way: its steady-state limit equals the steady solve exactly, the capacitance
+sums to ρc·V, and the slowest thermal time constant (the eigenvalue 1/λ₁) converges to
+the analytic first-mode value 4ρcL²/(π²k) of a bar.
+
 Consistent units: pass k in W/(mm·K), lengths in mm, temperatures in K (or °C for
-differences) — then heat is in W. Honest boundary: linear, isotropic, steady-state
-conduction — no convection/radiation boundary film, no temperature-dependent k, no
-transient. A clean PASS bounds the conductive temperature rise; real cooling (a
-convecting surface) only lowers it, so the conduction-only rise is conservative for a
-heat-sunk part and optimistic for a still-air one (stated, not hidden).
+differences) — then heat is in W; the volumetric heat capacity ρc is in J/(mm³·K) and
+time in s. Honest boundary: linear, isotropic conduction — no convection/radiation
+boundary film, no temperature-dependent k. A clean steady PASS bounds the conductive
+temperature rise; real cooling (a convecting surface) only lowers it, so the
+conduction-only rise is conservative for a heat-sunk part and optimistic for a
+still-air one (stated, not hidden).
 """
 
 from __future__ import annotations
@@ -150,3 +157,122 @@ def peak_temperature(
     source to cooled edges. Convenience wrapper over `solve_heat`."""
     t, _ = solve_heat(nodes, tets, conductivity, fixed_temps, heat_loads)
     return float(t.max())
+
+
+# --- transient conduction (the time axis) --------------------------------------
+
+def _tet4_capacitance(coords: np.ndarray, volumetric_heat_capacity: float) -> np.ndarray:
+    """4×4 consistent heat-capacity matrix ρc·∫NᵀN dV of a 4-node tetrahedron =
+    (ρc·V/20)·(1 + δ_ij) — closed form, no quadrature; sums to ρc·V exactly."""
+    m = np.ones((4, 4))
+    m[:, 1:] = coords
+    vol = abs(np.linalg.det(m)) / 6.0
+    return (volumetric_heat_capacity * vol / 20.0) * (np.ones((4, 4)) + np.eye(4))
+
+
+def _assemble_conduction_capacitance(nodes, tets, conductivity, volumetric_heat_capacity):
+    n = len(nodes)
+    k = np.zeros((n, n))
+    c = np.zeros((n, n))
+    for tet in tets:
+        coords = nodes[tet]
+        k[np.ix_(tet, tet)] += _tet4_conductivity(coords, conductivity)
+        c[np.ix_(tet, tet)] += _tet4_capacitance(coords, volumetric_heat_capacity)
+    return k, c
+
+
+def solve_transient_heat(
+    nodes: np.ndarray,
+    tets: np.ndarray,
+    conductivity: float,
+    volumetric_heat_capacity: float,
+    fixed_temps: dict[int, float],
+    heat_loads: dict[int, float],
+    *,
+    dt: float,
+    n_steps: int,
+    initial_temp,
+) -> np.ndarray:
+    """March the transient conduction C·Ṫ + K·T = q in time by Backward-Euler.
+
+    `volumetric_heat_capacity` is ρ·c (J/(mm³·K)); `dt` the step (s); `initial_temp` a
+    scalar or per-node array. Each step solves (C/Δt + K)·Tⁿ⁺¹ = q + (C/Δt)·Tⁿ with the
+    fixed temperatures held. Returns the temperature history, shape ``(n_steps+1, N)``
+    (row 0 is the initial state). Backward-Euler is unconditionally stable, so any Δt is
+    stable (accuracy is first-order in Δt). Deterministic.
+    """
+    if dt <= 0.0 or n_steps < 1:
+        raise ValueError("dt must be positive and n_steps >= 1")
+    n = len(nodes)
+    k, c = _assemble_conduction_capacitance(
+        nodes, tets, conductivity, volumetric_heat_capacity
+    )
+    q = np.zeros(n)
+    for node, val in heat_loads.items():
+        q[node] += val
+    t = np.full(n, float(initial_temp)) if np.isscalar(initial_temp) else np.array(
+        initial_temp, dtype=float
+    )
+    for node, val in fixed_temps.items():
+        t[node] = val
+    free = np.array([i for i in range(n) if i not in fixed_temps])
+    a = c / dt + k
+    history = [t.copy()]
+    if free.size:
+        a_ff = a[np.ix_(free, free)]
+        fixed_idx = np.array(list(fixed_temps)) if fixed_temps else np.array([], dtype=int)
+        fixed_val = np.array(list(fixed_temps.values())) if fixed_temps else np.array([])
+        for _ in range(n_steps):
+            rhs = q + (c / dt) @ t
+            rhs_f = rhs[free]
+            if fixed_idx.size:
+                rhs_f = rhs_f - a[np.ix_(free, fixed_idx)] @ fixed_val
+            t = t.copy()
+            t[free] = np.linalg.solve(a_ff, rhs_f)
+            history.append(t.copy())
+    else:
+        for _ in range(n_steps):
+            history.append(t.copy())
+    return np.array(history)
+
+
+def slowest_thermal_time_constant(
+    nodes: np.ndarray,
+    tets: np.ndarray,
+    conductivity: float,
+    volumetric_heat_capacity: float,
+    fixed_temps: dict[int, float],
+) -> float:
+    """The longest thermal time constant τ₁ = 1/λ₁ (s) — the slowest decay mode of the
+    body, from the generalized eigenproblem K·φ = λ·C·φ on the free nodes.
+
+    This is the "how slow is the slowest transient" number, the thermal twin of the
+    fundamental natural frequency. For a bar (fixed one end, insulated the other) it
+    converges to the analytic first mode 4ρcL²/(π²k). Raises GeometryError if every
+    node is fixed.
+    """
+    if not fixed_temps:
+        raise GeometryError("a free body has an infinite time constant (no heat sink)")
+    k, c = _assemble_conduction_capacitance(
+        nodes, tets, conductivity, volumetric_heat_capacity
+    )
+    free = np.array([i for i in range(len(nodes)) if i not in fixed_temps])
+    if free.size == 0:
+        raise GeometryError("every node is fixed — there is no transient")
+    chol = np.linalg.cholesky(c[np.ix_(free, free)])
+    a = np.linalg.solve(chol, np.linalg.solve(chol, k[np.ix_(free, free)]).T).T
+    lam = np.linalg.eigvalsh(a)
+    lam = lam[lam > 1e-12]
+    return float(1.0 / lam.min())
+
+
+def time_to_threshold(history: np.ndarray, dt: float, threshold: float) -> float | None:
+    """First time (s) at which the peak temperature of the transient history crosses
+    `threshold` — the "time to reach the glass transition" answer. Returns None if it
+    never crosses within the simulated window. `history` is the array from
+    `solve_transient_heat`; the step index times `dt` gives the time."""
+    peaks = history.max(axis=1)
+    for step, peak in enumerate(peaks):
+        if peak >= threshold:
+            return step * dt
+    return None

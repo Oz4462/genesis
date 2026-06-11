@@ -25,11 +25,15 @@ import pytest  # noqa: E402
 from gen.core.errors import GeometryError  # noqa: E402
 from gen.fem3d import structured_box_mesh  # noqa: E402
 from gen.thermal import (  # noqa: E402
+    _assemble_conduction_capacitance,
     conductive_temperature_rise,
     fourier_heat,
     overtemperature_check,
     peak_temperature,
+    slowest_thermal_time_constant,
     solve_heat,
+    solve_transient_heat,
+    time_to_threshold,
 )
 
 _L, _B, _H, _K = 10.0, 2.0, 3.0, 0.2          # mm, mm, mm, W/(mm·K)
@@ -136,3 +140,72 @@ def test_is_deterministic():
     a, _ = solve_heat(nodes, tets, _K, fixed, {})
     b, _ = solve_heat(nodes, tets, _K, fixed, {})
     assert np.array_equal(a, b)
+
+
+# --- transient conduction (the time axis) --------------------------------------
+
+# SI units for the transient checks (m, W/(m.K), J/(m^3.K), s)
+_TL, _TK, _RHOC = 0.1, 50.0, 3.0e6
+_ALPHA = _TK / _RHOC                              # thermal diffusivity
+_TAU1 = 4.0 * _TL ** 2 / (np.pi ** 2 * _ALPHA)    # analytic first-mode time constant
+
+
+def _tbar(nx):
+    return structured_box_mesh(_TL, 0.02, 0.02, nx, 1, 1)
+
+
+def test_capacitance_sums_to_body_heat_capacity():
+    nodes, tets = _tbar(12)
+    _, c = _assemble_conduction_capacitance(nodes, tets, _TK, _RHOC)
+    assert np.isclose(c.sum(), _RHOC * _TL * 0.02 * 0.02, rtol=1e-12)
+
+
+def test_transient_settles_to_the_steady_solution():
+    nodes, tets = _tbar(12)
+    fixed = {i: 0.0 for i, (x, y, z) in enumerate(nodes) if abs(x) < 1e-12}
+    fixed.update({i: 80.0 for i, (x, y, z) in enumerate(nodes) if abs(x - _TL) < 1e-12})
+    history = solve_transient_heat(nodes, tets, _TK, _RHOC, fixed, {},
+                                   dt=5.0, n_steps=4000, initial_temp=0.0)
+    steady, _ = solve_heat(nodes, tets, _TK, fixed, {})
+    assert np.max(np.abs(history[-1] - steady)) < 1e-9     # t->inf equals the steady solve
+
+
+def test_slowest_time_constant_converges_to_the_analytic_bar_mode():
+    errs = []
+    for nx in (8, 16):
+        nodes, tets = _tbar(nx)
+        fixed = {i: 0.0 for i, (x, y, z) in enumerate(nodes) if abs(x) < 1e-12}
+        tau = slowest_thermal_time_constant(nodes, tets, _TK, _RHOC, fixed)
+        errs.append(abs(tau - _TAU1) / _TAU1)
+    assert errs[-1] < 0.03                                  # ~2% at nx=16
+    assert errs[-1] < errs[0]                               # refining converges (from below)
+
+
+def test_transient_rises_monotonically_and_reaches_a_threshold():
+    nodes, tets = _tbar(10)
+    # sink the x=0 end at 0 and INJECT heat at the far end -> the part warms up over
+    # time from 0 toward its steady temperature (a real "component dissipating power").
+    fixed = {i: 0.0 for i, (x, y, z) in enumerate(nodes) if abs(x) < 1e-12}
+    far = [i for i, (x, y, z) in enumerate(nodes) if abs(x - _TL) < 1e-12]
+    loads = {i: 60.0 / len(far) for i in far}              # 60 W total into the far end
+    steady_peak = solve_heat(nodes, tets, _TK, fixed, loads)[0].max()
+    dt = _TAU1 / 50.0
+    history = solve_transient_heat(nodes, tets, _TK, _RHOC, fixed, loads,
+                                   dt=dt, n_steps=400, initial_temp=0.0)
+    peaks = history.max(axis=1)
+    assert np.all(np.diff(peaks) >= -1e-9)                  # monotone non-decreasing
+    assert peaks[0] == 0.0 and peaks[-1] > 0.5 * steady_peak
+    # it crosses a sub-steady threshold at a finite time, but never exceeds steady
+    t_hit = time_to_threshold(history, dt, 0.5 * steady_peak)
+    assert t_hit is not None and 0.0 < t_hit <= 400 * dt
+    assert time_to_threshold(history, dt, 2.0 * steady_peak) is None
+
+
+def test_transient_guards():
+    nodes, tets = _tbar(3)
+    fixed = {i: 0.0 for i, (x, y, z) in enumerate(nodes) if abs(x) < 1e-12}
+    with pytest.raises(ValueError):
+        solve_transient_heat(nodes, tets, _TK, _RHOC, fixed, {},
+                             dt=0.0, n_steps=1, initial_temp=0.0)
+    with pytest.raises(GeometryError):
+        slowest_thermal_time_constant(nodes, tets, _TK, _RHOC, {})   # no sink

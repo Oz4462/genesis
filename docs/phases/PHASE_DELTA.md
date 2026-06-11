@@ -818,6 +818,22 @@ ist singulär → klarer Fehler). Modul `thermal.py`, getestet in `tests/test_th
 des skalaren Laplace-Operators `∫(∇N)ᵀk(∇N)dV` ist Standard (Zienkiewicz & Taylor,
 *The Finite Element Method*, Feldprobleme).
 
+### 25b. Transiente Leitung — die Zeit-Achse (`solve_transient_heat`)
+
+Stationär beantwortet „**wie heiß**?"; transient beantwortet „**wie lange** bis es
+heiß ist?". Ergänzt die **Wärmekapazitäts**-Matrix `C·Ṫ + K·T = q` und marschiert sie
+per **Backward-Euler** (unbedingt stabil) in der Zeit. **Verifiziert:** (1) die
+Konsistenz-Kapazität summiert sich **exakt** zu `ρc·V`; (2) der Transient läuft im
+`t→∞`-Limit **maschinengenau** in die stationäre Lösung (`max diff 1,6e-13`) — das
+Backward-Euler-Pendant zum Steady-Check; (3) die **langsamste thermische Zeitkonstante**
+`τ₁ = 1/λ₁` (kleinster Eigenwert von `K φ = λ C φ`, das thermische Pendant zur
+Grundfrequenz) konvergiert gegen die analytische erste Stab-Eigenmode
+`τ₁ = 4ρcL²/(π²k)` von **unten** mit Netzverfeinerung (`−4,4 % → −2,2 % → −1,1 %`).
+`time_to_threshold(history, dt, T_grenz)` liefert direkt „Zeit bis zur Glasübergangs-
+Temperatur". **Ehrliche Grenze:** Backward-Euler ist erster Ordnung in `Δt` (stabil,
+aber genauigkeitslimitiert); der `τ₁`-Restfehler ist die räumliche Diskretisierung
+(konsistent leicht zu steif → `τ` etwas niedrig). Getestet in `tests/test_thermal.py`.
+
 ---
 
 ## 26. Modalanalyse — Eigenfrequenzen, das Resonanz-Versagen (`modal.py`)
