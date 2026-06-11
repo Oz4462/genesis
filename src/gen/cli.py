@@ -633,7 +633,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("question", nargs="?", help="the research question / problem / idea")
     parser.add_argument("--demo", action="store_true", help="run the offline deterministic demo")
     parser.add_argument(
-        "--mode", choices=("report", "solution", "spec", "capstone"), default="report",
+        "--mode", choices=("report", "solution", "spec", "capstone", "eval"), default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
              "spec = Phase γ build specification; capstone = a complete, fully "
              "detailed γ-depth spec through all gates (demo-only) (default: report)",
@@ -655,6 +655,16 @@ def main(argv: list[str] | None = None) -> int:
         help="Ollama model for skeptic — MUST be a different family (default: gemma4:latest)",
     )
     args = parser.parse_args(argv)
+
+    if args.mode == "eval":
+        # The anti-hallucination guarantee as a measured metric (deterministic,
+        # offline): does GATE γ pass every sound spec and fail every unsound one?
+        from .evaluation import anti_hallucination_cases, evaluate
+        from .evaluation import format_report as format_eval_report
+
+        eval_report = evaluate(anti_hallucination_cases())
+        print(format_eval_report(eval_report))
+        return 0 if not eval_report.leaks and not eval_report.false_alarms else 3
 
     if args.mode == "capstone":
         # A complete, fully detailed γ-depth specification through all gates.
