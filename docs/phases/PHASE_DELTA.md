@@ -943,6 +943,47 @@ Przemieniecki, *Theory of Matrix Structural Analysis*); Schlankheits-/Kurzstab-�
 
 ---
 
+## 28. Ermüdung — zyklisches Versagen unter der Festigkeit (`fatigue.py`)
+
+Der Spannungs-Check (§9) vergleicht eine Spitzenspannung mit der **statischen**
+Festigkeit; er sieht **nicht**, dass ein oft genug zyklisch belastetes Teil bei einer
+Spannung **weit unter** dieser Festigkeit bricht. Eine Welle, eine Feder, ein
+schwingender Halter: alle bestehen jeden statischen Check und reißen trotzdem durch
+**Ermüdung**. Dieses Modul ergänzt die Standard-High-Cycle-Checks — die dritte
+mechanische Lebensdauer-Achse neben Spannung (statisch) und Resonanz (§26).
+
+Drei Lehrbuch-Closed-Forms, **kein** FEM:
+- **Dauerfestigkeit** `S_e ≈ 0,5·UTS` (Stahl, gekappt ~700 MPa), optional per
+  Marin-Faktoren (Oberfläche/Größe/Zuverlässigkeit) reduziert;
+- **Basquin-S-N** `σ_a = σ'_f·(2N)^b` — endliche Lebensdauer bei gegebener Amplitude;
+- **Mittelspannungs-Korrektur** — eine reale Last hat Mittelspannung `σ_m` **und**
+  Amplitude `σ_a`; ein **zugiger** Mittelwert senkt die zulässige Amplitude. **Goodman**
+  (Gerade zu UTS) = Standard/konservativ; **Soderberg** (zu Streckgrenze) strenger;
+  **Gerber** (Parabel) am wenigsten konservativ. Plus **Miner**-Schadensakkumulation
+  `D = Σ nᵢ/Nᵢ`.
+
+**Verifiziert, nicht behauptet:** die Linien reduzieren auf ihre **exakten** Endpunkte
+(rein wechselnd → Bruch bei `S_e`; rein mittel → bei `UTS`/`S_y`); **Soderberg ≤ Goodman
+≤ Gerber** in zulässiger Last (im Test `1,92 < 2,27 < 2,78` für `σ_a=80, σ_m=60,
+UTS=500, S_y=300, S_e=250`); **Basquin invertiert exakt** (`σ→N→σ`, bei `2N=1` ist
+`σ_a=σ'_f`); **Miner summiert zu 1 bei Bruch** (zwei Blöcke je halbes Leben → `D=1,0`).
+
+**Der echte Check:** `goodman_check(σ_a, σ_m, UTS, S_e)` → Sicherheitsfaktor
+`n = 1/(σ_a/S_e + σ_m/UTS)`, `infinite_life` wenn `n ≥ 1`. Beispiel `σ_a=80, σ_m=60,
+UTS=500, S_e=250` → `Goodman-Wert 0,44`, `n=2,27` → unendliche Lebensdauer.
+
+**Ehrliche Grenze:** High-Cycle-(spannungsbasierte) Ermüdung nominell elastischen
+Materials; **nicht** Low-Cycle-Plastik (Coffin-Manson), **nicht** Risswachstum (Paris),
+keine Umgebungs-/Korrosionseffekte. Ein **druck**iger Mittelwert ist nicht schädlich und
+wird **konservativ ignoriert** (nicht gutgeschrieben). MPa-konsistent. Modul
+`fatigue.py`, getestet in `tests/test_fatigue.py`.
+
+**Quelle:** Wöhler-S-N-Kurve; Basquin (1910) `σ_a = σ'_f(2N)^b`; modifiziertes Goodman
+`σ_a/S_e + σ_m/UTS = 1`, Soderberg, Gerber; Palmgren-Miner-Regel; Dauerfestigkeit
+`0,5·UTS` für Stahl ≤ ~1400 MPa (Shigley, *Mechanical Engineering Design*, Kap. 6).
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
