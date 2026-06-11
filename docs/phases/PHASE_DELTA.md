@@ -1578,6 +1578,41 @@ Zero-Resource-Halluzinations-Signal (HD-Survey 2025); FActScore-Schwellen-Auswah
 
 ---
 
+## 47. Geometrie-Verifikation — stimmt das generierte CAD mit der Spec? (`geometry_verification.py`)
+
+Text-to-CAD-SOTA (**CAD-Judge**; CodeGen-3D; Visual-Feedback-Loops) prüft ein generiertes Modell
+**gegen seine Absicht** — ausführen, messen, vergleichen. GENESIS exportiert CAD und schrankt
+Geometrie per AABB, aber **nichts** kreuzprüfte den **gebauten** Solid gegen die eigene
+deklarierte Geometrie der Spec. Dieses Modul tut es: es baut den exakten OpenCASCADE-Solid
+(`brep.py`) und verifiziert seine **gemessenen** Eigenschaften gegen die **unabhängige**
+analytische Schicht (`verification.geometry`) — das GENESIS-Prinzip „zwei Methoden stimmen
+überein", angewandt auf die **generierte** Geometrie.
+
+Drei Kreuz-Checks: **valid & nicht-degeneriert** (Kernel-`isValid` **und** Volumen `> 0` — eine
+Differenz, die alles entfernt, oder ein leerer Schnitt wird gefangen); **Volumen stimmt** (exaktes
+BREP-Volumen `==` analytisches `volume_of` wo dieses exakt ist, und überschreitet nie die sound
+Oberschranke wo es nur eine ist); **Extents stimmen** (BREP-Bounding-Box `==` analytisches
+`aabb_of` je Achse).
+
+**Verifiziert** (4 Tests, py 3.11; skippt ohne cadquery): der echte **Capstone-Halter** besteht
+(valid, Volumen `57409.15` exakt `==` analytisch, Extents `(60,80,12)` `==` deklariert `w,h,t`);
+eine **Kugel** besteht mit **exaktem** Volumen-Match `4/3πr³ = 523.6` — genau der Kreuz-Check, der
+den alten **Hemisphären-Bug** (halbes Volumen `261.8`) **gefangen** hätte; ein degeneriertes CSG
+(10-mm-Box minus deckende 20-mm-Box → Leer-Solid) **failt** (Volumen 0). Der Leer-Solid-Fall wird
+ehrlich kurzgeschlossen (ein Leer-Shape hat **keine** messbare Bounding-Box — kein Crash, sondern
+`ok=False`).
+
+**Ehrliche Grenze:** dies ist **geometrische Selbst-Konsistenz** (gebaut ≈ analytisch impliziert),
+**notwendig nicht hinreichend** — physikalisches Urteil bleibt bei Statik/DFM/FEM. Ein
+**semantischer** Abgleich „erfüllt die Form die Idee?" (CLIP/VLM-Judge) ist der LLM-getriebene,
+aufgeschobene Teil. cadquery/OCP optional. Modul `geometry_verification.py`, getestet in
+`tests/test_geometry_verification.py`.
+
+**Quelle:** CAD-Judge (arXiv 2508.04002, morphologische Verifikation); CodeGen-3D (Error-Rate +
+CLIP + VLM-Judge); Chamfer-Distanz-zur-Soll-Geometrie (Text-to-CAD-Praxis).
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
