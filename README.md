@@ -31,6 +31,8 @@ $ python -m gen --demo --mode spec           # deterministische γ-Bauanleitung,
 $ python -m gen --demo --mode spec --format scad  # CSG-Geometrie als OpenSCAD-Quelltext
 $ python -m gen --demo --mode spec --format b123d # CSG-Geometrie als build123d-Python
 $ python -m gen --demo --mode spec --format stl   # STL-Mesh (Primitive; Booleans -> scad/b123d)
+$ python -m gen --mode capstone                   # komplette Spec durch alle Gates (Demo)
+$ python -m gen --mode capstone --format md       # komplettes Markdown-Bauhandbuch
 $ python -m gen "Frage..."                   # Live-α: lokale Ollama-Modelle + Wikipedia
 $ python -m gen --mode spec "Idee..."        # Live-γ: Idee -> belegte Spezifikation
 ```

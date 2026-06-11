@@ -35,6 +35,7 @@ from .llm.base import ScriptedLLM
 from .llm.ollama import OllamaLLM
 from .ledger.store import InMemoryLedgerStore
 from .export.build123d import specification_to_build123d
+from .export.markdown import specification_to_markdown
 from .export.openscad import specification_to_openscad
 from .export.stl import specification_to_stl
 from .runner import Dependencies, run, run_solution, run_specification
@@ -579,6 +580,8 @@ def _spec_state(spec: Specification) -> RunState:
 def render_spec(spec: Specification, fmt: str) -> str:
     """Render a γ spec: human instruction ('text'), OpenSCAD ('scad'), or
     build123d Python ('b123d')."""
+    if fmt == "md":
+        return specification_to_markdown(spec)
     if fmt == "scad":
         return specification_to_openscad(spec)
     if fmt == "b123d":
@@ -615,10 +618,11 @@ def main(argv: list[str] | None = None) -> int:
              "detailed γ-depth spec through all gates (demo-only) (default: report)",
     )
     parser.add_argument(
-        "--format", choices=("text", "scad", "b123d", "stl"), default="text",
+        "--format", choices=("text", "md", "scad", "b123d", "stl"), default="text",
         help="spec mode only: 'text' = human-readable instruction (default); "
-             "'scad' = OpenSCAD source; 'b123d' = build123d Python; "
-             "'stl' = ASCII STL mesh of meshable primitives (booleans deferred to scad/b123d)",
+             "'md' = a complete Markdown build manual; 'scad' = OpenSCAD source; "
+             "'b123d' = build123d Python; 'stl' = ASCII STL mesh of meshable "
+             "primitives (booleans deferred to scad/b123d)",
     )
     parser.add_argument("--checkpoint-dir", default=None, help="write a run checkpoint here")
     parser.add_argument(
@@ -638,8 +642,12 @@ def main(argv: list[str] | None = None) -> int:
         from .demo import capstone_spec, capstone_state
         from .verification.gates import gate_gamma
 
+        spec = capstone_spec()
         state = capstone_state()
-        print(format_specification(capstone_spec()))
+        if args.format == "md":
+            print(specification_to_markdown(spec))
+            return 0
+        print(render_spec(spec, args.format))
         ga = gate_gamma(state)
         gd = gate_delta(state)
         print(f"Gate γ: {'PASS' if ga.passed else 'FAIL'} ({len(ga.failures)} failures)")
