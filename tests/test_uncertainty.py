@@ -109,6 +109,46 @@ def test_capstone_propagates_load_uncertainty_to_stress():
     assert sp.value + expanded_uncertainty(sp.uncertainty) < q["q_strength"].value
 
 
+# --- the uncertainty actually GATES a constraint (worst-case bound) ------------
+
+def test_constraint_passes_nominally_but_fails_at_95pct_bound():
+    from gen.core.state import Constraint
+    # a = 9 +/- 1.0 (mm), constraint a <= 10 (mm). Point value 9 <= 10 holds, but
+    # the 95% bound 9 + 2*1.0 = 11 > 10 -> the constraint is NOT robust.
+    quantities = [
+        Quantity(id="a", name="a", value=9.0, unit="mm",
+                 origin=ValueOrigin.DECISION, rationale="x", uncertainty=1.0),
+        Quantity(id="b", name="b", value=10.0, unit="mm",
+                 origin=ValueOrigin.DECISION, rationale="x"),
+    ]
+    spec = Specification(
+        run_id="r", idea="bound", quantities=quantities,
+        constraints=[Constraint(id="k", kind="le", left="a", right="b", reason="margin")],
+    )
+    st = RunState(question=Question(raw="b", run_id="r"))
+    st.specification = spec
+    codes = {f.code for f in gate_gamma(st).failures}
+    assert codes == {"CONSTRAINT_VIOLATION"}, codes
+
+
+def test_same_constraint_robust_when_uncertainty_small():
+    from gen.core.state import Constraint
+    # a = 9 +/- 0.1: 9 + 2*0.1 = 9.2 <= 10 -> robustly holds
+    quantities = [
+        Quantity(id="a", name="a", value=9.0, unit="mm",
+                 origin=ValueOrigin.DECISION, rationale="x", uncertainty=0.1),
+        Quantity(id="b", name="b", value=10.0, unit="mm",
+                 origin=ValueOrigin.DECISION, rationale="x"),
+    ]
+    spec = Specification(
+        run_id="r", idea="bound", quantities=quantities,
+        constraints=[Constraint(id="k", kind="le", left="a", right="b", reason="margin")],
+    )
+    st = RunState(question=Question(raw="b", run_id="r"))
+    st.specification = spec
+    assert gate_gamma(st).passed
+
+
 # --- the field must be honest --------------------------------------------------
 
 def test_negative_uncertainty_rejected_at_construction():

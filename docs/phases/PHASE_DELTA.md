@@ -429,12 +429,20 @@ Jede abgeleitete Unsicherheit wird mit **demselben** Kombinierer gesetzt, den C-
 zum Nachrechnen nutzt — Übereinstimmung per Konstruktion; ein falsch deklarierter
 Wert (`u` zu klein) → `BROKEN_UNCERTAINTY`.
 
+**Constraints am Worst-Case-Rand (C-13, jetzt aktiv):** Trägt eine in einem
+Constraint referenzierte Größe eine Unsicherheit, prüft C-13 die Bedingung am
+**GUM-erweiterten 95-%-Rand** (k=2), nicht nur am Punktwert — eine deklarierte
+Unsicherheit **gated** also tatsächlich. Ohne Unsicherheit ist jedes `U=0` und es
+reduziert sich exakt auf den Punktvergleich (voll rückwärtskompatibel). Der Rand
+wird je Vergleichsrichtung adversarial genommen: `le` prüft `(lv+U_l) ≤ (rv−U_r)`.
+Beispiel: `a = 9 ± 1` gegen `a ≤ 10` besteht nominal (9 ≤ 10), scheitert aber am
+Rand (9 + 2·1 = 11 > 10) → `CONSTRAINT_VIOLATION`. Capstone: `σ_peak + U₉₅ =
+24,3 ≤ 50` → robust bestanden.
+
 **Ehrliche Grenze:** Dies ist die **First-Order**-GUM (lineares Taylor) für
 unkorrelierte Eingänge — exakt für Summen/Produkte, sehr gute Näherung sonst.
 Starke Nichtlinearität oder korrelierte Eingänge brauchen Monte-Carlo (JCGM 101) —
-eine spätere Schicht. Die **Auswertung der Constraints am Worst-Case-Rand**
-(`Wert ± U` statt Punktwert in C-13) ist die nächste Verfeinerung; aktuell prüft
-C-13 den Punktwert, die Unsicherheit wird propagiert, verifiziert und ausgewiesen.
+eine spätere Schicht.
 
 ---
 

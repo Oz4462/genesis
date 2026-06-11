@@ -27,6 +27,7 @@ from ..core.state import (
     Claim,
     ClaimStatus,
     GeometryNode,
+    Pin,
     PinType,
     Quantity,
     RunState,
@@ -968,6 +969,11 @@ def gate_gamma(
     # comparable (C-12/C-15, with a literal side being dimension-agnostic), and
     # the comparison must hold numerically (C-13).
     value_bindings = {q.id: float(q.value) for q in quantities.values()}
+    unc_bindings = {
+        q.id: float(q.uncertainty)
+        for q in quantities.values()
+        if q.uncertainty is not None
+    }
 
     for constraint in spec.constraints:
         if constraint.kind not in CONSTRAINT_KINDS:
@@ -1053,10 +1059,25 @@ def gate_gamma(
             )
             continue
 
-        # numeric evaluation (C-13)
+        # numeric evaluation (C-13). When a side references quantities that carry
+        # an uncertainty, the comparison is checked at the GUM-EXPANDED worst-case
+        # bound (k=2, ~95 %), not just at the point value — so a declared
+        # uncertainty actually GATES the design. With no uncertainty every U is 0
+        # and this reduces exactly to the point comparison (fully backward
+        # compatible). The bound is taken in the adverse direction per kind.
         try:
             lv = evaluate_formula(constraint.left, value_bindings)
             rv = evaluate_formula(constraint.right, value_bindings)
+            u_left = combine_standard_uncertainty(
+                constraint.left,
+                {r: value_bindings[r] for r in referenced_names(constraint.left)},
+                unc_bindings,
+            )
+            u_right = combine_standard_uncertainty(
+                constraint.right,
+                {r: value_bindings[r] for r in referenced_names(constraint.right)},
+                unc_bindings,
+            )
         except FormulaError as exc:
             failures.append(
                 GateFailure(
@@ -1065,20 +1086,27 @@ def gate_gamma(
                 )
             )
             continue
+        ul, ur = 2.0 * u_left, 2.0 * u_right          # expanded (k=2 ≈ 95 %)
         holds = {
-            "le": lv <= rv,
-            "lt": lv < rv,
-            "ge": lv >= rv,
-            "gt": lv > rv,
+            "le": (lv + ul) <= (rv - ur),
+            "lt": (lv + ul) < (rv - ur),
+            "ge": (lv - ul) >= (rv + ur),
+            "gt": (lv - ul) > (rv + ur),
             "eq": within_tolerance(lv, rv, tolerance=derivation_tolerance),
         }[constraint.kind]
         if not holds:
+            bound = ""
+            if ul or ur:
+                bound = (
+                    f" at the 95% bound (U_left={ul:g}, U_right={ur:g}); "
+                    f"point values were {lv:g} {constraint.kind} {rv:g}"
+                )
             failures.append(
                 GateFailure(
                     code="CONSTRAINT_VIOLATION",
                     detail=(
                         f"constraint {constraint.id!r} violated: ({constraint.left})="
-                        f"{lv} {constraint.kind} ({constraint.right})={rv} "
+                        f"{lv} {constraint.kind} ({constraint.right})={rv}{bound} "
                         f"({constraint.reason})"
                     ),
                 )
@@ -1532,7 +1560,7 @@ def gate_erc(state: RunState) -> GateResult:
     bom_ids = {b.id for b in spec.bom}
 
     # declared pins, keyed "part.name"; duplicates are a defect (E-3)
-    pin_by_key: dict[str, "object"] = {}
+    pin_by_key: dict[str, Pin] = {}
     for pin in spec.netlist.pins:
         key = f"{pin.part}.{pin.name}"
         if key in pin_by_key:
