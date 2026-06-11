@@ -1545,6 +1545,39 @@ Logik); die echte UI / Identitätsbindung / Audit-Aufzeichnung (z. B. `AskUserQu
 
 ---
 
+## 46. Confidence-Kalibrierung — die Akzeptanz-Schwelle per Messung wählen (`calibration.py`)
+
+GENESIS ist bei **numerischer** Unsicherheit stark (GUM C-18, Monte-Carlo), aber ein Faktum
+trägt eine **einzelne** skeptic-Confidence. SOTA-Halluzinations-Arbeit ergänzt zwei Dinge: die
+Akzeptanz-Schwelle per **Messung** wählen (Precision bei einer Schwelle auf einem **gelabelten**
+Set) statt sie zu raten, und Confidence aus **Konsistenz** über unabhängige Verifikations-Samples
+ableiten (ein Zero-Resource-Signal). Dieses Modul ist der deterministische Offline-Kern beider.
+
+Auf einem gelabelten `(confidence, is_true)`-Set rechnet es Precision/Recall bei jeder Schwelle,
+findet die **niedrigste** Schwelle, die eine **Precision-Bar** hält (so maximiert die Akzeptanz-
+Regel der Garantie den Recall bei z. B. 95 % Precision), und den **Expected Calibration Error**
+(wie gut Confidence der empirischen Genauigkeit entspricht). Aus N unabhängigen Verifizierer-
+Verdikten leitet `consistency_confidence` die **Übereinstimmungs-Fraktion** ab (was ein zweiter
+Judge / wiederholtes Sampling liefert). Es **erfindet nie** eine Schwelle, die die Bar hält, wenn
+keine sie hält → **`None`** (das Kalibrierungs-Pendant zur ehrlichen Abstention).
+
+**Verifiziert** (6 Tests, offline): `precision_recall_at(0.7)` über `[(0.9,T),(0.8,T),(0.6,F),
+(0.4,T),(0.3,F)]` → 2 akzeptiert, Precision `1.0`, Recall `2/3`; `threshold_for_precision(1.0)`
+→ Schwelle `0.8` (niedrigste, die Precision 1.0 hält, max Recall `2/3`); ein Set mit falschem
+Top-Confidence-Claim → **`None`** (Bar nicht erreichbar); ECE `0` für perfekt kalibriert,
+`0.9` für „90 % sicher, 0 % richtig"; Konsistenz `1.0` (einstimmig) / `2/3` / `0.5` (Patt) / `0`
+(leer).
+
+**Ehrliche Grenze:** dies sind die deterministischen Kalibrierungs-**Metriken** auf einem
+gelabelten Set; das **Sammeln** des Gold-Sets und das Mehrfach-Sampling des Verifizierers auf
+**Live**-Läufen ist der aufgeschobene Mess-Teil (per Owner-Direktive bis „real-use ready"). Modul
+`calibration.py`, getestet in `tests/test_calibration.py`.
+
+**Quelle:** Expected Calibration Error (Naeini et al.; Guo et al.); Konsistenz-über-Samples als
+Zero-Resource-Halluzinations-Signal (HD-Survey 2025); FActScore-Schwellen-Auswahl.
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
