@@ -203,6 +203,11 @@ class Quantity:
                 GATE γ C-17 proves they cannot contradict. The link is declared,
                 not inferred: GENESIS makes the cross-claim structure explicit
                 rather than guessing it with language understanding.
+    `uncertainty` optional standard uncertainty u(x) of the value, SAME unit. For
+                a measured/declared input it is a Type A/B estimate (GUM); for a
+                DERIVED value it is the combined standard uncertainty, which GATE γ
+                C-18 independently recomputes from the inputs by the GUM law of
+                propagation (uncertainty.py). None means "treated as exact".
     """
 
     id: str
@@ -214,6 +219,7 @@ class Quantity:
     derivation: Derivation | None = None
     rationale: str = ""
     measurand: str | None = None
+    uncertainty: float | None = None
     produced_by: str = ""
     model: str = ""
     created_at: datetime = field(default_factory=_now)
@@ -231,6 +237,15 @@ class Quantity:
         if self.measurand is not None and not self.measurand.strip():
             raise InvalidDerivationError(
                 self.id, "measurand, if set, must be a non-empty key"
+            )
+
+        if self.uncertainty is not None and (
+            isinstance(self.uncertainty, bool)
+            or not isinstance(self.uncertainty, (int, float))
+            or self.uncertainty < 0.0
+        ):
+            raise InvalidDerivationError(
+                self.id, "uncertainty, if set, must be a non-negative number"
             )
 
         if self.origin is ValueOrigin.GROUNDED:

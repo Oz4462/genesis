@@ -402,3 +402,36 @@ DFM-Check ist notwendig, nicht hinreichend.
 einer 0,4-mm-Düse; Mindest-Loch 2,0 mm horizontal (1,0 mm vertikal); Überhang > 45°
 braucht Stützen (UltiMaker „Design for FFF"; Hydra Research; Xometry FDM-Tipps;
 Stanford Lab64). Modul `dfm.py`, getestet in `tests/test_dfm.py`.
+
+---
+
+## 12. Unsicherheits-Propagation (GUM / JCGM 100) — C-18, „Gate rechnet nach"
+
+GENESIS behandelt Werte sonst als exakte Punkte. Doch ein realer gemessener/
+bezogener Eingang trägt eine **Unsicherheit** (12 kg Regallast sind 12 ± etwas).
+Damit „jeder Wert belegt" unter realen Eingaben **rigoros** bleibt, muss sich diese
+Unsicherheit **fortpflanzen**: ein DERIVED-Wert trägt eine kombinierte
+Standardunsicherheit, und GATE γ **C-18** rechnet sie unabhängig nach — exakt die
+Defense-in-Depth von C-6 (Wert), nun auf die Unsicherheit angewandt.
+
+**Methode (recherchiert):** GUM-Fortpflanzungsgesetz für **unkorrelierte** Eingänge
+(JCGM 100:2008, Gl. 10): `u_c(y)² = Σ (∂f/∂x_i)² · u(x_i)²`. Die Partiellen werden
+**numerisch** (zentrale Differenzen) über denselben sicheren Evaluator gebildet —
+exakt für Summen/Produkte der Eingänge, kein symbolisches Differenzieren. Erweiterte
+Unsicherheit `U = k·u_c` (k=2 ≈ 95 %). Modul `uncertainty.py` (eine Quelle für Demo
++ Test), getestet in `tests/test_uncertainty.py`.
+
+**Capstone-Demonstration:** Die deklarierte Last-Unsicherheit (Typ B, ~5 %)
+`12 ± 0,6 kg` propagiert deterministisch durch die ganze Kette:
+`24 ± 1,2 kg → 235,4 ± 11,8 N → σ_nom 7,4 ± 0,37 → σ_peak 22,1 ± 1,1 MPa`
+(U₉₅ = ±2,2). Selbst der Worst-Case `σ_peak + U₉₅ = 24,3 MPa` bleibt unter 50 MPa.
+Jede abgeleitete Unsicherheit wird mit **demselben** Kombinierer gesetzt, den C-18
+zum Nachrechnen nutzt — Übereinstimmung per Konstruktion; ein falsch deklarierter
+Wert (`u` zu klein) → `BROKEN_UNCERTAINTY`.
+
+**Ehrliche Grenze:** Dies ist die **First-Order**-GUM (lineares Taylor) für
+unkorrelierte Eingänge — exakt für Summen/Produkte, sehr gute Näherung sonst.
+Starke Nichtlinearität oder korrelierte Eingänge brauchen Monte-Carlo (JCGM 101) —
+eine spätere Schicht. Die **Auswertung der Constraints am Worst-Case-Rand**
+(`Wert ± U` statt Punktwert in C-13) ist die nächste Verfeinerung; aktuell prüft
+C-13 den Punktwert, die Unsicherheit wird propagiert, verifiziert und ausgewiesen.

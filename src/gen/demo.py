@@ -14,6 +14,7 @@ no code change.
 
 from __future__ import annotations
 
+from .uncertainty import combine_standard_uncertainty as _uc
 from .dfm import (
     FDM_MIN_HOLE_DIAMETER_MM,
     FDM_NOZZLE_DIAMETER_MM,
@@ -110,29 +111,45 @@ def capstone_claims() -> list[Claim]:
     ]
 
 
-def _g(qid, name, value, unit, grounding):
+def _g(qid, name, value, unit, grounding, unc=None):
     return Quantity(id=qid, name=name, value=value, unit=unit,
-                    origin=ValueOrigin.GROUNDED, grounding=grounding)
+                    origin=ValueOrigin.GROUNDED, grounding=grounding, uncertainty=unc)
 
 
-def _d(qid, name, value, unit, rationale):
+def _d(qid, name, value, unit, rationale, unc=None):
     return Quantity(id=qid, name=name, value=value, unit=unit,
-                    origin=ValueOrigin.DECISION, rationale=rationale)
+                    origin=ValueOrigin.DECISION, rationale=rationale, uncertainty=unc)
 
 
-def _der(qid, name, value, unit, formula, inputs):
+def _der(qid, name, value, unit, formula, inputs, unc=None):
     return Quantity(id=qid, name=name, value=value, unit=unit,
                     origin=ValueOrigin.DERIVED,
-                    derivation=Derivation(formula=formula, inputs=inputs))
+                    derivation=Derivation(formula=formula, inputs=inputs), uncertainty=unc)
 
 
 def capstone_spec() -> Specification:
+    # GUM uncertainty chain (JCGM 100): the shelf load is a declared Type-B
+    # estimate (~5 %), and that uncertainty propagates deterministically all the
+    # way to the peak stress. Each derived uncertainty is computed with the SAME
+    # combiner GATE γ C-18 uses to recompute it — so they match by construction.
+    _u_load = 0.6
+    _u_design = _uc("q_load * q_sf", {"q_load": 12.0, "q_sf": 2.0}, {"q_load": _u_load})
+    _u_force = _uc(weight_formula("q_design", "q_g"),
+                   {"q_design": 24.0, "q_g": STANDARD_GRAVITY}, {"q_design": _u_design})
+    _snom_val = 6.0 * (24.0 * STANDARD_GRAVITY) * 60.0 / (80.0 * 12.0 * 12.0)
+    _u_snom = _uc(cantilever_bending_stress_formula("q_force", "q_w", "q_h", "q_t"),
+                  {"q_force": 24.0 * STANDARD_GRAVITY, "q_w": 60.0, "q_h": 80.0, "q_t": 12.0},
+                  {"q_force": _u_force})
+    _u_speak = _uc(peak_stress_formula("q_sigma_nom", "q_kt"),
+                   {"q_sigma_nom": _snom_val, "q_kt": STRESS_CONCENTRATION_CIRCULAR_HOLE},
+                   {"q_sigma_nom": _u_snom})
     quantities = [
-        _g("q_load", "verified shelf load", 12.0, "kg", ["c_load"]),
+        _g("q_load", "verified shelf load", 12.0, "kg", ["c_load"], _u_load),
         _g("q_screw_d", "screw diameter", 4.0, "mm", ["c_screw"]),
         _g("q_hole_d", "clearance hole diameter", 4.5, "mm", ["c_iso273"]),
         _d("q_sf", "safety factor", 2.0, "1", "conservative for static indoor load"),
-        _der("q_design", "design load", 24.0, "kg", "q_load * q_sf", ("q_load", "q_sf")),
+        _der("q_design", "design load", 24.0, "kg", "q_load * q_sf", ("q_load", "q_sf"),
+             _u_design),
         _der("q_hole_r", "hole radius", 2.25, "mm", "q_hole_d / 2", ("q_hole_d",)),
         _d("q_w", "bracket projection", 60.0, "mm",
            "shelf projection depth from the wall — the load's lever arm (L)"),
@@ -157,18 +174,18 @@ def capstone_spec() -> Specification:
         _g("q_g", "standard gravity", STANDARD_GRAVITY, "m/s^2", ["c_gravity"]),
         _der("q_force", "design-load force at the bracket tip",
              24.0 * STANDARD_GRAVITY, "N",
-             weight_formula("q_design", "q_g"), ("q_design", "q_g")),
+             weight_formula("q_design", "q_g"), ("q_design", "q_g"), _u_force),
         _der("q_sigma_nom", "nominal bending stress at the design load "
              "(cantilever, arm=q_w, b=q_h, h=q_t)",
              6.0 * (24.0 * STANDARD_GRAVITY) * 60.0 / (80.0 * 12.0 * 12.0), "MPa",
              cantilever_bending_stress_formula("q_force", "q_w", "q_h", "q_t"),
-             ("q_force", "q_w", "q_h", "q_t")),
+             ("q_force", "q_w", "q_h", "q_t"), _u_snom),
         _g("q_kt", "stress concentration factor (circular hole, Kirsch)",
            STRESS_CONCENTRATION_CIRCULAR_HOLE, "1", ["c_kirsch"]),
         _der("q_sigma_peak", "peak stress at the mounting hole",
              STRESS_CONCENTRATION_CIRCULAR_HOLE
              * (6.0 * (24.0 * STANDARD_GRAVITY) * 60.0 / (80.0 * 12.0 * 12.0)), "MPa",
-             peak_stress_formula("q_sigma_nom", "q_kt"), ("q_kt", "q_sigma_nom")),
+             peak_stress_formula("q_sigma_nom", "q_kt"), ("q_kt", "q_sigma_nom"), _u_speak),
         _g("q_strength", "in-plane PLA tensile strength", 50.0, "MPa", ["c_pla"]),
         # fastener shear (bracket-side, EN 1993-1-8): demand per screw vs capacity
         _g("q_bolt_uts", "class-8.8 screw ultimate tensile strength",

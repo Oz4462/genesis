@@ -41,6 +41,7 @@ from .derivation import (
 )
 from .geometry import aabb_of, overlaps
 from .units import Dimension, formula_dimension, parse_unit, unit_scale
+from ..uncertainty import combine_standard_uncertainty
 
 
 def claim_soundness_failures(
@@ -587,6 +588,9 @@ def gate_gamma(
                    declared `measurand` must agree — same dimension and same value
                    after unit conversion; a deterministic contradiction-between-
                    accepted-facts guard, no language understanding)
+      Unsicherheit C-18 BROKEN_UNCERTAINTY (a DERIVED quantity's declared standard
+                   uncertainty must independently recompute from its inputs by the
+                   GUM law of propagation, JCGM 100; code computes, gate recomputes)
       β-Kette      C-14 SPEC_NOT_ANCHORED
 
     Abstention (nothing groundable -> empty specification + explicit gaps)
@@ -1211,6 +1215,51 @@ def gate_gamma(
                         ),
                     )
                 )
+
+    # --- Unsicherheit: C-18 GUM propagation recompute -----------------------------
+    # A DERIVED quantity that declares an `uncertainty` must have it INDEPENDENTLY
+    # recomputable from its inputs' uncertainties by the GUM law of propagation
+    # (uncertainty.py) — the exact "code computes, gate recomputes" discipline of
+    # C-6, now applied to the uncertainty. An input without a declared uncertainty
+    # contributes zero (treated as exact). Skipped silently when the DERIVED value
+    # declares no uncertainty (opt-in; no behaviour change for exact specs).
+    for q in quantities.values():
+        if (
+            q.origin is not ValueOrigin.DERIVED
+            or q.derivation is None
+            or q.uncertainty is None
+        ):
+            continue
+        input_values: dict[str, float] = {}
+        input_uncs: dict[str, float] = {}
+        resolvable = True
+        for iid in q.derivation.inputs:
+            src = quantities.get(iid)
+            if src is None:
+                resolvable = False  # DANGLING_REFERENCE already flagged elsewhere
+                break
+            input_values[iid] = float(src.value)
+            if src.uncertainty is not None:
+                input_uncs[iid] = float(src.uncertainty)
+        if not resolvable:
+            continue
+        try:
+            recomputed = combine_standard_uncertainty(
+                q.derivation.formula, input_values, input_uncs
+            )
+        except FormulaError:
+            continue  # the value recompute (C-6) already reports a broken formula
+        if not within_tolerance(float(q.uncertainty), recomputed, tolerance=1e-6):
+            failures.append(
+                GateFailure(
+                    code="BROKEN_UNCERTAINTY",
+                    detail=(
+                        f"DERIVED quantity {q.id!r} declares u={q.uncertainty:g} but GUM "
+                        f"propagation recomputes u={recomputed:g} from its inputs "
+                        f"(formula {q.derivation.formula!r})."
+                    ),
+                )
+            )
 
     # --- β-Kette: C-14 anchoring ----------------------------------------------------
     asserts_content = bool(spec.components or spec.steps)

@@ -428,7 +428,8 @@ def format_specification(spec: Specification) -> str:
                 origin = f"DERIVED = {q.derivation.formula}" if q.derivation else "DERIVED"
             else:
                 origin = f"DECISION — {q.rationale}"
-            lines.append(f"  • {q.id}: {q.name} = {q.value:g} {q.unit}   [{origin}]")
+            unc = f" ± {q.uncertainty:g}" if q.uncertainty is not None else ""
+            lines.append(f"  • {q.id}: {q.name} = {q.value:g}{unc} {q.unit}   [{origin}]")
         lines.append("")
 
     if spec.components:
