@@ -1,0 +1,246 @@
+"""Dimensional analysis for γ derivations — units as an Abelian group.
+
+The LLM never reasons about units in GENESIS; this module is the deterministic,
+LLM-free arithmetic that decides whether a derivation is *dimensionally* sound.
+It closes the unit-correctness hole named open in PHASE_GAMMA.md §10 and guards
+against the Mars-Climate-Orbiter failure class (a value carried in the wrong
+unit-dimension; pound-force·s vs newton·s, NASA 1999).
+
+Foundations (researched, not invented):
+  * Dimensional homogeneity: "only commensurable quantities (same dimension) may
+    be compared, equated, added, or subtracted"; multiplication/division combine
+    dimensions by adding/subtracting exponents — dimensions form an Abelian group
+    under multiplication (SI / standard dimensional analysis).
+  * A. Kennedy, "Types for Units-of-Measure: Theory and Practice" (CEFP 2009,
+    LNCS 6299, Springer): a units-of-measure type system unifies over the
+    equational theory of Abelian groups; dimensional consistency is "a first
+    check on the correctness of an equation, just as the type-checker eliminates
+    one possible reason for failure." This module is exactly such a check,
+    applied to GENESIS derivations.
+
+Honest boundary (documented, like dimensional analysis itself): this catches
+*dimension* errors (mass + length, an area declared as a length), NOT *magnitude*
+errors within one dimension (a cm→mm conversion using the wrong factor stays
+dimensionally valid). Magnitude correctness is the job of the numeric recompute
+(GATE γ C-6) and the verbatim value guard (C-4); dimension is an orthogonal,
+independent check.
+"""
+
+from __future__ import annotations
+
+import ast
+import re
+from dataclasses import dataclass
+
+from ..core.errors import UnitError
+
+# Seven SI base dimensions, as ASCII symbols (encoding-safe on any console):
+# Length L, Mass M, Time T, Current I, Temperature Te, amount of substance N,
+# luminous intensity J. A Dimension is a vector of integer exponents over these
+# (plus opaque <unknown> symbols for unrecognized units).
+
+
+@dataclass(frozen=True)
+class Dimension:
+    """A dimension as exponents over base symbols — an element of the Abelian
+    group of dimensions. ``exponents`` is a frozenset of (symbol, exponent)
+    pairs with no zero exponents, so equality is canonical (M·L·T⁻² has one
+    representation). Unknown unit atoms become their own opaque base symbol
+    (e.g. ``<widget>``) so they only ever combine with themselves — GENESIS
+    never invents a compatibility it cannot justify.
+    """
+
+    exponents: frozenset[tuple[str, int]] = frozenset()
+
+    @staticmethod
+    def of(mapping: dict[str, int]) -> "Dimension":
+        return Dimension(frozenset((k, v) for k, v in mapping.items() if v != 0))
+
+    def as_dict(self) -> dict[str, int]:
+        return dict(self.exponents)
+
+    def __mul__(self, other: "Dimension") -> "Dimension":
+        merged = self.as_dict()
+        for k, v in other.exponents:
+            merged[k] = merged.get(k, 0) + v
+        return Dimension.of(merged)
+
+    def __truediv__(self, other: "Dimension") -> "Dimension":
+        merged = self.as_dict()
+        for k, v in other.exponents:
+            merged[k] = merged.get(k, 0) - v
+        return Dimension.of(merged)
+
+    def pow(self, n: int) -> "Dimension":
+        return Dimension.of({k: v * n for k, v in self.exponents})
+
+    def render(self) -> str:
+        if not self.exponents:
+            return "dimensionless"
+        return "·".join(
+            f"{sym}^{exp}" if exp != 1 else sym
+            for sym, exp in sorted(self.exponents)
+        )
+
+
+DIMENSIONLESS = Dimension()
+
+
+def _base(symbol: str) -> Dimension:
+    return Dimension.of({symbol: 1})
+
+
+# Atomic units known to GENESIS -> their dimension. Scale (cm vs m) is
+# irrelevant to *dimension*; only the exponent vector matters here. Prefixed
+# forms (mm, km, kN, MPa, ...) are resolved by stripping a known SI prefix when
+# the remainder is a known atom — so the table stays small but covers the metric
+# system. Anything unknown becomes an opaque base dimension (never guessed).
+_LENGTH = _base("L")
+_MASS = _base("M")
+_TIME = _base("T")
+_CURRENT = _base("I")
+_TEMP = _base("Te")
+_AMOUNT = _base("N")
+_LUMINOUS = _base("J")
+_FORCE = _MASS * _LENGTH / (_TIME * _TIME)            # N  = M·L·T⁻²
+_PRESSURE = _FORCE / (_LENGTH * _LENGTH)              # Pa = M·L⁻¹·T⁻²
+_ENERGY = _FORCE * _LENGTH                            # J  = M·L²·T⁻²
+_POWER = _ENERGY / _TIME                              # W  = M·L²·T⁻³
+_FREQ = DIMENSIONLESS / _TIME                         # Hz = T⁻¹
+
+_KNOWN_UNITS: dict[str, Dimension] = {
+    # dimensionless
+    "1": DIMENSIONLESS, "": DIMENSIONLESS, "rad": DIMENSIONLESS,
+    "deg": DIMENSIONLESS, "%": DIMENSIONLESS, "pcs": DIMENSIONLESS,
+    "count": DIMENSIONLESS, "x": DIMENSIONLESS,
+    # SI base (note: gram is the prefixable base for mass)
+    "m": _LENGTH, "g": _MASS, "s": _TIME, "A": _CURRENT,
+    "K": _TEMP, "mol": _AMOUNT, "cd": _LUMINOUS,
+    # non-prefixed convenience aliases
+    "metre": _LENGTH, "meter": _LENGTH,
+    "min": _TIME, "h": _TIME, "hr": _TIME, "day": _TIME,
+    "t": _MASS,                                        # tonne
+    "L_vol": _LENGTH.pow(3),                           # explicit volume alias
+    # named derived units
+    "N": _FORCE, "Pa": _PRESSURE, "bar": _PRESSURE,
+    "J": _ENERGY, "W": _POWER, "Hz": _FREQ, "V": _POWER / _CURRENT,
+}
+
+# SI prefixes -> (kept only to RECOGNIZE a prefixed unit; scale is irrelevant to
+# dimension). Includes the common engineering subset.
+_PREFIXES = frozenset({
+    "Y", "Z", "E", "P", "T", "G", "M", "k", "h", "da",
+    "d", "c", "m", "u", "µ", "n", "p", "f", "a", "z", "y",
+})
+
+_ATOM_RE = re.compile(r"^([A-Za-zµ%]+|1)(\^-?\d+)?$")
+_ATOM_PAT = r"(?:[A-Za-zµ%]+|1)(?:\^-?\d+)?"
+_UNIT_RE = re.compile(rf"\s*{_ATOM_PAT}\s*(?:[*/]\s*{_ATOM_PAT}\s*)*")
+
+
+def _resolve_atom(atom: str) -> Dimension:
+    """One unit atom (optionally with ^exp) -> Dimension. Unknown -> opaque."""
+    m = _ATOM_RE.match(atom)
+    if not m:
+        raise UnitError(f"unparseable unit atom {atom!r}")
+    name, exp_part = m.group(1), m.group(2)
+    exp = int(exp_part[1:]) if exp_part else 1
+    base = _atom_dimension(name)
+    return base.pow(exp)
+
+
+def _atom_dimension(name: str) -> Dimension:
+    # direct hit first (so "min", "mol", "m" are not mis-split as prefixes)
+    if name in _KNOWN_UNITS:
+        return _KNOWN_UNITS[name]
+    # try a single SI prefix + known remainder (mm, km, kN, MPa, mg, ...)
+    for plen in (2, 1):  # "da" is two chars
+        if len(name) > plen and name[:plen] in _PREFIXES:
+            remainder = name[plen:]
+            if remainder in _KNOWN_UNITS:
+                return _KNOWN_UNITS[remainder]
+    # unknown -> its own opaque base dimension; never guessed compatible
+    return _base(f"<{name}>")
+
+
+def parse_unit(unit: str) -> Dimension:
+    """Parse a compound unit string into a Dimension (Abelian-group element).
+
+    Grammar: a product/quotient of atoms, e.g. ``"kg"``, ``"mm"``, ``"1"``,
+    ``"m/s"``, ``"m/s^2"``, ``"kg*m/s^2"``, ``"m^3"``. Whitespace and a leading
+    ``/`` are tolerated. Caret ``^`` carries the (integer) exponent. Anything
+    unparseable raises ``UnitError`` (loud, never a silent dimensionless guess).
+    """
+    text = unit.strip()
+    if text == "" or text == "1":
+        return DIMENSIONLESS
+
+    # Validate the WHOLE string against the grammar first, so malformed inputs
+    # like "kg//m" fail loudly instead of being silently tolerated.
+    if not _UNIT_RE.fullmatch(text):
+        raise UnitError(f"unparseable unit {unit!r}")
+
+    dim = DIMENSIONLESS
+    # split into (operator, atom) where operator is implicit '*' at the start
+    tokens = re.findall(r"([*/]?)\s*([^*/\s]+)", text)
+    if not tokens:
+        raise UnitError(f"unparseable unit {unit!r}")
+    first = True
+    for op, atom in tokens:
+        atom_dim = _resolve_atom(atom)
+        if op == "/":
+            dim = dim / atom_dim
+        elif op == "*" or (op == "" and first) or op == "":
+            dim = dim * atom_dim
+        first = False
+    return dim
+
+
+# --- formula dimension (the homogeneity check) -------------------------------
+
+_ALLOWED_BINOPS = (ast.Add, ast.Sub, ast.Mult, ast.Div)
+
+
+def formula_dimension(formula: str, input_dims: dict[str, Dimension]) -> Dimension:
+    """Dimension implied by `formula` over inputs of known dimension.
+
+    Mirrors the safe evaluator's grammar (numbers, names, + - * /, unary minus,
+    parentheses) but propagates Dimensions instead of values:
+      * a number is dimensionless;
+      * a name takes its input's dimension;
+      * ``+``/``-`` REQUIRE equal dimensions (homogeneity) — else ``UnitError``;
+      * ``*``/``/`` add/subtract exponents (Abelian group).
+    Raises ``UnitError`` on incommensurable add/sub or unknown name; raises
+    ``UnitError`` (not a silent pass) on any syntax outside the grammar.
+    """
+    try:
+        tree = ast.parse(formula, mode="eval")
+    except SyntaxError as exc:
+        raise UnitError(f"formula {formula!r} not parseable: {exc.msg}") from None
+    return _dim_node(tree.body, formula, input_dims)
+
+
+def _dim_node(node: ast.AST, formula: str, dims: dict[str, Dimension]) -> Dimension:
+    if isinstance(node, ast.Constant):
+        return DIMENSIONLESS  # a literal number is dimensionless
+    if isinstance(node, ast.Name):
+        if node.id not in dims:
+            raise UnitError(f"formula {formula!r}: unknown input {node.id!r}")
+        return dims[node.id]
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+        return _dim_node(node.operand, formula, dims)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, _ALLOWED_BINOPS):
+        left = _dim_node(node.left, formula, dims)
+        right = _dim_node(node.right, formula, dims)
+        if isinstance(node.op, ast.Mult):
+            return left * right
+        if isinstance(node.op, ast.Div):
+            return left / right
+        # Add / Sub: homogeneity — operands must share a dimension.
+        if left != right:
+            raise UnitError(
+                f"formula {formula!r}: cannot add/subtract {left.render()} and "
+                f"{right.render()} — incommensurable"
+            )
+        return left
+    raise UnitError(f"formula {formula!r}: disallowed syntax {type(node).__name__}")

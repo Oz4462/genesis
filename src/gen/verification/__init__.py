@@ -30,6 +30,7 @@ from .derivation import (
     within_tolerance,
 )
 from .gates import claim_soundness_failures, gate_alpha, gate_beta, gate_gamma, value_in_text
+from .units import DIMENSIONLESS, Dimension, formula_dimension, parse_unit
 
 __all__ = [
     "gate_alpha",
@@ -41,6 +42,10 @@ __all__ = [
     "topological_values",
     "within_tolerance",
     "DEFAULT_TOLERANCE",
+    "parse_unit",
+    "formula_dimension",
+    "Dimension",
+    "DIMENSIONLESS",
     "Judgment",
     "verify_confidence",
     "combine_judgments",

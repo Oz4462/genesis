@@ -480,6 +480,60 @@ def test_unknown_constraint_kind_fails():
     assert "CONSTRAINT_VIOLATION" in _codes(state)
 
 
+# --- Maß (C-15): dimensional homogeneity of derivations --------------------------
+
+def test_adding_incommensurable_units_in_derivation_fails():
+    # the Mars-Climate-Orbiter class: a derived value that adds kg to mm
+    state = _happy_state()
+    spec = state.specification
+    spec.quantities.append(
+        _derived("q_nonsense", "nonsense", 16.0, "kg", "q_load + q_w", ("q_load", "q_w"))
+    )
+    assert "DIMENSION_MISMATCH" in _codes(state)
+
+
+def test_declared_unit_dimension_must_match_formula():
+    # area (mm * mm) declared as a length (mm) -> dimension mismatch
+    state = _happy_state()
+    spec = state.specification
+    spec.quantities.append(
+        _derived("q_area", "area", 4800.0, "mm", "q_w * q_h", ("q_w", "q_h"))
+    )
+    codes = _codes(state)
+    assert "DIMENSION_MISMATCH" in codes
+
+
+def test_area_declared_with_correct_unit_passes():
+    state = _happy_state()
+    spec = state.specification
+    spec.quantities.append(
+        _derived("q_area", "area", 4800.0, "mm^2", "q_w * q_h", ("q_w", "q_h"))
+    )
+    result = gate_gamma(state)
+    assert result.passed, [f"{f.code}: {f.detail}" for f in result.failures]
+
+
+def test_unit_conversion_derivation_is_dimensionally_valid():
+    # 5 cm source -> 50 mm via q_src * 10: length * dimensionless = length. OK.
+    state = _happy_state()
+    spec = state.specification
+    spec.quantities.append(_grounded("q_src", "source length", 5.0, "cm", ["c_screw"]))
+    # c_screw text says "4 mm", not "5 cm" — so anchor q_src to a fresh claim
+    state.claims.append(_claim("c_cm", "The plate edge is 5 cm wide."))
+    spec.quantities[-1].grounding = ["c_cm"]
+    spec.quantities.append(
+        _derived("q_mm", "converted length", 50.0, "mm", "q_src * 10", ("q_src",))
+    )
+    result = gate_gamma(state)
+    assert result.passed, [f"{f.code}: {f.detail}" for f in result.failures]
+
+
+def test_happy_state_derivations_are_dimensionally_clean():
+    # the baseline bracket has q_design (kg) and q_hole_r (mm) — both must pass C-15
+    state = _happy_state()
+    assert "DIMENSION_MISMATCH" not in _codes(state)
+
+
 # --- β-Kette (C-14): anchoring ----------------------------------------------------
 
 def test_content_without_anchor_fails():

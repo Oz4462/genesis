@@ -722,3 +722,57 @@ Wortlaut hinaus, Einheiten-Algebra in Formeln, CAD-Export-Adapter, Physik (Phase
 Anti-Halluzination jetzt über alle drei Einheiten — Claim (α), Approach (β),
 Wert/Schritt/Geometrie (γ).
 
+## Phase γ — Nachhärtung: Dimensionsanalyse (C-15, Mars-Orbiter-Wächter)  ✅
+
+**Auslöser:** Auftrag „an alles gedacht? Recherchiere arXiv/GitHub/Wikipedia und
+mach weiter, noch keine Live-Runs." → Research-before-edit auf die in
+`PHASE_GAMMA.md §10` selbst benannte offene Lücke (Einheiten-Algebra).
+
+**Recherche (Quellen):**
+- Dimensionale Homogenität (Standard): nur dimensionsgleiche Größen dürfen
+  addiert/verglichen werden; */ kombiniert Exponenten; Dimensionen = abelsche
+  Gruppe; sieben SI-Basisdimensionen (Wikipedia *Dimensional analysis*).
+- A. Kennedy, *Types for Units-of-Measure: Theory and Practice*, CEFP 2009,
+  LNCS 6299 (Springer, DOI 10.1007/978-3-642-17685-2_8): Einheiten-Typsystem via
+  Unifikation über abelsche Gruppentheorie; „dimensional consistency provides a
+  first check on the correctness of an equation." — genau die GENESIS-Philosophie.
+- Mars Climate Orbiter (NASA 1999): realer Verlust durch Einheiten-Mismatch
+  (pound-force·s vs newton·s, Faktor 4.45) — der motivierende Fehlerfall.
+
+**Die Lücke konkret:** GATE γ C-12 prüfte nur, dass jede Größe *eine* Einheit hat,
+und dass Constraint-Seiten *gleiche Strings* haben. Eine Derivation `q = kg + mm`
+rechnet numerisch sauber (C-6 grün), jede Größe hat eine Einheit (C-12 grün) — die
+dimensionale Unsinnigkeit fiel komplett durch. Mars-Orbiter-Klasse, ungefangen.
+
+**Gebaut (LLM-frei, deterministisch, gate-first):**
+- `verification/units.py`: `Dimension` (abelsche Gruppe über 7 SI-Basisdimensionen,
+  ASCII-Symbole), Unit-Registry (Basis + SI-Prefixe + gängige derived: N/Pa/J/W/Hz;
+  Direkt-Lookup vor Prefix-Split, damit „min"/„mol"/„m" korrekt). `parse_unit`
+  (compound: `m/s`, `kg*m/s^2`, `mm`, `1`; Full-Match-Grammatik, malformed → laut;
+  **unbekannte Einheit → opaque Basisdimension, nie geraten**). `formula_dimension`
+  (AST-Walk wie Safe-Evaluator: +/- verlangt Dimensionsgleichheit sonst `UnitError`,
+  */ kombiniert Exponenten). `core/errors.py`: `UnitError`.
+- GATE γ C-15 `DIMENSION_MISMATCH`: pro DERIVED-Quantity errechnete Formel-Dimension
+  == deklarierte Einheit; interne add/sub-Inkommensurabilität ebenfalls. Unabhängig
+  von C-6 (Zahl) — orthogonale Schicht.
+- `architect`: droppt dimensional inkonsistente DERIVED vorab + loggt; Gate
+  backstoppt unabhängig.
+
+**Selbstkontrolle (§0.2/§0.3):**
+- [x] Research-before-edit erfüllt (3 Quellen, oben; nichts erfunden — opaque
+      statt geraten bei unbekannten Einheiten).
+- [x] Tests grün inkl. Negativtests? **257 passed** (232 + 25: 17 units, 5
+      GATE-C-15, 2 architect, 1 Akzeptanz-Klasse-E), offline, 0.79 s.
+- [x] Laut statt still? `UnitError` bei Inkommensurabilität/malformed unit;
+      unbekannte Einheit opaque (kann nur mit sich selbst kombinieren).
+- [x] Ehrliche Grenze benannt? Ja — C-15 fängt Dimensions-, nicht Magnitude-Fehler
+      (cm→mm `*100` bleibt dimensional valide); dokumentiert in §10 + RESULT.
+- [x] Keine Regression? Happy-Path-Demo + alle 154 α/β + 78 frühere γ unverändert.
+- [x] Doku? PHASE_GAMMA §5/§10, PHASE_GAMMA_RESULT (Klasse E + Abschnitt), README,
+      dieser Eintrag.
+
+**Gesamtstand:** **257 passed** (offline). Sechs deterministische Wächter über die
+γ-Bauanleitung: Wert-Wortlaut, Code-Arithmetik, Referenz-Auflösung, Entscheidungs-
+Deklaration, Vollständigkeit/Baubarkeit, **dimensionale Homogenität**. Kein
+Live-Run (Owner-Vorgabe) — alle Garantien offline beweisbar.
+

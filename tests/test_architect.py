@@ -151,6 +151,37 @@ def test_grounding_in_unknown_claim_is_dropped():
     assert all(q.id != "q_ghosted" for q in state.specification.quantities)
 
 
+def test_dimensionally_inconsistent_derived_is_dropped():
+    # adding mass (kg) to a dimensionless factor is incommensurable (Mars-Orbiter
+    # class) and must never be asserted. q_load is "kg", q_sf is "1".
+    proposal = _proposal()
+    proposal["quantities"].append(
+        {"id": "q_nonsense", "name": "nonsense", "unit": "kg", "origin": "derived",
+         "formula": "q_load + q_sf", "inputs": ["q_load", "q_sf"]}
+    )
+    state = _state()
+    run(_architect_for(proposal).run(state))
+    spec = state.specification
+    assert spec is not None
+    assert all(q.id != "q_nonsense" for q in spec.quantities)   # never asserted
+    assert any("q_nonsense" in ln and "dimension" in ln.lower() for ln in state.log)
+    assert gate_gamma(state).passed                             # rest stays sound
+
+
+def test_area_declared_as_length_is_dropped():
+    # q_load*q_load is kg^2, but it is declared "kg" (mass) -> dimension mismatch
+    proposal = _proposal()
+    proposal["quantities"].append(
+        {"id": "q_area", "name": "squared mass", "unit": "kg", "origin": "derived",
+         "formula": "q_load * q_load", "inputs": ["q_load"]}
+    )
+    state = _state()
+    run(_architect_for(proposal).run(state))
+    spec = state.specification
+    assert all(q.id != "q_area" for q in spec.quantities)
+    assert gate_gamma(state).passed
+
+
 def test_hidden_decision_is_dropped():
     proposal = _proposal()
     proposal["quantities"].append(

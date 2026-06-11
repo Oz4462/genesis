@@ -351,6 +351,37 @@ def test_class_D_incomplete_instruction_yields_abstention():
     assert gate_gamma(state).passed                        # abstention is sound
 
 
+# --- Class E: dimensional-inconsistency trap (Mars-Climate-Orbiter class) --------
+
+def test_class_E_dimensional_trap_value_dropped_and_math_recomputed():
+    def mutate(proposal):
+        # a derived value that adds mass (kg) to length (mm): dimensional nonsense.
+        proposal["quantities"].append(
+            {"id": "q_nonsense", "name": "nonsense", "unit": "kg", "origin": "derived",
+             "formula": "q_load + q_screw_d", "inputs": ["q_load", "q_screw_d"]}
+        )
+        # an area (mm*mm) mislabeled as a length (mm)
+        proposal["quantities"].append(
+            {"id": "q_area", "name": "area", "unit": "mm", "origin": "derived",
+             "formula": "q_w * q_h", "inputs": ["q_w", "q_h"]}
+        )
+
+    state, _ = build(architect=Architect(architect_llm(mutate=mutate)))
+    spec = state.specification
+    assert spec is not None and spec.components            # plan still asserted
+
+    # both dimensional errors are dropped, never asserted
+    ids = {q.id for q in spec.quantities}
+    assert "q_nonsense" not in ids and "q_area" not in ids
+    log = "\n".join(state.log)
+    assert "dimension" in log.lower()
+
+    # the legitimate derivations survive and recompute correctly
+    q_design = next(q for q in spec.quantities if q.id == "q_design")
+    assert q_design.value == 24.0
+    assert gate_gamma(state).passed                        # rest stays sound
+
+
 # --- end-to-end wiring: CLI demo through runner + checkpoint ----------------------
 
 def test_spec_demo_end_to_end(tmp_path):

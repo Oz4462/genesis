@@ -12,11 +12,11 @@ Ein Mensch liefert ein Problem oder eine Idee. GENESIS recherchiert, **verifizie
 
 Die vollständige α-Pipeline (Anti-Halluzination), der β-Lösungsraum und die γ-Spezifikation sind gebaut und getestet: Fakten-Ledger (Quellenzwang), Tool-Adapter (ehrliches Fetch), die Agenten (`scout`, `scholar`, `skeptic`, `conductor`, `synthesizer`, `architect`), Cross-Model-Verifikation, die Gates α, β und γ und die End-to-End-Verdrahtung mit CLI (`--mode report|solution|spec`).
 
-**Neu (Phase γ):** Eine Idee wird zu einer **vollständigen, umsetzbaren Bauanleitung** — Größen mit deklarierter Herkunft, parametrische 3D-Geometrie (CSG), Stückliste, Schritte mit Prüfkriterien, numerisch geprüfte Constraints, Entscheidungsblatt. Die fünf γ-Halluzinationsklassen sind strukturell verhindert (PHASE_GAMMA.md §0): kein Wert ohne wörtlichen Beleg im VERIFIED-Claim, keine LLM-Arithmetik (Code rechnet, GATE γ rechnet unabhängig nach), keine Referenz ins Nichts, keine versteckte Entscheidung, kein Schritt ohne Check — und lieber ehrliche Abstention als eine teilweise/gedriftete Anleitung.
+**Neu (Phase γ):** Eine Idee wird zu einer **vollständigen, umsetzbaren Bauanleitung** — Größen mit deklarierter Herkunft, parametrische 3D-Geometrie (CSG), Stückliste, Schritte mit Prüfkriterien, numerisch geprüfte Constraints, Entscheidungsblatt. Die fünf γ-Halluzinationsklassen sind strukturell verhindert (PHASE_GAMMA.md §0): kein Wert ohne wörtlichen Beleg im VERIFIED-Claim, keine LLM-Arithmetik (Code rechnet, GATE γ rechnet unabhängig nach), keine Referenz ins Nichts, keine versteckte Entscheidung, kein Schritt ohne Check — und lieber ehrliche Abstention als eine teilweise/gedriftete Anleitung. Zusätzlich prüft GATE γ die **dimensionale Homogenität** jeder Rechnung (Einheiten als abelsche Gruppe, `verification/units.py`) — der Mars-Climate-Orbiter-Wächter: kg + mm oder eine als Länge deklarierte Fläche werden abgefangen.
 
 ```
 $ python -m pytest tests/ -q
-232 passed
+257 passed
 ```
 
 Alle Tests laufen **ohne einen einzigen LLM-Token und ohne Netzwerk**. Das heißt: Die Garantie „kein Fakt ohne Quelle, keine widerlegte Aussage als Tatsache, Lücken werden als Lücken markiert, im Zweifel Abstention" ist **bewiesen** — und von einem unabhängigen, adversarialen Audit bestätigt (Details: `docs/phases/PHASE_ALPHA_RESULT.md`).
@@ -67,6 +67,7 @@ src/gen/
   agents/architect.py           Phase γ — Spezifikation; Wertzwang, Code rechnet, Self-Gate
   verification/gates.py         GATEs α, β, γ — reine, getestete Verifikationslogik (+ Backstops)
   verification/derivation.py    Safe-Evaluator — DERIVED-Werte: Code rechnet, Gate rechnet nach
+  verification/units.py         Dimensionsanalyse — Einheiten als abelsche Gruppe (C-15, Mars-Orbiter-Wächter)
   verification/cross_model.py   Cross-Model-Pflicht + Confidence-Folding
   config.py / runner.py / cli.py  Konfiguration, run(question)->Report, `python -m gen`
 sql/001_ledger.sql              Fakten-Ledger; Quellenzwang als DB-Constraint

@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import re
 
-from ..core.errors import GenesisError, LLMOutputError
+from ..core.errors import GenesisError, LLMOutputError, UnitError
 from ..core.state import (
     Approach,
     BomItem,
@@ -48,6 +48,7 @@ from ..llm.base import LLMClient
 from ..llm.parsing import extract_json
 from ..verification.derivation import DEFAULT_TOLERANCE, topological_values
 from ..verification.gates import gate_gamma, value_in_text
+from ..verification.units import formula_dimension, parse_unit
 
 _ID_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -172,6 +173,27 @@ class Architect:
         return state
 
     # --- internals -------------------------------------------------------------
+
+    @staticmethod
+    def _dimensionally_sound(qid, unit, derivation, unit_of, log) -> bool:
+        """True if the derivation is dimensionally homogeneous and its formula's
+        dimension matches the declared unit. Drops (returns False) + logs
+        otherwise — a dimensionally inconsistent value never leaves the architect
+        (the Mars-Climate-Orbiter guard; GATE γ C-15 backstops independently)."""
+        try:
+            input_dims = {iid: parse_unit(unit_of[iid]) for iid in derivation.inputs}
+            computed = formula_dimension(derivation.formula, input_dims)
+            declared = parse_unit(unit)
+        except (UnitError, KeyError) as exc:
+            log(f"architect: drop derived {qid!r} (dimension error): {exc}")
+            return False
+        if computed != declared:
+            log(
+                f"architect: drop derived {qid!r} — formula is {computed.render()} "
+                f"but unit {unit!r} is {declared.render()}"
+            )
+            return False
+        return True
 
     @staticmethod
     def _abstain(run_id: str, idea: str, reason: str) -> Specification:
@@ -303,9 +325,18 @@ class Architect:
         computed, derivation_errors = topological_values(
             known_values, {qid: d for qid, (_, _, d) in derived_pending.items()}
         )
+        # Units known so far: grounded/decision quantities carry their declared
+        # unit; derived quantities carry their declared unit too. Used to verify
+        # each derivation is dimensionally homogeneous before it is emitted —
+        # the architect never asserts a dimensionally inconsistent value (the gate
+        # backstops this independently with DIMENSION_MISMATCH).
+        unit_of = {q.id: q.unit for q in quantities}
+        unit_of.update({qid: unit for qid, (_, unit, _) in derived_pending.items()})
         for qid, (name, unit, derivation) in derived_pending.items():
             if qid in derivation_errors:
                 log(f"architect: drop derived {qid!r}: {derivation_errors[qid]}")
+                continue
+            if not self._dimensionally_sound(qid, unit, derivation, unit_of, log):
                 continue
             quantities.append(
                 Quantity(

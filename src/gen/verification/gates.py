@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 
+from ..core.errors import UnitError
 from ..core.interfaces import GateResult, GateFailure
 from ..core.state import (
     CONSTRAINT_KINDS,
@@ -31,6 +32,7 @@ from ..core.state import (
     ValueOrigin,
 )
 from .derivation import DEFAULT_TOLERANCE, topological_values, within_tolerance
+from .units import Dimension, formula_dimension, parse_unit
 
 
 def claim_soundness_failures(
@@ -487,7 +489,9 @@ def gate_gamma(
       Drift        C-8 DANGLING_REFERENCE (incl. duplicate ids),
                    C-9 INVALID_GEOMETRY
       Vollständig  C-10 INCOMPLETE_STEP, C-11 UNBUILDABLE_ORDER
-      Maß          C-12 UNIT_MISMATCH, C-13 CONSTRAINT_VIOLATION
+      Maß          C-12 UNIT_MISMATCH, C-13 CONSTRAINT_VIOLATION,
+                   C-15 DIMENSION_MISMATCH (derivations are dimensionally
+                   homogeneous; the Mars-Climate-Orbiter guard, Kennedy 2009)
       β-Kette      C-14 SPEC_NOT_ANCHORED
 
     Abstention (nothing groundable -> empty specification + explicit gaps)
@@ -864,6 +868,69 @@ def gate_gamma(
                         f"constraint {constraint.id!r} violated: {constraint.left}="
                         f"{lv} {constraint.kind} {constraint.right}={rv} "
                         f"({constraint.reason})"
+                    ),
+                )
+            )
+
+    # --- Maß: C-15 dimensional homogeneity of derivations -------------------------
+    # Independent of the numeric recompute (C-6): a formula can recompute to the
+    # right NUMBER yet be dimensional nonsense (kg + mm), or an area declared as a
+    # length. Dimensional analysis is "a first check on the correctness of an
+    # equation" (Kennedy 2009); it guards the Mars-Climate-Orbiter failure class.
+    unit_dim_cache: dict[str, Dimension | None] = {}
+
+    def _dim_of_unit(unit: str) -> Dimension | None:
+        if unit not in unit_dim_cache:
+            try:
+                unit_dim_cache[unit] = parse_unit(unit)
+            except UnitError:
+                unit_dim_cache[unit] = None
+        return unit_dim_cache[unit]
+
+    for q in quantities.values():
+        if q.origin is not ValueOrigin.DERIVED or q.derivation is None:
+            continue
+        declared = _dim_of_unit(q.unit)
+        if declared is None:
+            failures.append(
+                GateFailure(
+                    code="DIMENSION_MISMATCH",
+                    detail=f"DERIVED quantity {q.id!r} has an unparseable unit {q.unit!r}.",
+                )
+            )
+            continue
+        input_dims: dict[str, Dimension] = {}
+        missing_input = False
+        for iid in q.derivation.inputs:
+            src = quantities.get(iid)
+            if src is None:
+                missing_input = True  # DANGLING_REFERENCE handled elsewhere
+                break
+            idim = _dim_of_unit(src.unit)
+            if idim is None:
+                missing_input = True
+                break
+            input_dims[iid] = idim
+        if missing_input:
+            continue
+        try:
+            computed = formula_dimension(q.derivation.formula, input_dims)
+        except UnitError as exc:
+            failures.append(
+                GateFailure(
+                    code="DIMENSION_MISMATCH",
+                    detail=f"DERIVED quantity {q.id!r}: {exc}",
+                )
+            )
+            continue
+        if computed != declared:
+            failures.append(
+                GateFailure(
+                    code="DIMENSION_MISMATCH",
+                    detail=(
+                        f"DERIVED quantity {q.id!r}: formula yields "
+                        f"{computed.render()} but unit {q.unit!r} is "
+                        f"{declared.render()}."
                     ),
                 )
             )

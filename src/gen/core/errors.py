@@ -98,6 +98,22 @@ class FormulaError(GenesisError):
         super().__init__(f"Formula {formula!r} failed: {reason}")
 
 
+class UnitError(GenesisError):
+    """A derivation formula is dimensionally inconsistent.
+
+    Raised loudly when a formula adds/subtracts incommensurable quantities
+    (e.g. mass + length), or when a DERIVED quantity's declared unit dimension
+    does not match the dimension its formula implies. This is the famous
+    Mars-Climate-Orbiter failure class (pound-force·s vs newton·s); dimensional
+    homogeneity is "a first check on the correctness of an equation"
+    (Kennedy 2009). A dimensionally inconsistent value must never silently
+    enter a build specification (PHASE_GAMMA.md §0/§5, condition C-15).
+    """
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(f"Dimensional inconsistency: {detail}")
+
+
 class FetchFailedError(GenesisError):
     """A source could not be retrieved. The source must NOT be cited as fact."""
 

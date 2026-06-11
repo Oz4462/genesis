@@ -285,6 +285,7 @@ existieren und verankert sein. Defense-in-depth: Das Gate vertraut dem
 | C-11 | `UNBUILDABLE_ORDER` | Jede Step-`input` ist zum Schrittzeitpunkt verfügbar (BomItem oder Output eines früheren Schritts); kein Artefakt doppelt definiert. | Vollständigkeit |
 | C-12 | `UNIT_MISMATCH` | Jede Quantity trägt eine nicht-leere Einheit (`"1"` für dimensionslos); Constraints vergleichen nur gleiche Einheiten. | Maß |
 | C-13 | `CONSTRAINT_VIOLATION` | Jede deklarierte Constraint hält numerisch (le/lt/ge/gt/eq; eq mit `derivation_tolerance`). | Maß |
+| C-15 | `DIMENSION_MISMATCH` | Jede DERIVED-Quantity ist **dimensional homogen**: ihre Formel addiert/subtrahiert nur dimensionsgleiche Größen, und die aus den Input-Einheiten errechnete Dimension stimmt mit der deklarierten Einheit überein. Einheiten als abelsche Gruppe (`verification/units.py`); unabhängig vom Zahlen-Nachrechnen (C-6). Fängt die Mars-Climate-Orbiter-Klasse (kg + mm; Fläche als Länge deklariert). | Maß |
 | C-14 | `SPEC_NOT_ANCHORED` | Behauptet die Spezifikation Inhalt (Komponenten ODER Schritte), muss `approach_id` auf einen existierenden, verankerten Approach des Laufs zeigen. | β-Kette |
 
 ### Abstention & Fallen (durch dieselbe Mechanik, kein Sonderpfad)
@@ -403,12 +404,24 @@ phase_gamma:
 
 ## 10. Offene Detailentscheidungen + Quellen
 
+**Erledigt (war zuvor offen):**
+- **Dimensionsanalyse von Formeln (Einheiten-Algebra) — GEBAUT (C-15).**
+  `verification/units.py` implementiert Dimensionen als abelsche Gruppe (sieben
+  SI-Basisdimensionen + Prefix-Parsing + gängige derived Units; unbekannte
+  Einheiten werden *opaque*, nie geraten). GATE γ C-15 prüft jede DERIVED-Formel
+  auf dimensionale Homogenität (add/sub nur dimensionsgleich; */ kombiniert
+  Exponenten) und vergleicht die errechnete Dimension mit der deklarierten
+  Einheit. Der `architect` droppt dimensional inkonsistente Größen vorab. Fängt
+  die Mars-Climate-Orbiter-Klasse. Quellen unten.
+
 **Bewusst offen (nicht blockierend):**
 - Konkreter CAD-Export (OpenSCAD-Text vs. build123d-Python) — hinter einem
   Adapter; die CSG-Struktur (§3.3) ist auf beide abbildbar. Live-Schritt.
-- Dimensionsanalyse von Formeln (Einheiten-Algebra in Derivations) — γ erzwingt
-  Einheiten-Existenz + Constraint-Gleichheit; volle Einheiten-Algebra ist eine
-  ehrlich benannte spätere Härtung.
+- **Magnitude/Skalen-Korrektheit innerhalb einer Dimension.** C-15 fängt
+  *Dimensions*-Fehler (kg + mm, Fläche-als-Länge), **nicht** falsche Skalenfaktoren
+  derselben Dimension (cm→mm via `*100` statt `*10` bleibt dimensional valide).
+  Das ist die bekannte, ehrliche Grenze der Dimensionsanalyse — Magnitude prüft
+  das Zahlen-Nachrechnen (C-6) und der Wortlaut-Anker (C-4), nicht C-15.
 - Semantische Wert-Claim-Bindung über C-4 hinaus (z. B. ein Live-`skeptic` für
   Wert-Extraktionen) — C-4 ist der deterministische Wortlaut-Anker, das
   Live-Pendant folgt mit echten Modellen.
@@ -425,6 +438,21 @@ phase_gamma:
   verifizierter Claim („build123d is built on the Open Cascade (OCCT) kernel…",
   confidence 1.0, zwei unabhängige Quellen, cross-model; siehe
   `runs/live-smoke/checkpoint.json` und CLI-Demo).
+- **Dimensionsanalyse (C-15) — Theoriegrundlage:** Dimensionale Homogenität
+  („only commensurable quantities … may be compared, equated, added, or
+  subtracted"; Dimensionen bilden eine abelsche Gruppe unter Multiplikation;
+  sieben SI-Basisdimensionen L, M, T, I, Θ, N, J) — Standard-Dimensionsanalyse
+  (https://en.wikipedia.org/wiki/Dimensional_analysis).
+- **Einheiten-Typsysteme als statische Prüfung:** A. Kennedy, *Types for
+  Units-of-Measure: Theory and Practice*, CEFP 2009, LNCS 6299, S. 268–305,
+  Springer. DOI: 10.1007/978-3-642-17685-2_8
+  (https://link.springer.com/chapter/10.1007/978-3-642-17685-2_8). Kernidee:
+  Unifikation über die Gleichungstheorie abelscher Gruppen; „dimensional
+  consistency provides a first check on the correctness of an equation."
+- **Motivierender realer Fehlerfall:** Mars Climate Orbiter (NASA, 1999) —
+  Verlust durch Einheiten-Mismatch (pound-force·s vs. newton·s, Faktor 4.45;
+  Lockheed-Martin-Bodensoftware ↔ JPL-Trajektorie)
+  (https://en.wikipedia.org/wiki/Mars_Climate_Orbiter).
 
 **Interne Verweise:** `PHASE_ALPHA.md` (Methodik, Gate-first),
 `PHASE_BETA.md` §0 (Ehrlichkeits-Auflösung der Ideation), `CLAUDE.md`
