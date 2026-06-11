@@ -1647,6 +1647,40 @@ GENESIS' Specs voll-bewertet sind (C-13 deckt die Wertebene).
 
 ---
 
+## 49. Grounding-Integrität — ist der Claim-Graph sauber korroboriert? (`grounding_integrity.py`)
+
+Die KG-/Grounding-Säule der Research (KG-Integration steigert Faktualität; Cross-Model-
+Korroboration) zeigt auf zwei **graph-ebene** Eigenschaften, die GENESIS halten sollte, aber nicht
+**als solche** maß:
+
+- **Korroborations-Unabhängigkeit:** ein VERIFIED-Claim ist nur so vertrauenswürdig wie die
+  **Unabhängigkeit** seiner Korroboration. Zitiert der skeptic bei der „Verifikation" bloß die
+  Original-Quellen des scholar nach, ist sie **zirkulär**, nicht unabhängig. Der Check verlangt:
+  für jeden verifizierten Claim sind die Verifikations-Quellen **disjunkt** von den Original-
+  Quellen — echte Cross-Korroboration, die Graph-Eigenschaft, die „verified" überhaupt
+  bedeutungsvoll macht.
+- **Report-Grounding-Coverage:** das FActScore-Prinzip, dass **jeder** behauptete Satz auf einen
+  **realen, nicht-widerlegten** Claim abbildet. Über die `statement_to_claim`-Abbildung eines
+  Reports flaggt es jeden Satz, der von einem **fehlenden** Claim (dangling) oder einem
+  **REFUTED**-Claim (ein Widerspruch als Tatsache behauptet) gestützt wird, und meldet die Coverage.
+
+**Verifiziert** (6 Tests, offline): die **18** Capstone-VERIFIED-Claims sind **alle unabhängig**
+korroboriert (`independent_rate 1.0`); ein **zirkulärer** Claim (Verifikation = Original-Quelle)
+wird geflaggt; ein voll gegroundeter Report besteht (`coverage 1.0`); ein **dangling**
+Claim-ID (`c_does_not_exist`) wird geflaggt; ein **REFUTED**-gestützter Satz wird geflaggt
+(`coverage 0.0`).
+
+**Ehrliche Grenze:** deterministische **Graph-Checks** über die Ledger-Typen — notwendig, nicht
+hinreichend; sie beurteilen **nicht**, ob die Quellen selbst korrekt sind (das tut die α-Cross-
+Model-Verifikation). Eine echte **Knowledge-Graph-Einbettung** (Entitäts-Verlinkung, transitive
+Inferenz über externe KGs) ist der schwerere, aufgeschobene Ausbau. Modul
+`grounding_integrity.py`, getestet in `tests/test_grounding_integrity.py`.
+
+**Quelle:** Knowledge-Graph-Integration für Faktualität (PEEK u. a.); FActScore atomare
+Claim-Grounding-Coverage; Cross-Model-Korroboration (GENESIS scholar/skeptic, unabhängige Quellen).
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
