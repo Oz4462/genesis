@@ -378,8 +378,9 @@ def capstone_spec() -> Specification:
             "substrate and anchor (drywall plug vs concrete vs timber), which the "
             "spec does not fix; only the bracket-side screw shear is checked.",
             "The hole stress uses the conservative Kirsch Kt=3 (uniaxial circular "
-            "hole); the exact bending / finite-width peak (≤3) needs FEM or "
-            "Peterson's tables.",
+            "hole). The canonical tension Kt is now COMPUTED by the 3-D FEM "
+            "(plate_hole.py: ~3.1, Kirsch 3 + finite width); the bracket's specific "
+            "bending+hole case is a direct extension of the same solver.",
             "Fatigue and dynamic / impact loading are out of scope by the declared "
             "static indoor-load case; only the static design load (safety factor 2) "
             "is checked.",

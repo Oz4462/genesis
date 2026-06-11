@@ -650,6 +650,39 @@ Zienkiewicz/Cook); isotrope Elastizitätsmatrix (Lamé λ, μ).
 
 ---
 
+## 22. Berechnetes Loch-Spannungsfeld — das FEM ersetzt die Kt=3-Schranke
+
+§9 nutzt den Kirsch-Faktor **Kt=3** als **konservative Schranke** für den
+Spannungs­überhöher an der Bohrung. §22 **rechnet** ihn: `plate_hole.py` vernetzt
+das klassische **Platte-mit-Loch**-Benchmark mit **gmsh** (unstrukturiertes Tet-
+Netz, am Loch verfeinert), speist es in den 3-D-Solver (§21, `fem3d`), zieht die
+Platte und liest die **echte** Spitzenspannung am Lochrand — der Kreis, für den der
+§21-Solver gebaut wurde, schließt sich.
+
+Viertel-Symmetrie-Modell (x≥0, y≥0), dünne Platte ≈ ebener Spannungszustand;
+Spitzen-`σ_xx` am Lochrand auf der y-Achse (θ=90° zur Last), wo Kirsch für die
+**unendliche** Platte `σ_θθ = 3·σ_far` gibt.
+
+**Verifiziert:** der berechnete Brutto-Kt **konvergiert monoton nach oben** unter
+Netzverfeinerung (`3.086 → 3.168 → 3.311`) gegen **~3,1–3,3** — der Kirsch-Wert
+**3,0** angehoben durch die **Endbreiten-Korrektur** (Peterson, hier d/W=0,2 →
+~3,14). Das Fernfeld trifft die aufgeprägte `E·δ/L = 210` (Brutto). **Damit wird aus
+der konservativen Konstante Kt=3 eine gerechnete Größe** — der Solver bestätigt und
+schärft die Schranke, die die Statik-Schicht annahm.
+
+**Ehrliche Grenze:** lineare Elastizität, konstant-Dehnungs-Tets (konvergieren an
+einer Konzentration langsam → Verfeinerung), **endliche** Platte (Kt also der
+Endbreiten-Wert, nicht exakt 3). Es rechnet die **Zug**-Konzentration (Kirsch); der
+Biege+Loch-Fall des Halters ist eine direkte Erweiterung **desselben** Solvers. gmsh
+optional (Test skippt ohne). Modul `plate_hole.py`, getestet in
+`tests/test_plate_hole.py`.
+
+**Quelle:** Kirsch (1898) Kt=3 (s. §9); Endbreiten-Korrektur Peterson's *Stress
+Concentration Factors*; Platte-mit-Loch ist das kanonische FEM-Konzentrations-
+Benchmark.
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
