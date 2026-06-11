@@ -984,6 +984,43 @@ wird **konservativ ignoriert** (nicht gutgeschrieben). MPa-konsistent. Modul
 
 ---
 
+## 29. Wärmeausdehnungs-Mismatch — Thermospannung ohne äußere Last (`thermal_stress.py`)
+
+Die Leitungs-Schicht (§25) findet die **Temperatur**; die Statik findet die
+**Last**-Spannung. Dazwischen liegt ein Versagen, das **keine** allein sieht: eine
+Temperaturänderung will Material verformen, und wenn das **behindert** ist — ein Teil
+zwischen starren Lagern, oder zwei verbundene Materialien mit verschiedenen
+Ausdehnungskoeffizienten — baut sich Spannung **ohne jede äußere Last** auf. Ein
+Messing-Insert im PLA-Halter, eine Metallspur auf Polymer, jeder erwärmte Presssitz:
+kann allein durch einen Temperaturhub reißen. Drei Standard-Closed-Forms:
+- **Eingespannt:** `σ = −E·α·ΔT` (Druck beim Heizen, Zug beim Kühlen, längenunabhängig).
+- **Verbundene Parallel-Stäbe:** zwei auf gemeinsame Länge gezwungene Materialien teilen
+  eine innere Kraft — Kompatibilität (gleiche Dehnung) + Gleichgewicht (keine Nettokraft)
+  geben jede Spannung exakt.
+- **Bimetall-Krümmung:** zwei verbundene Schichten verschiedener `α` biegen beim Heizen;
+  Timoshenkos Closed-Form (1925) liefert die Krümmung.
+
+**Verifiziert, nicht behauptet:** der eingespannte Wert ist exakt `−EαΔT` (Stahl,
+`ΔT=100` → `−252 MPa`); die Zwei-Stab-Lösung erfüllt **Gleichgewicht maschinengenau**
+(`A₁σ₁+A₂σ₂ ≈ 0`, Stahl/Al `±57,75 MPa`), **verschwindet** bei gleichen Koeffizienten,
+und geht für einen **starren** Partner in den eingespannten Grenzwert `E₁(α₂−α₁)ΔT=231`
+über; die Bimetall-Krümmung verschwindet bei gleichem `α` und reduziert sich für
+gleiches Modul/Dicke auf das Lehrbuch-`1,5·Δα·ΔT/h`. Alles im Test gepinnt.
+
+**Der echte Check:** `thermal_mismatch_check(...)` vergleicht die größere
+|Mismatch-Spannung| mit der Festigkeit jedes Materials → Sicherheitsfaktor + welches
+Material maßgebt. Ein `ΔT=300`-Hub auf eine Stahl/Al-Verbindung sprengt `100 MPa` → FAIL.
+
+**Ehrliche Grenze:** linear elastisch, gleichförmiges `ΔT`, 1-D (Stäbe) bzw.
+Timoshenko-Balken (Bimetall) — kein Dickengradient, **kein** Fließen, **keine**
+viskoelastische Relaxation (die die Spannung in einem Polymer über Zeit abbaut). MPa-mm.
+Modul `thermal_stress.py`, getestet in `tests/test_thermal_stress.py`.
+
+**Quelle:** lineare Thermoelastizität `σ = E(ε − αΔT)`; Timoshenko (1925) *Analysis of
+Bi-Metal Thermostats* (J. Opt. Soc. Am.) für die Bimetall-Krümmung.
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
