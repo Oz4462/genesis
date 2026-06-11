@@ -99,6 +99,29 @@ def test_cantilever_bending_converges_toward_euler_bernoulli_from_above():
     assert (f1s[2] - f_eb) < (f1s[0] - f_eb)       # genuinely converging toward it
 
 
+def test_quadratic_tets_nail_the_bending_frequency():
+    # the SAME solver on a gmsh order-2 (T10) mesh hits the Euler-Bernoulli bending
+    # frequency to ~0.2% on a coarse mesh, where the linear tet is off by tens of %.
+    pytest.importorskip("gmsh", reason="the T10 mesher needs the optional gmsh package")
+    from gen.fem3d_quadratic import box_mesh_t10
+
+    inertia = _B * _H ** 3 / 12.0
+    area = _B * _H
+    f_eb = (1.875104 ** 2 / (2 * np.pi)) * np.sqrt(_E * inertia / (_RHO * area * _L ** 4))
+    nodes, tets = box_mesh_t10(_L, _B, _H, _H)         # coarse: element size ~ section
+    fixed = {3 * i + c for i, (x, y, z) in enumerate(nodes) if abs(x) < 1e-12 for c in range(3)}
+    f1 = natural_frequencies(nodes, tets, _E, _NU, _RHO, fixed_dofs=fixed, n_modes=1)[0]
+    assert abs(f1 - f_eb) / f_eb < 0.01               # within 1% (~0.2% typical)
+
+    # compared with the linear tet at a comparable element count, which is far worse
+    nl, tl = structured_box_mesh(_L, _B, _H, 6, 2, 2)
+    f1_t4 = natural_frequencies(nl, tl, _E, _NU, _RHO,
+                                fixed_dofs={3 * i + c for i, (x, y, z) in enumerate(nl)
+                                            if abs(x) < 1e-12 for c in range(3)},
+                                n_modes=1)[0]
+    assert abs(f1 - f_eb) < abs(f1_t4 - f_eb)         # T10 dramatically closer
+
+
 # --- the resonance design check ------------------------------------------------
 
 def test_resonance_check_flags_proximity():

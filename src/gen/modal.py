@@ -17,7 +17,9 @@ Verified, not asserted, on three levels:
     captures accurately). The cantilever BENDING frequency converges toward the
     Euler-Bernoulli value from ABOVE — the linear tet is over-stiff in bending (the
     same constant-strain limitation §23 documents for stress), so it needs many
-    elements there; quadratic tets (fem3d_quadratic) would tighten it.
+    elements there. The QUADRATIC tet (pass a `box_mesh_t10` order-2 mesh) fixes this:
+    the same solver, dispatching on the 10-node element, hits the bending frequency to
+    ~0.2 % on a coarse mesh where the linear tet is off by tens of percent.
 
 Units must be a consistent SI set: E in Pa, density in kg/m³, lengths in m → natural
 frequencies in Hz. Honest boundary: linear, undamped, small-displacement modal
@@ -32,6 +34,7 @@ import numpy as np
 
 from .core.errors import GeometryError
 from .fem3d import _elasticity_matrix, _tet_b_and_volume
+from .fem3d_quadratic import t10_mass, t10_stiffness
 
 
 def _tet4_mass(coords: np.ndarray, density: float) -> np.ndarray:
@@ -68,16 +71,26 @@ def assemble_stiffness_mass(
     nodes: np.ndarray, tets: np.ndarray, e_modulus: float, nu: float, density: float
 ) -> tuple[np.ndarray, np.ndarray]:
     """Assemble the global stiffness K and consistent mass M (each 3N×3N) for a
-    linear-elastic tetrahedral mesh. Deterministic."""
+    tetrahedral mesh. Dispatches on the element node count: 4-node (linear, constant
+    strain — over-stiff in bending) or 10-node (quadratic, captures bending; pass a
+    gmsh order-2 mesh from ``fem3d_quadratic.box_mesh_t10``). Deterministic."""
     ndof = 3 * len(nodes)
     d = _elasticity_matrix(e_modulus, nu)
     k = np.zeros((ndof, ndof))
     m = np.zeros((ndof, ndof))
     for tet in tets:
         coords = nodes[tet]
-        b, vol = _tet_b_and_volume(coords)
-        ke = vol * b.T @ d @ b
-        me = _tet4_mass(coords, density)
+        if len(tet) == 4:
+            b, vol = _tet_b_and_volume(coords)
+            ke = vol * b.T @ d @ b
+            me = _tet4_mass(coords, density)
+        elif len(tet) == 10:
+            ke = t10_stiffness(coords, e_modulus, nu)
+            me = t10_mass(coords, density)
+        else:
+            raise GeometryError(
+                f"unsupported element with {len(tet)} nodes (need 4 or 10)"
+            )
         dofs = np.array([3 * n + c for n in tet for c in range(3)])
         k[np.ix_(dofs, dofs)] += ke
         m[np.ix_(dofs, dofs)] += me

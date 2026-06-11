@@ -25,6 +25,8 @@ Gauss, exact for these elements). The mesher needs the optional `gmsh` package.
 
 from __future__ import annotations
 
+from math import factorial
+
 import numpy as np
 
 from .core.errors import GeometryError
@@ -216,3 +218,55 @@ def t10_nodal_stresses(nodes, tets, displacements, e_modulus, nu) -> np.ndarray:
             b, _ = _b_matrix(nodes[tet], nat)
             out[e, a] = d @ b @ ue
     return out
+
+
+def _t10_mass_reference() -> np.ndarray:
+    """The 10×10 reference consistent-mass coefficient matrix Ĉ where the element mass
+    (per coordinate direction) is ρ·V·Ĉ. Computed EXACTLY from the barycentric integral
+    ∫ L1^a L2^b L3^c L4^d dV = 6V·a!b!c!d!/(a+b+c+d+3)!, so no quadrature is needed (the
+    T10 N_a·N_b is degree 4 — beyond the 4-point Gauss rule used for the stiffness).
+    Sums to 1, i.e. the element mass totals ρV. This matches the tabulated T10
+    consistent mass ρV/420·[…] (corner-corner 6, corner-far-edge −4, edge-edge 32)."""
+    def integral(exps):
+        a, b, c, dd = exps
+        return 6.0 * factorial(a) * factorial(b) * factorial(c) * factorial(dd) / factorial(
+            a + b + c + dd + 3
+        )
+
+    # each shape function as {barycentric-exponent-tuple: coefficient}
+    shapes: list[dict] = []
+    for i in range(4):                                 # corners: N = L_i(2L_i − 1)
+        sq = tuple(2 if j == i else 0 for j in range(4))
+        lin = tuple(1 if j == i else 0 for j in range(4))
+        shapes.append({sq: 2.0, lin: -1.0})
+    for i, j in _EDGES:                                # edges: N = 4 L_i L_j
+        key = [0, 0, 0, 0]
+        key[i] += 1
+        key[j] += 1
+        shapes.append({tuple(key): 4.0})
+
+    ref = np.zeros((10, 10))
+    for a in range(10):
+        for b in range(10):
+            s = 0.0
+            for ka, ca in shapes[a].items():
+                for kb, cb in shapes[b].items():
+                    s += ca * cb * integral(tuple(ka[t] + kb[t] for t in range(4)))
+            ref[a, b] = s
+    return ref
+
+
+_T10_MASS_REF = _t10_mass_reference()
+
+
+def t10_mass(coords: np.ndarray, density: float) -> np.ndarray:
+    """30×30 consistent mass matrix of one T10 element = ρ·V·(Ĉ ⊗ I₃).
+
+    EXACT for a straight-edged (affine) tetrahedron — the element volume comes from the
+    four corner nodes. (A curved-boundary T10 element, e.g. on a hole edge, has a
+    varying Jacobian and would need quadrature; the modal/box meshes here are straight,
+    so the closed form is exact.) Sums to the element mass ρV per direction."""
+    m = np.ones((4, 4))
+    m[:, 1:] = coords[:4]                              # volume from the 4 corners
+    vol = abs(np.linalg.det(m)) / 6.0
+    return density * vol * np.kron(_T10_MASS_REF, np.eye(3))

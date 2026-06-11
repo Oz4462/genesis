@@ -31,9 +31,11 @@ import pytest  # noqa: E402
 from gen.fem3d_quadratic import (  # noqa: E402
     _EDGES,
     _GAUSS,
+    _T10_MASS_REF,
     _b_matrix,
     box_mesh_t10,
     solve_elasticity_t10,
+    t10_mass,
     t10_stiffness,
 )
 
@@ -73,6 +75,16 @@ def test_stiffness_has_rigid_translation_null_space():
 def test_stiffness_is_symmetric():
     ke = t10_stiffness(_unit_tet_t10(), 70000.0, 0.33)
     assert np.allclose(ke, ke.T, atol=1e-9)
+
+
+def test_consistent_mass_sums_to_element_mass():
+    # the reference matrix sums to 1; the element mass block totals rho*V exactly.
+    assert np.isclose(_T10_MASS_REF.sum(), 1.0, rtol=1e-12)
+    coords = _unit_tet_t10()
+    vol = abs(np.linalg.det(np.c_[np.ones(4), coords[:4]])) / 6.0
+    mass = t10_mass(coords, 7850.0)
+    assert np.isclose(mass[0::3, 0::3].sum(), 7850.0 * vol, rtol=1e-12)
+    assert np.allclose(mass, mass.T, atol=1e-9)
 
 
 # --- meshed solves (need gmsh) -------------------------------------------------

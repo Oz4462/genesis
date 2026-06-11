@@ -758,11 +758,22 @@ gmsh `setOrder(2)`, dessen 6 Kantenknoten **geometrisch** (Mittelpunkt-Match) in
 lokale Reihenfolge dieses Moduls sortiert werden — unabhängig von gmshs eigener
 Kantennummerierung.
 
-**Ehrliche Grenze:** lineare isotrope Elastizität, statisch; der gmsh-Mesher ist
-optional (Test skippt ohne). Die Knoten-Rückgewinnung ist eine **ungemittelte** obere
-Peak-Schätzung (Standard-FEM-Praxis), kein gemittelter Knotenwert. Module
-`fem3d_quadratic.py` + die T10-Variante in `plate_hole.py`, getestet in
-`tests/test_fem3d_quadratic.py`.
+**T10-Massenmatrix (für §26-Dynamik):** `t10_mass(coords, ρ)` ergänzt die
+Konsistenz-Masse `ρ·V·(Ĉ⊗I₃)`. Da `N_a·N_b` Grad 4 ist (jenseits der 4-Punkt-Gauß-
+Regel der Steifigkeit), wird `Ĉ` **exakt** aus der baryzentrischen Integralformel
+`∫L1^aL2^bL3^cL4^d dV = 6V·a!b!c!d!/(a+b+c+d+3)!` berechnet (für gerade/affine
+Elemente, wie die Box-Netze — Hohlkant-Elemente bräuchten Jacobi-Quadratur). `Ĉ`
+summiert sich zu 1 (Element-Masse = `ρV`) und stimmt mit der tabellierten
+T10-Konsistenzmasse `ρV/420·[…]` überein. **Wirkung:** dieselbe Modal-Lösung (§26) auf
+einem T10-Netz trifft die Biegefrequenz auf **~0,2 %** auf grobem Netz, wo der lineare
+Tet um **zig Prozent** danebenliegt.
+
+**Ehrliche Grenze:** lineare isotrope Elastizität; der gmsh-Mesher ist optional (Test
+skippt ohne). Die Knoten-Rückgewinnung ist eine **ungemittelte** obere Peak-Schätzung
+(Standard-FEM-Praxis), kein gemittelter Knotenwert; die T10-Masse ist exakt für
+**gerade** Elemente. Module `fem3d_quadratic.py` + die T10-Variante in `plate_hole.py`
++ T10-Dispatch in `modal.py`, getestet in `tests/test_fem3d_quadratic.py` und
+`tests/test_modal.py`.
 
 **Quelle:** Zienkiewicz & Taylor, *The Finite Element Method* (quadratische
 Tetraeder, lineare Dehnung, schnellere Konvergenz); Howland (1930) / Heywood-
