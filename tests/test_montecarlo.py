@@ -18,7 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from gen.montecarlo import montecarlo_uncertainty  # noqa: E402
+from gen.montecarlo import montecarlo_correlated, montecarlo_uncertainty  # noqa: E402
 from gen.uncertainty import combine_standard_uncertainty  # noqa: E402
 
 
@@ -61,3 +61,32 @@ def test_exact_input_gives_zero_spread():
     mc = montecarlo_uncertainty("a + b", {"a": 5.0, "b": 7.0}, {})   # no uncertainties
     assert math.isclose(mc["std"], 0.0, abs_tol=1e-12)
     assert math.isclose(mc["mean"], 12.0, rel_tol=1e-12)
+
+
+# --- correlated inputs (the JCGM 101 extension) --------------------------------
+
+def _corr_std(rho, op, ua=3.0, ub=4.0):
+    mc = montecarlo_correlated(f"a {op} b", {"a": 10.0, "b": 20.0},
+                               {"a": ua, "b": ub}, {("a", "b"): rho})
+    return mc["std"]
+
+
+def test_independent_inputs_add_in_quadrature():
+    assert math.isclose(_corr_std(0.0, "+"), 5.0, rel_tol=2e-2)        # sqrt(9+16)
+
+
+def test_perfect_correlation_adds_linearly():
+    # rho=1 for a sum: variances add LINEARLY, std = u_a + u_b = 7 (not 5)
+    assert math.isclose(_corr_std(1.0, "+"), 7.0, rel_tol=2e-2)
+
+
+def test_correlated_difference_cancels():
+    # rho=1 for a difference: the uncertainties partially cancel, std = |u_a-u_b| = 1
+    assert math.isclose(_corr_std(1.0, "-"), 1.0, rel_tol=3e-2)
+    # negative correlation on a sum cancels the same way
+    assert math.isclose(_corr_std(-1.0, "+"), 1.0, rel_tol=3e-2)
+
+
+def test_correlated_is_deterministic():
+    args = ("a + b", {"a": 1.0, "b": 2.0}, {"a": 1.0, "b": 1.0}, {("a", "b"): 0.5})
+    assert montecarlo_correlated(*args) == montecarlo_correlated(*args)

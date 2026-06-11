@@ -73,3 +73,58 @@ def montecarlo_uncertainty(
         "lo": float(np.quantile(out, lo_q)),
         "hi": float(np.quantile(out, 1.0 - lo_q)),
     }
+
+
+def montecarlo_correlated(
+    formula: str,
+    values: dict[str, float],
+    uncertainties: dict[str, float],
+    correlations: dict[tuple[str, str], float] | None = None,
+    *,
+    n_samples: int = DEFAULT_SAMPLES,
+    seed: int = DEFAULT_SEED,
+    coverage: float = 0.95,
+) -> dict[str, float]:
+    """Monte-Carlo propagation with CORRELATED inputs (the JCGM 101 extension where
+    inputs are not independent). `correlations` maps an unordered input pair to its
+    correlation coefficient ρ ∈ [−1, 1]; the covariance is Σ_ij = u_i·u_j·ρ_ij
+    (ρ_ii = 1). Inputs are sampled jointly from N(values, Σ).
+
+    Correlation matters: for ``a + b`` with ρ=1 the variances add linearly
+    (std = u_a + u_b) instead of in quadrature; for ``a − b`` with ρ=1 they
+    partially cancel (std = |u_a − u_b|). Returns ``{"mean","std","lo","hi"}``;
+    deterministic for fixed `seed`.
+    """
+    rng = np.random.default_rng(seed)
+    names = list(values.keys())
+    n = len(names)
+    mean = np.array([float(values[name]) for name in names])
+    u = np.array([float(uncertainties.get(name, 0.0)) for name in names])
+
+    rho = np.eye(n)
+    if correlations:
+        idx = {name: i for i, name in enumerate(names)}
+        for (a, b), r in correlations.items():
+            if a in idx and b in idx:
+                rho[idx[a], idx[b]] = rho[idx[b], idx[a]] = float(r)
+    cov = (u[:, None] * u[None, :]) * rho           # Σ_ij = u_i u_j ρ_ij
+
+    sample = rng.multivariate_normal(mean, cov, size=n_samples)
+    columns = {name: sample[:, i] for i, name in enumerate(names)}
+    try:
+        out = np.asarray(evaluate_formula(formula, columns), dtype=float)
+        if out.shape != (n_samples,):
+            out = np.full(n_samples, float(out))
+    except Exception:  # noqa: BLE001 - min/max fall back to per-sample
+        out = np.array([
+            evaluate_formula(formula, {k: columns[k][i] for k in names})
+            for i in range(n_samples)
+        ])
+
+    lo_q = (1.0 - coverage) / 2.0
+    return {
+        "mean": float(np.mean(out)),
+        "std": float(np.std(out, ddof=1)),
+        "lo": float(np.quantile(out, lo_q)),
+        "hi": float(np.quantile(out, 1.0 - lo_q)),
+    }

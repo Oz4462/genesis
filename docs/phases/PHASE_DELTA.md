@@ -772,8 +772,15 @@ Wo es **nichtlinear** ist, zeigt MC was First-Order nicht kann: `y=x²` mit
 `x=10±1` hat wahren Mittelwert `E[x²]=100+Var=101`, nicht 100 — **MC findet die
 +1-Verschiebung**, die lineare Methode lässt den Wert bei 100.
 
-**Ehrliche Grenze:** unabhängige gaußsche Eingänge, feste Sample-Zahl (Intervall
-trägt MC-Fehler ~1/√N); korrelierte/nicht-gaußsche Priors sind eine weitere
+**Korrelierte Eingänge (`montecarlo_correlated`):** gemeinsames Sampling aus
+`N(values, Σ)` mit Kovarianz `Σ_ij = u_i·u_j·ρ_ij`. **Verifiziert:** für `a+b` mit
+ρ=1 addieren sich die Varianzen **linear** (std = u_a+u_b = 7, **nicht** Quadratur
+5); für `a−b` mit ρ=1 **heben** sie sich teilweise auf (std = |u_a−u_b| = 1). Das
+ist real wichtig — z. B. ein Spiel `Loch−Welle`, wenn beide vom selben Prozess
+korreliert sind.
+
+**Ehrliche Grenze:** gaußsche Eingänge (jetzt auch **korreliert**), feste Sample-
+Zahl (Intervall trägt MC-Fehler ~1/√N); nicht-gaußsche Priors sind eine weitere
 Erweiterung. Modul `montecarlo.py`, getestet in `tests/test_montecarlo.py`.
 
 **Quelle:** GUM Supplement 1 / JCGM 101:2008 (Monte-Carlo-Fortpflanzung von
