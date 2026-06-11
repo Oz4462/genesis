@@ -22,7 +22,7 @@ Die vollständige α-Pipeline (Anti-Halluzination), der β-Lösungsraum und die 
 
 ```
 $ python -m pytest tests/ -q
-480 passed
+488 passed
 ```
 
 Alle Tests laufen **ohne einen einzigen LLM-Token und ohne Netzwerk**. Das heißt: Die Garantie „kein Fakt ohne Quelle, keine widerlegte Aussage als Tatsache, Lücken werden als Lücken markiert, im Zweifel Abstention" ist **bewiesen** — und von einem unabhängigen, adversarialen Audit bestätigt (Details: `docs/phases/PHASE_ALPHA_RESULT.md`).
@@ -36,6 +36,7 @@ $ python -m gen --demo --mode spec --format stl   # STL-Mesh (Primitive; Boolean
 $ python -m gen --mode capstone                   # komplette Spec durch alle Gates (Demo)
 $ python -m gen --mode capstone --format md       # komplettes Markdown-Bauhandbuch
 $ python -m gen --mode eval                        # Anti-Halluzinations-Garantie als Metrik (0 Leaks)
+$ python -m gen --mode protocol                    # Bio-Domäne: Pflanzen-Protokoll (γ + Reproduzierbarkeit)
 $ python -m gen "Frage..."                   # Live-α: lokale Ollama-Modelle + Wikipedia
 $ python -m gen --mode spec "Idee..."        # Live-γ: Idee -> belegte Spezifikation
 ```

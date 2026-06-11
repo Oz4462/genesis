@@ -49,6 +49,7 @@ from .core.state import (
     Constraint,
     Decision,
     Derivation,
+    ExperimentDesign,
     GeometryNode,
     Net,
     Netlist,
@@ -400,4 +401,70 @@ def capstone_state() -> RunState:
     st.claims = capstone_claims()
     st.approaches = [Approach(id="ap1", name="Cantilever LED bracket", grounding=["c_anchor"])]
     st.specification = capstone_spec()
+    return st
+
+
+# --- bio ε domain: a reproducibility-sound plant-growth protocol ----------------
+# Realizes the VISION example ("how can plants be shown to grow better?") across a
+# completely different domain than the bracket — the same γ machinery (sourced
+# values, safety-limit constraint via C-13, units via C-15) plus the bio-specific
+# reproducibility design gate (gate_protocol): a measured outcome with a control
+# group and enough replicates. Nothing invented; the safety limit is claim-backed.
+
+def protocol_claims() -> list[Claim]:
+    return [
+        _claim("c_bio_anchor",
+               "Controlled nutrient dosing is used to study plant growth."),
+        _claim("c_bio_tox",
+               "The nutrient solution is phytotoxic above 200 g/m^3."),
+    ]
+
+
+def protocol_spec() -> Specification:
+    quantities = [
+        _d("q_conc", "applied nutrient concentration", 150.0, "g/m^3",
+           "below the toxic threshold, in the effective range"),
+        _g("q_conc_max", "phytotoxic threshold", 200.0, "g/m^3", ["c_bio_tox"]),
+    ]
+    steps = [
+        Step(id="p1", index=1, action="Prepare the nutrient solution at the target dose.",
+             outputs=["a_solution"], check="Concentration measured at 150 g/m^3.",
+             quantity_refs=["q_conc"]),
+        Step(id="p2", index=2, action="Apply the solution to the treatment group; water "
+             "the control group only.", inputs=["a_solution"], outputs=["a_dosed"],
+             check="Each plant receives an equal volume."),
+        Step(id="p3", index=3, action="Measure stem height after 14 days.",
+             inputs=["a_dosed"], outputs=["a_data"],
+             check="Record stem height per plant, blind to group."),
+    ]
+    constraints = [
+        Constraint(id="k_safe", kind="le", left="q_conc", right="q_conc_max",
+                   reason="applied dose stays below the phytotoxic threshold"),
+    ]
+    experiment = ExperimentDesign(
+        measured="stem height", groups=["treatment", "control"],
+        control="control", replicates=5,
+    )
+    return Specification(
+        run_id="protocol", idea="Show whether nutrient dosing increases plant growth",
+        approach_id="ap_bio", quantities=quantities, steps=steps, constraints=constraints,
+        experiment=experiment,
+        decisions=[Decision(id="d_blind", title="Blinding",
+                            choice="measure blind to group",
+                            rationale="removes measurement bias")],
+        gaps=[
+            "Effect size, dose-response beyond the single tested dose, and field "
+            "(vs controlled) conditions are not asserted — they require the actual "
+            "experiment run, which GENESIS specifies but does not perform.",
+        ],
+        claim_ids_used=[c.id for c in protocol_claims()], produced_by="protocol",
+    )
+
+
+def protocol_state() -> RunState:
+    st = RunState(question=Question(raw="plant growth protocol", run_id="protocol"))
+    st.claims = protocol_claims()
+    st.approaches = [Approach(id="ap_bio", name="Controlled nutrient dosing",
+                             grounding=["c_bio_anchor"])]
+    st.specification = protocol_spec()
     return st

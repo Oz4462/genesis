@@ -316,8 +316,8 @@ def specification_from_dict(d: dict):
     """
     from .core.state import (
         BomDomain, BomItem, BomRole, CodeArtifact, Component, Constraint, Decision,
-        Derivation, Net, Netlist, Pin, PinType, Quantity, SiteRequirements, Sourcing,
-        Specification, Step, ValueOrigin,
+        Derivation, ExperimentDesign, Net, Netlist, Pin, PinType, Quantity,
+        SiteRequirements, Sourcing, Specification, Step, ValueOrigin,
     )
 
     def _quantity(q):
@@ -403,6 +403,16 @@ def specification_from_dict(d: dict):
                          description=a.get("description", ""))
             for a in d.get("code_artifacts") or []
         ],
+        experiment=(
+            ExperimentDesign(
+                measured=d["experiment"].get("measured", ""),
+                groups=list(d["experiment"].get("groups") or []),
+                control=d["experiment"].get("control"),
+                replicates=d["experiment"].get("replicates", 1),
+            )
+            if d.get("experiment") is not None
+            else None
+        ),
         gaps=list(d.get("gaps") or []),
         claim_ids_used=list(d.get("claim_ids_used") or []),
         produced_by=d.get("produced_by", ""), model=d.get("model", ""),
@@ -531,6 +541,16 @@ def _specification_to_dict(spec: Specification) -> dict:
             }
             for a in spec.code_artifacts
         ],
+        "experiment": (
+            {
+                "measured": spec.experiment.measured,
+                "groups": list(spec.experiment.groups),
+                "control": spec.experiment.control,
+                "replicates": spec.experiment.replicates,
+            }
+            if spec.experiment
+            else None
+        ),
         "gaps": list(spec.gaps),
         "claim_ids_used": list(spec.claim_ids_used),
         "produced_by": spec.produced_by,

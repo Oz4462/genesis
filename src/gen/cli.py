@@ -43,7 +43,13 @@ from .runner import Dependencies, run, run_solution, run_specification
 from .tools.http import HttpResponse, default_http_get
 from .tools.search import SemanticScholarBackend, WikipediaBackend
 from .verification.cross_model import assert_different_families
-from .verification.gates import gate_code, gate_delta, gate_erc, geometry_envelope
+from .verification.gates import (
+    gate_code,
+    gate_delta,
+    gate_erc,
+    gate_protocol,
+    geometry_envelope,
+)
 from .verification.geometry import geometry_length_unit, mass_of, volume_of
 
 # --- offline demo world (deterministic) --------------------------------------
@@ -553,6 +559,21 @@ def format_specification(spec: Specification) -> str:
                 lines.append(f"  • {f.code}: {f.detail}")
         lines.append("")
 
+    if spec.experiment is not None:
+        exp = spec.experiment
+        lines.append("Experiment design (reproducibility — no result asserted):")
+        if exp.measured:
+            lines.append(f"  • measured outcome: {exp.measured}")
+        lines.append(f"  • groups: {', '.join(exp.groups)} (control: {exp.control})")
+        lines.append(f"  • replicates: {exp.replicates}")
+        pr = gate_protocol(_spec_state(spec))
+        if pr.passed:
+            lines.append("  • status: reproducibility design is sound (control + replicates)")
+        else:
+            for f in pr.failures:
+                lines.append(f"  • {f.code}: {f.detail}")
+        lines.append("")
+
     if not spec.components and not spec.steps:
         lines.append("Specification: none asserted — nothing could be grounded.")
         lines.append("")
@@ -645,7 +666,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("question", nargs="?", help="the research question / problem / idea")
     parser.add_argument("--demo", action="store_true", help="run the offline deterministic demo")
     parser.add_argument(
-        "--mode", choices=("report", "solution", "spec", "capstone", "eval"), default="report",
+        "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol"),
+        default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
              "spec = Phase γ build specification; capstone = a complete, fully "
              "detailed γ-depth spec through all gates (demo-only) (default: report)",
@@ -677,6 +699,21 @@ def main(argv: list[str] | None = None) -> int:
         eval_report = evaluate(anti_hallucination_cases())
         print(format_eval_report(eval_report))
         return 0 if not eval_report.leaks and not eval_report.false_alarms else 3
+
+    if args.mode == "protocol":
+        # The bio ε domain: a reproducibility-sound plant-growth protocol, through
+        # GATE γ (sourced values, safety-limit constraint, units) + GATE PROTOCOL
+        # (control group + replicates). Same engine, completely different domain.
+        from .demo import protocol_state
+        from .verification.gates import gate_gamma
+
+        state = protocol_state()
+        print(render_spec(state.specification, args.format))
+        ga = gate_gamma(state)
+        gp = gate_protocol(state)
+        for label, g in (("γ", ga), ("PROTOCOL", gp)):
+            print(f"Gate {label}: {'PASS' if g.passed else 'FAIL'} ({len(g.failures)} failures)")
+        return 0 if (ga.passed and gp.passed) else 3
 
     if args.mode == "capstone":
         # A complete, fully detailed γ-depth specification through all gates.

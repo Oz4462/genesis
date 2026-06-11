@@ -1705,6 +1705,84 @@ def gate_code(state: RunState) -> GateResult:
     return GateResult(gate="code", passed=not failures, failures=failures)
 
 
+#: Minimum independent replicates for a quantitative claim. n >= 3 is the common
+#: floor for elementary statistics (a mean + a spread estimate); fewer cannot
+#: support a reproducible quantitative conclusion. Declared, documented threshold.
+MIN_REPLICATES = 3
+
+
+def gate_protocol(state: RunState) -> GateResult:
+    """GATE PROTOCOL — deterministic reproducibility-design check for a wet-lab /
+    field protocol (the bio ε arc, PHASE_DELTA.md §19).
+
+    A protocol that measures a quantitative outcome but has no control or too few
+    replicates is the root of the reproducibility crisis. This checks the design
+    deterministically (parameter SAFETY LIMITS and unit correctness reuse the
+    existing constraint machinery, C-13 / C-15 — no duplication):
+
+      P-1 MEASURE_WITHOUT_CONTROL   a measured outcome with no named control group.
+      P-2 CONTROL_NOT_IN_GROUPS     the named control is not among the groups.
+      P-3 TOO_FEW_GROUPS            a measured outcome with fewer than two groups.
+      P-4 INSUFFICIENT_REPLICATES   fewer than MIN_REPLICATES replicates.
+
+    A spec with no experiment design passes trivially (a non-experimental build).
+    Honest asymmetry: a PASS means "the design can in principle support a
+    reproducible quantitative conclusion", not that the experiment will succeed.
+    """
+    spec = state.specification
+    if spec is None:
+        return GateResult(
+            gate="protocol",
+            passed=False,
+            failures=[GateFailure(code="NO_SPECIFICATION", detail="No specification to validate.")],
+        )
+    exp = spec.experiment
+    if exp is None:
+        return GateResult(gate="protocol", passed=True, failures=[])
+
+    failures: list[GateFailure] = []
+    if exp.measured.strip():
+        if exp.control is None:
+            failures.append(
+                GateFailure(
+                    code="MEASURE_WITHOUT_CONTROL",
+                    detail=(
+                        f"the protocol measures {exp.measured!r} but declares no control "
+                        "group — no baseline to attribute the effect to."
+                    ),
+                )
+            )
+        elif exp.control not in exp.groups:
+            failures.append(
+                GateFailure(
+                    code="CONTROL_NOT_IN_GROUPS",
+                    detail=f"control {exp.control!r} is not among the groups {exp.groups}.",
+                )
+            )
+        if len(exp.groups) < 2:
+            failures.append(
+                GateFailure(
+                    code="TOO_FEW_GROUPS",
+                    detail=(
+                        f"a measured outcome needs >= 2 groups (treatment + control), "
+                        f"got {exp.groups}."
+                    ),
+                )
+            )
+    if exp.replicates < MIN_REPLICATES:
+        failures.append(
+            GateFailure(
+                code="INSUFFICIENT_REPLICATES",
+                detail=(
+                    f"{exp.replicates} replicate(s) < the minimum {MIN_REPLICATES} for a "
+                    "reproducible quantitative conclusion."
+                ),
+            )
+        )
+
+    return GateResult(gate="protocol", passed=not failures, failures=failures)
+
+
 def geometry_envelope(state: RunState) -> dict[str, tuple[float, float, float]]:
     """Per-component bounding-box extents (x, y, z) — the δ validation surface
     shown to the human ('does it fit my build volume?'). Skips components without

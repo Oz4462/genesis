@@ -642,3 +642,40 @@ Erweiterung. Modul `montecarlo.py`, getestet in `tests/test_montecarlo.py`.
 
 **Quelle:** GUM Supplement 1 / JCGM 101:2008 (Monte-Carlo-Fortpflanzung von
 Verteilungen).
+
+---
+
+## 19. ε-Bio — Protokoll mit Reproduzierbarkeits-Design + Sicherheitsgrenzen
+
+Die zweite ε-Domäne realisiert das **VISION-Beispiel** („wie lassen sich Pflanzen
+nachweislich gesünder wachsen?") — über die **gleiche γ-Maschinerie** wie der
+Halter, nur in einer völlig anderen Domäne: belegte Werte, eine **Sicherheits-
+grenze als Constraint** (C-13), Einheiten (C-15). Der **neue** bio-spezifische
+Beitrag ist `gate_protocol`: der **Reproduzierbarkeits-Design-Check**, der genau
+die Lücke adressiert, die die Reproduzierbarkeitskrise treibt (unvollständige
+Designs ohne Kontrolle/Replikate).
+
+| Code | Defekt |
+|---|---|
+| `MEASURE_WITHOUT_CONTROL` | misst ein Ergebnis, hat aber **keine Kontrollgruppe** (keine Baseline) |
+| `CONTROL_NOT_IN_GROUPS` | die benannte Kontrolle ist nicht unter den Gruppen |
+| `TOO_FEW_GROUPS` | ein gemessenes Ergebnis braucht ≥ 2 Gruppen (Treatment + Kontrolle) |
+| `INSUFFICIENT_REPLICATES` | < `MIN_REPLICATES` (3) Replikate — kein reproduzierbarer Schluss |
+
+**Demo (`python -m gen --mode protocol`):** Pflanzenwachstum, Nährlösung 150 g/m³
+**unter** der belegten phytotoxischen Schwelle 200 g/m³ (Sicherheits-Constraint
+`k_safe`, C-13), Treatment+Kontrolle, 5 Replikate, blind gemessen → γ + PROTOCOL
+bestanden. **Zähne** (je ein Test): keine Kontrolle → `MEASURE_WITHOUT_CONTROL`;
+2 Replikate → `INSUFFICIENT_REPLICATES`; Überdosis 250 g/m³ → `CONSTRAINT_VIOLATION`
+(über die bestehende C-13, **kein** neuer Code).
+
+**Ehrliche Asymmetrie:** ein **bestandener** PROTOCOL-Check heißt „das Design
+**kann** prinzipiell einen reproduzierbaren quantitativen Schluss tragen", nicht
+dass das Experiment gelingt — GENESIS **spezifiziert** das Experiment, führt es
+nicht durch (als Gap deklariert). `MIN_REPLICATES=3` ist eine deklarierte,
+dokumentierte Schwelle (Minimum für elementare Statistik). Modul `gate_protocol` +
+`ExperimentDesign`, getestet in `tests/test_protocol.py`.
+
+**Quelle:** Reproduzierbarkeits-Krise + Kontroll-/Replikat-Design (Standard-
+Experimentalmethodik); maschinenlesbare Protokolle mit Parameter-Sicherheitsgrenzen
+(Autoprotocol/BioCoder; formal-semantische Protokolle, arXiv 1710.08016).

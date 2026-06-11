@@ -528,6 +528,29 @@ class Netlist:
 
 
 @dataclass
+class ExperimentDesign:
+    """The reproducibility design of a wet-lab / field protocol (the bio ε arc).
+
+    A protocol that measures a quantitative outcome but has no control group or too
+    few replicates is the root of the reproducibility crisis. GATE PROTOCOL checks
+    this deterministically (PHASE_DELTA.md §19): a measured outcome needs >= 2
+    groups including a named control, and at least `MIN_REPLICATES` replicates.
+    Parameter safety limits (e.g. concentration <= toxic threshold) and unit
+    correctness reuse the existing constraint machinery (C-13 / C-15).
+
+    `measured`    the outcome variable (e.g. "stem height"); "" if exploratory.
+    `groups`      experimental group names (e.g. ["treatment", "control"]).
+    `control`     which group is the control, or None.
+    `replicates`  independent replicates per group.
+    """
+
+    measured: str = ""
+    groups: list[str] = field(default_factory=list)
+    control: str | None = None
+    replicates: int = 1
+
+
+@dataclass
 class CodeArtifact:
     """A software deliverable whose correctness is proven by EXECUTION.
 
@@ -590,6 +613,7 @@ class Specification:
     site: "SiteRequirements | None" = None
     netlist: "Netlist | None" = None
     code_artifacts: list["CodeArtifact"] = field(default_factory=list)
+    experiment: "ExperimentDesign | None" = None
     gaps: list[str] = field(default_factory=list)
     claim_ids_used: list[str] = field(default_factory=list)
     produced_by: str = ""
