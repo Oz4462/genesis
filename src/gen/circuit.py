@@ -1,0 +1,120 @@
+"""DC operating-point circuit solver by Modified Nodal Analysis (the SPICE δ-layer).
+
+GATE ERC proves the netlist's CONNECTIVITY (no simulation). The next layer is the
+actual DC operating point: given resistors and sources, what voltage sits on each
+node and what current does each source deliver? This module is that solver —
+Modified Nodal Analysis (MNA), the linear-DC core of every SPICE engine —
+implemented in pure numpy, so it needs NO external simulator (ngspice was not
+installed) and runs fully offline and deterministically.
+
+MNA assembles the system
+
+    [ G  B ] [ v ]   [ i ]
+    [ C  D ] [ j ] = [ e ]
+
+where G holds node conductances, B/C the voltage-source incidences, v the unknown
+node voltages and j the unknown source branch currents; it is solved directly.
+
+Verified, not asserted: the test cross-checks the solver against Ohm's law (a
+source across a resistor gives I = V/R), a two-resistor divider (known node
+voltage), and the capstone's own numbers — the 12 V PSU across the LED strip's
+equivalent resistance delivers exactly its rated 1.5 A.
+
+Honest boundary: this is LINEAR DC (resistors + independent sources). A real LED
+is a non-linear diode; here it is modelled by its operating-point equivalent
+resistance R = V/I, which is exactly what makes the DC current check meaningful,
+not a transient or non-linear large-signal analysis. Those (and AC) remain an
+external-simulator layer under the same proof standard.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import numpy as np
+
+GROUND = "0"
+
+
+@dataclass(frozen=True)
+class Resistor:
+    a: str
+    b: str
+    ohms: float
+
+
+@dataclass(frozen=True)
+class VoltageSource:
+    p: str            # + terminal node
+    n: str            # - terminal node
+    volts: float
+    name: str = "V"
+
+
+@dataclass(frozen=True)
+class CurrentSource:
+    frm: str          # current flows from `frm` to `to` through the source
+    to: str
+    amps: float
+
+
+def _nodes(component) -> tuple[str, ...]:
+    if isinstance(component, Resistor):
+        return (component.a, component.b)
+    if isinstance(component, VoltageSource):
+        return (component.p, component.n)
+    if isinstance(component, CurrentSource):
+        return (component.frm, component.to)
+    raise TypeError(f"unknown component {component!r}")
+
+
+def solve_dc(components, ground: str = GROUND) -> tuple[dict[str, float], dict[str, float]]:
+    """Solve the DC operating point. Returns ``(node_voltages, source_currents)``
+    — node voltages in volts (ground = 0), and each voltage source's delivered
+    current in amperes (positive = current out of the + terminal into the circuit).
+    Deterministic; raises ``numpy.linalg.LinAlgError`` on a singular network
+    (e.g. a floating subgraph) rather than guessing.
+    """
+    nodes = sorted({nd for c in components for nd in _nodes(c)} - {ground})
+    idx = {nd: i for i, nd in enumerate(nodes)}
+    vsources = [c for c in components if isinstance(c, VoltageSource)]
+    n, m = len(nodes), len(vsources)
+
+    A = np.zeros((n + m, n + m))
+    z = np.zeros(n + m)
+
+    for c in components:
+        if isinstance(c, Resistor):
+            g = 1.0 / c.ohms
+            if c.a != ground:
+                A[idx[c.a], idx[c.a]] += g
+            if c.b != ground:
+                A[idx[c.b], idx[c.b]] += g
+            if c.a != ground and c.b != ground:
+                A[idx[c.a], idx[c.b]] -= g
+                A[idx[c.b], idx[c.a]] -= g
+        elif isinstance(c, CurrentSource):
+            if c.frm != ground:
+                z[idx[c.frm]] -= c.amps
+            if c.to != ground:
+                z[idx[c.to]] += c.amps
+
+    for k, vs in enumerate(vsources):
+        row = n + k
+        if vs.p != ground:
+            A[idx[vs.p], row] += 1.0
+            A[row, idx[vs.p]] += 1.0
+        if vs.n != ground:
+            A[idx[vs.n], row] -= 1.0
+            A[row, idx[vs.n]] -= 1.0
+        z[row] = vs.volts
+
+    x = np.linalg.solve(A, z)
+    node_v = {nd: float(x[idx[nd]]) for nd in nodes}
+    node_v[ground] = 0.0
+    # the MNA branch current j flows from + to - INSIDE the source; the current
+    # the source delivers to the circuit is its negative.
+    source_i = {
+        (vs.name or f"V{k}"): float(-x[n + k]) for k, vs in enumerate(vsources)
+    }
+    return node_v, source_i

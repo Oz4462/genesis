@@ -512,3 +512,31 @@ in `tests/test_fem.py`.
 **Quelle:** Direkte Steifigkeitsmethode, Hermite-kubisches Balkenelement
 (Standard-FEM, z. B. Cook, *Concepts and Applications of Finite Element Analysis*);
 Kragträger-Durchbiegung `δ = F·L³/(3EI)` (Euler-Bernoulli).
+
+---
+
+## 15. ε-Elektronik δ — DC-Arbeitspunkt per Modified Nodal Analysis (numpy)
+
+ERC beweist die **Verdrahtung**; die nächste Schicht ist der echte **DC-Arbeits-
+punkt**: welche Spannung liegt an jedem Knoten, welchen Strom liefert jede Quelle?
+`circuit.py` ist genau dieser Löser — **Modified Nodal Analysis (MNA)**, der
+lineare DC-Kern jeder SPICE-Engine — in **reinem numpy**, also **ohne externen
+Simulator** (ngspice war nicht installiert), voll offline und deterministisch. MNA
+assembliert `[[G,B],[C,D]]·[v;j] = [i;e]` und löst direkt.
+
+**Verifiziert statt behauptet:** der Test prüft den Löser gegen Ohm (Quelle über
+Widerstand → `I=V/R`), einen Spannungsteiler (bekannter Knoten), eine Stromquelle
+und gegen die **Capstone-Zahlen selbst** — das 12-V-Netzteil über den Arbeitspunkt-
+Widerstand des LED-Streifens (`R=V/I=8 Ω`) liefert **exakt** die Nennlast 1,5 A,
+genau den Strom, den der Elektronik-Constraint (PSU 2 A ≥ LED 1,5 A) annimmt. Damit
+wird der Constraint nicht nur deklariert, sondern **gerechnet**.
+
+**Ehrliche Grenze:** Dies ist **linearer DC** (Widerstände + unabhängige Quellen).
+Eine echte LED ist eine nichtlineare Diode; hier per Arbeitspunkt-Ersatzwiderstand
+`R=V/I` modelliert — genau das, was die DC-Strom-Prüfung sinnvoll macht, keine
+Transienten-/Großsignal-/AC-Analyse. Die bleiben eine externe-Simulator-Schicht
+unter demselben Beweis-Standard. Modul `circuit.py` (braucht numpy), getestet in
+`tests/test_circuit.py`.
+
+**Quelle:** Modified Nodal Analysis (Standard-Schaltungsanalyse, Ho/Ruehli/Brennan
+1975; der DC-Kern von SPICE); Ohmsches Gesetz, Kirchhoff.
