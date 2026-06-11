@@ -1681,6 +1681,50 @@ Claim-Grounding-Coverage; Cross-Model-Korroboration (GENESIS scholar/skeptic, un
 
 ---
 
+## 50. Pipeline — die ehrliche Verdrahtung (und der Seam-Bug, den sie behebt) (`pipeline.py`)
+
+Die Engine-Teile sind **einzeln** ehrlich (das Physik-Gate meldet seine Checks, der Selektor
+seine Lücken, die Klärung die Unterspezifikation). Aber ein Konsument, der **ein** Teil liest,
+wird am **Seam** in die Irre geführt: `evaluate_spec_physics(...)["gate"].passed` ist `True`
+**sowohl** wenn die Checks wirklich bestanden **als auch** wenn ein indizierter Check **nicht
+laufen konnte** (eine Lücke) **oder** wenn **gar kein** Check lief (Spec ohne Physik-measurands).
+Ein Pass, der eine Lücke maskiert, ist **genau** das Versagen, das GENESIS verhindern soll.
+
+**Bug-Fund (systematisches Debugging).** Phase-1-Evidenz (Cross-Modul-Smoke) deckte **zwei**
+Ehrlichkeits-Seams auf — keine Crashes, aber Korrektheits-Bugs gegen das Kernprinzip: (1) eine
+unterspezifizierte Welle (Torsion indiziert, `material.shear_strength` fehlt) lieferte
+`gate.passed=True` **trotz** Lücke; (2) der Capstone (keine Physik-measurands) lieferte
+`gate.passed=True` aus **0** Checks (vakuöser Pass). **Root Cause:** die Komposition exponierte
+rohes `gate.passed`, ohne Lücken/Leer-Checks zu falten. Die Einzelmodule waren korrekt — die
+**Verdrahtung** brauchte einen ehrlichen Unifizierer.
+
+`assess_specification(spec, claims=None, trace=None)` ist dieser Unifizierer: es komponiert
+Klärung + Physik-Auswahl/Gate + Constraint-Konsistenz + (optional) Grounding zu **einem**
+`Assessment`, dessen `overall` **konstruktiv ehrlich** ist: `needs_clarification` ·
+`inconsistent_constraints` · **`physics_incomplete`** (indiziert-aber-unrechenbar, **kein** Pass) ·
+`physics_failed` · **`no_physics_indicated`** (nichts geprüft — vakuöser Pass offengelegt) ·
+`physics_verified`. So ist `physics_ok` nur wahr, wenn das Gate bestand **und** jeder indizierte
+Check wirklich lief; `physics_checked` flaggt, ob überhaupt etwas lief. Jeder Schritt wird in einen
+optionalen Telemetrie-Trace (§44) geschrieben.
+
+**Verifiziert** (7 Tests + 2 **Regressions**-Tests für die Seams; volle Suite **768** py-3.11 /
+**741+9skip** py-3.13): volle Welle → `physics_verified`; **Lücke → `needs_clarification`,
+`physics_ok=False`** (maskiert keinen Pass mehr); **Capstone → `no_physics_indicated`,
+`physics_checked=False`** (vakuös offengelegt); überspannt → `physics_failed`; widersprüchliche
+Constraints → `inconsistent_constraints`. **Robustheit:** 79 gen-Module importieren ohne Zyklen;
+Cross-Modul-Probe über alle öffentlichen Entrys + adversariale Inputs (leere Spec, ohne Claims,
+spec-brechender Regenerator mid-Loop) → **0 Failures**.
+
+**Ehrliche Grenze:** dies ist die **deterministische** Verdrahtung der Offline-Engine; der
+Ratifikations-Sign-off (§45) bleibt ein expliziter separater Schritt, und die Live-Modell-Teile
+(Generator/Conductor) stecken über die pluggbaren Punkte ein. Modul `pipeline.py`, getestet in
+`tests/test_pipeline.py`.
+
+**Quelle:** GENESIS-Kernprinzip „ehrliche Lücke statt Halluzination" (CLAUDE.md); systematisches
+Debugging (Root-Cause vor Fix).
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
