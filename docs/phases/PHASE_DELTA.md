@@ -435,3 +435,41 @@ Starke Nichtlinearität oder korrelierte Eingänge brauchen Monte-Carlo (JCGM 10
 eine spätere Schicht. Die **Auswertung der Constraints am Worst-Case-Rand**
 (`Wert ± U` statt Punktwert in C-13) ist die nächste Verfeinerung; aktuell prüft
 C-13 den Punktwert, die Unsicherheit wird propagiert, verifiziert und ausgewiesen.
+
+---
+
+## 13. ε-Elektronik — deterministischer Electrical Rule Check (ERC), OHNE SPICE
+
+Das elektronische Pendant zu GATE δ: `gate_erc` validiert die **Konnektivität**
+der Netzliste mit Sicherheit — **reine Logik, keine Simulation, keine externe
+Engine** (ngspice/KiCad sind **nicht** nötig; eine Schaltungssimulation wäre eine
+separate, Engine-gestützte Schicht). Datenmodell: `Pin` (typisiert: POWER_OUT /
+POWER_IN / GROUND / PASSIVE), `Net` (verbindet Pins), `Netlist` (optional an der
+Spec). Regeln:
+
+| Code | Defekt |
+|---|---|
+| `DANGLING_PIN_REF` | ein Netz verbindet einen nie deklarierten Pin |
+| `DANGLING_PART` | ein Pin gehört zu einem Teil, das nicht in der BOM ist |
+| `DUPLICATE_PIN` | derselbe `part.pin` doppelt deklariert |
+| `FLOATING_NET` | ein Netz verdrahtet < 2 Pins (verbindet nichts) |
+| `UNCONNECTED_PIN` | ein deklarierter Pin taucht in keinem Netz auf |
+| `PIN_MULTIPLE_NETS` | ein Pin in mehr als einem Netz (ein Pin = ein Knoten) |
+| `POWER_CONFLICT` | zwei POWER_OUT-Treiber auf ein Netz kurzgeschlossen |
+| `UNDRIVEN_INPUT` | ein Netz mit POWER_IN-Last ohne POWER_OUT-Treiber |
+
+**Capstone:** das Netzteil (POWER_OUT) treibt den LED-Streifen (POWER_IN) über
+`VCC_12V` + `GND` → ERC bestanden. **Zähne** (je ein Test): undriven Last → 
+`UNDRIVEN_INPUT`; zwei Treiber → `POWER_CONFLICT`; Ein-Pin-Netz → `FLOATING_NET`;
+undeklarierter/fremder/doppelter Pin → die jeweiligen Codes.
+
+**Ehrliche Asymmetrie (wie δ):** ein **bestandener** ERC heißt „keine beweisbar
+kaputte Verdrahtung", **nicht** „die Schaltung funktioniert" (kein SPICE-/Timing-/
+Thermik-Urteil). Ein **gescheiterter** ERC heißt „definitiv kaputt verdrahtet".
+Eine Spec ohne Netzliste besteht trivial (rein mechanischer Fall). Modul in
+`verification/gates.py` (`gate_erc`), getestet in `tests/test_erc.py`.
+
+**Quelle (extern, am 2026-06-11 verifiziert):** ERC als eigenständige, simulations-
+freie Konnektivitätsprüfung (offene/fehlende Verbindungen) ist Standard in EDA-
+Toolchains (KiCad ERC/DRC, ngspice für die *Simulation*); GENESIS implementiert die
+deterministische ERC-Hälfte ohne Engine.

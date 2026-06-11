@@ -478,6 +478,55 @@ class Decision:
             )
 
 
+class PinType(enum.Enum):
+    """The electrical role of a component pin, for the deterministic ERC.
+
+    POWER_OUT  a driver/source (PSU +, regulator output) — supplies a net.
+    POWER_IN   a sink/load (LED +, MCU VCC) — must be driven by a POWER_OUT.
+    GROUND     a ground/return pin.
+    PASSIVE    a directionless lead (resistor, connector) — neither drives nor
+               needs driving.
+    """
+
+    POWER_OUT = "power_out"
+    POWER_IN = "power_in"
+    GROUND = "ground"
+    PASSIVE = "passive"
+
+
+@dataclass
+class Pin:
+    """One electrical pin of a BOM part. `part` is a BomItem id, `name` the pin
+    label (e.g. "V+"); `type` is its electrical role. A pin is referenced from a
+    Net as ``"{part}.{name}"``."""
+
+    part: str
+    name: str
+    type: PinType
+
+
+@dataclass
+class Net:
+    """A node of the electrical netlist — a set of pins that are wired together.
+    `pins` holds ``"{part}.{name}"`` references into the declared Pins. GATE ERC
+    (verification/gates.py) checks connectivity and power-direction rules."""
+
+    name: str
+    pins: list[str] = field(default_factory=list)
+
+
+@dataclass
+class Netlist:
+    """The electrical connectivity of a Specification — typed pins plus the nets
+    that connect them. Optional; present only for designs with an electronics
+    domain. The deterministic ERC (no SPICE) proves connectivity soundness:
+    no floating net, no unconnected pin, no two drivers on one net, no undriven
+    load, no dangling pin reference (PHASE_DELTA.md §13)."""
+
+    pins: list[Pin] = field(default_factory=list)
+    nets: list[Net] = field(default_factory=list)
+
+
 @dataclass
 class SiteRequirements:
     """Where to set the thing up and what the location must provide.
@@ -516,6 +565,7 @@ class Specification:
     constraints: list[Constraint] = field(default_factory=list)
     decisions: list[Decision] = field(default_factory=list)
     site: "SiteRequirements | None" = None
+    netlist: "Netlist | None" = None
     gaps: list[str] = field(default_factory=list)
     claim_ids_used: list[str] = field(default_factory=list)
     produced_by: str = ""

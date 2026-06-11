@@ -43,7 +43,7 @@ from .runner import Dependencies, run, run_solution, run_specification
 from .tools.http import HttpResponse, default_http_get
 from .tools.search import SemanticScholarBackend, WikipediaBackend
 from .verification.cross_model import assert_different_families
-from .verification.gates import gate_delta, geometry_envelope
+from .verification.gates import gate_delta, gate_erc, geometry_envelope
 from .verification.geometry import geometry_length_unit, mass_of, volume_of
 
 # --- offline demo world (deterministic) --------------------------------------
@@ -526,6 +526,18 @@ def format_specification(spec: Specification) -> str:
             lines.append("  • status: no provably broken geometry (PASS — necessary, not sufficient)")
         else:
             for f in result.failures:
+                lines.append(f"  • {f.code}: {f.detail}")
+        lines.append("")
+
+    if spec.netlist is not None:
+        lines.append("Electrical rule check (ERC — connectivity only, no simulation):")
+        for net in spec.netlist.nets:
+            lines.append(f"  • net {net.name}: {', '.join(net.pins)}")
+        erc = gate_erc(_spec_state(spec))
+        if erc.passed:
+            lines.append("  • status: no provably broken wiring (PASS — necessary, not sufficient)")
+        else:
+            for f in erc.failures:
                 lines.append(f"  • {f.code}: {f.detail}")
         lines.append("")
 

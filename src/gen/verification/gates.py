@@ -27,6 +27,7 @@ from ..core.state import (
     Claim,
     ClaimStatus,
     GeometryNode,
+    PinType,
     Quantity,
     RunState,
     ValueOrigin,
@@ -1494,6 +1495,121 @@ def gate_delta(state: RunState) -> GateResult:
                     )
 
     return GateResult(gate="delta", passed=not failures, failures=failures)
+
+
+def gate_erc(state: RunState) -> GateResult:
+    """GATE ERC — deterministic Electrical Rule Check of a γ specification.
+
+    The electronics analogue of GATE δ: it validates the netlist's CONNECTIVITY
+    with certainty, no simulation (PHASE_DELTA.md §13). Pure logic — no SPICE, no
+    external engine, fully offline:
+
+      E-1 DANGLING_PIN_REF    a net connects a pin that was never declared.
+      E-2 DANGLING_PART       a pin belongs to a part not in the BOM.
+      E-3 DUPLICATE_PIN       the same part.pin is declared twice.
+      E-4 FLOATING_NET        a net wires fewer than two pins (connects nothing).
+      E-5 UNCONNECTED_PIN     a declared pin appears in no net.
+      E-6 PIN_MULTIPLE_NETS   a pin appears in more than one net (one node only).
+      E-7 POWER_CONFLICT      two POWER_OUT drivers shorted onto one net.
+      E-8 UNDRIVEN_INPUT      a net with a POWER_IN load but no POWER_OUT driver.
+
+    Honest asymmetry (like δ): a PASS means "no provably broken connectivity", not
+    "the circuit works" (no SPICE / timing / thermal judgement). A FAIL means
+    "definitely broken wiring". A spec without a netlist passes trivially — there
+    is nothing electrical to validate (the mechanical-only case).
+    """
+    spec = state.specification
+    if spec is None:
+        return GateResult(
+            gate="erc",
+            passed=False,
+            failures=[GateFailure(code="NO_SPECIFICATION", detail="No specification to validate.")],
+        )
+    if spec.netlist is None:
+        return GateResult(gate="erc", passed=True, failures=[])
+
+    failures: list[GateFailure] = []
+    bom_ids = {b.id for b in spec.bom}
+
+    # declared pins, keyed "part.name"; duplicates are a defect (E-3)
+    pin_by_key: dict[str, "object"] = {}
+    for pin in spec.netlist.pins:
+        key = f"{pin.part}.{pin.name}"
+        if key in pin_by_key:
+            failures.append(
+                GateFailure(code="DUPLICATE_PIN", detail=f"pin {key!r} declared more than once.")
+            )
+        pin_by_key[key] = pin
+        if bom_ids and pin.part not in bom_ids:
+            failures.append(
+                GateFailure(
+                    code="DANGLING_PART",
+                    detail=f"pin {key!r} belongs to part {pin.part!r}, which is not in the BOM.",
+                )
+            )
+
+    # net membership: each pin must appear in exactly one net
+    nets_of_pin: dict[str, list[str]] = {}
+    net_names: set[str] = set()
+    for net in spec.netlist.nets:
+        if net.name in net_names:
+            failures.append(
+                GateFailure(code="DANGLING_PIN_REF", detail=f"duplicate net name {net.name!r}.")
+            )
+        net_names.add(net.name)
+        if len(net.pins) < 2:
+            failures.append(
+                GateFailure(
+                    code="FLOATING_NET",
+                    detail=f"net {net.name!r} wires {len(net.pins)} pin(s) — connects nothing.",
+                )
+            )
+        drivers = loads = 0
+        for ref in net.pins:
+            nets_of_pin.setdefault(ref, []).append(net.name)
+            pin = pin_by_key.get(ref)
+            if pin is None:
+                failures.append(
+                    GateFailure(
+                        code="DANGLING_PIN_REF",
+                        detail=f"net {net.name!r} connects undeclared pin {ref!r}.",
+                    )
+                )
+                continue
+            if pin.type is PinType.POWER_OUT:  # type: ignore[attr-defined]
+                drivers += 1
+            elif pin.type is PinType.POWER_IN:  # type: ignore[attr-defined]
+                loads += 1
+        if drivers >= 2:
+            failures.append(
+                GateFailure(
+                    code="POWER_CONFLICT",
+                    detail=f"net {net.name!r} shorts {drivers} power drivers together.",
+                )
+            )
+        if loads >= 1 and drivers == 0:
+            failures.append(
+                GateFailure(
+                    code="UNDRIVEN_INPUT",
+                    detail=f"net {net.name!r} has a power load but no driver.",
+                )
+            )
+
+    for key in pin_by_key:
+        appears = nets_of_pin.get(key, [])
+        if not appears:
+            failures.append(
+                GateFailure(code="UNCONNECTED_PIN", detail=f"declared pin {key!r} is in no net.")
+            )
+        elif len(appears) > 1:
+            failures.append(
+                GateFailure(
+                    code="PIN_MULTIPLE_NETS",
+                    detail=f"pin {key!r} appears in nets {sorted(appears)} — a pin is one node.",
+                )
+            )
+
+    return GateResult(gate="erc", passed=not failures, failures=failures)
 
 
 def geometry_envelope(state: RunState) -> dict[str, tuple[float, float, float]]:

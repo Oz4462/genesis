@@ -316,7 +316,8 @@ def specification_from_dict(d: dict):
     """
     from .core.state import (
         BomDomain, BomItem, BomRole, Component, Constraint, Decision, Derivation,
-        Quantity, SiteRequirements, Sourcing, Specification, Step, ValueOrigin,
+        Net, Netlist, Pin, PinType, Quantity, SiteRequirements, Sourcing,
+        Specification, Step, ValueOrigin,
     )
 
     def _quantity(q):
@@ -366,6 +367,16 @@ def specification_from_dict(d: dict):
             requirements=[_decision(x) for x in site_d.get("requirements") or []],
         )
 
+    netlist_d = d.get("netlist")
+    netlist = None
+    if netlist_d is not None:
+        netlist = Netlist(
+            pins=[Pin(part=p["part"], name=p["name"], type=PinType(p["type"]))
+                  for p in netlist_d.get("pins") or []],
+            nets=[Net(name=n["name"], pins=list(n.get("pins") or []))
+                  for n in netlist_d.get("nets") or []],
+        )
+
     return Specification(
         run_id=d["run_id"], idea=d["idea"], approach_id=d.get("approach_id"),
         quantities=[_quantity(q) for q in d.get("quantities") or []],
@@ -385,6 +396,7 @@ def specification_from_dict(d: dict):
         ],
         decisions=[_decision(x) for x in d.get("decisions") or []],
         site=site,
+        netlist=netlist,
         gaps=list(d.get("gaps") or []),
         claim_ids_used=list(d.get("claim_ids_used") or []),
         produced_by=d.get("produced_by", ""), model=d.get("model", ""),
@@ -493,6 +505,17 @@ def _specification_to_dict(spec: Specification) -> dict:
                 ],
             }
             if spec.site
+            else None
+        ),
+        "netlist": (
+            {
+                "pins": [
+                    {"part": p.part, "name": p.name, "type": p.type.value}
+                    for p in spec.netlist.pins
+                ],
+                "nets": [{"name": n.name, "pins": list(n.pins)} for n in spec.netlist.nets],
+            }
+            if spec.netlist
             else None
         ),
         "gaps": list(spec.gaps),

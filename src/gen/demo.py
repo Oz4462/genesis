@@ -49,6 +49,10 @@ from .core.state import (
     Decision,
     Derivation,
     GeometryNode,
+    Net,
+    Netlist,
+    Pin,
+    PinType,
     Question,
     Quantity,
     RunState,
@@ -320,11 +324,26 @@ def capstone_spec() -> Specification:
                      rationale="dissipate power-supply heat"),
         ],
     )
+    # electrical netlist: the PSU drives the LED strip over a 12 V rail + ground.
+    # The deterministic ERC (gate_erc) proves the wiring is sound — no SPICE.
+    netlist = Netlist(
+        pins=[
+            Pin(part="b_psu", name="V+", type=PinType.POWER_OUT),
+            Pin(part="b_psu", name="GND", type=PinType.GROUND),
+            Pin(part="b_led", name="V+", type=PinType.POWER_IN),
+            Pin(part="b_led", name="GND", type=PinType.GROUND),
+        ],
+        nets=[
+            Net(name="VCC_12V", pins=["b_psu.V+", "b_led.V+"]),
+            Net(name="GND", pins=["b_psu.GND", "b_led.GND"]),
+        ],
+    )
     return Specification(
         run_id="capstone",
         idea="A wall-mounted LED shelf bracket carrying the verified load",
         approach_id="ap1", quantities=quantities, components=components, bom=bom,
         steps=steps, constraints=constraints, decisions=decisions, site=site,
+        netlist=netlist,
         gaps=[
             # The σ-check now counts the safety factor, the Kirsch hole stress raiser,
             # the print orientation and the fastener shear. What honestly remains is
