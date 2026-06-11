@@ -14,6 +14,10 @@ no code change.
 
 from __future__ import annotations
 
+from .tolerance import (
+    iso2768_medium_linear_tolerance,
+    worst_case_min_clearance_formula,
+)
 from .structural import (
     BOLT_SHEAR_COEFFICIENT_88,
     BOLT_UTS_CLASS_88_MPA,
@@ -87,6 +91,9 @@ def capstone_claims() -> list[Claim]:
         _claim("c_screw_shear",
                "EN 1993-1-8 gives a shear coefficient of 0.6 for property class "
                "8.8 bolts."),
+        _claim("c_iso2768",
+               "ISO 2768-1 class m specifies a general tolerance of 0.1 mm for a "
+               "linear dimension over 3 up to 6 mm."),
     ]
 
 
@@ -168,6 +175,19 @@ def capstone_spec() -> Specification:
              (24.0 * STANDARD_GRAVITY) / 2.0, "N",
              per_fastener_shear_formula("q_force", "q_n_screws"),
              ("q_force", "q_n_screws")),
+        # δ-tolerance: worst-case fit. With ISO 2768-1 m general tolerances on the
+        # hole and the screw, does the clearance hole still admit the screw at the
+        # WORST extreme (largest screw, smallest hole)? Deterministic stack-up.
+        _g("q_hole_tol", "hole general tolerance (ISO 2768-1 m)",
+           iso2768_medium_linear_tolerance(4.5), "mm", ["c_iso2768"]),
+        _g("q_screw_tol", "screw general tolerance (ISO 2768-1 m)",
+           iso2768_medium_linear_tolerance(4.0), "mm", ["c_iso2768"]),
+        _der("q_min_clearance", "worst-case minimum clearance (hole over screw)",
+             (4.5 - iso2768_medium_linear_tolerance(4.5))
+             - (4.0 + iso2768_medium_linear_tolerance(4.0)), "mm",
+             worst_case_min_clearance_formula("q_hole_d", "q_hole_tol",
+                                              "q_screw_d", "q_screw_tol"),
+             ("q_hole_d", "q_hole_tol", "q_screw_d", "q_screw_tol")),
         _d("sx", "available width", 200.0, "mm", "shelf niche width"),
         _d("sy", "available height", 200.0, "mm", "shelf niche height"),
         _d("sz", "available depth", 200.0, "mm", "shelf niche depth"),
@@ -224,6 +244,9 @@ def capstone_spec() -> Specification:
         Constraint(id="k_shear", kind="le", left="q_screw_shear", right="q_screw_shear_cap",
                    reason="per-screw shear demand at the design load stays below the "
                           "class-8.8 screw shear capacity (bracket-side fastener limit)"),
+        Constraint(id="k_assemble", kind="ge", left="q_min_clearance", right="0",
+                   reason="worst-case minimum clearance stays non-negative — the hole "
+                          "admits the screw even at the worst tolerance extreme"),
     ]
     decisions = [
         Decision(id="d_mat", title="Material", choice="PLA, 3D-printed",
@@ -231,6 +254,11 @@ def capstone_spec() -> Specification:
         Decision(id="d_hole", title="Hole type",
                  choice="through / clearance hole (ISO 273 medium)",
                  rationale="bolt passes through the bracket", informed_by=["c_iso273"]),
+        Decision(id="d_tol", title="General tolerance class",
+                 choice="ISO 2768-1 medium (m)",
+                 rationale="default workshop tolerance; sets the hole/screw general "
+                           "tolerances for the worst-case fit check",
+                 informed_by=["c_iso2768"]),
         Decision(id="d_print", title="Print orientation",
                  choice="on-edge — print layers parallel to the bending stress",
                  rationale="FDM interlayer bonds are ~30-50% weaker than in-plane; "

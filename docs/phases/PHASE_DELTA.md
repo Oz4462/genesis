@@ -331,3 +331,40 @@ Entscheidung oder eine wirklich externe Größe gebunden:
 Ein **gescheiterter** Check heißt weiterhin: schon der modellierte Fall überlastet
 das Teil — **definitiv zu schwach**. Echte FEM/Ermüdung bleiben spätere δ-Schichten
 hinter Adaptern, unter demselben Beweis-Standard.
+
+---
+
+## 10. δ-Toleranz — deterministischer Worst-Case-Fit-Stack-up, OHNE neuen Gate-Code
+
+Ein realer Sitz ist nicht seine Nennmaße. Der Capstone-Fit „Bohrung 4,5 ≥ Schraube
+4,0" sieht nominal sauber aus — doch sobald jedes Maß eine **Fertigungstoleranz**
+trägt, kann er klemmen. Die Toleranz-Schicht beantwortet die deterministische
+Hälfte: **im schlechtesten Extrem (größte Schraube, kleinste Bohrung) — geht es
+noch zusammen?** Wieder komplett in der bestehenden γ-Maschinerie:
+
+| Element | Wie es in GENESIS lebt | Quelle | Wächter |
+|---|---|---|---|
+| Allgemeintoleranz `±t` je Maß | **GROUNDED** (Zahl wörtlich aus `c_iso2768`) | ISO 2768-1 m | C-1..C-4 |
+| Worst-Case-Mindestspiel `(D−t_D)−(d+t_d)` | **DERIVED** (Code rechnet, Gate rechnet nach) | Worst-Case-Stack-up | C-6/C-15 |
+| Urteil `Mindestspiel ≥ 0` | numerischer **Constraint** | — | **C-13** |
+
+**Worst-Case vs. statistisch:** GENESIS implementiert die **Worst-Case**-Methode
+(Summe der Toleranzen am Extrem ⟹ 100 % Fügbarkeit) — die, die mit Sicherheit
+folgt und nie eine Wahrscheinlichkeit behauptet, die sie nicht beweisen kann
+(dieselbe Ehrlichkeits-Asymmetrie wie die Geometrie-Schicht). Monte-Carlo (Yield-
+Vorhersage) bleibt eine spätere Schicht.
+
+**Der Check hat Zähne:** Bohrung 4,1 ±0,1 über Schraube 4,0 ±0,1 ist nominal in
+Ordnung (4,1 ≥ 4,0), aber Worst-Case-Spiel = (4,1−0,1)−(4,0+0,1) = **−0,1 mm < 0**
+→ `CONSTRAINT_VIOLATION`. Der Capstone (4,5/4,0) hat +0,3 mm Spiel → fügbar.
+
+**Ehrliche Tabellen-Grenze:** Es ist **nur der verifizierte Teil** der ISO-2768-1-m-
+Tabelle codiert (0,5–120 mm). Außerhalb **wirft** `iso2768_medium_linear_tolerance`
+(`ToleranceError`) statt einen ungeprüften Normwert zu raten — ein geratener
+Toleranzwert wäre eine erfundene Ingenieur-Tatsache. Modul `tolerance.py` (eine
+Quelle für Demo + Test), getestet in `tests/test_tolerance.py`.
+
+**Quelle (extern, am 2026-06-11 verifiziert):** ISO 2768-1 Allgemeintoleranzen für
+Längenmaße, Klasse m (medium): 0,5–3 → ±0,1; >3–6 → ±0,1; >6–30 → ±0,2; >30–120 →
+±0,3 (amesweb.info ISO-2768-Linear-Tabelle; Xometry ISO 2768/286). Stack-up-
+Methodik: Standard-Toleranzanalyse (Worst-Case vs. Monte-Carlo).

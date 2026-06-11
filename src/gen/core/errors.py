@@ -145,6 +145,19 @@ class GeometryError(GenesisError):
         super().__init__(f"Geometry error: {detail}")
 
 
+class ToleranceError(GenesisError):
+    """A general-tolerance lookup was asked for a value outside the verified table.
+
+    GENESIS encodes only the ISO 2768-1 ranges it has verified against the
+    standard. Outside them it raises rather than extrapolate a standard value it
+    has not checked — a guessed tolerance is a fabricated engineering fact
+    (PHASE_DELTA.md §10).
+    """
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(f"Tolerance lookup failed: {detail}")
+
+
 class ExportError(GenesisError):
     """A specification could not be deterministically exported.
 
