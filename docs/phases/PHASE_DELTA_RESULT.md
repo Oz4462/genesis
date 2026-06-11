@@ -97,7 +97,20 @@ unenthaltenes-difference-Schranke, Nicht-Box-Minuend-inexakt). Demo:
 
 **Ehrliche Grenze:** Bei überlappender/unenthaltener/Schnitt-Geometrie nur eine
 obere Schranke (nie als exakt ausgegeben). Einheit nur gezeigt, wenn eindeutig.
-Masse = Volumen × Dichte folgt, sobald eine Dichte als DECISION deklariert ist.
+
+## Masse (`mass_of`) + sound Einheiten-Skalierung (`unit_scale`)
+
+`Component.material_density` (quantity_id einer Dichte) ⟹ `masse = volumen ×
+dichte`, **sound einheiten-konvertiert**. Neu in `units.py`: `unit_scale(unit)`
+gibt den Faktor zur SI-Basis (compound-fähig: `g/cm³`→1e3, `mm`→1e-3; unbekanntes
+Atom→None). Damit rechnet `mm³ × g/cm³` korrekt (`(mm/cm)³ = 1e-3`) statt still
+falsch. `mass_of` prüft: Dichte-Dimension = mass/length³, Geometrie-Längeneinheit
+eindeutig, alle Einheiten bekannt — sonst `value=None` + Grund (nie geraten).
+Ausgabe in Gramm. **Belege:** `test_units.py` (unit_scale: Basis/Prefix/compound/
+unknown/Ratio), `test_geometry.py` (Masse: konsistente Einheit, mm³×g/cm³-Konversion,
+ohne Dichte→None, Nicht-Dichte-Einheit→None, unbekannte Einheit→None),
+`test_gate_gamma.py` (material_density dangling + resolved). Demo:
+`c_bracket mass: 35.5937 g (exact)` (PLA 0.00124 g/mm³ × 28704.6 mm³).
 
 ## Phase δ: Fazit
 

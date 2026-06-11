@@ -357,6 +357,21 @@ def test_component_quantity_and_bom_component_must_resolve():
     assert "DANGLING_REFERENCE" in codes
 
 
+def test_material_density_must_resolve():
+    state = _happy_state()
+    state.specification.components[0].material_density = "q_ghost_density"
+    assert "DANGLING_REFERENCE" in _codes(state)
+
+
+def test_resolved_material_density_passes():
+    state = _happy_state()
+    spec = state.specification
+    spec.quantities.append(_decision_q("q_rho", "PLA density", 0.00124, "g/mm^3"))
+    spec.components[0].material_density = "q_rho"
+    result = gate_gamma(state)
+    assert result.passed, [f"{f.code}: {f.detail}" for f in result.failures]
+
+
 def test_duplicate_quantity_id_is_drift():
     state = _happy_state()
     state.specification.quantities.append(

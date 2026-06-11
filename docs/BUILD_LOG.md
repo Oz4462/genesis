@@ -898,3 +898,32 @@ eindeutig.
 ehrliche, deterministische Volumen-Eigenschaft (exakt-wo-beweisbar). Masse = Volumen
 × deklarierte Dichte ist die saubere nächste Erweiterung. Kein Live-Run.
 
+## Phase δ — Masse (Volumen × Dichte) + sound Einheiten-Skalierung  ✅
+
+**Auslöser:** Owner „mach weiter alle nacheinander" (Modul 1 von 3).
+
+**Gebaut:** `units.py` `unit_scale(unit) -> float|None` (Faktor zur SI-Basis,
+compound-fähig: `g/cm³`→1e3, `mm`→1e-3; unbekanntes Atom→None). `state.py`
+`Component.material_density` (optional quantity_id). `geometry.py` `Mass` +
+`mass_of` (masse = volumen × dichte, **sound einheiten-konvertiert** via Skalen;
+prüft Dichte-Dimension = mass/length³, eindeutige Geometrie-Längeneinheit, alle
+Einheiten bekannt — sonst `value=None` + Grund, nie geraten; Ausgabe in Gramm,
+`exact` folgt Volumen). GATE γ löst `material_density` auf (C-8 dangling). CLI zeigt
+Masse-Zeile. architect parst `material_density`; runner serialisiert es.
+
+**Schlüssel (sound):** `mm³ × g/cm³` rechnet jetzt korrekt — `(mm/cm)³ = 1e-3` —
+statt still falsch. GENESIS verweigert eine Masse (`None`+Grund), wenn nicht
+sound berechenbar.
+
+**Selbstkontrolle:**
+- [x] Research/SI-Standardskalen (Gramm 1e-3 kg, Prefixe Standard) — nicht erfunden.
+- [x] Tests grün? **329 passed** (318 + 11: 4 unit_scale, 5 Masse, 2 Gate), offline, 0.82 s.
+- [x] Drift? `unit_scale` Single-Source; cli nutzt geteilte `geometry_length_unit`
+      (Duplikat entfernt); checkpoint/architect/gate konsistent.
+- [x] Halluzination? Masse nie als Zahl ausgegeben, wenn Einheiten/Dimension nicht
+      stimmen (`value=None`+`note`); sound Konversion via Skalen.
+- [x] Doku? PHASE_DELTA §3.1, PHASE_DELTA_RESULT (Abschnitt), README, dieser Eintrag.
+
+**Gesamtstand:** **329 passed** (offline). Demo: `c_bracket mass: 35.5937 g (exact)`.
+Kein Live-Run.
+

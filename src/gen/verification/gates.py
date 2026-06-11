@@ -727,6 +727,16 @@ def gate_gamma(
                         detail=f"component {comp.id!r} references unknown quantity {qid!r}",
                     )
                 )
+        if comp.material_density is not None and comp.material_density not in quantities:
+            failures.append(
+                GateFailure(
+                    code="DANGLING_REFERENCE",
+                    detail=(
+                        f"component {comp.id!r} material_density references unknown "
+                        f"quantity {comp.material_density!r}"
+                    ),
+                )
+            )
         if comp.geometry is not None:
             _check_geometry(
                 comp.geometry,

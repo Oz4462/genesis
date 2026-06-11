@@ -30,9 +30,11 @@ from ..core.state import (
     GEOMETRY_OPERATIONS,
     GEOMETRY_PRIMITIVES,
     GEOMETRY_TRANSFORMS,
+    Component,
     GeometryNode,
     Quantity,
 )
+from .units import Dimension, parse_unit, unit_scale
 
 
 @dataclass(frozen=True)
@@ -278,3 +280,76 @@ def volume_of(node: GeometryNode, quantities: dict[str, Quantity]) -> Volume:
             )
 
     raise GeometryError(f"unknown geometry kind {kind!r}")
+
+
+def geometry_length_unit(node: GeometryNode, quantities: dict[str, Quantity]) -> str | None:
+    """The common length unit of every quantity a geometry references, or None if
+    mixed/absent — so a volume/mass is only labelled (and converted) when the unit
+    is unambiguous."""
+    units: set[str] = set()
+
+    def walk(n: GeometryNode) -> None:
+        for qid in n.params.values():
+            q = quantities.get(qid)
+            if q is not None:
+                units.add(q.unit.strip())
+        for child in n.children:
+            walk(child)
+
+    walk(node)
+    return next(iter(units)) if len(units) == 1 else None
+
+
+# --- mass (volume × declared density, soundly unit-converted) ------------------
+
+_DENSITY_DIM: Dimension = parse_unit("kg/m^3")   # M·L⁻³
+
+
+@dataclass(frozen=True)
+class Mass:
+    """A component mass = volume × density, in grams. ``value`` is None when mass
+    cannot be computed soundly (no/unknown density, unknown or mixed units, or a
+    non-density dimension) — GENESIS reports the reason in ``note`` rather than a
+    wrong number. ``exact`` follows the volume's exactness (the density value is a
+    declared constant)."""
+
+    value: float | None
+    exact: bool
+    unit: str = "g"
+    note: str = ""
+
+
+def mass_of(component: Component, quantities: dict[str, Quantity]) -> Mass:
+    """Mass of a fabricated component, in grams, soundly unit-converted.
+
+    Requires `component.material_density` to reference a quantity of dimension
+    mass/length³, and the geometry to have a single length unit. Converts via
+    unit_scale so mm³ × g/cm³ yields the correct magnitude. Returns ``value=None``
+    with a reason when it cannot be computed soundly — never a guessed number.
+    """
+    if component.geometry is None:
+        return Mass(None, exact=False, note="component has no geometry")
+    if component.material_density is None:
+        return Mass(None, exact=False, note="no material density declared")
+    density = quantities.get(component.material_density)
+    if density is None:
+        return Mass(None, exact=False,
+                    note=f"density quantity {component.material_density!r} not found")
+    if parse_unit(density.unit) != _DENSITY_DIM:
+        return Mass(None, exact=False,
+                    note=f"density unit {density.unit!r} is not a mass/length³ dimension")
+    geom_unit = geometry_length_unit(component.geometry, quantities)
+    if geom_unit is None:
+        return Mass(None, exact=False, note="geometry has mixed or absent length units")
+    s_geom = unit_scale(geom_unit)
+    s_dens = unit_scale(density.unit)
+    s_gram = unit_scale("g")
+    if s_geom is None or s_dens is None or s_gram is None:
+        return Mass(None, exact=False, note="unknown unit — cannot convert mass soundly")
+
+    vol = volume_of(component.geometry, quantities)
+    # physical mass [kg] = (V · s_geom³) [m³] · (ρ · s_dens) [kg/m³]; report in grams.
+    mass_kg = (vol.value * s_geom ** 3) * (density.value * s_dens)
+    mass_g = mass_kg / s_gram
+    return Mass(mass_g, exact=vol.exact, unit="g",
+                note="" if vol.exact else "upper bound (volume is an upper bound)")

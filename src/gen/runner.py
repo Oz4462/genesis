@@ -323,6 +323,7 @@ def _specification_to_dict(spec: Specification) -> dict:
                 "name": c.name,
                 "geometry": _geometry_to_dict(c.geometry) if c.geometry else None,
                 "quantity_ids": list(c.quantity_ids),
+                "material_density": c.material_density,
             }
             for c in spec.components
         ],

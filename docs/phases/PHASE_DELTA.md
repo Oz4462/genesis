@@ -149,8 +149,18 @@ Eigenschaft angewandt).
   Exaktheit wird nicht behauptet.
 
 CLI: der δ-Abschnitt zeigt je Komponente `volume: <v> <unit>³ (exact)` oder
-`volume: <= <v> (upper bound — <Grund>)`. (Masse = Volumen × Dichte ist eine
-saubere Erweiterung, sobald eine Dichte als DECISION deklariert ist.)
+`volume: <= <v> (upper bound — <Grund>)`.
+
+**Masse (`mass_of`, gebaut):** Trägt eine Komponente eine `material_density`
+(quantity_id einer Dichte, GROUNDED oder DECISION), so ist `masse = volumen ×
+dichte` deterministisch berechnet und **sound einheiten-konvertiert** via
+`units.unit_scale` (Faktor zur SI-Basis; `g/cm³` → 1e3, `mm` → 1e-3), sodass
+`mm³ × g/cm³` die korrekte Masse ergibt statt still falsch zu rechnen. Geprüft:
+Dichte-Dimension = mass/length³, Geometrie-Längeneinheit eindeutig, alle Einheiten
+bekannt — sonst `value=None` + Grund (nie eine geratene Zahl). Ausgabe in Gramm,
+`exact` folgt der Volumen-Exaktheit. GATE γ löst `material_density` auf (C-8).
+(Die Längeneinheit der Dichte muss zur Geometrie passen; eine Umrechnung wird als
+DERIVED-Quantity deklariert — dimensions-geprüft.)
 
 ## 4. Das Verifikations-Gate (GATE δ)
 

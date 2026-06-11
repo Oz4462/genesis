@@ -19,8 +19,14 @@ import pytest  # noqa: E402
 import math  # noqa: E402
 
 from gen.core.errors import GeometryError  # noqa: E402
-from gen.core.state import GeometryNode, Quantity, ValueOrigin  # noqa: E402
-from gen.verification.geometry import Aabb, aabb_of, overlaps, volume_of  # noqa: E402
+from gen.core.state import Component, GeometryNode, Quantity, ValueOrigin  # noqa: E402
+from gen.verification.geometry import (  # noqa: E402
+    Aabb,
+    aabb_of,
+    mass_of,
+    overlaps,
+    volume_of,
+)
 
 
 def _q(qid: str, value: float) -> Quantity:
@@ -202,3 +208,58 @@ def test_difference_with_non_box_minuend_is_inexact():
     vol = volume_of(geom, q)
     assert not vol.exact
     assert vol.value == pytest.approx(math.pi * 100 * 10)   # vol of the cylinder minuend
+
+
+# --- mass: volume × declared density, soundly unit-converted -------------------
+
+def _density(qid: str, value: float, unit: str) -> Quantity:
+    return Quantity(id=qid, name=qid, value=value, unit=unit,
+                    origin=ValueOrigin.DECISION, rationale="material")
+
+
+def _solid_box_component(unit: str, density: Quantity | None) -> tuple[Component, dict]:
+    # a 10x10x10 box in `unit`
+    q = {qid: Quantity(id=qid, name=qid, value=10.0, unit=unit,
+                       origin=ValueOrigin.DECISION, rationale="t")
+         for qid in ("a", "b", "c")}
+    if density is not None:
+        q[density.id] = density
+    geom = GeometryNode(kind="box", params={"size_x": "a", "size_y": "b", "size_z": "c"})
+    comp = Component(id="cube", name="cube", geometry=geom,
+                     material_density=density.id if density else None)
+    return comp, q
+
+
+def test_mass_in_consistent_units():
+    # 10mm cube = 1000 mm³; density 0.001 g/mm³ -> 1 g
+    rho = _density("rho", 0.001, "g/mm^3")
+    comp, q = _solid_box_component("mm", rho)
+    m = mass_of(comp, q)
+    assert m.exact and m.value == pytest.approx(1.0) and m.unit == "g"
+
+
+def test_mass_converts_mm3_with_g_per_cm3():
+    # 10mm cube = 1000 mm³ = 1 cm³; PLA-like 1.24 g/cm³ -> 1.24 g (sound conversion)
+    rho = _density("rho", 1.24, "g/cm^3")
+    comp, q = _solid_box_component("mm", rho)
+    m = mass_of(comp, q)
+    assert m.exact and m.value == pytest.approx(1.24)
+
+
+def test_mass_none_without_density():
+    comp, q = _solid_box_component("mm", None)
+    assert mass_of(comp, q).value is None
+
+
+def test_mass_none_for_non_density_unit():
+    bad = _density("rho", 5.0, "kg")            # mass, not mass/length³
+    comp, q = _solid_box_component("mm", bad)
+    m = mass_of(comp, q)
+    assert m.value is None and "not a mass/length" in m.note
+
+
+def test_mass_none_for_unknown_unit():
+    rho = _density("rho", 1.0, "g/widget^3")
+    comp, q = _solid_box_component("mm", rho)
+    m = mass_of(comp, q)
+    assert m.value is None

@@ -196,6 +196,75 @@ def parse_unit(unit: str) -> Dimension:
     return dim
 
 
+# --- unit scale (factor to the SI base, for SOUND conversions) ----------------
+#
+# parse_unit gives the DIMENSION; unit_scale gives the numeric factor from a unit
+# to the SI base of its dimension (base = m, kg, s, A, K, mol, cd). This is what
+# lets mass = volume × density convert mm³ × g/cm³ correctly instead of silently
+# producing a wrong magnitude. An unknown/opaque atom yields None — GENESIS then
+# refuses to claim a converted number rather than guess.
+
+_PREFIX_FACTOR: dict[str, float] = {
+    "Y": 1e24, "Z": 1e21, "E": 1e18, "P": 1e15, "T": 1e12, "G": 1e9, "M": 1e6,
+    "k": 1e3, "h": 1e2, "da": 1e1,
+    "d": 1e-1, "c": 1e-2, "m": 1e-3, "u": 1e-6, "µ": 1e-6, "n": 1e-9,
+    "p": 1e-12, "f": 1e-15, "a": 1e-18, "z": 1e-21, "y": 1e-24,
+}
+
+# Factor from each atom to the SI base of its dimension. Mass base is the
+# kilogram, so the gram is 1e-3 (and the prefixed kilogram resolves to 1e3·1e-3=1).
+_ATOM_SCALE: dict[str, float] = {
+    "1": 1.0, "": 1.0, "rad": 1.0, "deg": 1.0, "%": 1.0,
+    "pcs": 1.0, "count": 1.0, "x": 1.0,
+    "m": 1.0, "g": 1e-3, "s": 1.0, "A": 1.0, "K": 1.0, "mol": 1.0, "cd": 1.0,
+    "metre": 1.0, "meter": 1.0,
+    "min": 60.0, "h": 3600.0, "hr": 3600.0, "day": 86400.0,
+    "t": 1e3,                                   # tonne = 1000 kg
+    "L_vol": 1e-3,                              # litre = 1e-3 m³
+    "N": 1.0, "Pa": 1.0, "bar": 1e5, "J": 1.0, "W": 1.0, "Hz": 1.0, "V": 1.0,
+}
+
+
+def _atom_scale(name: str) -> float | None:
+    """Factor from one atom to its SI base, or None if unknown/opaque."""
+    if name in _ATOM_SCALE:
+        return _ATOM_SCALE[name]
+    for plen in (2, 1):
+        if len(name) > plen and name[:plen] in _PREFIX_FACTOR:
+            remainder = name[plen:]
+            if remainder in _ATOM_SCALE:
+                return _PREFIX_FACTOR[name[:plen]] * _ATOM_SCALE[remainder]
+    return None
+
+
+def unit_scale(unit: str) -> float | None:
+    """Factor converting a value in `unit` to the SI base of its dimension.
+
+    Compound-aware: scale("g/cm^3") = scale(g) / scale(cm)^3 = 1e-3 / (1e-2)^3 =
+    1e3 (so 1.24 g/cm³ -> 1240 kg/m³). Returns None if any atom is unknown/opaque
+    — the caller must then refuse to claim a converted number (GENESIS honesty).
+    """
+    text = unit.strip()
+    if text == "" or text == "1":
+        return 1.0
+    if not _UNIT_RE.fullmatch(text):
+        raise UnitError(f"unparseable unit {unit!r}")
+    scale = 1.0
+    tokens = re.findall(r"([*/]?)\s*([^*/\s]+)", text)
+    for op, atom in tokens:
+        m = _ATOM_RE.match(atom)
+        if not m:
+            raise UnitError(f"unparseable unit atom {atom!r}")
+        name, exp_part = m.group(1), m.group(2)
+        exp = int(exp_part[1:]) if exp_part else 1
+        base = _atom_scale(name)
+        if base is None:
+            return None                         # unknown atom -> no sound scale
+        factor = base ** exp
+        scale = scale / factor if op == "/" else scale * factor
+    return scale
+
+
 # --- formula dimension (the homogeneity check) -------------------------------
 
 _ALLOWED_BINOPS = (ast.Add, ast.Sub, ast.Mult, ast.Div)

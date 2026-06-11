@@ -298,12 +298,19 @@ class GeometryNode:
 
 @dataclass
 class Component:
-    """A part of the design — fabricated (with geometry) or abstract/purchased."""
+    """A part of the design — fabricated (with geometry) or abstract/purchased.
+
+    `material_density` (optional) is the quantity_id of a density quantity (a
+    GROUNDED material fact or a DECISION), used by Phase δ to compute the part's
+    mass = volume × density. It must reference an existing quantity of dimension
+    mass/length³ (GATE γ resolves it; δ checks the dimension).
+    """
 
     id: str
     name: str
     geometry: GeometryNode | None = None
     quantity_ids: list[str] = field(default_factory=list)
+    material_density: str | None = None
 
 
 class BomRole(enum.Enum):

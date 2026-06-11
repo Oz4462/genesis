@@ -39,7 +39,7 @@ from .tools.http import HttpResponse, default_http_get
 from .tools.search import SemanticScholarBackend, WikipediaBackend
 from .verification.cross_model import assert_different_families
 from .verification.gates import gate_delta, geometry_envelope
-from .verification.geometry import volume_of
+from .verification.geometry import geometry_length_unit, mass_of, volume_of
 
 # --- offline demo world (deterministic) --------------------------------------
 
@@ -234,10 +234,14 @@ def _spec_demo_generator() -> ScriptedLLM:
                         {"id": "q_t", "name": "bracket thickness", "unit": "mm",
                          "origin": "decision", "value": 6,
                          "rationale": "printable wall thickness"},
+                        {"id": "q_density", "name": "PLA density", "unit": "g/mm^3",
+                         "origin": "decision", "value": 0.00124,
+                         "rationale": "PLA ~1.24 g/cm³ expressed per mm³ for unit consistency"},
                     ],
                     "components": [
                         {"id": "c_bracket", "name": "bracket",
                          "quantity_ids": ["q_w", "q_h", "q_t", "q_hole_d", "q_hole_r"],
+                         "material_density": "q_density",
                          "geometry": {
                              "kind": "difference",
                              "children": [
@@ -468,6 +472,9 @@ def format_specification(spec: Specification) -> str:
             comp = next((c for c in spec.components if c.id == cid), None)
             if comp is not None and comp.geometry is not None:
                 lines.append(_volume_line(comp, quantities))
+                mass_line = _mass_line(comp, quantities)
+                if mass_line is not None:
+                    lines.append(mass_line)
         result = gate_delta(_spec_state(spec))
         if result.passed:
             lines.append("  • status: no provably broken geometry (PASS — necessary, not sufficient)")
@@ -494,34 +501,28 @@ def format_specification(spec: Specification) -> str:
     return "\n".join(lines)
 
 
-def _geometry_unit(geometry, quantities) -> str | None:
-    """The common length unit of a geometry's referenced quantities, or None if
-    mixed/unknown — so a volume is only labelled with a unit when it is unambiguous."""
-    units: set[str] = set()
-
-    def walk(node) -> None:
-        for qid in node.params.values():
-            q = quantities.get(qid)
-            if q is not None:
-                units.add(q.unit.strip())
-        for child in node.children:
-            walk(child)
-
-    walk(geometry)
-    return next(iter(units)) if len(units) == 1 else None
-
-
 def _volume_line(comp, quantities) -> str:
     """A δ volume line: exact volume or an honest upper bound, with unit³ if known."""
     try:
         vol = volume_of(comp.geometry, quantities)
     except Exception:  # noqa: BLE001 - a bad geometry is already a δ failure
         return "      volume: not computable"
-    unit = _geometry_unit(comp.geometry, quantities)
+    unit = geometry_length_unit(comp.geometry, quantities)
     unit_str = f" {unit}³" if unit else ""
     if vol.exact:
         return f"      volume: {vol.value:g}{unit_str} (exact)"
     return f"      volume: <= {vol.value:g}{unit_str} (upper bound — {vol.note})"
+
+
+def _mass_line(comp, quantities) -> str | None:
+    """A δ mass line when a material density is declared and sound, else None."""
+    if comp.material_density is None:
+        return None
+    m = mass_of(comp, quantities)
+    if m.value is None:
+        return f"      mass: not computable — {m.note}"
+    qualifier = "exact" if m.exact else f"upper bound — {m.note}"
+    return f"      mass: {m.value:g} {m.unit} ({qualifier})"
 
 
 def _spec_state(spec: Specification) -> RunState:

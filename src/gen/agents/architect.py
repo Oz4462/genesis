@@ -428,11 +428,13 @@ class Architect:
         if not cid:
             log("architect: drop component without id")
             return None
+        density = str(raw.get("material_density")).strip() if raw.get("material_density") else None
         return Component(
             id=cid,
             name=str(raw.get("name") or cid).strip(),
             geometry=self._parse_geometry(raw.get("geometry"), log),
             quantity_ids=_as_str_list(raw.get("quantity_ids")),
+            material_density=density,
         )
 
     def _parse_bom_item(self, raw: object, verified: dict[str, Claim], log) -> BomItem | None:

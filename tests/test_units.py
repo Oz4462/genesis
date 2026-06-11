@@ -28,6 +28,7 @@ from gen.verification.units import (  # noqa: E402
     Dimension,
     formula_dimension,
     parse_unit,
+    unit_scale,
 )
 
 
@@ -155,3 +156,32 @@ def test_unknown_formula_input_raises():
 def test_formula_outside_grammar_raises():
     with pytest.raises(UnitError):
         formula_dimension("a ** 2", {"a": parse_unit("m")})
+
+
+# --- unit_scale: sound conversion factors -------------------------------------
+
+def test_unit_scale_base_and_prefixes():
+    assert unit_scale("m") == 1.0
+    assert unit_scale("mm") == pytest.approx(1e-3)
+    assert unit_scale("cm") == pytest.approx(1e-2)
+    assert unit_scale("km") == pytest.approx(1e3)
+    assert unit_scale("kg") == pytest.approx(1.0)        # gram 1e-3 × kilo 1e3
+    assert unit_scale("g") == pytest.approx(1e-3)
+    assert unit_scale("1") == 1.0
+
+
+def test_unit_scale_compound_density():
+    # 1 g/cm³ = 1000 kg/m³ -> scale 1e3
+    assert unit_scale("g/cm^3") == pytest.approx(1e3)
+    assert unit_scale("kg/m^3") == pytest.approx(1.0)
+
+
+def test_unit_scale_unknown_is_none():
+    assert unit_scale("widget") is None
+    assert unit_scale("g/widget^3") is None              # one unknown atom poisons it
+
+
+def test_unit_scale_ratio_for_mm3_in_g_per_cm3():
+    # the whole point: mm³ value with a g/cm³ density converts by (mm/cm)³ = 1e-3
+    factor = (unit_scale("mm") / unit_scale("cm")) ** 3
+    assert factor == pytest.approx(1e-3)
