@@ -537,12 +537,17 @@ Phasoren (Betrag + Phase). **Verifiziert** gegen die analytische RC-Tiefpass-
 Übertragungsfunktion `H(jω)=1/(1+jωRC)`: am Cutoff `ω=1/RC` exakt `|H|=1/√2`,
 Phase −45°; über das ganze Band deckungsgleich. (DC ist der ω→0-Spezialfall.)
 
-**Ehrliche Grenze:** linearer DC + **linearer AC** (Widerstände, Kondensatoren,
-Spulen, unabhängige Quellen). Eine echte LED ist eine nichtlineare Diode; hier per
-Arbeitspunkt-Ersatzwiderstand `R=V/I` modelliert. **Nichtlineare** (Diode/Newton-
-Raphson) und **Transienten**-Analyse bleiben eine weitere Schicht unter demselben
-Beweis-Standard. Modul `circuit.py` (braucht numpy), getestet in
-`tests/test_circuit.py`.
+**Nichtlinear (Diode, Newton-Raphson):** `solve_dc_nonlinear` löst Arbeitspunkte
+mit Shockley-Dioden über das **Companion-Modell + Newton-Raphson** (die klassische
+SPICE-Innenschleife) mit SPICE-Spannungsbegrenzung (`pnjlim`, gegen Exponential-
+Überlauf). **Verifiziert** gegen den analytischen Load-Line-Schnitt: über 4
+Schaltungen exakt (`Vd` bis 1e-7), Sperrrichtung blockiert. Konvergiert nicht →
+`RuntimeError` (nie ein still-falscher Arbeitspunkt).
+
+**Ehrliche Grenze:** DC (linear + **nichtlinear/Diode**) + **linearer AC** (R, C,
+L, Dioden, Quellen). Die **Transienten**-Analyse (Zeitintegration) bleibt eine
+weitere Schicht unter demselben Beweis-Standard. Modul `circuit.py` (braucht numpy),
+getestet in `tests/test_circuit.py`.
 
 **Quelle:** Modified Nodal Analysis (Standard-Schaltungsanalyse, Ho/Ruehli/Brennan
 1975; der DC-Kern von SPICE); Ohmsches Gesetz, Kirchhoff.

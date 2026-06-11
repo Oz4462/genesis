@@ -29,6 +29,7 @@ external-simulator layer under the same proof standard.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import numpy as np
@@ -72,6 +73,22 @@ class Inductor:
     henries: float
 
 
+#: Thermal voltage kT/q at ~300 K [V] (Boltzmann constant × temperature / charge).
+THERMAL_VOLTAGE = 0.025852
+
+
+@dataclass(frozen=True)
+class Diode:
+    """A Shockley diode: I = i_sat · (exp(V / (n·Vt)) − 1), V = V(anode) − V(cathode).
+    `n` is the ideality factor. Non-linear — handled by Newton-Raphson in
+    `solve_dc_nonlinear`."""
+
+    anode: str
+    cathode: str
+    i_sat: float = 1e-12
+    n: float = 1.0
+
+
 def _nodes(component) -> tuple[str, ...]:
     if isinstance(component, (Resistor, Capacitor, Inductor)):
         return (component.a, component.b)
@@ -79,6 +96,8 @@ def _nodes(component) -> tuple[str, ...]:
         return (component.p, component.n)
     if isinstance(component, CurrentSource):
         return (component.frm, component.to)
+    if isinstance(component, Diode):
+        return (component.anode, component.cathode)
     raise TypeError(f"unknown component {component!r}")
 
 
@@ -132,6 +151,77 @@ def solve_dc(components, ground: str = GROUND) -> tuple[dict[str, float], dict[s
         (vs.name or f"V{k}"): float(-x[n + k]) for k, vs in enumerate(vsources)
     }
     return node_v, source_i
+
+
+def solve_dc_nonlinear(
+    components,
+    ground: str = GROUND,
+    *,
+    max_iter: int = 200,
+    tol: float = 1e-10,
+) -> tuple[dict[str, float], dict[str, float]]:
+    """Solve a DC operating point that contains non-linear diodes by Newton-Raphson
+    with the diode companion model (the classic SPICE inner loop).
+
+    Each diode is replaced, at the current voltage estimate, by its linearised
+    Norton companion — a conductance Geq = dI/dV and a current source Ieq = Id −
+    Geq·Vd — and the resulting linear network is solved by `solve_dc`; the estimate
+    is updated and the step is repeated until the node voltages converge.
+    Voltage limiting (a per-step cap on Vd) keeps the exponential from overflowing.
+    Returns ``(node_voltages, source_currents)`` like `solve_dc`. Deterministic.
+    Raises ``RuntimeError`` if it does not converge within `max_iter` — never a
+    silently wrong operating point.
+    """
+    diodes = [c for c in components if isinstance(c, Diode)]
+    linear = [c for c in components if not isinstance(c, Diode)]
+    if not diodes:
+        return solve_dc(linear, ground)
+
+    nodes = sorted({nd for c in components for nd in _nodes(c)} - {ground})
+    v = {nd: 0.0 for nd in nodes}
+    v[ground] = 0.0
+    # per-diode previous (limited) junction voltage, for SPICE-style pnjlim limiting
+    vd_prev = [0.0 for _ in diodes]
+    node_v: dict[str, float] = dict(v)
+    source_i: dict[str, float] = {}
+
+    for _ in range(max_iter):
+        companions: list[object] = []
+        for k, d in enumerate(diodes):
+            nvt = d.n * THERMAL_VOLTAGE
+            vcrit = nvt * math.log(nvt / (math.sqrt(2.0) * d.i_sat))
+            vd = _pnjlim(v[d.anode] - v[d.cathode], vd_prev[k], nvt, vcrit)
+            vd_prev[k] = vd
+            e = math.exp(vd / nvt)
+            i_d = d.i_sat * (e - 1.0)
+            g_eq = max(d.i_sat / nvt * e, 1e-12)    # dI/dV, floored for conditioning
+            i_eq = i_d - g_eq * vd                  # Norton equivalent current
+            companions.append(Resistor(d.anode, d.cathode, 1.0 / g_eq))
+            # the diode current flows anode -> cathode, so the Norton companion
+            # current source flows the same way (anode -> cathode)
+            companions.append(CurrentSource(d.anode, d.cathode, i_eq))
+
+        node_v, source_i = solve_dc(linear + companions, ground)
+        delta = max(abs(node_v[nd] - v[nd]) for nd in nodes)
+        v = {nd: node_v[nd] for nd in nodes}
+        v[ground] = 0.0
+        # converge on the diode junction voltages too (the non-linear unknowns)
+        if delta < tol:
+            return node_v, source_i
+
+    raise RuntimeError("nonlinear DC did not converge — check the circuit / starting point")
+
+
+def _pnjlim(vnew: float, vold: float, vt: float, vcrit: float) -> float:
+    """SPICE junction-voltage limiting: damp the per-iteration change in a forward
+    junction voltage so the diode exponential cannot overshoot/overflow (Nagel,
+    SPICE2). Returns the limited voltage."""
+    if vnew > vcrit and abs(vnew - vold) > 2.0 * vt:
+        if vold > 0.0:
+            arg = 1.0 + (vnew - vold) / vt
+            return vold + vt * math.log(arg) if arg > 0.0 else vcrit
+        return vt * math.log(max(vnew / vt, 1e-12)) if vnew > 0.0 else vnew
+    return vnew
 
 
 def solve_ac(

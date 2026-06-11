@@ -21,13 +21,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from gen.circuit import (  # noqa: E402
+    THERMAL_VOLTAGE,
     Capacitor,
     CurrentSource,
+    Diode,
     Inductor,
     Resistor,
     VoltageSource,
     solve_ac,
     solve_dc,
+    solve_dc_nonlinear,
 )
 
 
@@ -98,3 +101,44 @@ def test_lc_resonance_blocks_then_passes():
                    Resistor("OUT", "0", R)], 1e6)
     assert abs(lo["OUT"]) > 0.9          # inductor ~ short at low frequency
     assert abs(hi["OUT"]) < 0.1          # inductor ~ open at high frequency
+
+
+# --- non-linear DC (diode, Newton-Raphson) vs the analytic operating point -----
+
+def _diode_op_reference(vs, r, i_sat, n=1.0):
+    """The exact operating point: the diode current equals the load-line current."""
+    import math
+
+    vt = n * THERMAL_VOLTAGE
+    lo, hi = 0.0, vs
+    for _ in range(200):                              # bisection on the residual
+        vd = 0.5 * (lo + hi)
+        resid = i_sat * (math.exp(vd / vt) - 1.0) - (vs - vd) / r
+        if resid > 0:
+            hi = vd
+        else:
+            lo = vd
+    return 0.5 * (lo + hi)
+
+
+def test_diode_operating_point_matches_load_line():
+    for vs, r, i_sat in ((5.0, 1000.0, 1e-12), (3.3, 220.0, 1e-14), (12.0, 4700.0, 1e-9)):
+        v, _ = solve_dc_nonlinear([
+            VoltageSource("IN", "0", vs, "S"), Resistor("IN", "D", r),
+            Diode("D", "0", i_sat, 1.0),
+        ])
+        assert math.isclose(v["D"], _diode_op_reference(vs, r, i_sat), abs_tol=1e-7)
+
+
+def test_diode_blocks_reverse():
+    # source reversed: the diode is reverse-biased, only ~ -i_sat flows
+    v, _ = solve_dc_nonlinear([
+        VoltageSource("IN", "0", -5.0, "S"), Resistor("IN", "D", 1000.0),
+        Diode("D", "0", 1e-12, 1.0),
+    ])
+    assert v["D"] < 0.0                                # no forward conduction
+
+
+def test_no_diode_falls_back_to_linear_dc():
+    _, i = solve_dc_nonlinear([VoltageSource("VCC", "0", 12.0, "PSU"), Resistor("VCC", "0", 8.0)])
+    assert math.isclose(i["PSU"], 1.5, rel_tol=1e-9)
