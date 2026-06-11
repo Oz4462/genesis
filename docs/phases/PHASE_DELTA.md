@@ -1021,6 +1021,126 @@ Bi-Metal Thermostats* (J. Opt. Soc. Am.) für die Bimetall-Krümmung.
 
 ---
 
+## 30. Torsion — Scherversagen einer tordierten Kreiswelle (`torsion.py`)
+
+Die Spannungs-/Biege-/Axialprüfung (`structural.py`), `buckling.py` (Instabilität) und
+`fatigue.py` (zyklische Lebensdauer) sehen die **Torsion** nicht: ein Drehmoment verdreht
+die Welle und erzeugt eine **Schubspannung**, die an der Außenfläche maximal ist und das
+Material abscheren kann, bevor irgendeine Biege-/Axialreserve erschöpft ist. Antriebswelle,
+Achse, Drehstab: jede besteht alle Biege-/Axialchecks und versagt doch durch Torsionsschub.
+Diese Schicht ergänzt die vierte Achse — geschlossene Form, kein FEM.
+
+Vier Lehrbuchformeln für den Kreisquerschnitt: polares Flächenträgheitsmoment
+`J = pi*d^4/32` (Vollwelle) bzw. `pi*(D^4-d^4)/32` (Hohlwelle); Schubspannung
+`tau = T*r/J` (linear von Null auf der Achse bis Maximum an der Oberfläche);
+Oberflächenspannung der Vollwelle `tau_max = 16*T/(pi*d^3)`; Verdrehwinkel
+`phi = T*L/(G*J)` [rad]. Plus `shaft_torsion_check` (DFM): Schub, Verdrehwinkel,
+Sicherheitsfaktor `shear_strength/max_shear`, `ok`-Bool. Einheiten N·mm, mm, MPa, rad.
+
+**Verifiziert, nicht behauptet:** die Oberflächenspannung ist `16T/(pi d^3)` UND zugleich
+`T*(d/2)/J` bis auf Maschinengenauigkeit (Identität, Differenz `7.1e-15`); Anker
+`T=100000 N·mm, d=20 mm → tau=63.6620 MPa`, `J_solid(20)=15707.9633 mm^4`; die Hohl-`J`
+reduziert sich exakt auf die Voll-`J` bei Bohrung 0 (`J_hollow(40,20)=235619.4490`); der
+Verdrehwinkel skaliert exakt linear mit `L` und `1/G` (Anker `0.0795775 rad = 4.5595°`) —
+10 Tests grün auf py-3.11 **und** py-3.13.
+
+**Ehrliche Grenze:** linear-elastische St-Venant-Torsion einer **prismatischen Kreiswelle**
+(voll oder hohl). Nicht abgedeckt: nichtkreisförmige Querschnitte (Verwölbung → Torsions-
+konstante statt `J`), Kerbwirkung an Absätzen/Passfedernuten/Bohrungen (separat `K_t`),
+plastische Torsion, kombinierte Biegung+Torsion (dafür von-Mises-/Maximalschub-Kriterium).
+**Quelle:** R. C. Hibbeler, *Mechanics of Materials*, 10. Aufl. (2017), Kap. 5; Timoshenko & Gere — elementar `tau = T*rho/J`, `phi = T*L/(G*J)`.
+
+---
+
+## 31. Hertzscher Kontakt — die hohe lokale Pressung wo gekrümmte Körper sich berühren (`contact.py`)
+
+Die Spannungsprüfung sieht nur die nominale Querschnittsspannung, die FEM-Schichten die
+globale Verformung. Keine sieht das Versagen dort, wo zwei gekrümmte Körper sich BERÜHREN:
+Kugellager auf Laufbahn, Pressbolzen, Zahnflanken, Nocken. Der Kontaktfleck ist winzig, also
+erzeugt schon eine mäßige Kraft eine enorme LOKALE Pressung weit über der Nennspannung — der
+Keim von Pitting, Spalling und unterirdischer Wälzkontakt-Ermüdung. Dieses Modul ergänzt
+Hertz' Schließformeln von 1882.
+
+- `effective_modulus` reduzierter Modul `1/E* = (1-nu1^2)/E1 + (1-nu2^2)/E2`; Stahl-Stahl
+  (E=210000, nu=0.3) → `E*=115384.6 MPa`.
+- `sphere_sphere_contact` Punktkontakt: `a=(3FR/(4E*))^(1/3)`, `p0=3F/(2 pi a^2)=1.5*p_mean`.
+- `sphere_on_flat` der Grenzfall r2 → unendlich (R = Kugelradius).
+- `cylinder_cylinder_contact` Linienkontakt: `b=sqrt(4F'R/(pi E*))`, `p0=2F'/(pi b)=(4/pi)*p_mean`.
+- `contact_check` liefert `safety_factor = allowable/max_pressure` und `ok`.
+
+**Verifizierter Anker:** zwei 10-mm-Stahlkugeln, F=100 N → `a=0.14812 mm`, `p0=2176.13 MPa`,
+`p_mean=1450.76 MPa`, Verhältnis `3/2` exakt. `sphere_on_flat` == `sphere_sphere(r2=1e12)`
+(rtol 1e-6); Linien-`p0=857.07 MPa` == unabhängige Identität `sqrt(F'E*/(pi R))`
+maschinengenau, Verhältnis `4/pi` exakt. 11/11 Tests grün (py 3.11 + 3.13).
+
+**Ehrliche Grenze:** reibungsfreier, nicht-adhäsiver, nicht-konformer elastischer Kontakt
+glatter Körper, klein gegenüber den Körperradien (Hertz-Annahmen); keine JKR-Adhäsion, keine
+Rauheit, keine Tangentiallast, kein Fließen ab `p0 ~ 1.6*sigma_y`, nicht die unterirdische
+Schubspannung die Wälzermüdung tatsächlich auslöst.
+**Quelle:** H. Hertz (1882), *Über die Berührung fester elastischer Körper*, J. reine angew. Math. 92; K. L. Johnson, *Contact Mechanics* (1985), Kap. 3-4.
+
+---
+
+## 32. Druckbehälter-Wandspannung — die Umfangsspannung, die einen Tank/ein Rohr aufreißt (`pressure_vessel.py`)
+
+Ein Punktlast-Spannungscheck sieht den Versagensfall eines Bauteils ganz ohne äußere
+Einzelkraft nicht: einen geschlossenen Tank, ein Rohr, eine Gasflasche unter **Innendruck**.
+Der Druck drückt die Wand überall nach außen; die dabei entstehende Umfangs- (Hoop-) Spannung
+spaltet die Wand längs — typisch doppelt so groß wie die Längsspannung. Diese Schicht ergänzt
+die Druck-Achse, deterministisch und LLM-frei.
+
+Drei Lehrbuch-Geschlossenformen, je an ihrem exakten Grenzfall verankert: **Dünnwand-
+Membrantheorie** (Zylinder `hoop=p*r/t`, `axial=p*r/(2*t)` ⇒ `hoop=2*axial`; Kugel `p*r/(2*t)`,
+die optimale Druckform) und **Lamé (1833)** für dicke Wände (`A=p_i*r_i²/(r_o²-r_i²)`,
+`B=p_i*r_i²*r_o²/(r_o²-r_i²)`, `sigma_r=A-B/r²`, `sigma_theta=A+B/r²`, Hoop maximal an der
+Innenwand).
+
+**Verifiziert statt behauptet:** Anker `p=10 MPa, r=500 mm, t=10 mm` ⇒ `hoop=500 MPa`,
+`axial=250 MPa` exakt; Lamé-Randbedingungen `sigma_r(r_i)=-p_i` und `sigma_r(r_o)=0` exakt; die
+Dickwand-Hoop an der Innenwand ist HÖHER als die Dünnwand-Schätzung und beide konvergieren mit
+`t/r→0` (`1.0099 %` Lücke bei `t/r=0.02`, `66.667 %` bei `t/r=1.0`, `0.05 %` bei `t/r=0.001`).
+`pressure_vessel_check` liefert `max_hoop`, `safety_factor=yield/max_hoop`, `ok` (Modell
+`thin`/`thick`). 15 Tests grün.
+
+**Ehrliche Grenze:** linear-elastischer, statischer Innendruck eines axialsymmetrischen
+prismatischen Zylinders/einer Kugel fern von Enden und Öffnungen — kein Endkappen-/
+Diskontinuitätsbiegen, keine Stutzen-Kerbwirkung, keine Außendruck-Beulkollaps-Instabilität
+(eigener Modus, `buckling.py`), keine Autofrettage; die Dünnwand-Form unterschätzt die wahre
+Innenwand-Hoop (bei nicht kleinem `t/r` `model='thick'` nutzen).
+**Quelle:** Dünnwand-Membrantheorie (Shigley, *Mechanical Engineering Design*); Lamé, G. & Clapeyron, B. (1833), Dickwand-Zylinder-Lösung.
+
+---
+
+## 33. Kriechen & Kriechbruch — der langsame Hochtemperatur-Tod (`creep.py`)
+
+Der Spannungs-Check (`structural.py`) prüft gegen die Festigkeit bei Raumtemperatur;
+`fatigue.py` ergänzt zyklisches Versagen. Beide übersehen eine dritte, langsame Lebensdauer-
+Achse: ein Bauteil unter ruhender Last weit unter der Streckgrenze, aber heiß, verformt sich
+stetig (Kriechen) und bricht nach genügend Zeit bei Temperatur — unsichtbar für jeden
+isothermen Raumtemperatur-Check. Eine Turbinenschaufel, ein Kesselrohr, ein Bolzen im heißen
+Flansch.
+
+Drei geschlossene Formen: der **Larson-Miller-Parameter** `LMP = T·(C + log10(t_r))` (Zeit-
+Temperatur-Äquivalenz, T in Kelvin, t_r in Stunden), seine **exakte Inverse**
+`t_r = 10^(LMP/T − C)`, und das **Norton-Potenzgesetz** `ε̇ = A·σ^n·exp(−Q/RT)` für die
+sekundäre (stationäre) Kriechrate. Plus ein DFM-Check `creep_life_check` mit
+`safety_factor = rupture_time / design_life`.
+
+**Verifiziert, nicht behauptet:** LMP und Inverse runden EXAKT zurück (`t_r → LMP → t_r`,
+rel. Fehler 0..2e-16); Anker `T=811 K (~1000 °F), t_r=1e5 h, C=20 → LMP = 811·25 = 20275`;
+Norton skaliert exakt als `(σ2/σ1)^n` (100→200 MPa, n=5 → Faktor `32.0 = 2^5`) und folgt dem
+exakten Arrhenius-Verhältnis in T; `creep_life_check` liefert für `LMP=20275@811K` Bruchzeit
+`1e5 h`, bei Auslegungsleben `1e4 h` → `safety_factor=10.0, ok=True`. 12 Tests grün (py 3.11 + 3.13).
+
+**Ehrliche Grenze:** klassische Korrelationen für SEKUNDÄRES (stationäres) Kriechen und
+Bruchzeit-Extrapolation; KEIN primäres/tertiäres Kriechen, keine Mehrachsigkeit, keine
+Oxidation/Umgebung — und die Konstante C sowie die Master-Kurve LMP(σ) stammen aus echten
+Werkstoff-Bruchdaten (das Modul rechnet damit, es erfindet sie nicht).
+**Quelle:** Larson & Miller (1952), *A Time-Temperature Relationship for Rupture and Creep
+Stresses*, Trans. ASME 74:765; Norton (1929), *The Creep of Steel at High Temperatures*.
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
