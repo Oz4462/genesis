@@ -2,7 +2,11 @@
 
   gate_alpha           — pure, LLM-free completion predicate (GATE α).
   gate_beta            — pure, LLM-free completion predicate (GATE β, builds on α).
-  claim_soundness_failures — shared per-claim α-soundness check (used by both gates).
+  gate_gamma           — pure, LLM-free completion predicate (GATE γ, builds on α+β).
+  claim_soundness_failures — shared per-claim α-soundness check (used by all gates).
+  evaluate_formula / topological_values / within_tolerance — safe arithmetic for
+                         DERIVED values (the LLM never does math; code computes,
+                         the gate recomputes).
   Judgment             — one model's mockable verdict on a claim.
   verify_confidence    — enforce cross-model + fold judgments (skeptic entry point).
   assert_different_families / model_family — the cross-model audit primitives.
@@ -19,12 +23,24 @@ from .cross_model import (
     status_disagreement,
     verify_confidence,
 )
-from .gates import claim_soundness_failures, gate_alpha, gate_beta
+from .derivation import (
+    DEFAULT_TOLERANCE,
+    evaluate_formula,
+    topological_values,
+    within_tolerance,
+)
+from .gates import claim_soundness_failures, gate_alpha, gate_beta, gate_gamma, value_in_text
 
 __all__ = [
     "gate_alpha",
     "gate_beta",
+    "gate_gamma",
     "claim_soundness_failures",
+    "value_in_text",
+    "evaluate_formula",
+    "topological_values",
+    "within_tolerance",
+    "DEFAULT_TOLERANCE",
     "Judgment",
     "verify_confidence",
     "combine_judgments",

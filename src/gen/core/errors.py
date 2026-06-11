@@ -43,6 +43,61 @@ class UngroundedApproachError(GenesisError):
         )
 
 
+class UngroundedValueError(GenesisError):
+    """Raised when a GROUNDED Quantity is constructed without any grounding claim.
+
+    The Phase γ pendant of UnsourcedClaimError: a numeric value presented as a
+    sourced fact must reference at least one ledger claim. A grounded value
+    without grounding is a fabricated value — structurally impossible
+    (PHASE_GAMMA.md §0/§3.1).
+    """
+
+    def __init__(self, quantity_id: str, name: str) -> None:
+        super().__init__(
+            f"Quantity {quantity_id!r} ({name!r}) is GROUNDED but has no grounding "
+            "claim. A sourced value without provenance cannot exist in GENESIS "
+            "(PHASE_GAMMA.md §3.1)."
+        )
+
+
+class InvalidDerivationError(GenesisError):
+    """Raised when a Quantity's origin and its derivation field disagree.
+
+    A DERIVED quantity without a Derivation cannot be recomputed — its value
+    would be an unauditable guess. A non-DERIVED quantity carrying a Derivation
+    (or grounding/rationale on the wrong origin) blurs provenance. Both are
+    structural defects, rejected at construction (PHASE_GAMMA.md §3.1).
+    """
+
+    def __init__(self, quantity_id: str, detail: str) -> None:
+        super().__init__(f"Quantity {quantity_id!r}: invalid derivation: {detail}")
+
+
+class UndeclaredDecisionError(GenesisError):
+    """Raised when a design choice is constructed without a rationale.
+
+    A DECISION quantity or a Decision with an empty rationale/choice is a hidden
+    decision — a choice disguised as fact. Decisions must be explicit and
+    human-ratifiable (PHASE_GAMMA.md §0, hallucination face #4).
+    """
+
+    def __init__(self, item_id: str, detail: str) -> None:
+        super().__init__(f"Decision {item_id!r} is undeclared: {detail}")
+
+
+class FormulaError(GenesisError):
+    """A derivation formula could not be parsed or evaluated safely.
+
+    Raised loudly by the safe evaluator (verification/derivation.py) for
+    anything outside the allowed arithmetic grammar, unknown identifiers,
+    cycles, or division by zero. A formula that cannot be deterministically
+    recomputed must never silently yield a value (PHASE_GAMMA.md §3.2).
+    """
+
+    def __init__(self, formula: str, reason: str) -> None:
+        super().__init__(f"Formula {formula!r} failed: {reason}")
+
+
 class FetchFailedError(GenesisError):
     """A source could not be retrieved. The source must NOT be cited as fact."""
 

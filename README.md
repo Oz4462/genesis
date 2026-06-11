@@ -8,20 +8,24 @@ Ein Mensch liefert ein Problem oder eine Idee. GENESIS recherchiert, **verifizie
 
 ## Status
 
-**Phase α + β abgeschlossen und beweisbar korrekt — jetzt auch live gegen echte Modelle lauffähig.**
+**Phase α + β + γ abgeschlossen und beweisbar korrekt — α/β auch live gegen echte Modelle bewiesen.**
 
-Die vollständige α-Pipeline (Anti-Halluzination) und der β-Lösungsraum sind gebaut und getestet: Fakten-Ledger (Quellenzwang), Tool-Adapter (ehrliches Fetch), die Agenten (`scout`, `scholar`, `skeptic`, `conductor`, `synthesizer`), Cross-Model-Verifikation, die Gates α und β und die End-to-End-Verdrahtung mit CLI.
+Die vollständige α-Pipeline (Anti-Halluzination), der β-Lösungsraum und die γ-Spezifikation sind gebaut und getestet: Fakten-Ledger (Quellenzwang), Tool-Adapter (ehrliches Fetch), die Agenten (`scout`, `scholar`, `skeptic`, `conductor`, `synthesizer`, `architect`), Cross-Model-Verifikation, die Gates α, β und γ und die End-to-End-Verdrahtung mit CLI (`--mode report|solution|spec`).
+
+**Neu (Phase γ):** Eine Idee wird zu einer **vollständigen, umsetzbaren Bauanleitung** — Größen mit deklarierter Herkunft, parametrische 3D-Geometrie (CSG), Stückliste, Schritte mit Prüfkriterien, numerisch geprüfte Constraints, Entscheidungsblatt. Die fünf γ-Halluzinationsklassen sind strukturell verhindert (PHASE_GAMMA.md §0): kein Wert ohne wörtlichen Beleg im VERIFIED-Claim, keine LLM-Arithmetik (Code rechnet, GATE γ rechnet unabhängig nach), keine Referenz ins Nichts, keine versteckte Entscheidung, kein Schritt ohne Check — und lieber ehrliche Abstention als eine teilweise/gedriftete Anleitung.
 
 ```
 $ python -m pytest tests/ -q
-154 passed
+232 passed
 ```
 
 Alle Tests laufen **ohne einen einzigen LLM-Token und ohne Netzwerk**. Das heißt: Die Garantie „kein Fakt ohne Quelle, keine widerlegte Aussage als Tatsache, Lücken werden als Lücken markiert, im Zweifel Abstention" ist **bewiesen** — und von einem unabhängigen, adversarialen Audit bestätigt (Details: `docs/phases/PHASE_ALPHA_RESULT.md`).
 
 ```
-$ python -m gen --demo        # deterministischer End-to-End-Lauf, offline
-$ python -m gen "Frage..."     # Live-Lauf: lokale Ollama-Modelle + Wikipedia, keine Cloud-Keys
+$ python -m gen --demo                 # deterministischer α-Lauf, offline
+$ python -m gen --demo --mode spec     # deterministische γ-Bauanleitung, offline
+$ python -m gen "Frage..."             # Live-α: lokale Ollama-Modelle + Wikipedia
+$ python -m gen --mode spec "Idee..."  # Live-γ: Idee -> belegte Spezifikation
 ```
 
 **Live-Betrieb (neu):** Ein realer `OllamaLLM`-Adapter (Generator- und Verifier-Familie getrennt, vor jedem Aufruf erzwungen), ein keyloses `WikipediaBackend` als Discovery-Workhorse und der `PostgresLedgerStore` sind angebunden. Der Postgres-Ledger ist gegen eine echte PostgreSQL-Instanz verifiziert — alle drei Provenance-Schichten greifen, inklusive des DB-Triggers (`scripts/postgres_smoke.py`). Reale End-to-End-Läufe gegen lokale Ollama-Modelle (Generator ≠ Verifier-Familie) belegen beide Seiten der Garantie empirisch, ohne Cloud-Key (`scripts/live_smoke.py`):
@@ -43,8 +47,8 @@ config.yaml                     Phase-α-Konfiguration (τ, Cross-Model-Familien
 docs/
   VISION.md                     Vision, Stand der Technik, ehrliche Risiken
   BUILD_LOG.md                  Beweiskette des Baus (Selbstkontrolle je Aufgabe)
-  phases/PHASE_ALPHA.md         Spezifikation der Stufe + Akzeptanztests
-  phases/PHASE_ALPHA_RESULT.md  Ehrliches Ergebnis je Kriterium + Audit
+  phases/PHASE_*.md             Spezifikation je Stufe (α, β, γ) + Akzeptanztests
+  phases/PHASE_*_RESULT.md      Ehrliches Ergebnis je Kriterium + Audit
   agents/*.md                   Pro Agent: Verantwortung, I/O, Tools, Fehler, Tests
 src/gen/
   core/interfaces.py            Framework-freie Protocols (Agent, Tool, LedgerStore, Gate, SearchBackend)
@@ -58,8 +62,11 @@ src/gen/
   agents/scout.py               Breite — nur Quellen-Kandidaten
   agents/scholar.py             Tiefe — atomare Claims, jedes Zitat gegen die Quelle geprüft
   agents/skeptic.py             Verifikator — Cross-Model, neue unabhängige Quellen
-  agents/conductor.py           Orchestrator — Report nur aus Ledger-Claims
-  verification/gates.py         GATE α — reine, getestete Verifikationslogik (+ Backstops)
+  agents/conductor.py           Orchestrator — Report/Spec nur aus Ledger-Claims
+  agents/synthesizer.py         Phase β — verankerte Lösungsansätze, erfindet nichts
+  agents/architect.py           Phase γ — Spezifikation; Wertzwang, Code rechnet, Self-Gate
+  verification/gates.py         GATEs α, β, γ — reine, getestete Verifikationslogik (+ Backstops)
+  verification/derivation.py    Safe-Evaluator — DERIVED-Werte: Code rechnet, Gate rechnet nach
   verification/cross_model.py   Cross-Model-Pflicht + Confidence-Folding
   config.py / runner.py / cli.py  Konfiguration, run(question)->Report, `python -m gen`
 sql/001_ledger.sql              Fakten-Ledger; Quellenzwang als DB-Constraint
@@ -72,7 +79,7 @@ Alles dreht sich um den `Claim` (`src/gen/core/state.py`): eine einzelne, prüfb
 
 ## Nächster Schritt
 
-Phase α + β sind als Architektur vollständig bewiesen, und die ersten realen Adapter (Ollama, Wikipedia, Postgres) sind live angebunden und verifiziert. Der ehrliche nächste Schritt: die externen Discovery-Quellen produktionsreif machen (Semantic-Scholar-API-Key, höfliches Rate-Limiting), damit der Happy-Path — verifizierter Claim aus abrufbarer Quelle — auch unter Live-Last reproduzierbar grün wird, und dieselbe Akzeptanz-Suite gegen Live-Daten fahren. Danach: Phase γ (Spezifikation/CAD). Siehe `docs/phases/PHASE_ALPHA_RESULT.md` §Methodik und `docs/BUILD_LOG.md` (Live-Integrations-Sprint).
+Phase α + β + γ sind als Architektur vollständig bewiesen; α/β sind zusätzlich live (Ollama, Wikipedia, Postgres) verifiziert. Die ehrlichen nächsten Schritte: (1) der γ-Live-Beweis — `--mode spec` gegen lokale Ollama-Modelle fahren und die reale Struktur-/Formulierungsqualität messen (die Garantien gelten unabhängig davon); (2) CAD-Export-Adapter (CSG → OpenSCAD/build123d, PHASE_GAMMA.md §10); (3) externe Discovery-Quellen produktionsreif machen (Semantic-Scholar-API-Key, höfliches Rate-Limiting). Danach: Phase δ (Simulation/Validierung). Siehe `docs/phases/PHASE_GAMMA_RESULT.md` §Methodik.
 
 ## Lizenz
 

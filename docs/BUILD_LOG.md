@@ -647,3 +647,78 @@ behoben.
 bestätigt) + CLI auf Windows lauffähig. Die Anti-Halluzinations-Garantie hielt in
 **allen** Läufen.
 
+## Phase γ — Spezifikation (Idee → umsetzbare Bauanleitung, inkl. 3D)  ✅
+
+**Scope:** Eine Idee + ein verankerter β-`Approach` → eine vollständige
+`Specification`: Größen mit deklarierter Herkunft, parametrische 3D-Geometrie (CSG),
+Stückliste, Schritt-für-Schritt-Anleitung mit Prüfkriterien, numerisch geprüfte
+Constraints, Entscheidungsblatt. Spezifikation `docs/phases/PHASE_GAMMA.md`, Ergebnis
+`docs/phases/PHASE_GAMMA_RESULT.md`, Agent `docs/agents/architect.md`.
+
+**Die γ-Einsicht (warum ehrlich):** In α/β hatte Halluzination *ein* Gesicht; in einer
+Bauanleitung hat sie **fünf** — erfundener Wert, falsche Rechnung, Drift (Referenz ins
+Nichts), versteckte Entscheidung, Unvollständigkeit. Jede bekam einen eigenen,
+deterministischen Wächter (PHASE_GAMMA.md §0). Invariante, die die α/β-Kette fortsetzt:
+*Kein Wert ohne Verankerung, keine Rechnung ohne Nachrechnung, keine Referenz ins
+Nichts, keine Wahl ohne Deklaration, kein Schritt ohne Prüfung.*
+
+**Gate-first gebaut (wie α/β), Reihenfolge:**
+1. `core/state.py` — `Quantity` (ValueOrigin GROUNDED/DERIVED/DECISION mit
+   Konstruktor-Guards, die origin↔Provenance-Felder erzwingen), `Derivation`,
+   `GeometryNode` (CSG-Vokabular), `Component`/`BomItem`/`Step`/`Constraint`/`Decision`,
+   `Specification`; `RunState.specification`. `core/errors.py` —
+   `UngroundedValueError`/`InvalidDerivationError`/`UndeclaredDecisionError`/`FormulaError`.
+2. `verification/derivation.py` — **Safe-Evaluator** (AST-basiert, KEINE dynamische
+   Code-Ausführung; Grammatik: Zahlen, deklarierte Namen, `+ - * /`, unäres Minus,
+   Klammern). Topologische Auflösung von DERIVED-Ketten; Zyklen/unbekannte Inputs/
+   Division-durch-null scheitern laut. Geteilt: `architect` rechnet damit, GATE γ
+   rechnet damit unabhängig nach.
+3. `verification/gates.py` — `gate_gamma()` als reine Funktion (C-0..C-14), `value_in_text`
+   (digit-boundary-geprüfter Wortlaut-Anker für Werte), rekursiver CSG-Walk. Teilt
+   `claim_soundness_failures` unverändert mit α/β.
+4. **Tests zuerst:** `tests/test_derivation.py` (Grammatik, Zyklen, ehrliches Scheitern)
+   + `tests/test_gate_gamma.py` (Positiv + je ein Negativtest pro Bedingung, plus
+   Konstruktor-Guard-Tests).
+5. `agents/architect.py` — Strukturierer; LLM liefert nur Struktur/Formeln, **Code**
+   berechnet DERIVED-Werte (LLM-Werte werden ignoriert + geloggt), GROUNDED nur wenn
+   Wert wörtlich im Claim, hidden decisions/ungrounded werden gedroppt. Self-Check gegen
+   `gate_gamma`: bei Strukturdefekt **Abstention statt Teil-Spec**. `tests/test_architect.py`.
+6. `conductor.run_specification` + `runner.run_specification` + Checkpoint-Serialisierung
+   + `config.PhaseGammaConfig` + `config.yaml` + CLI `--mode report|solution|spec` inkl.
+   deterministischem Offline-Demo `--demo --mode spec`.
+7. `tests/test_phase_gamma_acceptance.py` — vier Klassen end-to-end (A baubar, B
+   Wert-/Rechen-Falle, C Abstention, D Unvollständigkeits-Falle) + Demo-E2E mit Checkpoint.
+
+**Selbstkontrolle (§0.2/§0.3):**
+- [x] Interface/Typen? `architect` erfüllt `Agent`-Protocol; alle neuen Typen voll
+      annotiert; Pyright-Diagnostics nur erwartete Test-„unused"-Hinweise.
+- [x] Tests grün inkl. Negativtests? **232 passed** (154 α/β unverändert + 78 γ),
+      offline, 0.90 s, kein LLM-Token, kein Netzwerk. Reale Evidenz statt Behauptung.
+- [x] Faktische Aussagen über Ledger? Ja — jeder GROUNDED-Wert hängt an einem
+      VERIFIED-Claim und steht wörtlich in dessen Text; der `architect` erzeugt keine
+      Fakten, DERIVED rechnet Code, DECISION ist deklariert.
+- [x] Pfad für erfundenen Wert/Rechnung/Referenz? Geschlossen, dreischichtig (Guard →
+      architect-Drop/Self-Check → GATE γ). Klasse B beweist: erfundener Wert gedroppt,
+      LLM-„999" durch code-berechnete 24 ersetzt. Klasse D: Strukturdefekt → Abstention.
+- [x] Laut statt still? `FormulaError`/Guards; defekte Struktur → benannte Lücke, nie
+      stille Teil-Behauptung.
+- [x] Cross-Model? Unberührt — die faktische Substanz bleibt skeptic-verifiziert;
+      `architect`/`synthesizer` strukturieren nur (Generator-Familie).
+- [x] Doku? PHASE_GAMMA(.md/_RESULT.md), architect.md, README, CLAUDE.md, dieser Eintrag.
+
+**Live-Sicht:** `python -m gen --demo --mode spec` druckt offline die vollständige,
+belegte Wandhalterungs-Anleitung (run_id `demo-bracket`): 9 Quantities (2 GROUNDED,
+2 DERIVED nachgerechnet, 5 DECISION), CSG-Differenzkörper (box ∖ cylinder, alle Params
+= Quantity-Ids), 4 BOM-Zeilen, 2 Schritte mit Checks, gehaltene Constraint
+(Lochdurchmesser ≥ Schraubendurchmesser), Entscheidungsblatt.
+
+**Ehrliche Grenze (nicht versteckt):** G5 ist die *strukturelle* Approximation von
+„ohne Rückfrage umsetzbar". Die *semantische* Qualität realer Modell-Aktionstexte misst
+erst der γ-Live-Lauf (`--mode spec` gegen Ollama — in dieser Session bewusst nicht
+gefahren, User-Vorgabe). Ebenfalls offen/benannt: semantische Wert-Bindung über den
+Wortlaut hinaus, Einheiten-Algebra in Formeln, CAD-Export-Adapter, Physik (Phase δ).
+
+**Gesamtstand nach γ:** **232 passed** (offline) + α/β weiterhin live bewiesen.
+Anti-Halluzination jetzt über alle drei Einheiten — Claim (α), Approach (β),
+Wert/Schritt/Geometrie (γ).
+

@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 
+from .agents.architect import Architect
 from .agents.conductor import Conductor
 from .agents.scholar import Scholar
 from .agents.scout import Scout
@@ -24,7 +25,7 @@ from .agents.skeptic import Skeptic
 from .agents.synthesizer import Synthesizer
 from .config import Config, config_hash, default_config
 from .core.interfaces import LedgerStore, SearchBackend
-from .core.state import Question, Report, RunState, SolutionReport
+from .core.state import Question, Report, RunState, SolutionReport, Specification
 from .llm.base import LLMClient
 from .tools.fetch import WebFetchTool
 from .tools.http import HttpGet
@@ -169,6 +170,76 @@ async def run_solution(
     return state.solution_report
 
 
+async def run_specification(
+    question_text: str,
+    deps: Dependencies,
+    *,
+    config: Config | None = None,
+    run_id: str | None = None,
+    checkpoint_dir: str | None = None,
+) -> Specification:
+    """Execute one Phase γ run and return the gated build specification.
+
+    Same cross-model α research as `run` (scout/scholar/skeptic) plus the proven
+    β structuring step (synthesizer) and the `architect`, which structures the
+    grounded solution space into a complete specification behind GATE γ. The
+    synthesizer and architect use the generator family — structuring is not
+    verification; the underlying claims were already verified cross-model by the
+    skeptic, so the cross-model guarantee is preserved.
+    """
+    config = config or default_config()
+    pa = config.phase_alpha
+    pb = config.phase_beta
+    pg = config.phase_gamma
+    chash = config_hash(config)
+    rid = run_id or make_run_id(question_text, chash, suffix=str(time.time_ns()))
+
+    state = RunState(question=Question(raw=question_text, run_id=rid))
+    state.log.append(
+        f"runner: [gamma] run_id={rid} config_hash={chash[:12]} "
+        f"generator={deps.generator_llm.model} verifier={deps.verifier_llm.model}"
+    )
+
+    fetch = WebFetchTool(deps.http_get, ledger=deps.ledger, run_id=rid)
+    scout = Scout(deps.backends, llm=deps.generator_llm)
+    scholar = Scholar(fetch, deps.generator_llm, deps.ledger)
+    skeptic = Skeptic(
+        deps.backends,
+        fetch,
+        deps.verifier_llm,
+        deps.ledger,
+        generator_model=pa.models.generator,
+        second_judge=deps.judge_llm,
+        min_sources_for_verified=pa.min_sources_for_verified,
+    )
+    synthesizer = Synthesizer(
+        deps.generator_llm, confidence_threshold=pb.confidence_threshold
+    )
+    architect = Architect(
+        deps.generator_llm,
+        confidence_threshold=pg.confidence_threshold,
+        derivation_tolerance=pg.derivation_tolerance,
+    )
+    conductor = Conductor(
+        scout,
+        scholar,
+        skeptic,
+        synthesizer=synthesizer,
+        architect=architect,
+        llm=deps.generator_llm,
+        confidence_threshold=pg.confidence_threshold,
+        max_refine_rounds=pg.max_refine_rounds,
+        derivation_tolerance=pg.derivation_tolerance,
+    )
+
+    await conductor.run_specification(state)
+
+    if checkpoint_dir is not None:
+        save_checkpoint(checkpoint_dir, state, chash)
+    assert state.specification is not None  # conductor always normalizes one
+    return state.specification
+
+
 # --- checkpointing (reproducibility / audit) ---------------------------------
 
 def _claim_to_dict(c) -> dict:
@@ -216,6 +287,96 @@ def _solution_report_to_dict(sr: SolutionReport) -> dict:
     }
 
 
+def _geometry_to_dict(node) -> dict:
+    return {
+        "kind": node.kind,
+        "params": dict(node.params),
+        "children": [_geometry_to_dict(c) for c in node.children],
+    }
+
+
+def _specification_to_dict(spec: Specification) -> dict:
+    return {
+        "run_id": spec.run_id,
+        "idea": spec.idea,
+        "approach_id": spec.approach_id,
+        "quantities": [
+            {
+                "id": q.id,
+                "name": q.name,
+                "value": q.value,
+                "unit": q.unit,
+                "origin": q.origin.value,
+                "grounding": list(q.grounding),
+                "derivation": (
+                    {"formula": q.derivation.formula, "inputs": list(q.derivation.inputs)}
+                    if q.derivation
+                    else None
+                ),
+                "rationale": q.rationale,
+            }
+            for q in spec.quantities
+        ],
+        "components": [
+            {
+                "id": c.id,
+                "name": c.name,
+                "geometry": _geometry_to_dict(c.geometry) if c.geometry else None,
+                "quantity_ids": list(c.quantity_ids),
+            }
+            for c in spec.components
+        ],
+        "bom": [
+            {
+                "id": b.id,
+                "name": b.name,
+                "role": b.role.value,
+                "count": b.count,
+                "component_id": b.component_id,
+                "grounding": list(b.grounding),
+            }
+            for b in spec.bom
+        ],
+        "steps": [
+            {
+                "id": s.id,
+                "index": s.index,
+                "action": s.action,
+                "uses": list(s.uses),
+                "inputs": list(s.inputs),
+                "outputs": list(s.outputs),
+                "check": s.check,
+                "quantity_refs": list(s.quantity_refs),
+            }
+            for s in spec.steps
+        ],
+        "constraints": [
+            {
+                "id": k.id,
+                "kind": k.kind,
+                "left": k.left,
+                "right": k.right,
+                "reason": k.reason,
+            }
+            for k in spec.constraints
+        ],
+        "decisions": [
+            {
+                "id": d.id,
+                "title": d.title,
+                "choice": d.choice,
+                "rationale": d.rationale,
+                "informed_by": list(d.informed_by),
+            }
+            for d in spec.decisions
+        ],
+        "gaps": list(spec.gaps),
+        "claim_ids_used": list(spec.claim_ids_used),
+        "produced_by": spec.produced_by,
+        "model": spec.model,
+    }
+
+
 def save_checkpoint(checkpoint_dir: str, state: RunState, cfg_hash: str) -> str:
     """Write a JSON checkpoint of the run. Returns the file path."""
     out_dir = Path(checkpoint_dir) / state.question.run_id
@@ -228,6 +389,11 @@ def save_checkpoint(checkpoint_dir: str, state: RunState, cfg_hash: str) -> str:
         "solution_report": (
             _solution_report_to_dict(state.solution_report)
             if state.solution_report
+            else None
+        ),
+        "specification": (
+            _specification_to_dict(state.specification)
+            if state.specification
             else None
         ),
         "claims": [_claim_to_dict(c) for c in state.claims],

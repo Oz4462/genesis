@@ -10,3 +10,14 @@ phase_alpha:
     verifier:  "gpt-4o"          # skeptic  (MUST differ from generator family)
     judge:     null              # optional second judge on dissent
   search_backends: [semantic_scholar]
+
+# Phase γ — specification (PHASE_GAMMA.md §8). Inherits α/β discipline.
+phase_gamma:
+  confidence_threshold: 0.7      # τ for VERIFIED grounding (like α/β)
+  max_refine_rounds: 3           # anti-infinite-loop
+  derivation_tolerance: 1.0e-9   # relative tolerance for gate recompute (C-6/C-13)
+  require_grounded_approach: true # β chain: spec only on a grounded approach
+  models:
+    generator: "claude-opus-4-8" # scout, scholar, synthesizer, architect
+    verifier:  "gpt-4o"          # skeptic (MUST differ from generator family)
+    judge:     null

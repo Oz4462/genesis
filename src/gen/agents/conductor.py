@@ -11,11 +11,12 @@ the refine loop is a bounded safety net, not the normal path.
 from __future__ import annotations
 
 from ..core.interfaces import Agent
-from ..core.state import Question, Report, RunState, SolutionReport, SubQuestion
+from ..core.state import Question, Report, RunState, SolutionReport, Specification, SubQuestion
 from ..llm.base import LLMClient
 from ..llm.parsing import extract_json
 from ..core.state import ClaimStatus
-from ..verification.gates import gate_alpha, gate_beta
+from ..verification.derivation import DEFAULT_TOLERANCE
+from ..verification.gates import gate_alpha, gate_beta, gate_gamma
 
 
 class Conductor:
@@ -30,17 +31,21 @@ class Conductor:
         skeptic: Agent,
         *,
         synthesizer: Agent | None = None,
+        architect: Agent | None = None,
         llm: LLMClient | None = None,
         confidence_threshold: float = 0.7,
         max_refine_rounds: int = 3,
+        derivation_tolerance: float = DEFAULT_TOLERANCE,
     ) -> None:
         self._scout = scout
         self._scholar = scholar
         self._skeptic = skeptic
         self._synthesizer = synthesizer
+        self._architect = architect
         self._llm = llm
         self._tau = confidence_threshold
         self._max_refine_rounds = max_refine_rounds
+        self._derivation_tolerance = derivation_tolerance
 
     async def run(self, state: RunState) -> RunState:
         if not state.sub_questions:
@@ -187,3 +192,71 @@ class Conductor:
             gaps=gaps,
             claim_ids_used=claim_ids_used,
         )
+
+    # --- Phase γ: specification ---------------------------------------------------
+
+    async def run_specification(self, state: RunState) -> RunState:
+        """Phase γ: research -> solution space -> Specification, gated by GATE γ.
+
+        Reuses the proven α research loop (scout/scholar/skeptic) and the proven
+        β structuring step (synthesizer) to obtain verified claims and grounded
+        approaches, then the `architect` structures them into a complete build
+        specification. The architect asserts only what survives its own GATE γ
+        self-check, so the result passes the conductor's gate by construction;
+        the refine loop is a bounded safety net. The conductor still invents
+        nothing — the specification references only ledger claim_ids and a
+        grounded approach of this run.
+        """
+        if self._synthesizer is None or self._architect is None:
+            raise ValueError(
+                "run_specification requires synthesizer and architect agents (Phase γ)."
+            )
+        if not state.sub_questions:
+            state.sub_questions = await self._decompose(state.question)
+
+        rounds = 0
+        while True:
+            await self._scout.run(state)
+            await self._scholar.run(state)
+            await self._skeptic.run(state)
+            await self._synthesizer.run(state)
+            await self._architect.run(state)
+            state.specification = self._normalize_specification(state)
+
+            result = gate_gamma(
+                state,
+                confidence_threshold=self._tau,
+                derivation_tolerance=self._derivation_tolerance,
+            )
+            state.log.append(
+                f"conductor: gate gamma round={rounds} passed={result.passed} "
+                f"components={len(state.specification.components)} "
+                f"steps={len(state.specification.steps)} "
+                f"failures={len(result.failures)}"
+            )
+            if result.passed or rounds >= self._max_refine_rounds:
+                break
+            rounds += 1
+            state.refine_round = rounds
+        return state
+
+    def _normalize_specification(self, state: RunState) -> Specification:
+        """Backstop normalization: a run always ends with an honest Specification.
+
+        The architect owns `state.specification`; this only covers the
+        must-not-happen case of a missing one, and guarantees that an empty
+        specification carries an explicit gap (abstention is always explained,
+        never silent).
+        """
+        spec = state.specification
+        if spec is None:
+            spec = Specification(
+                run_id=state.question.run_id,
+                idea=state.question.raw,
+                gaps=["No specification was assembled for this idea."],
+            )
+        if not spec.components and not spec.steps and not spec.gaps:
+            spec.gaps.append(
+                "No specification content could be grounded for this idea."
+            )
+        return spec

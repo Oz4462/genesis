@@ -50,9 +50,27 @@ class PhaseBetaConfig:
 
 
 @dataclass(frozen=True)
+class PhaseGammaConfig:
+    """Phase γ (specification). Inherits α/β thresholds, adds γ specifics.
+
+    `derivation_tolerance` is the relative tolerance for the gate's independent
+    recompute of DERIVED values (C-6) and for eq-constraints (C-13).
+    `require_grounded_approach` keeps the β chain hard: a specification that
+    asserts content must be anchored in a grounded Approach (PHASE_GAMMA.md §8).
+    """
+
+    confidence_threshold: float = 0.7
+    max_refine_rounds: int = 3
+    derivation_tolerance: float = 1e-9
+    require_grounded_approach: bool = True
+    models: Models = field(default_factory=Models)
+
+
+@dataclass(frozen=True)
 class Config:
     phase_alpha: PhaseAlphaConfig = field(default_factory=PhaseAlphaConfig)
     phase_beta: PhaseBetaConfig = field(default_factory=PhaseBetaConfig)
+    phase_gamma: PhaseGammaConfig = field(default_factory=PhaseGammaConfig)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -71,9 +89,15 @@ class Config:
         b_fields = {**asdict(PhaseBetaConfig()), **{k: v for k, v in pb.items() if k != "models"}}
         b_fields["models"] = b_models
 
+        pg = data.get("phase_gamma", {})
+        g_models = Models(**{**asdict(Models()), **(pg.get("models") or {})})
+        g_fields = {**asdict(PhaseGammaConfig()), **{k: v for k, v in pg.items() if k != "models"}}
+        g_fields["models"] = g_models
+
         return Config(
             phase_alpha=PhaseAlphaConfig(**a_fields),
             phase_beta=PhaseBetaConfig(**b_fields),
+            phase_gamma=PhaseGammaConfig(**g_fields),
         )
 
 

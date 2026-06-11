@@ -1,6 +1,6 @@
 # CLAUDE.md — GENESIS (operativ)
 
-> Dies ist die **operative** Arbeitsanweisung für Claude Code. Die Vision/Architektur steht in `docs/VISION.md`. Die aktuell zu bauende Stufe steht in `docs/phases/PHASE_ALPHA.md`. **Bei Konflikt gewinnen die Kernprinzipien unten.**
+> Dies ist die **operative** Arbeitsanweisung für Claude Code. Die Vision/Architektur steht in `docs/VISION.md`. Die aktuell zu bauende Stufe steht in `docs/phases/` (α, β, γ: fertig + RESULT; nächste Stufe: δ). **Bei Konflikt gewinnen die Kernprinzipien unten.**
 
 ## Was GENESIS ist (in einem Satz)
 Ein Mensch liefert ein Problem oder eine Idee; GENESIS recherchiert, verifiziert, synthetisiert, detailliert, simuliert und liefert eine umsetzbare Spezifikation — **ohne Halluzination**.
@@ -44,5 +44,9 @@ tests/                    Tests, inkl. Gate-Akzeptanztests
 ```
 
 ## Aktueller Fokus
-**Phase α** — Anti-Halluzinations-Fundament. Siehe `docs/phases/PHASE_ALPHA.md`.
-Ziel: Problem rein → verifizierter Recherche-Bericht raus, in dem **keine** unbelegte faktische Behauptung steht. Alles andere kommt später.
+**Phase α + β + γ abgeschlossen** (232 Tests offline, α/β zusätzlich live bewiesen).
+γ: Idee → vollständige Spezifikation (Quantities mit Herkunftszwang, CSG-Geometrie,
+BOM, Schritte mit Checks, Constraints, Entscheidungsblatt) hinter GATE γ —
+fünf Halluzinationsklassen strukturell verhindert (`docs/phases/PHASE_GAMMA.md` §0).
+Nächste ehrliche Schritte: γ-Live-Beweis (`--mode spec` gegen Ollama),
+CAD-Export-Adapter (CSG → OpenSCAD/build123d), danach Phase δ (Simulation).
