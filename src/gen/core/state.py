@@ -197,6 +197,12 @@ class Quantity:
     `value`     numeric only; non-numeric choices are `Decision`s, non-numeric
                 facts stay Claims.
     `unit`      non-empty; "1" for dimensionless (GATE γ C-12).
+    `measurand` optional DECLARED key naming the physical quantity this measures
+                (e.g. "led_strip.voltage"). Two quantities sharing a measurand
+                must agree (same dimension, same value after unit conversion) —
+                GATE γ C-17 proves they cannot contradict. The link is declared,
+                not inferred: GENESIS makes the cross-claim structure explicit
+                rather than guessing it with language understanding.
     """
 
     id: str
@@ -207,6 +213,7 @@ class Quantity:
     grounding: list[str] = field(default_factory=list)
     derivation: Derivation | None = None
     rationale: str = ""
+    measurand: str | None = None
     produced_by: str = ""
     model: str = ""
     created_at: datetime = field(default_factory=_now)
@@ -220,6 +227,11 @@ class Quantity:
 
         if isinstance(self.value, bool) or not isinstance(self.value, (int, float)):
             raise InvalidDerivationError(self.id, "value must be numeric (int|float)")
+
+        if self.measurand is not None and not self.measurand.strip():
+            raise InvalidDerivationError(
+                self.id, "measurand, if set, must be a non-empty key"
+            )
 
         if self.origin is ValueOrigin.GROUNDED:
             if not self.grounding:

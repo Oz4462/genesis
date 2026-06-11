@@ -327,6 +327,7 @@ def specification_from_dict(d: dict):
             derivation=Derivation(formula=deriv["formula"], inputs=tuple(deriv["inputs"]))
             if deriv else None,
             rationale=q.get("rationale", ""),
+            measurand=q.get("measurand"),
         )
 
     def _decision(x):
@@ -408,6 +409,7 @@ def _specification_to_dict(spec: Specification) -> dict:
                     else None
                 ),
                 "rationale": q.rationale,
+                "measurand": q.measurand,
             }
             for q in spec.quantities
         ],

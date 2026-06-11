@@ -40,7 +40,7 @@ from .derivation import (
     within_tolerance,
 )
 from .geometry import aabb_of, overlaps
-from .units import Dimension, formula_dimension, parse_unit
+from .units import Dimension, formula_dimension, parse_unit, unit_scale
 
 
 def claim_soundness_failures(
@@ -583,6 +583,10 @@ def gate_gamma(
                    "q_t >= 0.1 * q_w" or "q_t > 0"),
                    C-15 DIMENSION_MISMATCH (derivations are dimensionally
                    homogeneous; the Mars-Climate-Orbiter guard, Kennedy 2009)
+      Konsistenz   C-17 CROSS_CLAIM_CONFLICT (two quantities tagged with the same
+                   declared `measurand` must agree — same dimension and same value
+                   after unit conversion; a deterministic contradiction-between-
+                   accepted-facts guard, no language understanding)
       β-Kette      C-14 SPEC_NOT_ANCHORED
 
     Abstention (nothing groundable -> empty specification + explicit gaps)
@@ -1128,6 +1132,85 @@ def gate_gamma(
                     ),
                 )
             )
+
+    # --- Cross-claim consistency: C-17 over measurand groups ----------------------
+    # Two quantities tagged with the same `measurand` claim to measure the SAME
+    # physical quantity, so they must agree: same dimension AND the same value
+    # after unit conversion. This deterministically catches a contradiction
+    # between two accepted, claim-grounded facts — e.g. one grounding claim says
+    # the strip runs at 12 V, another (cited elsewhere) says 24 V. The LINK is
+    # declared (the measurand tag, made explicit by the architect), the CONFLICT
+    # is pure arithmetic + dimensions — no language understanding, no false
+    # positive (a conflict is only raised when the values are provably unequal).
+    measurand_groups: dict[str, list[Quantity]] = {}
+    for q in quantities.values():
+        if q.measurand and q.measurand.strip():
+            measurand_groups.setdefault(q.measurand.strip(), []).append(q)
+    for key, members in sorted(measurand_groups.items()):
+        if len(members) < 2:
+            continue
+        # (a) dimension agreement — measuring one quantity in incompatible
+        #     dimensions (V vs mm) is itself a contradiction.
+        dims = {m.id: _dim_of_unit(m.unit) for m in members}
+        if any(d is None for d in dims.values()):
+            failures.append(
+                GateFailure(
+                    code="CROSS_CLAIM_CONFLICT",
+                    detail=(
+                        f"measurand {key!r} references a quantity with an "
+                        "unparseable unit — cannot prove consistency."
+                    ),
+                )
+            )
+            continue
+        if len({d for d in dims.values()}) > 1:
+            shown = ", ".join(
+                f"{m.id}={(d.render() if d else '?')}"
+                for m, d in ((m, dims[m.id]) for m in members)
+            )
+            failures.append(
+                GateFailure(
+                    code="CROSS_CLAIM_CONFLICT",
+                    detail=(
+                        f"measurand {key!r} is measured in incompatible dimensions "
+                        f"({shown}) — these claim-grounded facts contradict."
+                    ),
+                )
+            )
+            continue
+        # (b) value agreement after unit conversion to the SI base of the shared
+        #     dimension. Unknown/opaque units (no sound scale) fall back to a raw
+        #     compare only when the unit strings are identical — otherwise GENESIS
+        #     abstains rather than risk a false positive.
+        normalized: dict[str, float] = {}
+        scale_unknown = False
+        for m in members:
+            try:
+                s = unit_scale(m.unit)
+            except UnitError:
+                s = None
+            if s is None:
+                scale_unknown = True
+                break
+            normalized[m.id] = float(m.value) * s
+        if scale_unknown:
+            if len({m.unit.strip() for m in members}) != 1:
+                continue  # cannot normalize across differing opaque units — abstain
+            normalized = {m.id: float(m.value) for m in members}
+        ref = members[0]
+        ref_val = normalized[ref.id]
+        for m in members[1:]:
+            if not within_tolerance(ref_val, normalized[m.id], tolerance=derivation_tolerance):
+                failures.append(
+                    GateFailure(
+                        code="CROSS_CLAIM_CONFLICT",
+                        detail=(
+                            f"measurand {key!r}: {m.id!r} = {m.value:g} {m.unit} "
+                            f"contradicts {ref.id!r} = {ref.value:g} {ref.unit} — two "
+                            "claim-grounded values for the same quantity disagree."
+                        ),
+                    )
+                )
 
     # --- β-Kette: C-14 anchoring ----------------------------------------------------
     asserts_content = bool(spec.components or spec.steps)
