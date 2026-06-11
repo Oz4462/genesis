@@ -1407,6 +1407,42 @@ LongWiki/PreciseQA/Nonsense); *Trust but Verify — Survey on Verification Desig
 
 ---
 
+## 42. Verify→Refine-Loop — die Gate-Failure-Rückkopplung geschlossen (`refinement.py`)
+
+Ein Gate ist ein **Prüfer**: PASS, oder FAIL mit Gründen. Der SOTA-Befund (Self-Refine;
+ReVeal; *„LLMs are better at verifying than generating"*) ist, dass der Wert daraus kommt,
+**jeden Fehler in gezieltes Feedback** zu verwandeln, das eine Re-Generierung treibt —
+**beschränkt**, damit der Loop nicht ewig oszilliert. Dieses Modul ist genau dieser
+Controller: die deterministische Schleife um **jedes** Gate, mit dem eigentlichen
+Re-Generate-Schritt **pluggbar** (dort steckt im echten Lauf der Generator/Conductor).
+
+Es trägt GENESIS' Ehrlichkeit in den Loop: jeder `GateFailure` wird via deklarierter Tabelle
+zu einer `RefinementDirective` (Code → was zu ändern ist; unbekannter Code → generische
+Direktive mit dem Gate-Detail, **kein** erfundener Fix). Der Loop ist **bounded**
+(`max_rounds=5`, die Anti-Oszillations-Kappe der Literatur) und erkennt **No-Progress**:
+hinterlässt eine Runde die **identische** Fehler-Signatur, stoppt der Loop mit `stuck=True`.
+Er meldet **nie** eine Konvergenz, die er nicht erreicht hat — ein erschöpfter oder
+festsitzender Loop liefert `converged=False` **mit den Rest-Fehlern**, das Loop-Pendant zur
+ehrlichen Abstention.
+
+**Verifiziert** (8 Tests, offline, kein LLM): mit einem scripted Regenerator
+**konvergiert** der Loop auf einem fixbaren Defekt (überspannte Welle `d=5 mm`, Fixer
+`+5 mm/Runde` → `d 5→10→15`, passt in **2 Runden**); ein **No-Op**-Regenerator → `stuck=True`,
+`converged=False`, Rest-Fehler `PHYSICS_CHECK_FAILED` (nie Fake-Erfolg); ein zu langsamer
+Regenerator (`+0.5/Runde`) **erschöpft** das Budget ehrlich (`converged=False, stuck=False`,
+5 Runden); Direktiven mappen Codes→Instruktionen; unbekannter Code trägt das Detail.
+
+**Ehrliche Grenze:** der `regenerate(state, directives) → state`-Callable ist der
+**aufgeschobene** Live-Teil (Conductor/Agenten re-recherchieren/re-derivieren); dieses Modul
+ist das deterministische, offline-testbare Harness **um** ihn — bewiesen mit einem scripted
+Fixer, ohne Live-Modell. Modul `refinement.py`, getestet in `tests/test_refinement.py`.
+
+**Quelle:** Self-Refine (Madaan et al. 2023); ReVeal — Self-Verifying Code Agents (arXiv
+2506.11442); CoVerRL — Generator-Verifier-Co-Evolution (arXiv 2603.17775); Anti-Oszillations-
+Kappe ~5–6 Runden (Verification-Loop-Praxis).
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
