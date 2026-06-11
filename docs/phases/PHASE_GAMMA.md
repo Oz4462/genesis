@@ -454,6 +454,16 @@ phase_gamma:
   `test_gate_invents_no_tolerance`). Ein Wellendurchmesser kann an einen
   VERIFIED-Fakt verankert sein (M4 = 4 mm), das Spiel als DECISION.
 
+**Erledigt — dritter Export (ASCII STL, ehrlich begrenzt):**
+- `export/stl.py` exportiert ein Dreiecksnetz der **meshbaren** Primitive (Box
+  exakt, 12 Dreiecke; Zylinder/Kugel deterministisch tesselliert = faceted
+  *Approximation*, ehrlich benannt; translate verschiebt). Normalen über
+  Rechte-Hand-Regel + Outward-Orientierung. STL-Grammatik aus der Format-Spec
+  belegt. **CSG-Booleans (difference/union/intersection) werden NICHT
+  mesh-evaluiert** — ein korrekter Boolean-Mesh braucht einen Mesh-Boolean-Kernel;
+  GENESIS gibt `ExportError` mit Verweis auf `--format scad`/`b123d` (echter
+  Kernel CGAL/OCCT) statt eine falsche Geometrie. CLI: `--format stl`.
+
 **Erledigt — zweiter CAD-Adapter (build123d):**
 - `export/build123d.py` rendert dieselbe CSG-Geometrie als build123d-Python
   (Algebra-Modus: `Box(l,w,h)`, `Cylinder(r,h)`, `Sphere(r)`, `+`/`-`/`&` für

@@ -946,3 +946,31 @@ kein neuer Motor (transparent statt erfundene Novelty).
 — Passungen werden auf Quantities deklariert, nicht aus der Geometrie über mehrere
 Teile gemessen (bräuchte ein Assembly-/Positionsmodell). **335 passed.**
 
+## STL-Mesh-Export (Modul 3 von 3) — ehrlich begrenzt (keine Mesh-Booleans)  ✅
+
+**Gebaut:** `export/stl.py` — ASCII-STL-Mesh der meshbaren Primitive: Box **exakt**
+(12 Dreiecke), Zylinder/Kugel deterministisch **tesselliert** (faceted
+Approximation, ehrlich benannt), translate verschiebt. Normalen via
+Rechte-Hand-Regel + robuste Outward-Orientierung (Normal·Zentroid ≥ 0 für
+zentrierte konvexe Primitive). STL-Grammatik aus der Format-Spec belegt.
+**Kern-Ehrlichkeit:** CSG-Booleans (difference/union/intersection) werden **nicht**
+mesh-evaluiert — `ExportError` mit Verweis auf `--format scad`/`b123d` (echter
+Kernel CGAL/OCCT) statt eine falsche Geometrie (Box-mit-Zylinder-daneben wäre eine
+geometrische Halluzination). CLI `--format stl`; Demo (Boolean) gibt die ehrliche
+Meldung statt eines falschen Netzes.
+
+**Selbstkontrolle:**
+- [x] Research: STL-ASCII-Format (Wikipedia STL-Spec). Tesselation als
+      Approximation deklariert.
+- [x] Tests grün? **344 passed** (335 + 9: Box 12 Dreiecke + Achsen-Normalen +
+      zentriert, Zylinder 4·n, Kugel-Punkte auf Oberfläche, translate-shift,
+      Boolean→ExportError, Spec-Pointer, meshbare-Emit, unknown→raise), offline.
+- [x] Drift? Geometrie-Vokabular Single-Source in state.py; STL eigener Resolver
+      konsistent mit openscad/build123d-Muster.
+- [x] Halluzination? Booleans nie gefälscht; Tesselation ehrlich als Approximation;
+      Box exakt. Float-Präzision `.9g` (Mesh-Fidelity).
+- [x] Doku? PHASE_GAMMA §10, README, dieser Eintrag.
+
+**Gesamtstand:** **344 passed** (offline). Drei deterministische Geometrie-Exporte
+(OpenSCAD, build123d, STL), jeder ehrlich über seine Grenze. Kein Live-Run.
+

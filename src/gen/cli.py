@@ -34,6 +34,7 @@ from .llm.ollama import OllamaLLM
 from .ledger.store import InMemoryLedgerStore
 from .export.build123d import specification_to_build123d
 from .export.openscad import specification_to_openscad
+from .export.stl import specification_to_stl
 from .runner import Dependencies, run, run_solution, run_specification
 from .tools.http import HttpResponse, default_http_get
 from .tools.search import SemanticScholarBackend, WikipediaBackend
@@ -540,6 +541,12 @@ def render_spec(spec: Specification, fmt: str) -> str:
         return specification_to_openscad(spec)
     if fmt == "b123d":
         return specification_to_build123d(spec)
+    if fmt == "stl":
+        try:
+            return specification_to_stl(spec)
+        except GenesisError as exc:
+            # honest: a CSG-boolean part is not mesh-evaluated here
+            return f"# STL export unavailable: {exc}"
     return format_specification(spec)
 
 
@@ -565,9 +572,10 @@ def main(argv: list[str] | None = None) -> int:
              "spec = Phase γ build specification (default: report)",
     )
     parser.add_argument(
-        "--format", choices=("text", "scad", "b123d"), default="text",
+        "--format", choices=("text", "scad", "b123d", "stl"), default="text",
         help="spec mode only: 'text' = human-readable instruction (default); "
-             "'scad' = OpenSCAD source; 'b123d' = build123d Python of the CSG geometry",
+             "'scad' = OpenSCAD source; 'b123d' = build123d Python; "
+             "'stl' = ASCII STL mesh of meshable primitives (booleans deferred to scad/b123d)",
     )
     parser.add_argument("--checkpoint-dir", default=None, help="write a run checkpoint here")
     parser.add_argument(

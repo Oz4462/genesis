@@ -18,7 +18,7 @@ Die vollständige α-Pipeline (Anti-Halluzination), der β-Lösungsraum und die 
 
 ```
 $ python -m pytest tests/ -q
-329 passed
+344 passed
 ```
 
 Alle Tests laufen **ohne einen einzigen LLM-Token und ohne Netzwerk**. Das heißt: Die Garantie „kein Fakt ohne Quelle, keine widerlegte Aussage als Tatsache, Lücken werden als Lücken markiert, im Zweifel Abstention" ist **bewiesen** — und von einem unabhängigen, adversarialen Audit bestätigt (Details: `docs/phases/PHASE_ALPHA_RESULT.md`).
@@ -28,6 +28,7 @@ $ python -m gen --demo                       # deterministischer α-Lauf, offlin
 $ python -m gen --demo --mode spec           # deterministische γ-Bauanleitung, offline
 $ python -m gen --demo --mode spec --format scad  # CSG-Geometrie als OpenSCAD-Quelltext
 $ python -m gen --demo --mode spec --format b123d # CSG-Geometrie als build123d-Python
+$ python -m gen --demo --mode spec --format stl   # STL-Mesh (Primitive; Booleans -> scad/b123d)
 $ python -m gen "Frage..."                   # Live-α: lokale Ollama-Modelle + Wikipedia
 $ python -m gen --mode spec "Idee..."        # Live-γ: Idee -> belegte Spezifikation
 ```
@@ -76,6 +77,7 @@ src/gen/
   verification/cross_model.py   Cross-Model-Pflicht + Confidence-Folding
   export/openscad.py            CSG-Geometrie -> OpenSCAD-Quelltext (deterministisch, traceable, zentriert)
   export/build123d.py           CSG-Geometrie -> build123d-Python (Algebra-Modus, OCCT)
+  export/stl.py                 CSG-Primitive -> ASCII-STL-Mesh (Booleans ehrlich deferred)
   config.py / runner.py / cli.py  Konfiguration, run(question)->Report, `python -m gen`
 sql/001_ledger.sql              Fakten-Ledger; Quellenzwang als DB-Constraint
 tests/                          102 Tests, inkl. Gate-Akzeptanz & 4 Frageklassen

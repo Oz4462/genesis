@@ -8,18 +8,25 @@ faithfully render raises ``ExportError`` rather than emitting a guessed number.
               carries the originating quantity id as a comment).
   build123d — the same geometry as build123d (algebra-mode) Python on the OCCT
               kernel; per-component traceability comment.
+  stl       — an ASCII STL triangle mesh of the MESHABLE primitives (box exact;
+              cylinder/sphere tessellated); CSG booleans are not mesh-evaluated
+              (raises, pointing to openscad/build123d) — never a wrong mesh.
 
-Both back-ends resolve numbers from the same source (numfmt) so they never drift.
+The text back-ends resolve numbers from the same source (numfmt) so they never
+drift.
 """
 
 from __future__ import annotations
 
 from .build123d import component_to_build123d, specification_to_build123d
 from .openscad import component_to_openscad, specification_to_openscad
+from .stl import component_to_stl, specification_to_stl
 
 __all__ = [
     "specification_to_openscad",
     "component_to_openscad",
     "specification_to_build123d",
     "component_to_build123d",
+    "specification_to_stl",
+    "component_to_stl",
 ]
