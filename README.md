@@ -16,9 +16,11 @@ Die vollständige α-Pipeline (Anti-Halluzination), der β-Lösungsraum und die 
 
 **Phase δ (erste Schicht):** „validieren vor dem Bauen", aber nur was **deterministisch beweisbar** ist — keine erfundene Physik. GATE δ prüft die CSG-Geometrie über achsenparallele Bounding-Boxes: ein Loch, das das Teil verfehlt (`DEAD_OPERATION`), ein Schnitt nicht-berührender Teile (`EMPTY_INTERSECTION`), degenerierte Geometrie (`DEGENERATE_GEOMETRY`). Ehrliche Asymmetrie: ein **bestandenes** δ ist notwendig, nicht hinreichend (kein Festigkeits-/Herstellbarkeitsurteil); ein **gescheitertes** δ heißt „definitiv kaputt". Die Demo zeigt die Hüllbox + Status.
 
+**γ-Tiefe (Spezifikation bis zum letzten Detail):** claim-belegtes **Sourcing** (kein erfundener Shop/Preis), **Fastener→Loch** (ISO-273-Claim + Fit), **Komponenten-Kompatibilität** (Maß/Spannung/Strom-Constraints), getrennte **Elektronik-BOM** (V/A/W/Ω/Ah), **Montage-Detail** (Werkzeug/Drehmoment) + **Ort/Umgebung** (Platz-Fit in δ). Der **Capstone** (`python -m gen --mode capstone`) produziert eine komplette Spec (Mechanik + Elektronik + Beschaffung + Montage + Ort) durch **alle** Gates α/β/γ/δ — jeder faktische Wert belegt, kein erfundener Preis/Bauteil/Wert.
+
 ```
 $ python -m pytest tests/ -q
-354 passed
+382 passed
 ```
 
 Alle Tests laufen **ohne einen einzigen LLM-Token und ohne Netzwerk**. Das heißt: Die Garantie „kein Fakt ohne Quelle, keine widerlegte Aussage als Tatsache, Lücken werden als Lücken markiert, im Zweifel Abstention" ist **bewiesen** — und von einem unabhängigen, adversarialen Audit bestätigt (Details: `docs/phases/PHASE_ALPHA_RESULT.md`).

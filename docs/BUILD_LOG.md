@@ -1012,3 +1012,39 @@ gescripteten Claims bewiesen; ohne Claim abstrahiert GENESIS ehrlich.
 Elektronik-Domäne (E-BOM + elektrische Einheiten), Montage-Detail (Werkzeug/
 Drehmoment) + Ort/Umgebung, End-to-End-Capstone durch α/β/γ/δ. **354 passed.**
 
+## γ-DEPTH — Module 2–6 KOMPLETT (Fastener/Kompatibilität/Elektronik/Montage+Ort/Capstone)  ✅
+
+**Modul 2 (`e1e19cc`) — Fastener→Loch:** belegte ISO-273-Referenz (Loch-Wert wörtlich
+im Claim), Loch-Typ als DECISION, Fit als Constraint; erfundener Bohrdurchmesser →
+`VALUE_NOT_IN_GROUNDING`. `test_fasteners.py` (4).
+**Modul 3 (`e1e19cc`) — Kompatibilität:** `eq`/`ge`-Constraints zwischen grounded
+Quantities (Welle==Lager, V==V, A≥A); Mismatch gefangen; keine erfundene
+Kompatibilität. `test_compatibility.py` (6).
+**Modul 4 (`e1e19cc`) — Elektronik-Domäne (echtes Modell):** elektrische Einheiten
+V/ohm/Ω/Ah/Wh + Skalen in `units.py`; `BomDomain` MECHANICAL/ELECTRONIC → getrennte
+BOM-Sektionen; gleiche Sourcing-/Grounding-Regeln. `test_electronics.py` (4).
+**Modul 5 (`da62f97`) — Montage + Ort:** `Step.tool`/`torque_quantity_id`;
+`SiteRequirements` (available_space + Decisions); GATE δ Box-in-Box-Fit
+(`SITE_SPACE_EXCEEDED`, achsenparallel, konservativ); GATE γ löst Torque/Space auf +
+validiert Site-Decisions. `test_assembly_site.py` (8).
+**Modul 6 (dieser Commit) — Capstone:** `gen/demo.py` `capstone_spec/state` (Single
+Source für CLI-Demo + Test). Wand-LED-Regalhalter: Mechanik (Geometrie+Masse) +
+Elektronik (E-BOM 12 V/1,5 A) + Sourcing (McMaster, 0,42 EUR, claim-belegt) +
+Fastener-Fit + Montage (Werkzeug/Drehmoment) + Ort (200³-Platz). `python -m gen
+--mode capstone` → **Gate γ PASS, Gate δ PASS** (Volumen 28704,6 mm³ + Masse 35,6 g
+exakt). `test_capstone.py` (6): α-Claims VERIFIED, β verankert, γ PASS, δ PASS,
+Render-Vollständigkeit, **Claim-entfernt→Detail-bricht**.
+
+**Selbstkontrolle:**
+- [x] Tests grün? **382 passed** (354 → 382, +28: 4+6+4+8+6), offline, 0.89 s; compileall rc=0.
+- [x] Drift? Capstone-Spec Single-Source in `gen/demo.py`; BomDomain/Site/Step durch
+      state/architect/runner/cli/gates; elektrische Einheiten in der einen Registry.
+- [x] Halluzination? Durchgängige sourced-or-gap-Invariante end-to-end bewiesen —
+      Claim-entfernt-bricht-Detail; kein erfundener Shop/Preis/Bauteil/Wert.
+- [x] Doku? PHASE_GAMMA_DEPTH §2–6, README, dieser Eintrag.
+
+**Gesamtstand:** **382 passed** (offline). Die γ-Depth-Roadmap (6/6) ist komplett:
+Sourcing + Fastener + Kompatibilität + Elektronik + Montage/Ort + Capstone, alle
+unter „belegter Claim oder deklariert/nachgerechnet, sonst ehrliche Lücke". Reale
+Daten = Live-α-Recherche (Owner-Vorgabe pausiert). Kein Live-Run.
+

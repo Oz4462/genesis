@@ -606,9 +606,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("question", nargs="?", help="the research question / problem / idea")
     parser.add_argument("--demo", action="store_true", help="run the offline deterministic demo")
     parser.add_argument(
-        "--mode", choices=("report", "solution", "spec"), default="report",
+        "--mode", choices=("report", "solution", "spec", "capstone"), default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
-             "spec = Phase γ build specification (default: report)",
+             "spec = Phase γ build specification; capstone = a complete, fully "
+             "detailed γ-depth spec through all gates (demo-only) (default: report)",
     )
     parser.add_argument(
         "--format", choices=("text", "scad", "b123d", "stl"), default="text",
@@ -626,6 +627,21 @@ def main(argv: list[str] | None = None) -> int:
         help="Ollama model for skeptic — MUST be a different family (default: gemma4:latest)",
     )
     args = parser.parse_args(argv)
+
+    if args.mode == "capstone":
+        # A complete, fully detailed γ-depth specification through all gates.
+        # Demo-only: it is built from a scripted claim world (live α-research
+        # supplies real data later, without code change).
+        from .demo import capstone_spec, capstone_state
+        from .verification.gates import gate_gamma
+
+        state = capstone_state()
+        print(format_specification(capstone_spec()))
+        ga = gate_gamma(state)
+        gd = gate_delta(state)
+        print(f"Gate γ: {'PASS' if ga.passed else 'FAIL'} ({len(ga.failures)} failures)")
+        print(f"Gate δ: {'PASS' if gd.passed else 'FAIL'} ({len(gd.failures)} failures)")
+        return 0 if (ga.passed and gd.passed) else 3
 
     if args.demo:
         if args.mode == "report":

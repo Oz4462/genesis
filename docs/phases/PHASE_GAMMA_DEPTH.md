@@ -88,11 +88,17 @@ Platz-passt, zu-groß-gefangen, Orientierung, Bedarfe validiert, Platz-dangling,
 CLI-Render. **Ehrliche Grenze:** der Box-in-Box-Fit ist konservativ (keine
 Diagonal-Rotation) — sagt nie fälschlich „passt".
 
-### 6. Finaler End-to-End-Lauf (Capstone)
-Eine echte Idee → vollständige Spezifikation mit **Mechanik + Elektronik +
-Beschaffung + Montage + Ort**, durch **alle** Gates α/β/γ/δ. Scripted-world-
-Akzeptanztest, der die durchgängige sourced-or-gap-Invariante end-to-end beweist;
-CLI-Demo. Reale Daten folgen mit Live-α-Recherche.
+### 6. Finaler End-to-End-Lauf (Capstone) ✅
+Eine echte Idee (Wand-LED-Regalhalter) → **vollständige** Spezifikation mit
+**Mechanik + Elektronik + Beschaffung + Montage + Ort**, durch **alle** Gates
+α/β/γ/δ. `gen/demo.py` `capstone_spec()`/`capstone_state()` ist die **eine** Quelle
+für die CLI-Demo (`python -m gen --mode capstone`) **und** den Akzeptanztest
+(`test_capstone.py`, 6) — was demonstriert wird, ist exakt was verifiziert wird.
+**Bewiesen:** α (alle 8 Claims VERIFIED), β (verankert), **Gate γ PASS**, **Gate δ
+PASS** (Geometrie sound, passt in 200³-Platz, Volumen 28704,6 mm³ + Masse 35,6 g
+exakt). Kern-Invariante getestet: ein entfernter Claim bricht das abhängige Detail
+(`test_removing_a_claim_breaks_the_dependent_detail`) — kein erfundener Preis/
+Bauteil/Wert überlebt. Reale Daten folgen mit Live-α-Recherche, ohne Code-Änderung.
 
 ---
 
