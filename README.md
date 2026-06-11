@@ -16,11 +16,13 @@ Die vollständige α-Pipeline (Anti-Halluzination), der β-Lösungsraum und die 
 
 **Phase δ (erste Schicht):** „validieren vor dem Bauen", aber nur was **deterministisch beweisbar** ist — keine erfundene Physik. GATE δ prüft die CSG-Geometrie über achsenparallele Bounding-Boxes: ein Loch, das das Teil verfehlt (`DEAD_OPERATION`), ein Schnitt nicht-berührender Teile (`EMPTY_INTERSECTION`), degenerierte Geometrie (`DEGENERATE_GEOMETRY`). Ehrliche Asymmetrie: ein **bestandenes** δ ist notwendig, nicht hinreichend (kein Festigkeits-/Herstellbarkeitsurteil); ein **gescheitertes** δ heißt „definitiv kaputt". Die Demo zeigt die Hüllbox + Status.
 
+**Phase δ (zweite Schicht — deterministische Statik, ohne neuen Gate-Code):** Der Capstone beantwortet die erste echte Physik-Frage — *„hält der Halter die belegten 12 kg?"* — komplett in der bestehenden γ-Maschinerie: `g` und Materialfestigkeit als **GROUNDED**-Werte (Zahl wörtlich aus einem Claim), Gewicht `F=m·g` und Kragträger-Biegespannung `σ=6·F·L/(b·h²)` als **DERIVED**-Werte (Code rechnet, GATE γ rechnet nach, C-6), σ dimensional als Druck verifiziert (C-15), Urteil `σ ≤ Festigkeit` als numerischer Constraint (C-13). Kein neues Gate, keine neue Halluzinationsfläche: ein erfundener Festigkeitswert scheitert an C-4, eine Überlast an C-13. Ehrliche Asymmetrie wie die Geometrie-Schicht: der σ-Check ist **notwendig, nicht hinreichend** (idealisiertes Euler-Bernoulli-Modell, keine FEM/Stützkonzentration/Ermüdung) — und der Capstone deklariert diese Grenze als expliziten Gap (`docs/phases/PHASE_DELTA.md §9`).
+
 **γ-Tiefe (Spezifikation bis zum letzten Detail):** claim-belegtes **Sourcing** (kein erfundener Shop/Preis), **Fastener→Loch** (ISO-273-Claim + Fit), **Komponenten-Kompatibilität** (Maß/Spannung/Strom-Constraints), getrennte **Elektronik-BOM** (V/A/W/Ω/Ah), **Montage-Detail** (Werkzeug/Drehmoment) + **Ort/Umgebung** (Platz-Fit in δ). Der **Capstone** (`python -m gen --mode capstone`) produziert eine komplette Spec (Mechanik + Elektronik + Beschaffung + Montage + Ort) durch **alle** Gates α/β/γ/δ — jeder faktische Wert belegt, kein erfundener Preis/Bauteil/Wert.
 
 ```
 $ python -m pytest tests/ -q
-400 passed
+405 passed
 ```
 
 Alle Tests laufen **ohne einen einzigen LLM-Token und ohne Netzwerk**. Das heißt: Die Garantie „kein Fakt ohne Quelle, keine widerlegte Aussage als Tatsache, Lücken werden als Lücken markiert, im Zweifel Abstention" ist **bewiesen** — und von einem unabhängigen, adversarialen Audit bestätigt (Details: `docs/phases/PHASE_ALPHA_RESULT.md`).
@@ -84,7 +86,7 @@ src/gen/
   export/stl.py                 CSG-Primitive -> ASCII-STL-Mesh (Booleans ehrlich deferred)
   config.py / runner.py / cli.py  Konfiguration, run(question)->Report, `python -m gen`
 sql/001_ledger.sql              Fakten-Ledger; Quellenzwang als DB-Constraint
-tests/                          102 Tests, inkl. Gate-Akzeptanz & 4 Frageklassen
+tests/                          405 Tests, inkl. Gate-Akzeptanz, δ-Statik & 4 Frageklassen
 ```
 
 ## Die zentrale Idee in einer Datenstruktur

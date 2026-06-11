@@ -257,3 +257,47 @@ sind spätere δ-Schichten mit echten Modellen (FEM/CFD/Toleranzanalyse), und si
 werden, wenn gebaut, denselben Beweis-Standard tragen: nur behaupten, was belegt
 ist. Ein bestandenes δ ist eine **notwendige**, keine hinreichende Bedingung für
 eine baubare Lösung.
+
+---
+
+## 9. δ-Schicht 2 — deterministische Biegespannung (Statik), OHNE neuen Gate-Code
+
+Die zweite δ-Schicht beantwortet die erste echte **Physik**-Frage des Capstones —
+*„Hält der Halter die belegten 12 kg?"* — ohne ein erfundenes Festigkeitsurteil
+und **ohne eine einzige neue Gate-Zeile**. Der ganze Check ist in der **bestehenden
+γ-Maschinerie** ausgedrückt; das ist der Beweis, dass GENESIS' Anti-Halluzinations-
+Fundament schon trägt, was nach „Simulation" aussieht:
+
+| Element der Rechnung | Wie es in GENESIS lebt | Wächter |
+|---|---|---|
+| `g` = 9.80665 m/s² | **GROUNDED**-Quantity, Zahl wörtlich aus Claim `c_gravity` | C-1..C-4 |
+| `F = m · g` (Gewicht) | **DERIVED**-Quantity; GENESIS rechnet, GATE γ rechnet nach | C-6 |
+| `σ = 6·F·L / (b·h²)` (Biegespannung) | **DERIVED**-Quantity, gleiche Evaluator-Grammatik (`h²` = `h*h`, kein Potenz-Operator) | C-6 |
+| Dimension von `σ` = Druck (M·L⁻¹·T⁻²) | dimensionale Homogenität gegen die deklarierte Einheit `MPa` | **C-15** |
+| `strength` (Materialfestigkeit) | **GROUNDED**-Quantity, Zahl wörtlich aus Claim `c_pla` | C-1..C-4 |
+| Urteil `σ ≤ strength` | numerischer **Constraint** über Mengen-Ausdrücke | **C-13** |
+
+Kein neues Gate, keine neue Halluzinationsfläche: die fünf γ-Wächter erzwingen die
+Statik schon. Ein **erfundener** Festigkeitswert scheitert an C-4
+(`VALUE_NOT_IN_GROUNDING`), eine **dimensional falsche** σ-Formel (z. B. kg + mm)
+an C-15, eine **Überlast** an C-13 (`CONSTRAINT_VIOLATION`). Alles offline, kein
+LLM. Implementiert als reine Formel-Strings in `structural.py` (eine Quelle für
+Demo **und** Test — kein Drift), getestet in `tests/test_structural.py`.
+
+**Quelle (extern, am 2026-06-11 verifiziert):**
+- Maximale Biegespannung im Balken `σ = M·c/I`, mit Biegemoment `M = F·L` am
+  Einspannpunkt eines Kragträgers, Flächenträgheitsmoment des Rechteckquerschnitts
+  `I = b·h³/12` und Randfaserabstand `c = h/2`, woraus `σ = 6·F·L/(b·h²)` folgt —
+  Euler-Bernoulli-Balkentheorie, *Bending*
+  (https://en.wikipedia.org/wiki/Bending, „Stress in a bent beam").
+- Normfallbeschleunigung `g = 9,80665 m/s²` — 3. CGPM (1901).
+
+**Ehrliche Grenze (δ-Asymmetrie, wie die Geometrie-Schicht):** ein **bestandener**
+σ ≤ strength-Check ist **notwendig, nicht hinreichend**. Das idealisierte
+Einzellast-Euler-Bernoulli-Modell ignoriert Spannungskonzentration am
+Durchgangsloch, Schrauben-Auszug und -Abscherung, dynamische/Stoß-Lasten, Ermüdung
+und die Schicht-Anisotropie eines FDM-Drucks. Es beweist: der einfache Biegefall
+überlastet den Querschnitt **nicht**. Ein **gescheiterter** Check heißt: schon der
+einfache Fall überlastet ihn — **definitiv zu schwach**. Echte FEM bleibt eine
+spätere δ-Schicht hinter einem Adapter, unter demselben Beweis-Standard. Der
+Capstone deklariert diese Grenze auch als expliziten **Gap** (nicht behauptet).

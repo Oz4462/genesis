@@ -14,6 +14,11 @@ no code change.
 
 from __future__ import annotations
 
+from .structural import (
+    STANDARD_GRAVITY,
+    cantilever_bending_stress_formula,
+    weight_formula,
+)
 from .core.state import (
     Approach,
     BomDomain,
@@ -60,6 +65,8 @@ def capstone_claims() -> list[Claim]:
         _claim("c_src", "McMaster-Carr lists part 91290A115, an M4x16 socket head screw."),
         _claim("c_price",
                "The M4x16 socket head screw costs 0.42 EUR per piece at McMaster-Carr."),
+        _claim("c_gravity", "Standard gravity is defined as 9.80665 m/s^2."),
+        _claim("c_pla", "3D-printed PLA has a tensile strength of about 50 MPa."),
     ]
 
 
@@ -87,9 +94,12 @@ def capstone_spec() -> Specification:
         _d("q_sf", "safety factor", 2.0, "1", "conservative for static indoor load"),
         _der("q_design", "design load", 24.0, "kg", "q_load * q_sf", ("q_load", "q_sf")),
         _der("q_hole_r", "hole radius", 2.25, "mm", "q_hole_d / 2", ("q_hole_d",)),
-        _d("q_w", "bracket width", 60.0, "mm", "fits the shelf depth"),
-        _d("q_h", "bracket height", 80.0, "mm", "lever arm for the load"),
-        _d("q_t", "bracket thickness", 6.0, "mm", "printable wall thickness"),
+        _d("q_w", "bracket projection", 60.0, "mm",
+           "shelf projection depth from the wall — the load's lever arm (L)"),
+        _d("q_h", "bracket breadth", 80.0, "mm",
+           "breadth across the wall — the bending section breadth (b)"),
+        _d("q_t", "bracket thickness", 6.0, "mm",
+           "printable wall thickness — the section depth in the load direction (h)"),
         _d("q_density", "PLA density", 0.00124, "g/mm^3", "PLA ~1.24 g/cm³ per mm³"),
         _g("q_led_v", "LED voltage", 12.0, "V", ["c_led"]),
         _g("q_led_a", "LED current", 1.5, "A", ["c_led"]),
@@ -97,6 +107,18 @@ def capstone_spec() -> Specification:
         _g("q_psu_a", "PSU current", 2.0, "A", ["c_psu"]),
         _d("q_torque", "bolt torque", 2.5, "N*m", "M4 in plastic, snug"),
         _g("q_price", "screw unit price", 0.42, "EUR", ["c_price"]),
+        # δ-layer-2 statics: does the bracket hold the verified 12 kg load?
+        # Each value is grounded (g, strength) or recomputed (force, stress) — the
+        # arithmetic is GENESIS's (verification/derivation.py), checked dimensionally
+        # by GATE γ C-15 and numerically against the material strength by C-13.
+        _g("q_g", "standard gravity", STANDARD_GRAVITY, "m/s^2", ["c_gravity"]),
+        _der("q_force", "load force at the bracket tip", 12.0 * STANDARD_GRAVITY, "N",
+             weight_formula("q_load", "q_g"), ("q_load", "q_g")),
+        _der("q_sigma", "peak bending stress (cantilever, b=q_h, h=q_t, arm=q_w)",
+             6.0 * (12.0 * STANDARD_GRAVITY) * 60.0 / (80.0 * 6.0 * 6.0), "MPa",
+             cantilever_bending_stress_formula("q_force", "q_w", "q_h", "q_t"),
+             ("q_force", "q_w", "q_h", "q_t")),
+        _g("q_strength", "PLA tensile strength", 50.0, "MPa", ["c_pla"]),
         _d("sx", "available width", 200.0, "mm", "shelf niche width"),
         _d("sy", "available height", 200.0, "mm", "shelf niche height"),
         _d("sz", "available depth", 200.0, "mm", "shelf niche depth"),
@@ -147,6 +169,9 @@ def capstone_spec() -> Specification:
                    reason="supply current must meet the LED draw"),
         Constraint(id="k_wall", kind="ge", left="q_t", right="max(2, 0.05 * q_w)",
                    reason="wall thickness at least 2 mm or 5% of width"),
+        Constraint(id="k_stress", kind="le", left="q_sigma", right="q_strength",
+                   reason="peak bending stress stays below the PLA tensile strength "
+                          "(simplified cantilever model — necessary, not sufficient)"),
     ]
     decisions = [
         Decision(id="d_mat", title="Material", choice="PLA, 3D-printed",
@@ -170,6 +195,13 @@ def capstone_spec() -> Specification:
         idea="A wall-mounted LED shelf bracket carrying the verified load",
         approach_id="ap1", quantities=quantities, components=components, bom=bom,
         steps=steps, constraints=constraints, decisions=decisions, site=site,
+        gaps=[
+            "Structural adequacy beyond the simplified cantilever bending check "
+            "(FEM, stress concentration at the clearance hole, screw pull-out and "
+            "shear, fatigue, 3D-print layer-adhesion anisotropy, dynamic/impact "
+            "loads) is NOT asserted — the σ ≤ strength pass is necessary, not "
+            "sufficient.",
+        ],
         claim_ids_used=[c.id for c in capstone_claims()], produced_by="capstone",
     )
 
