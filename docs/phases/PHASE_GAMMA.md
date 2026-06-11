@@ -442,6 +442,18 @@ phase_gamma:
   `test_gate_never_invents_a_plausibility_rule`). Geometrie-Maße bleiben
   strukturell > 0 (C-9) — das ist Validität, keine Domänenbehauptung.
 
+**Toleranzen & Passungen (über dieselbe Ausdrucks-Mechanik):** Mechanische
+  Passungen sind als Ausdrucks-Constraints deklarierbar — kein eigener Mechanismus
+  nötig:
+  - Spielpassung: `hole ge shaft + clearance`
+  - Presspassung: `shaft ge hole + interference`
+  - Symmetrisches Toleranzband: `actual ge nominal - tol` **und** `actual le nominal + tol`
+  - Monotone Durchmesser-Kette: `d1 ge d2`, `d2 ge d3`
+  Das Gate fängt Verletzungen (`CONSTRAINT_VIOLATION`) und **erfindet nie** eine
+  ISO-/Industrie-Toleranz, die der Mensch nicht deklariert hat (`test_fits.py`:
+  `test_gate_invents_no_tolerance`). Ein Wellendurchmesser kann an einen
+  VERIFIED-Fakt verankert sein (M4 = 4 mm), das Spiel als DECISION.
+
 **Erledigt — zweiter CAD-Adapter (build123d):**
 - `export/build123d.py` rendert dieselbe CSG-Geometrie als build123d-Python
   (Algebra-Modus: `Box(l,w,h)`, `Cylinder(r,h)`, `Sphere(r)`, `+`/`-`/`&` für

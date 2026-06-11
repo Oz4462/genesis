@@ -927,3 +927,22 @@ sound berechenbar.
 **Gesamtstand:** **329 passed** (offline). Demo: `c_bracket mass: 35.5937 g (exact)`.
 Kein Live-Run.
 
+## Toleranzen & Passungen (Modul 2 von 3) — bewiesen + dokumentiert, kein neuer Mechanismus  ✅
+
+**Ehrliche Einordnung:** Mechanische Passungen sind über die bereits gebaute
+Ausdrucks-Constraint-Mechanik (GATE γ C-13) vollständig deklarierbar — kein eigener
+Code-Mechanismus nötig. Modul 2 ist daher **Beweis + Doku + Anti-Invention-Garantie**,
+kein neuer Motor (transparent statt erfundene Novelty).
+
+- `tests/test_fits.py` (6): Spielpassung (`hole ge shaft + clear`), Presspassung
+  (`shaft ge hole + inter`), symmetrisches Toleranzband (`nominal ± tol` als
+  ge/le-Paar), monotone Durchmesser-Kette, an VERIFIED-Fakt verankerter
+  Wellendurchmesser — je hält + Verletzung gefangen.
+- **Kern-Garantie:** `test_gate_invents_no_tolerance` — eine knappe, undeklarierte
+  Passung passt das Gate; GENESIS erfindet **keine** ISO-/Industrie-Toleranz.
+- Doku: PHASE_GAMMA Constraint-Sektion (Passungs-Muster).
+
+**Rest-Risiko (ehrlich):** Inter-Komponenten-Spiel (Assembly) ist nicht modelliert
+— Passungen werden auf Quantities deklariert, nicht aus der Geometrie über mehrere
+Teile gemessen (bräuchte ein Assembly-/Positionsmodell). **335 passed.**
+
