@@ -1613,6 +1613,40 @@ CLIP + VLM-Judge); Chamfer-Distanz-zur-Soll-Geometrie (Text-to-CAD-Praxis).
 
 ---
 
+## 48. Constraint-Konsistenz — strukturelle Widersprüche unabhängig von Werten (`constraint_consistency.py`)
+
+GATE γ C-13 prüft jeden Constraint gegen die **aktuellen** Werte: verletzt ein Wert einen
+Constraint, failt er. Aber zwei Constraints können sich **per Design-Absicht** widersprechen —
+`a ≥ b` und `a < b` können für **kein** a, b beide gelten — und C-13 zeigt das nur über
+denjenigen, den die aktuellen Werte zufällig verletzen, und verfehlt den tieferen Defekt „die
+Anforderungen selbst kollidieren". Diese Schicht ergänzt den strukturellen Check: sie findet
+Constraint-Paare mit **disjunkten** Lösungsmengen, **unabhängig** von den aktuellen Werten — und
+**ohne Solver**.
+
+Jeder Vergleichs-Constraint über ein Ausdruckspaar wird auf die erlaubten **Vorzeichen** von
+`(links − rechts)` reduziert: `<`→{−1}, `<=`→{−1,0}, `=`→{0}, `>=`→{0,1}, `>`→{1}. Zwei Constraints
+auf **demselben** (kanonisierten) Ausdruckspaar widersprechen genau dann, wenn diese Vorzeichen-
+Mengen **disjunkt** sind — `a≥b` ({0,1}) mit `a<b` ({−1}) ist gefangen, während `a≥b` mit `a≤b`
+({−1,0}) konsistent ist (erzwingt `a=b`). **Umgekehrte** Schreibweisen (`a>b` und `b>a`) werden
+gefangen, weil das Paar zuerst kanonisiert wird.
+
+**Verifiziert** (8 Tests, offline): die **Capstone**-Constraints sind konsistent (`[]`);
+`a≥b ∧ a<b` → **ein** Widerspruch (`{k1,k2}` auf Paar `(a,b)`); `a≥b ∧ a≤b` → konsistent (`a=b`);
+`x=y ∧ x>y` → Widerspruch; reversed `a>b ∧ b>a` → gefangen; ein Drei-Wege-Konflikt
+(`a<b, a=b, a>b`) meldet **jedes** der 3 Paare; leer/einzeln vakuös konsistent.
+
+**Ehrliche Grenze:** dies findet **paarweise** Widersprüche auf demselben Ausdruckspaar — den
+häufigen Design-Absicht-Tippfehler. Es löst **nicht** transitive Mehr-Constraint-Unerfüllbarkeit
+(`a>b, b>c, c>a`) oder allgemeine nichtlineare Erfüllbarkeit; das braucht einen vollen
+**SMT-Solver** (z. B. z3) und ist eine **aufgeschobene** optionale Schicht. Modul
+`constraint_consistency.py`, getestet in `tests/test_constraint_consistency.py`.
+
+**Quelle:** SMT/Erfüllbarkeit (Neurosymbolik-SOTA: NL→SMT-lib, z3); Vorzeichen-Algebra über
+Vergleichsrelationen (elementar). Volles SMT bewusst als optionaler z3-Layer aufgeschoben, da
+GENESIS' Specs voll-bewertet sind (C-13 deckt die Wertebene).
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
