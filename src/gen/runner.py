@@ -295,6 +295,100 @@ def _geometry_to_dict(node) -> dict:
     }
 
 
+# --- deserialization (the lossless inverse, for reproducibility / audit) ------
+
+def _geometry_from_dict(d):
+    if d is None:
+        return None
+    from .core.state import GeometryNode
+    children = [_geometry_from_dict(c) for c in d.get("children") or []]
+    return GeometryNode(
+        kind=d["kind"],
+        params=dict(d.get("params") or {}),
+        children=[c for c in children if c is not None],  # type: ignore[misc]
+    )
+
+
+def specification_from_dict(d: dict):
+    """Reconstruct a Specification from its serialized dict — the exact inverse of
+    ``_specification_to_dict``. Lossless: ``to_dict(from_dict(x)) == x``, which is
+    what makes a checkpoint a faithful, reproducible record (acceptance A5).
+    """
+    from .core.state import (
+        BomDomain, BomItem, BomRole, Component, Constraint, Decision, Derivation,
+        Quantity, SiteRequirements, Sourcing, Specification, Step, ValueOrigin,
+    )
+
+    def _quantity(q):
+        deriv = q.get("derivation")
+        return Quantity(
+            id=q["id"], name=q["name"], value=q["value"], unit=q["unit"],
+            origin=ValueOrigin(q["origin"]), grounding=list(q.get("grounding") or []),
+            derivation=Derivation(formula=deriv["formula"], inputs=tuple(deriv["inputs"]))
+            if deriv else None,
+            rationale=q.get("rationale", ""),
+        )
+
+    def _decision(x):
+        return Decision(id=x["id"], title=x["title"], choice=x["choice"],
+                        rationale=x["rationale"], informed_by=list(x.get("informed_by") or []))
+
+    def _bom(b):
+        src = b.get("sourcing")
+        return BomItem(
+            id=b["id"], name=b["name"], role=BomRole(b["role"]), count=b["count"],
+            component_id=b.get("component_id"), grounding=list(b.get("grounding") or []),
+            domain=BomDomain(b.get("domain", "mechanical")),
+            sourcing=Sourcing(
+                supplier=src["supplier"], part_number=src["part_number"],
+                price_quantity_id=src.get("price_quantity_id"),
+                grounding=list(src.get("grounding") or []),
+            ) if src else None,
+        )
+
+    def _step(s):
+        return Step(
+            id=s["id"], index=s["index"], action=s["action"],
+            uses=list(s.get("uses") or []), inputs=list(s.get("inputs") or []),
+            outputs=list(s.get("outputs") or []), check=s.get("check", ""),
+            quantity_refs=list(s.get("quantity_refs") or []), tool=s.get("tool", ""),
+            torque_quantity_id=s.get("torque_quantity_id"),
+        )
+
+    site_d = d.get("site")
+    site = None
+    if site_d is not None:
+        space = site_d.get("available_space")
+        site = SiteRequirements(
+            available_space=tuple(space) if space else None,  # type: ignore[arg-type]
+            requirements=[_decision(x) for x in site_d.get("requirements") or []],
+        )
+
+    return Specification(
+        run_id=d["run_id"], idea=d["idea"], approach_id=d.get("approach_id"),
+        quantities=[_quantity(q) for q in d.get("quantities") or []],
+        components=[
+            Component(id=c["id"], name=c["name"],
+                      geometry=_geometry_from_dict(c.get("geometry")),  # type: ignore[arg-type]
+                      quantity_ids=list(c.get("quantity_ids") or []),
+                      material_density=c.get("material_density"))
+            for c in d.get("components") or []
+        ],
+        bom=[_bom(b) for b in d.get("bom") or []],
+        steps=[_step(s) for s in d.get("steps") or []],
+        constraints=[
+            Constraint(id=k["id"], kind=k["kind"], left=k["left"], right=k["right"],
+                       reason=k.get("reason", ""))
+            for k in d.get("constraints") or []
+        ],
+        decisions=[_decision(x) for x in d.get("decisions") or []],
+        site=site,
+        gaps=list(d.get("gaps") or []),
+        claim_ids_used=list(d.get("claim_ids_used") or []),
+        produced_by=d.get("produced_by", ""), model=d.get("model", ""),
+    )
+
+
 def _specification_to_dict(spec: Specification) -> dict:
     return {
         "run_id": spec.run_id,
