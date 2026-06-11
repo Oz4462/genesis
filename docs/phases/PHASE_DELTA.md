@@ -1443,6 +1443,41 @@ Kappe ~5–6 Runden (Verification-Loop-Praxis).
 
 ---
 
+## 43. Proaktive Klärung — Unterspezifikation erkennen und gezielt fragen (`clarification.py`)
+
+Ein echtes Produkt kann nicht auf einer vagen Idee laufen: SOTA (*„Clarify Before You Draw"*;
+Ask-before-Plan; Active Task Disambiguation) zeigt, dass ein Agent **erkennen** muss, was
+unterspezifiziert ist, und die **wenigen wertvollsten** Fragen stellt, **bevor** er eine Lösung
+produziert — und unnötige Fragen vermeidet. Dieses Modul ist der deterministische Offline-Kern
+davon: es inspiziert eine Spezifikation auf Physik, die **indiziert, aber nicht rechenbar** ist,
+und macht aus jeder Lücke eine **priorisierte** Rückfrage.
+
+Die Erkennung nutzt die measurand-Maschinerie (§39): ein Rezept, dessen **Trigger** da ist,
+heißt „das Design hat diese Physik"; fehlt ein Input-measurand, ist das Design dafür
+unterspezifiziert — und der fehlende Input ist **genau** das, was zu fragen ist. Fragen werden
+per **EVPI-Proxy** (Expected Value of Perfect Information) priorisiert: ein fehlender Wert, der
+**mehrere** Checks freischalten würde, kommt zuerst, und jeder measurand wird **genau einmal**
+gefragt (keine Redundanz). Über nicht-vorhandene Physik (kein Trigger) wird **nie** gefragt —
+der Agent verhört den Nutzer nicht über eine Welle, wenn es keine Welle gibt.
+
+**Verifiziert** (6 Tests, offline): eine **voll** spezifizierte Welle (`drive_shaft_spec`)
+fragt **nichts**; eine physik-freie Spec fragt **nichts**; eine Welle ohne
+`material.shear_strength` → **eine** Frage, die „shaft torsion" freischaltet; sind `fatigue`
+**und** `notch_fatigue` indiziert und beiden fehlt `material.endurance_limit` → **eine** Frage,
+**Priorität 2**, vor allen Priorität-1-Fragen (asked once, unblocks both); `top_k` kappt auf die
+wertvollsten.
+
+**Ehrliche Grenze:** dies behandelt **strukturierte** Unterspezifikation (indizierte Physik,
+fehlender Input) deterministisch. Die Ambiguität in **roher Freitext-Idee** (mehrere plausible
+Lesarten) zu erkennen, ist der LLM-getriebene Teil, der **upstream** einsteckt. Modul
+`clarification.py`, getestet in `tests/test_clarification.py`.
+
+**Quelle:** *Clarify Before You Draw* (arXiv 2602.03045); Active Task Disambiguation (Bayesian
+Experimental Design / EVPI); Structured-Uncertainty-Clarification (OpenReview); Underspecification
+in LLM Prompts (arXiv 2505.13360).
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
