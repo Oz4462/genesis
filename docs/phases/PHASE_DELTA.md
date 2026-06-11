@@ -1511,6 +1511,40 @@ Reliabilität).
 
 ---
 
+## 45. Human-in-the-Loop-Ratifikation — die KI schlägt vor, der Mensch entscheidet (`ratification.py`)
+
+SOTA für vertrauenswürdige KI (*„the AI suggests; the human decides — nothing irreversible
+without sign-off"*; **Architect-in-the-Loop**, wo die Aufsicht auf **Spezifikations**-Ebene
+beginnt) macht einen Menschen zum Gatekeeper der Konsequenz. GENESIS strukturiert die richtigen
+Flächen schon — `Decision`s sind explizit human-ratifizierbare Entwurfs-Entscheidungen, `gaps`
+sind ehrliches Rest-Risiko — aber **nichts erzwingt** den Sign-off. Dieses Modul ergänzt ihn:
+es baut aus einer Spec ein Ratifikations-**Paket** (die Decisions zu ratifizieren, die Gaps
+anzuerkennen, die Gate-Verdikte als Evidenz) und entscheidet „done" **nur** gegen einen
+**expliziten** menschlichen Sign-off.
+
+Die nicht-verhandelbare Regel (gemäß Agent-SDK-Leitlinie: *nie* Approval per verstecktem
+Auto-Allow faken): **nichts ist standardmäßig genehmigt**. Ein blockierendes Item — jede
+`Decision`, jeder `gap` und jedes **gescheiterte** Gate — muss **explizit** im Sign-off stehen,
+sonst ist die Spec **nicht** ratifiziert. So legt das System genau das offen, was menschliches
+Urteil braucht, und weigert sich, die Arbeit „fertig" zu nennen, bis ein Mensch es wirklich
+ausgeübt hat.
+
+**Verifiziert** (6 Tests, offline): das Capstone-Paket legt **4 Decisions + 5 Gaps** als
+blockierend offen; ein **leerer** Sign-off ratifiziert **nichts** (`unratified == alle`) — kein
+Auto-Approval; erst der explizite Sign-off **jedes** blockierenden Refs ratifiziert; ein
+**gescheitertes** Gate **blockiert**, ein **bestandenes** ist nur Evidenz (nicht blockierend);
+partieller Sign-off bleibt **nicht** ratifiziert.
+
+**Ehrliche Grenze:** dies ist der deterministische Sign-off-**Vertrag** (Paket + Ratifikations-
+Logik); die echte UI / Identitätsbindung / Audit-Aufzeichnung (z. B. `AskUserQuestion` oder ein
+äquivalenter UI-Pfad) ist die Deployment-Schicht. Modul `ratification.py`, getestet in
+`tests/test_ratification.py`.
+
+**Quelle:** Architect-in-the-Loop Hardware-Design (arXiv 2512.00016); HITL-Oversight-Praxis
+(*„nothing irreversible without sign-off"*); Agent-SDK-Leitlinie (kein verstecktes Auto-Allow).
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
