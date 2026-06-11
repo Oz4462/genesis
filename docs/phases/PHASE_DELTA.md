@@ -820,6 +820,57 @@ des skalaren Laplace-Operators `∫(∇N)ᵀk(∇N)dV` ist Standard (Zienkiewicz
 
 ---
 
+## 26. Modalanalyse — Eigenfrequenzen, das Resonanz-Versagen (`modal.py`)
+
+Das Statik-FEM beantwortet „hält es die Last?"; es kann **nicht** „**schwingt** es?"
+beantworten — eine nahe einer Eigenfrequenz erregte Struktur verstärkt enorm und
+versagt durch **Ermüdung** bei einer Last **weit unter** ihrer statischen Festigkeit.
+Dieses Versagen ist für einen Spannungs-Check **unsichtbar**. Dieses Modul fügt es
+hinzu: das Konsistenzmassen-Eigenproblem `K·φ = ω²·M·φ`, dessen kleinste Wurzeln die
+Eigenfrequenzen sind. Es **wiederverwendet** die exakte Steifigkeit des 4-Knoten-Tets
+(§21) und ergänzt die einzige fehlende Zutat — die Element-**Massenmatrix** — und löst
+das verallgemeinerte Eigenproblem in reinem numpy (Cholesky-Transform, `M` SPD).
+
+**Verifiziert, nicht behauptet — drei Ebenen:**
+- **EXAKT:** die Konsistenzmassenmatrix summiert sich maschinengenau zur Körpermasse
+  `ρ·V` (Konsistenzmasse pro Richtung `(ρV/20)(1+δ_ij)`, geschlossene Form, keine
+  Quadratur).
+- **EXAKT:** ein **frei-freier** Körper liefert **genau sechs** Null-Frequenz-
+  Starrkörpermoden (3 Translationen + 3 Rotationen) — die strukturelle Signatur, die
+  das Eigenproblem zeigen **muss** (Test: 6 Moden `< 1 Hz`, Modus 7 `≈ 3539 Hz`).
+- **QUANTITATIV:** die **longitudinale** Eigenfrequenz eines Stabs konvergiert gegen
+  die geschlossene Form `f₁ = c/(4L)`, `c = √(E/ρ)`, auf **~1 %** (`nx=16`) — den
+  Axialmodus erfasst der lineare Tet **genau** (uniforme Axialdehnung ist CST-exakt).
+
+**Ehrlicher Befund (Biegung):** die Kragträger-**Biege**frequenz konvergiert gegen
+den Euler-Bernoulli-Wert `f₁ = (1,875²/2π)·√(EI/(ρA L⁴))` **von OBEN** — der
+konstant-Dehnungs-Tet ist **biege-zu-steif** (`725 → 643 → 599 Hz` gegen analytisch
+`418 Hz`, monoton fallend). Das ist **dieselbe** CST-Grenze, die §23 für Spannung
+dokumentiert, hier mit umgekehrtem Vorzeichen: die Frequenz ist **zu hoch** verzerrt —
+ein **nicht-konservativer** Bias (deklariert, nicht versteckt). Für eine belastbare
+Biegemode: verfeinern oder **quadratische Tets** (§24) nehmen. Der **Axialmodus** ist
+der saubere quantitative Anker; der Biege-Test prüft nur den **Konvergenz-Trend**.
+
+**Der echte Check (Resonanz-Design):** `resonance_check(f_natural, f_excitation,
+min_separation_factor=2.0)` meldet, ob die erste Eigenfrequenz die Erregerfrequenz um
+einen sicheren Faktor übersteigt (steifes Mount-Design: `f₁ ≥ 2·f_erreger`, damit die
+Erregung im flachen, schwach-verstärkten Antwortbereich sitzt). `120 Hz` über `100 Hz`
+(nur `1,2×`) → **FAIL**; `300 Hz` (`3×`) → **PASS**.
+
+**Ehrliche Grenze:** lineare, **ungedämpfte**, kleinverschiebungs-Modalanalyse;
+konsistente (nicht gelumpte) Masse; SI-Einheiten **zwingend konsistent** (E in Pa, `ρ`
+in kg/m³, Längen in m → Hz). Der lineare Tet überschätzt **Biege**frequenzen (Bias
+hoch = nicht-konservativ). `natural_frequencies` braucht **mindestens einen** freien
+Freiheitsgrad (sonst klarer Fehler). Modul `modal.py`, getestet in
+`tests/test_modal.py`.
+
+**Quelle:** verallgemeinertes Eigenwertproblem der Strukturdynamik `K φ = ω² M φ` +
+Konsistenzmassenmatrix (Zienkiewicz & Taylor, *The Finite Element Method*, Bd. 2,
+Dynamik); Kragträger-Grundmode `βL = 1,8751` (Blevins, *Formulas for Natural
+Frequency and Mode Shape*); Stab-Longitudinalmode `f_n = (2n−1)c/4L`.
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
