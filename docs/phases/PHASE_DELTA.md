@@ -871,6 +871,51 @@ Frequency and Mode Shape*); Stab-Longitudinalmode `f_n = (2n−1)c/4L`.
 
 ---
 
+## 27. Euler-Knickung — das elastische Stabilitäts-Versagen (`buckling.py`)
+
+Die Statik prüft, ob die Spannung unter der Festigkeit bleibt; §26 prüft Resonanz.
+**Keine** sieht das dritte klassische Versagen: ein schlanker **Druck**stab **knickt**
+— biegt seitlich aus und kollabiert — bei einer Last **weit unter** der, die ihn
+fließen ließe. Eine Halter-Strebe, eine lange Schraube auf Druck, ein dünnes Bein:
+spannungsseitig sicher, aber durch elastische **Instabilität** versagend. Dieses Modul
+ergänzt es — mit **zwei** kreuz-geprüften Methoden:
+- **Geschlossen:** Eulers `P_cr = π²·E·I / (K·L)²`, `K` der Lagerungs-Längenfaktor
+  (gelenkig-gelenkig 1, fest-frei 2, fest-fest 0,5, fest-gelenkig ≈0,699).
+- **Gerechnet:** ein Balken-Element-Knick-Eigenproblem `K_e·φ = P·K_g·φ` aus der
+  Euler-Bernoulli-Elastizitäts-Steifigkeit (§ `fem.py`) **plus** der konsistenten
+  **geometrischen** Steifigkeit; der kleinste Eigenwert ist `P_cr`. Wiederverwendet
+  **dasselbe** Balkenelement, auf dem der Durchbiegungs-Solver verifiziert ist.
+
+**Verifiziert, nicht behauptet:** die gerechnete `P_cr` konvergiert für **alle vier**
+Lagerungen gegen die Euler-Form auf **deutlich unter 1 %** mit 8 Elementen
+(gelenkig-gelenkig `0,003 %`, fest-frei `0,000 %`, fest-fest `0,05 %`, fest-gelenkig
+`−0,03 %`) — zwei unabhängige Methoden, die übereinstimmen, sind der Schutz gegen einen
+Fehler in einer von beiden. Das Lagerungs-Physik-Gesetz fällt direkt heraus: fest-frei
+(`K=2`) ist **exakt ¼** so stark wie gelenkig-gelenkig (`P_cr ∝ 1/K²`).
+
+**Der echte Check (ehrlich über Eulers Grenze):** `buckling_check(...)` ist ehrlich,
+**wann** Euler gilt: ein **gedrungener** Stab (kleine Schlankheit `KL/r`) **staucht/
+fließt** bevor er knicken kann, also ist das maßgebende Versagen das **kleinere** aus
+Euler-Last und Stauchlast `σ_y·A`. Der Übergang liegt bei `λ_c = π·√(E/σ_y)`. Befund
+(im Test, 10×10-Stahl `σ_y=250`): `L=350 mm` → `λ≈121 > λ_c≈91` → **„buckling"** (Euler
+maßgebend); `L=100 mm` → `λ≈35 < 91` → **„yield"** (Stauchlast maßgebend, Euler würde
+hier `σ_cr≈1727 MPa ≫ σ_y` **über**schätzen). Der Check meldet, **welcher** Modus
+greift — statt Euler blind zu trauen.
+
+**Ehrliche Grenze:** lineare elastische Euler-Knickung eines prismatischen Stabs,
+**ideal** — keine Vorkrümmung/Lastexzentrizität (die die reale Tragfähigkeit senken),
+also eine **obere** Schranke; ein realer Nachweis nutzt einen Sicherheitsfaktor bzw.
+die Perry-Robertson-/Johnson-Abminderung für Imperfektion und Inelastizität.
+N-mm-MPa-konsistent (wie `fem.py`). Modul `buckling.py`, getestet in
+`tests/test_buckling.py`.
+
+**Quelle:** Euler (1744) Knicklast `P_cr = π²EI/(KL)²`; geometrische
+Steifigkeitsmatrix des Balkenelements (Cook, *Concepts and Applications of FEA*;
+Przemieniecki, *Theory of Matrix Structural Analysis*); Schlankheits-/Kurzstab-Übergang
+(Mechanik-Standard, Euler-vs-Johnson).
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
