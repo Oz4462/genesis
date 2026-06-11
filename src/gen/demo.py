@@ -14,6 +14,12 @@ no code change.
 
 from __future__ import annotations
 
+from .dfm import (
+    FDM_MIN_HOLE_DIAMETER_MM,
+    FDM_NOZZLE_DIAMETER_MM,
+    FDM_WALL_PERIMETERS_MIN,
+    min_wall_formula,
+)
 from .tolerance import (
     iso2768_medium_linear_tolerance,
     worst_case_min_clearance_formula,
@@ -94,6 +100,13 @@ def capstone_claims() -> list[Claim]:
         _claim("c_iso2768",
                "ISO 2768-1 class m specifies a general tolerance of 0.1 mm for a "
                "linear dimension over 3 up to 6 mm."),
+        _claim("c_fdm_nozzle", "A standard FDM nozzle is 0.4 mm in diameter."),
+        _claim("c_fdm_wall",
+               "An FDM wall should be at least 2 perimeter lines wide to print "
+               "reliably."),
+        _claim("c_fdm_hole",
+               "The minimum reliably printable horizontal hole on FDM is 2.0 mm "
+               "in diameter."),
     ]
 
 
@@ -188,6 +201,16 @@ def capstone_spec() -> Specification:
              worst_case_min_clearance_formula("q_hole_d", "q_hole_tol",
                                               "q_screw_d", "q_screw_tol"),
              ("q_hole_d", "q_hole_tol", "q_screw_d", "q_screw_tol")),
+        # δ-DFM: is the part printable? minimum wall = 2 perimeters of a 0.4 mm
+        # nozzle; minimum printable hole 2.0 mm. Deterministic, grounded rules.
+        _g("q_nozzle", "FDM nozzle diameter", FDM_NOZZLE_DIAMETER_MM, "mm", ["c_fdm_nozzle"]),
+        _g("q_perimeters", "minimum wall perimeters", FDM_WALL_PERIMETERS_MIN, "1",
+           ["c_fdm_wall"]),
+        _der("q_min_wall", "minimum printable wall thickness",
+             FDM_WALL_PERIMETERS_MIN * FDM_NOZZLE_DIAMETER_MM, "mm",
+             min_wall_formula("q_nozzle", "q_perimeters"), ("q_nozzle", "q_perimeters")),
+        _g("q_min_hole", "minimum printable hole diameter", FDM_MIN_HOLE_DIAMETER_MM, "mm",
+           ["c_fdm_hole"]),
         _d("sx", "available width", 200.0, "mm", "shelf niche width"),
         _d("sy", "available height", 200.0, "mm", "shelf niche height"),
         _d("sz", "available depth", 200.0, "mm", "shelf niche depth"),
@@ -236,8 +259,12 @@ def capstone_spec() -> Specification:
                    reason="supply voltage must match the LED strip"),
         Constraint(id="k_curr", kind="ge", left="q_psu_a", right="q_led_a",
                    reason="supply current must meet the LED draw"),
-        Constraint(id="k_wall", kind="ge", left="q_t", right="max(2, 0.05 * q_w)",
-                   reason="wall thickness at least 2 mm or 5% of width"),
+        Constraint(id="k_dfm_wall", kind="ge", left="q_t", right="q_min_wall",
+                   reason="section is at least the minimum printable FDM wall "
+                          "(two perimeters of a 0.4 mm nozzle)"),
+        Constraint(id="k_dfm_hole", kind="ge", left="q_hole_d", right="q_min_hole",
+                   reason="clearance hole is at least the minimum reliably printable "
+                          "FDM hole diameter"),
         Constraint(id="k_stress", kind="le", left="q_sigma_peak", right="q_strength",
                    reason="peak hole stress at the design load (Kt·σ_nom) stays below "
                           "the in-plane PLA strength — necessary, not sufficient"),
@@ -297,6 +324,10 @@ def capstone_spec() -> Specification:
             "The 50 MPa in-plane strength assumes a good print (high infill, correct "
             "temperature) at the declared on-edge orientation; a poor or wrongly "
             "oriented print is weaker.",
+            "Orientation-dependent DFM rules (overhangs steeper than 45°, bridge "
+            "spans, support generation) are NOT checked — they need a build-"
+            "orientation model the CSG does not yet carry; only wall thickness and "
+            "hole printability are verified.",
         ],
         claim_ids_used=[c.id for c in capstone_claims()], produced_by="capstone",
     )

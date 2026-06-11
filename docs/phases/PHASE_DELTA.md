@@ -368,3 +368,37 @@ Quelle für Demo + Test), getestet in `tests/test_tolerance.py`.
 Längenmaße, Klasse m (medium): 0,5–3 → ±0,1; >3–6 → ±0,1; >6–30 → ±0,2; >30–120 →
 ±0,3 (amesweb.info ISO-2768-Linear-Tabelle; Xometry ISO 2768/286). Stack-up-
 Methodik: Standard-Toleranzanalyse (Worst-Case vs. Monte-Carlo).
+
+---
+
+## 11. δ-DFM — deterministische Herstellbarkeits-Regeln, OHNE neuen Gate-Code
+
+Eine Spec kann Geometrie **und** Statik **und** Toleranz bestehen und trotzdem
+**un-druckbar** sein: eine Wand dünner als die Düse legen kann, ein Loch zu klein
+zum Überleben. Reale DFM-Tools fahren Dutzende solcher deterministischen
+Geometrie-Regeln. GENESIS fügt die hinzu, die es aus den vorhandenen Größen
+**beweisen** kann — wieder ganz in der γ-Maschinerie:
+
+| Regel | Wie es in GENESIS lebt | Quelle | Wächter |
+|---|---|---|---|
+| Mindestwand `2 · Düse` | **DERIVED** aus GROUNDED Düse (0,4 mm) + Perimeter-Zahl (2) | FDM 2 Perimeter | C-6/C-15 |
+| `Querschnitt ≥ Mindestwand` | numerischer **Constraint** | — | **C-13** |
+| Mindest-Lochdurchmesser 2,0 mm | **GROUNDED** | FDM horizontales Loch | C-1..C-4 |
+| `Loch ≥ Mindest-Loch` | numerischer **Constraint** | — | **C-13** |
+
+**Zähne:** eine 0,3-mm-Wand < 0,8 mm → `CONSTRAINT_VIOLATION`; ein 1,0-mm-Loch <
+2,0 mm → `CONSTRAINT_VIOLATION`. Der Capstone (12 mm Wand, 4,5 mm Loch) besteht.
+Die ad-hoc-Regel `q_t ≥ max(2, 0,05·Breite)` wurde **vollständig ersetzt** durch
+die belegte FDM-Regel (keine Code-Überlappung).
+
+**Ehrliche Scope-Grenze:** Nur Regeln, die aus den vorhandenen Größen folgen, sind
+codiert (Wandstärke, Loch-Druckbarkeit). **Orientierungsabhängige** Regeln —
+Überhang > 45°, Brückenspannweite, Stützen — sind **nicht** still „bestanden",
+sondern als **Gap** deklariert: sie brauchen ein Bau-Orientierungs-Modell, das die
+CSG (zentrierte Primitive, ohne Druckrichtung) noch nicht trägt. Ein bestandener
+DFM-Check ist notwendig, nicht hinreichend.
+
+**Quelle (FDM/FFF, am 2026-06-11 verifiziert):** Mindestwand ≈ 0,8 mm = 2 Perimeter
+einer 0,4-mm-Düse; Mindest-Loch 2,0 mm horizontal (1,0 mm vertikal); Überhang > 45°
+braucht Stützen (UltiMaker „Design for FFF"; Hydra Research; Xometry FDM-Tipps;
+Stanford Lab64). Modul `dfm.py`, getestet in `tests/test_dfm.py`.
