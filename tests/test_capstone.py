@@ -56,7 +56,7 @@ def test_delta_geometry_and_site_and_properties():
     vol = volume_of(bracket.geometry, quantities)
     assert vol.exact and vol.value > 0
     m = mass_of(bracket, quantities)
-    assert m.value is not None and m.exact and m.value > 0   # ~35.6 g
+    assert m.value is not None and m.exact and m.value > 0   # ~71.2 g (12 mm plate)
 
 
 # --- end-to-end: the rendered spec contains every depth section ---------------

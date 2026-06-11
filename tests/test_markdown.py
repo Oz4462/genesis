@@ -34,8 +34,8 @@ def test_markdown_has_all_sections():
     assert "## Decision sheet" in md
     assert "## Site & environment" in md and "available space: 200 mm × 200 mm × 200 mm" in md
     assert "## Geometric validation" in md
-    assert "volume: 28704.6 mm³ (exact)" in md
-    assert "mass: 35.5937 g (exact)" in md
+    assert "volume: 57409.1 mm³ (exact)" in md
+    assert "mass: 71.1873 g (exact)" in md
     assert "## Sources" in md and "- `c_price`" in md
 
 

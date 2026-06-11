@@ -260,44 +260,74 @@ eine baubare Lösung.
 
 ---
 
-## 9. δ-Schicht 2 — deterministische Biegespannung (Statik), OHNE neuen Gate-Code
+## 9. δ-Schicht 2 — deterministische Statik (Biegung + Kerbe + Verbindung), OHNE neuen Gate-Code
 
 Die zweite δ-Schicht beantwortet die erste echte **Physik**-Frage des Capstones —
-*„Hält der Halter die belegten 12 kg?"* — ohne ein erfundenes Festigkeitsurteil
-und **ohne eine einzige neue Gate-Zeile**. Der ganze Check ist in der **bestehenden
-γ-Maschinerie** ausgedrückt; das ist der Beweis, dass GENESIS' Anti-Halluzinations-
-Fundament schon trägt, was nach „Simulation" aussieht:
+*„Hält der Halter die belegte Last?"* — ohne ein erfundenes Festigkeitsurteil und
+**ohne eine einzige neue Gate-Zeile**. Der ganze Check lebt in der **bestehenden
+γ-Maschinerie**; das ist der Beweis, dass GENESIS' Anti-Halluzinations-Fundament
+schon trägt, was nach „Simulation" aussieht.
 
-| Element der Rechnung | Wie es in GENESIS lebt | Wächter |
-|---|---|---|
-| `g` = 9.80665 m/s² | **GROUNDED**-Quantity, Zahl wörtlich aus Claim `c_gravity` | C-1..C-4 |
-| `F = m · g` (Gewicht) | **DERIVED**-Quantity; GENESIS rechnet, GATE γ rechnet nach | C-6 |
-| `σ = 6·F·L / (b·h²)` (Biegespannung) | **DERIVED**-Quantity, gleiche Evaluator-Grammatik (`h²` = `h*h`, kein Potenz-Operator) | C-6 |
-| Dimension von `σ` = Druck (M·L⁻¹·T⁻²) | dimensionale Homogenität gegen die deklarierte Einheit `MPa` | **C-15** |
-| `strength` (Materialfestigkeit) | **GROUNDED**-Quantity, Zahl wörtlich aus Claim `c_pla` | C-1..C-4 |
-| Urteil `σ ≤ strength` | numerischer **Constraint** über Mengen-Ausdrücke | **C-13** |
+**Vier deterministische Checks (jeder belegt oder nachgerechnet):**
+
+| Element der Rechnung | Wie es in GENESIS lebt | Quelle | Wächter |
+|---|---|---|---|
+| `g` = 9.80665 m/s² | **GROUNDED** (Zahl wörtlich aus `c_gravity`) | 3. CGPM 1901 | C-1..C-4 |
+| Bemessungslast `F = (m·SF)·g` | **DERIVED** über die schon deklarierte Sicherheit `SF=2` (`q_design`) | — | C-6 |
+| `σ_nom = 6·F·L/(b·h²)` | **DERIVED** (`h²`=`h*h`, kein Potenz-Op) | Euler-Bernoulli, `I=b·h³/12` | C-6 |
+| Kerbfaktor `Kt = 3` (Bohrung) | **GROUNDED** (wörtlich aus `c_kirsch`) | Kirsch 1898 | C-1..C-4 |
+| `σ_peak = Kt·σ_nom` | **DERIVED**, bleibt Druck (Kt dimensionslos) | — | C-6/C-15 |
+| in-plane-Festigkeit `σ_zul` = 50 MPa | **GROUNDED** (`c_pla`) + Druckorientierungs-**Entscheidung** | FDM-Anisotropie-Literatur | C-1..C-4 |
+| Schraubenschub-Kapazität `αv·f_ub·A_s` | **DERIVED** aus 3 GROUNDED-Werten (αv=0.6, f_ub=800 MPa, A_s=8.78 mm²) | EN 1993-1-8, ISO 898-1 | C-6/C-15 |
+| Schraubenschub-Bedarf `F/n` | **DERIVED** | — | C-6 |
+| Urteile `σ_peak ≤ σ_zul`, `F/n ≤ Kapazität` | numerische **Constraints** | — | **C-13** |
 
 Kein neues Gate, keine neue Halluzinationsfläche: die fünf γ-Wächter erzwingen die
-Statik schon. Ein **erfundener** Festigkeitswert scheitert an C-4
-(`VALUE_NOT_IN_GROUNDING`), eine **dimensional falsche** σ-Formel (z. B. kg + mm)
-an C-15, eine **Überlast** an C-13 (`CONSTRAINT_VIOLATION`). Alles offline, kein
-LLM. Implementiert als reine Formel-Strings in `structural.py` (eine Quelle für
-Demo **und** Test — kein Drift), getestet in `tests/test_structural.py`.
+Statik schon. Ein **erfundener** Festigkeits-/Kerb-/Schraubenwert scheitert an C-4
+(`VALUE_NOT_IN_GROUNDING`), eine **dimensional falsche** Formel (kg+mm, oder
+MPa·mm² ≠ N) an C-15, eine **Überlast** an C-13 (`CONSTRAINT_VIOLATION`). Alles
+offline, kein LLM. Reine Formel-Strings in `structural.py` (eine Quelle für Demo
+**und** Test — kein Drift), getestet in `tests/test_structural.py`.
 
-**Quelle (extern, am 2026-06-11 verifiziert):**
-- Maximale Biegespannung im Balken `σ = M·c/I`, mit Biegemoment `M = F·L` am
-  Einspannpunkt eines Kragträgers, Flächenträgheitsmoment des Rechteckquerschnitts
-  `I = b·h³/12` und Randfaserabstand `c = h/2`, woraus `σ = 6·F·L/(b·h²)` folgt —
-  Euler-Bernoulli-Balkentheorie, *Bending*
-  (https://en.wikipedia.org/wiki/Bending, „Stress in a bent beam").
+**Der Check hatte Zähne — der Capstone wurde dadurch ehrlich umkonstruiert.** Mit
+der Bemessungslast (24 kg) und dem Kerbfaktor Kt=3 ergab der ursprüngliche 6-mm-
+Halter `σ_peak ≈ 88 MPa > 50 MPa` → **FAIL**. Das ist die wahre Antwort: ein
+flacher 6-mm-PLA-Halter mit Bohrung trägt 12 kg (bemessen 24 kg) **nicht**
+sicher. Die Lösung ist keine Zahlenkosmetik, sondern eine echte Konstruktions-
+korrektur: Querschnittstiefe `h` 6 → 12 mm → `σ_peak ≈ 22 MPa` (56 % Reserve),
+Schraubenschub 118 N vs 4214 N (36×). Genau dafür ist δ da — **vor** dem realen
+Aufwand die Untauglichkeit fangen.
+
+**Quellen (extern, am 2026-06-11 verifiziert):**
+- Biegespannung `σ = M·c/I`, `M=F·L`, Rechteck `I=b·h³/12`, `c=h/2` ⟹
+  `σ=6·F·L/(b·h²)` — Euler-Bernoulli, *Bending*
+  (https://en.wikipedia.org/wiki/Bending).
+- Kerbformzahl `Kt = 3` für eine Kreisbohrung in einer Platte unter Zug (exakt,
+  größen- und materialunabhängig) — Kirsch (1898); Peterson's Stress Concentration
+  Factors; fracturemechanics.org/hole.html. Hier als **konservative** Schranke
+  benutzt (Biege-/Endbreiten-Wert ≤ 3).
+- Schraubenschub `F_v = αv·f_ub·A_s`, `αv=0.6` für Klasse 8.8 — EN 1993-1-8;
+  `f_ub=800 MPa` (Klasse 8.8) und `A_s=8.78 mm²` (M4, Steigung 0.70) — ISO 898-1.
+- FDM-PLA-Anisotropie: in-plane (on-edge) ~47–55 MPa, Interlayer 30–50 % schwächer
+  → Druckorientierungs-Entscheidung kontrolliert die geladene Richtung.
 - Normfallbeschleunigung `g = 9,80665 m/s²` — 3. CGPM (1901).
 
-**Ehrliche Grenze (δ-Asymmetrie, wie die Geometrie-Schicht):** ein **bestandener**
-σ ≤ strength-Check ist **notwendig, nicht hinreichend**. Das idealisierte
-Einzellast-Euler-Bernoulli-Modell ignoriert Spannungskonzentration am
-Durchgangsloch, Schrauben-Auszug und -Abscherung, dynamische/Stoß-Lasten, Ermüdung
-und die Schicht-Anisotropie eines FDM-Drucks. Es beweist: der einfache Biegefall
-überlastet den Querschnitt **nicht**. Ein **gescheiterter** Check heißt: schon der
-einfache Fall überlastet ihn — **definitiv zu schwach**. Echte FEM bleibt eine
-spätere δ-Schicht hinter einem Adapter, unter demselben Beweis-Standard. Der
-Capstone deklariert diese Grenze auch als expliziten **Gap** (nicht behauptet).
+**Ehrliche Grenze (δ-Asymmetrie, jetzt eng gefasst).** Ein **bestandener** Check
+ist **notwendig, nicht hinreichend** — aber die Residuen sind keine Pauschal-
+Disclaimer mehr, sondern **präzise** als Gaps benannt und je an eine deklarierte
+Entscheidung oder eine wirklich externe Größe gebunden:
+1. **Schrauben-Auszug aus der Wand** — hängt vom Wand-/Dübel-Substrat ab (Gipskarton
+   vs Beton vs Holz), das die Spec nicht festlegt; nur der bracket-seitige
+   Schraubenschub wird geprüft.
+2. **Exaktes FEM-Feld** — Kt=3 ist die konservative Kirsch-Schranke; der genaue
+   Biege-/Endbreiten-Peak (≤3) braucht FEM oder Peterson-Tabellen.
+3. **Ermüdung + Stoß/Dynamik** — durch die deklarierte statische Innen-Last-
+   Entscheidung außerhalb des Geltungsbereichs; nur die statische Bemessungslast
+   (SF 2) wird geprüft.
+4. **Druckprozess-Streuung** — die 50-MPa-in-plane-Festigkeit setzt einen guten
+   Druck (hohes Infill, korrekte Temperatur) in der deklarierten on-edge-
+   Orientierung voraus; ein schlechter/falsch orientierter Druck ist schwächer.
+
+Ein **gescheiterter** Check heißt weiterhin: schon der modellierte Fall überlastet
+das Teil — **definitiv zu schwach**. Echte FEM/Ermüdung bleiben spätere δ-Schichten
+hinter Adaptern, unter demselben Beweis-Standard.

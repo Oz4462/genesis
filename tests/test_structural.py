@@ -39,8 +39,15 @@ from gen.core.state import (  # noqa: E402
     ValueOrigin,
 )
 from gen.structural import (  # noqa: E402
+    BOLT_SHEAR_COEFFICIENT_88,
+    BOLT_UTS_CLASS_88_MPA,
+    M4_TENSILE_STRESS_AREA_MM2,
     STANDARD_GRAVITY,
+    STRESS_CONCENTRATION_CIRCULAR_HOLE,
+    bolt_shear_capacity_formula,
     cantilever_bending_stress_formula,
+    peak_stress_formula,
+    per_fastener_shear_formula,
     weight_formula,
 )
 from gen.verification.derivation import evaluate_formula  # noqa: E402
@@ -180,4 +187,177 @@ def test_formula_helpers_are_exact():
         cantilever_bending_stress_formula("q_force", "q_arm", "q_b", "q_h")
         == "6 * q_force * q_arm / (q_b * q_h * q_h)"
     )
+    assert peak_stress_formula("q_snom", "q_kt") == "q_kt * q_snom"
+    assert (
+        bolt_shear_capacity_formula("q_c", "q_uts", "q_a") == "q_c * q_uts * q_a"
+    )
+    assert per_fastener_shear_formula("q_force", "q_n") == "q_force / q_n"
     assert STANDARD_GRAVITY == 9.80665
+    assert STRESS_CONCENTRATION_CIRCULAR_HOLE == 3.0
+    assert BOLT_SHEAR_COEFFICIENT_88 == 0.6
+    assert BOLT_UTS_CLASS_88_MPA == 800.0
+    assert M4_TENSILE_STRESS_AREA_MM2 == 8.78
+
+
+# --- residual-risk closure: safety factor + Kirsch hole stress concentration ----
+#
+# The bare bending check (σ_nom ≤ strength) was necessary, not sufficient. The
+# fuller check applies the declared safety factor to the load AND the Kirsch
+# Kt=3 hole stress raiser, then re-tests against the in-plane strength. All
+# DERIVED values are recomputed with the real evaluator, so a stored number can
+# never silently drift from its formula.
+
+def _grounded(qid, value, unit, claim_id):
+    return Quantity(id=qid, name=qid, value=value, unit=unit,
+                    origin=ValueOrigin.GROUNDED, grounding=[claim_id])
+
+
+def _decision(qid, value, unit):
+    return Quantity(id=qid, name=qid, value=value, unit=unit,
+                    origin=ValueOrigin.DECISION, rationale="declared")
+
+
+def _derived(qid, value, unit, formula, inputs):
+    return Quantity(id=qid, name=qid, value=value, unit=unit,
+                    origin=ValueOrigin.DERIVED,
+                    derivation=Derivation(formula=formula, inputs=inputs))
+
+
+def _peak_stress_state(
+    *,
+    thickness: float,
+    strength_value: float,
+    strength_text: str,
+    load_kg: float = 12.0,
+    sf: float = 2.0,
+    arm: float = 60.0,
+    breadth: float = 80.0,
+) -> RunState:
+    kt = STRESS_CONCENTRATION_CIRCULAR_HOLE
+    f_design = weight_formula("q_design", "q_g")
+    f_snom = cantilever_bending_stress_formula("q_force", "q_arm", "q_b", "q_h")
+    f_speak = peak_stress_formula("q_snom", "q_kt")
+
+    design_val = evaluate_formula("q_load * q_sf", {"q_load": load_kg, "q_sf": sf})
+    force_val = evaluate_formula(f_design, {"q_design": design_val, "q_g": STANDARD_GRAVITY})
+    snom_val = evaluate_formula(
+        f_snom, {"q_force": force_val, "q_arm": arm, "q_b": breadth, "q_h": thickness})
+    speak_val = evaluate_formula(f_speak, {"q_snom": snom_val, "q_kt": kt})
+
+    quantities = [
+        _grounded("q_load", load_kg, "kg", "c_load"),
+        _decision("q_sf", sf, "1"),
+        _derived("q_design", design_val, "kg", "q_load * q_sf", ("q_load", "q_sf")),
+        _grounded("q_g", STANDARD_GRAVITY, "m/s^2", "c_g"),
+        _derived("q_force", force_val, "N", f_design, ("q_design", "q_g")),
+        _decision("q_arm", arm, "mm"),
+        _decision("q_b", breadth, "mm"),
+        _decision("q_h", thickness, "mm"),
+        _derived("q_snom", snom_val, "MPa", f_snom, ("q_force", "q_arm", "q_b", "q_h")),
+        _grounded("q_kt", kt, "1", "c_kirsch"),
+        _derived("q_speak", speak_val, "MPa", f_speak, ("q_snom", "q_kt")),
+        _grounded("q_strength", strength_value, "MPa", "c_strength"),
+    ]
+    spec = Specification(
+        run_id="r", idea="peak stress", quantities=quantities,
+        constraints=[Constraint(id="k_stress", kind="le", left="q_speak",
+                                right="q_strength", reason="peak stress below strength")],
+    )
+    st = RunState(question=Question(raw="peak", run_id="r"))
+    st.claims = [
+        _claim("c_load", "A typical wall shelf must carry a load of 12 kg."),
+        _claim("c_g", "Standard gravity is defined as 9.80665 m/s^2."),
+        _claim("c_kirsch", "A circular hole in a plate under tension has a stress "
+                           "concentration factor of 3 (Kirsch solution)."),
+        _claim("c_strength", strength_text),
+    ]
+    st.specification = spec
+    return st
+
+
+def test_peak_stress_chain_passes_for_the_thick_section():
+    # the 12 mm redesign: σ_peak ≈ 22 MPa under the 24 kg design load, < 50 MPa
+    st = _peak_stress_state(
+        thickness=12.0, strength_value=50.0,
+        strength_text="FDM-printed PLA loaded in-plane has a tensile strength of about 50 MPa.")
+    result = gate_gamma(st)
+    assert result.passed, [f"{f.code}: {f.detail}" for f in result.failures]
+    speak = next(q for q in st.specification.quantities if q.id == "q_speak").value
+    assert 21.0 < speak < 23.0
+
+
+def test_thin_section_overstresses_the_hole():
+    # the residual-risk check has TEETH: the original 6 mm plate, once the safety
+    # factor and the Kt=3 hole raiser are counted, gives σ_peak ≈ 88 MPa > 50 MPa.
+    # The strength value (50) is verbatim in its claim, so this is purely a
+    # CONSTRAINT_VIOLATION — exactly what forced the redesign to 12 mm.
+    st = _peak_stress_state(
+        thickness=6.0, strength_value=50.0,
+        strength_text="FDM-printed PLA loaded in-plane has a tensile strength of about 50 MPa.")
+    result = gate_gamma(st)
+    codes = {f.code for f in result.failures}
+    assert codes == {"CONSTRAINT_VIOLATION"}, [f"{f.code}: {f.detail}" for f in result.failures]
+
+
+def test_peak_stress_keeps_pressure_dimension():
+    # σ_peak = Kt · σ_nom : a dimensionless factor times a pressure stays a pressure
+    dims = {"q_snom": parse_unit("MPa"), "q_kt": parse_unit("1")}
+    assert formula_dimension(peak_stress_formula("q_snom", "q_kt"), dims) == parse_unit("MPa")
+
+
+# --- residual-risk closure: fastener shear (EN 1993-1-8, bracket-side) ----------
+
+def _fastener_state(*, force_value: float, n_screws: float = 2.0) -> RunState:
+    f_cap = bolt_shear_capacity_formula("q_coeff", "q_uts", "q_area")
+    f_dem = per_fastener_shear_formula("q_force", "q_n")
+    cap_val = evaluate_formula(f_cap, {"q_coeff": BOLT_SHEAR_COEFFICIENT_88,
+                                       "q_uts": BOLT_UTS_CLASS_88_MPA,
+                                       "q_area": M4_TENSILE_STRESS_AREA_MM2})
+    dem_val = evaluate_formula(f_dem, {"q_force": force_value, "q_n": n_screws})
+    quantities = [
+        _grounded("q_coeff", BOLT_SHEAR_COEFFICIENT_88, "1", "c_coeff"),
+        _grounded("q_uts", BOLT_UTS_CLASS_88_MPA, "MPa", "c_uts"),
+        _grounded("q_area", M4_TENSILE_STRESS_AREA_MM2, "mm^2", "c_area"),
+        _derived("q_cap", cap_val, "N", f_cap, ("q_coeff", "q_uts", "q_area")),
+        _decision("q_force", force_value, "N"),
+        _decision("q_n", n_screws, "1"),
+        _derived("q_dem", dem_val, "N", f_dem, ("q_force", "q_n")),
+    ]
+    spec = Specification(
+        run_id="r", idea="fastener", quantities=quantities,
+        constraints=[Constraint(id="k_shear", kind="le", left="q_dem", right="q_cap",
+                                reason="shear demand below capacity")],
+    )
+    st = RunState(question=Question(raw="shear", run_id="r"))
+    st.claims = [
+        _claim("c_coeff", "EN 1993-1-8 gives a shear coefficient of 0.6 for property "
+                          "class 8.8 bolts."),
+        _claim("c_uts", "An ISO 898-1 property class 8.8 screw has an ultimate tensile "
+                        "strength of 800 MPa."),
+        _claim("c_area", "An M4 coarse-pitch screw has a tensile stress area of 8.78 mm^2."),
+    ]
+    st.specification = spec
+    return st
+
+
+def test_fastener_shear_capacity_dimension_is_a_force():
+    # αv · f_ub · A_s : dimensionless · pressure · area = force (MPa·mm² = N)
+    dims = {"q_coeff": parse_unit("1"), "q_uts": parse_unit("MPa"), "q_area": parse_unit("mm^2")}
+    assert formula_dimension(
+        bolt_shear_capacity_formula("q_coeff", "q_uts", "q_area"), dims) == parse_unit("N")
+
+
+def test_fastener_shear_passes_at_the_design_load():
+    # design-load force 235.36 N over 2 screws = 117.68 N per screw vs ~4214 N capacity
+    st = _fastener_state(force_value=24.0 * STANDARD_GRAVITY)
+    result = gate_gamma(st)
+    assert result.passed, [f"{f.code}: {f.detail}" for f in result.failures]
+    cap = next(q for q in st.specification.quantities if q.id == "q_cap").value
+    assert 4200.0 < cap < 4230.0
+
+
+def test_fastener_shear_overload_trips_constraint():
+    # an absurd 20 kN load shears the screws: demand 10 kN/screw > 4.2 kN capacity
+    st = _fastener_state(force_value=20000.0)
+    codes = {f.code for f in gate_gamma(st).failures}
+    assert codes == {"CONSTRAINT_VIOLATION"}, codes
