@@ -396,6 +396,8 @@ class Step:
     outputs: list[str] = field(default_factory=list)
     check: str = ""
     quantity_refs: list[str] = field(default_factory=list)
+    tool: str = ""                              # which tool the step needs (optional)
+    torque_quantity_id: str | None = None       # a tightening torque quantity (N·m)
 
 
 CONSTRAINT_KINDS: frozenset[str] = frozenset({"le", "lt", "ge", "gt", "eq"})
@@ -450,6 +452,22 @@ class Decision:
 
 
 @dataclass
+class SiteRequirements:
+    """Where to set the thing up and what the location must provide.
+
+    `available_space` (optional) is a triple of quantity_ids giving the room's
+    L×W×H; GATE δ checks that each fabricated component's bounding box fits inside
+    it (axis-aligned, any orientation). `requirements` are declared site needs —
+    ventilation, indoor/outdoor, mains connection, safety clearances — each a
+    `Decision` (claim-informed or a justified choice), never an invented demand
+    (PHASE_GAMMA_DEPTH.md §5).
+    """
+
+    available_space: tuple[str, str, str] | None = None
+    requirements: list["Decision"] = field(default_factory=list)
+
+
+@dataclass
 class Specification:
     """Final output of Phase γ — the complete, actionable build specification.
 
@@ -470,6 +488,7 @@ class Specification:
     steps: list[Step] = field(default_factory=list)
     constraints: list[Constraint] = field(default_factory=list)
     decisions: list[Decision] = field(default_factory=list)
+    site: "SiteRequirements | None" = None
     gaps: list[str] = field(default_factory=list)
     claim_ids_used: list[str] = field(default_factory=list)
     produced_by: str = ""

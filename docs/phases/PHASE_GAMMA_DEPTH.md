@@ -74,12 +74,19 @@ Ah→3600). Spannungs-/Strom-Kompatibilität als Constraints (§3). **Bewiesen:*
 `test_electronics.py` — Einheiten-Dimensionen/Skalen, grounded E-BOM-Zeile passt
 das Gate, CLI-Split mechanical/electronics.
 
-### 5. Montage-Detail & Ort
-`Step` um **`tool`** (Werkzeug) + **`torque`** (Quantity N·m, grounded/decision)
-erweitern; Reihenfolge/Prüfpunkt bestehen schon. **`SiteRequirements`:** Platzbedarf
-(Envelope ≤ verfügbarer Platz, deterministischer Constraint), Stromanschluss,
-Belüftung, indoor/outdoor, Sicherheitsabstände — je grounded/declared. Umgebungs-
-Werte aus Datenblatt-/Norm-Claims oder als begründete DECISION.
+### 5. Montage-Detail & Ort ✅
+`Step` um **`tool`** (Werkzeug) + **`torque_quantity_id`** (Quantity N·m,
+grounded/decision) erweitert; Reihenfolge/Prüfpunkt bestehen schon. GATE γ löst
+das Drehmoment auf (dangling). **`SiteRequirements`** auf `Specification.site`:
+`available_space` (Tripel von quantity_ids L×W×H) — GATE δ prüft **deterministisch**,
+dass jede Komponenten-Hüllbox in den verfügbaren Platz passt (achsenparallel, jede
+Orientierung via sortierte Dimensionen; zu groß → `SITE_SPACE_EXCEEDED`).
+`requirements`: Belüftung, indoor/outdoor, Stromanschluss, Sicherheitsabstände —
+je `Decision` (claim-informed), nie erfundener Bedarf; GATE γ validiert sie (C-7).
+**Bewiesen:** `test_assembly_site.py` (8) — Werkzeug/Drehmoment, Drehmoment-dangling,
+Platz-passt, zu-groß-gefangen, Orientierung, Bedarfe validiert, Platz-dangling,
+CLI-Render. **Ehrliche Grenze:** der Box-in-Box-Fit ist konservativ (keine
+Diagonal-Rotation) — sagt nie fälschlich „passt".
 
 ### 6. Finaler End-to-End-Lauf (Capstone)
 Eine echte Idee → vollständige Spezifikation mit **Mechanik + Elektronik +

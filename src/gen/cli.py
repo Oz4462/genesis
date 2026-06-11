@@ -462,11 +462,17 @@ def format_specification(spec: Specification) -> str:
             lines.append("")
 
     if spec.steps:
+        qmap2 = {q.id: q for q in spec.quantities}
         lines.append("Build steps (each with a human-verifiable check):")
         for step in sorted(spec.steps, key=lambda s: s.index):
             lines.append(f"  {step.index}. {step.action}")
+            if step.tool:
+                lines.append(f"       tool:  {step.tool}")
             if step.uses:
                 lines.append(f"       uses:  {', '.join(step.uses)}")
+            if step.torque_quantity_id and step.torque_quantity_id in qmap2:
+                tq = qmap2[step.torque_quantity_id]
+                lines.append(f"       torque: {tq.value:g} {tq.unit}")
             lines.append(f"       check: {step.check}")
         lines.append("")
 
@@ -479,6 +485,20 @@ def format_specification(spec: Specification) -> str:
     if spec.decisions:
         lines.append("Decision sheet (ratify or change these — they are choices, not facts):")
         for d in spec.decisions:
+            lines.append(f"  • {d.title}: {d.choice} — {d.rationale}")
+        lines.append("")
+
+    if spec.site is not None:
+        qmap3 = {q.id: q for q in spec.quantities}
+        lines.append("Site & environment (where to build it):")
+        if spec.site.available_space is not None:
+            dims = []
+            for qid in spec.site.available_space:
+                if qid in qmap3:
+                    dims.append(f"{qmap3[qid].value:g} {qmap3[qid].unit}")
+            if dims:
+                lines.append(f"  • available space: {' x '.join(dims)}")
+        for d in spec.site.requirements:
             lines.append(f"  • {d.title}: {d.choice} — {d.rationale}")
         lines.append("")
 

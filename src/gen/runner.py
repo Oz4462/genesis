@@ -359,6 +359,8 @@ def _specification_to_dict(spec: Specification) -> dict:
                 "outputs": list(s.outputs),
                 "check": s.check,
                 "quantity_refs": list(s.quantity_refs),
+                "tool": s.tool,
+                "torque_quantity_id": s.torque_quantity_id,
             }
             for s in spec.steps
         ],
@@ -382,6 +384,19 @@ def _specification_to_dict(spec: Specification) -> dict:
             }
             for d in spec.decisions
         ],
+        "site": (
+            {
+                "available_space": list(spec.site.available_space)
+                if spec.site.available_space else None,
+                "requirements": [
+                    {"id": d.id, "title": d.title, "choice": d.choice,
+                     "rationale": d.rationale, "informed_by": list(d.informed_by)}
+                    for d in spec.site.requirements
+                ],
+            }
+            if spec.site
+            else None
+        ),
         "gaps": list(spec.gaps),
         "claim_ids_used": list(spec.claim_ids_used),
         "produced_by": spec.produced_by,

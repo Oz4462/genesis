@@ -41,6 +41,7 @@ from ..core.state import (
     GeometryNode,
     Quantity,
     RunState,
+    SiteRequirements,
     Sourcing,
     Specification,
     Step,
@@ -374,6 +375,7 @@ class Architect:
                 self._parse_decision(raw, verified, log) for raw in proposal.get("decisions") or []
             ) if dec is not None
         ]
+        site = self._parse_site(proposal.get("site"), verified, log)
 
         claim_ids_used: list[str] = []
         anchor = next((ap for ap in anchors if ap.id == approach_id), None)
@@ -397,10 +399,32 @@ class Architect:
             steps=steps,
             constraints=constraints,
             decisions=decisions,
+            site=site,
             claim_ids_used=claim_ids_used,
             produced_by=self.name,
             model=self._llm.model,
         )
+
+    def _parse_site(self, raw: object, verified: dict[str, Claim], log):
+        """Build SiteRequirements from the proposal (optional). available_space is
+        a triple of quantity_ids; requirements are declared decisions (claim-
+        informed). Returns None if absent."""
+        if not isinstance(raw, dict):
+            return None
+        space_raw = raw.get("available_space")
+        available_space: tuple[str, str, str] | None = None
+        if isinstance(space_raw, list) and len(space_raw) == 3:
+            available_space = (
+                str(space_raw[0]).strip(), str(space_raw[1]).strip(), str(space_raw[2]).strip(),
+            )
+        requirements = [
+            dec for dec in (
+                self._parse_decision(r, verified, log) for r in raw.get("requirements") or []
+            ) if dec is not None
+        ]
+        if available_space is None and not requirements:
+            return None
+        return SiteRequirements(available_space=available_space, requirements=requirements)
 
     # --- structural parsers (tolerant on shape, never on meaning) ----------------
 
@@ -518,6 +542,11 @@ class Architect:
             outputs=_as_str_list(raw.get("outputs")),
             check=str(raw.get("check") or "").strip(),
             quantity_refs=_as_str_list(raw.get("quantity_refs")),
+            tool=str(raw.get("tool") or "").strip(),
+            torque_quantity_id=(
+                str(raw.get("torque_quantity_id")).strip()
+                if raw.get("torque_quantity_id") else None
+            ),
         )
 
     def _parse_constraint(self, raw: object, log) -> Constraint | None:

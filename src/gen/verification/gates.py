@@ -907,6 +907,16 @@ def gate_gamma(
                         detail=f"step {step.id!r} references unknown quantity {qid!r}",
                     )
                 )
+        if step.torque_quantity_id is not None and step.torque_quantity_id not in quantities:
+            failures.append(
+                GateFailure(
+                    code="DANGLING_REFERENCE",
+                    detail=(
+                        f"step {step.id!r} torque references unknown quantity "
+                        f"{step.torque_quantity_id!r}"
+                    ),
+                )
+            )
 
     available: set[str] = set(bom_ids)
     for step in sorted(spec.steps, key=lambda s: s.index):
@@ -1190,6 +1200,31 @@ def gate_gamma(
                         )
                     )
 
+    # --- Ort: site requirements (declared, claim-informed, resolvable) -----------
+    if spec.site is not None:
+        if spec.site.available_space is not None:
+            for axis, qid in zip(("x", "y", "z"), spec.site.available_space):
+                if qid not in quantities:
+                    failures.append(
+                        GateFailure(
+                            code="DANGLING_REFERENCE",
+                            detail=(
+                                f"site available_space {axis} references unknown quantity "
+                                f"{qid!r}"
+                            ),
+                        )
+                    )
+        for d in spec.site.requirements:
+            if not d.choice.strip() or not d.rationale.strip():
+                failures.append(
+                    GateFailure(
+                        code="UNDECLARED_DECISION",
+                        detail=f"site requirement {d.id!r} ({d.title!r}) lacks choice or rationale.",
+                    )
+                )
+            for cid in d.informed_by:
+                check_claim_ref(cid, f"site requirement {d.id!r}")
+
     return GateResult(gate="gamma", passed=not failures, failures=failures)
 
 
@@ -1301,6 +1336,30 @@ def gate_delta(state: RunState) -> GateResult:
                 )
             )
         _walk_geometry_delta(comp.geometry, quantities, comp.name, failures)
+
+    # site fit: each component's bounding box must fit the declared available space
+    # (axis-aligned, any orientation → compare sorted dimension triples).
+    if spec.site is not None and spec.site.available_space is not None:
+        space_ids = spec.site.available_space
+        if all(qid in quantities for qid in space_ids):
+            space = sorted(float(quantities[qid].value) for qid in space_ids)
+            for comp in spec.components:
+                if comp.geometry is None:
+                    continue
+                try:
+                    env = sorted(aabb_of(comp.geometry, quantities).extent)
+                except GeometryError:
+                    continue
+                if any(e > s + 1e-9 for e, s in zip(env, space)):
+                    failures.append(
+                        GateFailure(
+                            code="SITE_SPACE_EXCEEDED",
+                            detail=(
+                                f"component {comp.name!r} bounding box {env} does not fit the "
+                                f"available space {space} (any orientation)."
+                            ),
+                        )
+                    )
 
     return GateResult(gate="delta", passed=not failures, failures=failures)
 
