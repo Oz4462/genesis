@@ -481,3 +481,34 @@ Eine Spec ohne Netzliste besteht trivial (rein mechanischer Fall). Modul in
 freie Konnektivitätsprüfung (offene/fehlende Verbindungen) ist Standard in EDA-
 Toolchains (KiCad ERC/DRC, ngspice für die *Simulation*); GENESIS implementiert die
 deterministische ERC-Hälfte ohne Engine.
+
+---
+
+## 14. δ-FEM — eigenständiger Balken-Solver (Direkte Steifigkeitsmethode, numpy)
+
+Die δ-2-Statik beantwortet den Kragträger mit einer **Formel**. Die echte
+Verallgemeinerung ist die **Finite-Elemente-Methode**: Element-Steifigkeits-
+matrizen assemblieren, Randbedingungen + Lasten anlegen, `K·u = F` lösen. `fem.py`
+ist ein echter FEM-Solver (direkte Steifigkeitsmethode, 2-Knoten-Euler-Bernoulli-
+Balkenelement) — in **reinem numpy**, also **ohne externen Solver** (CalculiX/
+FreeCAD), voll offline und deterministisch.
+
+**Verifiziert statt behauptet:** Für eine Tip-belastete Kragträger ist das
+Balkenelement **exakt**, also muss das FEM-Ergebnis die geschlossene Form bis auf
+Maschinengenauigkeit treffen — Spitzendurchbiegung `δ = F·L³/(3·E·I)` und
+Wurzel-Biegespannung `σ = M·c/I = 6·F·L/(b·h²)`. Der entscheidende Test prüft das
+FEM gegen **beides**: die geschlossene Form **und** die unabhängige δ-2-Analytik
+(`structural.py`), die der Capstone nutzt — zwei verschiedene Methoden, die
+übereinstimmen (`σ = 7,355 MPa` mesh-unabhängig für n=1…64), sind Defense-in-Depth
+gegen einen Codefehler in einer der beiden.
+
+**Ehrliche Grenze:** Dies ist **1-D-Euler-Bernoulli** per Matrixmethode (dieselbe
+Modellklasse wie die Formel) — verallgemeinert auf Mehrsegment-/Mehrlast-Balken,
+die eine Einzelformel nicht kann, ist aber **kein 3-D-Kontinuums-FEM** (kein
+Spannungskonzentrationsfeld, keine Platten/Schalen). Das bleibt eine externe-Solver-
+Schicht unter demselben Beweis-Standard. Modul `fem.py` (braucht numpy), getestet
+in `tests/test_fem.py`.
+
+**Quelle:** Direkte Steifigkeitsmethode, Hermite-kubisches Balkenelement
+(Standard-FEM, z. B. Cook, *Concepts and Applications of Finite Element Analysis*);
+Kragträger-Durchbiegung `δ = F·L³/(3EI)` (Euler-Bernoulli).
