@@ -1478,6 +1478,39 @@ in LLM Prompts (arXiv 2505.13360).
 
 ---
 
+## 44. Run-Telemetrie — der auditierbare Prozess-Trace (`telemetry.py`)
+
+Produktions-Agent-Praxis (NIST AI RMF; OpenTelemetry GenAI) erfasst eine **vollständige
+Argumentations-Spur**: jedes Gate, jeder Tool-Call, jede Entscheidung als strukturierter Span
+mit Attributen und Status — auditierbar, regressions-fangend (Teams mit Observability erreichen
+~2,2× Reliabilität). GENESIS' Ledger speichert **Fakten**; dieses Modul speichert den
+**Prozess**: welche Gates liefen, ihre Verdikte und Fehler, Refine-Runden, Timings — ein Trace,
+der das Ledger ergänzt.
+
+**Abhängigkeitsleicht by design:** ein In-Process-Trace, dessen Events in ein
+**OpenTelemetry-förmiges** Dict (Name + Attribute + Status) exportieren, sodass ein echter
+OTel-Exporter sie konsumieren kann — **ohne** dass GENESIS vom OTel-SDK abhängt. Timing ist
+**reine Observability-Metadata** (nie Teil eines Gate-Verdikts oder reproduzierbaren Outputs)
+und die **Clock ist injizierbar**, sodass ein Trace unter fester Clock voll **deterministisch**
+ist — die Tests pinnen exakte Dauern.
+
+**Verifiziert** (6 Tests, offline): ein `span` timt seinen Body unter der injizierten Clock
+**exakt** (`0.25 s → 250.0 ms`); ein **werfender** Schritt wird als `status="error"` aufgezeichnet
+**und** re-raised (kein stilles ok); `record_gate` markiert ein **nicht** bestandenes Gate als
+`error` mit den Failure-Codes als Attribut (das Observability-Pendant zur Gate-Ehrlichkeit);
+`summary` aggregiert (Events/Errors/by_kind/Gesamtzeit); `to_otel` liefert die OTel-Form
+(`status` OK/ERROR, `genesis.kind` in Attributen); deterministisch unter fester Clock.
+
+**Ehrliche Grenze:** dies ist der **In-Process-Trace + OTel-förmige Export**; der echte
+OTel-SDK-Export an ein Backend (Jaeger/SIEM) ist der pluggbare Deploy-Teil. Modul
+`telemetry.py`, getestet in `tests/test_telemetry.py`.
+
+**Quelle:** NIST AI Risk Management Framework; OpenTelemetry GenAI Semantic Conventions
+(Spans für Prompts/Tool-Calls/Gates); Produktions-Agent-Praxis (Observability → ~2,2×
+Reliabilität).
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
