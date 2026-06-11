@@ -43,6 +43,23 @@ class UngroundedApproachError(GenesisError):
         )
 
 
+class UnsourcedSourcingError(GenesisError):
+    """Raised when a BOM sourcing (supplier/part/price) has no grounding claim.
+
+    The procurement pendant of UnsourcedClaimError: a supplier, order number, or
+    price is a factual claim about the world. It must reference at least one
+    verified claim — there is no invented shop or price in GENESIS. In doubt the
+    sourcing is omitted as an honest gap (PHASE_GAMMA_DEPTH.md §1).
+    """
+
+    def __init__(self, bom_id: str) -> None:
+        super().__init__(
+            f"BOM item {bom_id!r} asserts sourcing without a grounding claim. "
+            "A supplier/part/price without provenance cannot exist in GENESIS "
+            "(PHASE_GAMMA_DEPTH.md §1)."
+        )
+
+
 class UngroundedValueError(GenesisError):
     """Raised when a GROUNDED Quantity is constructed without any grounding claim.
 

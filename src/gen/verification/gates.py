@@ -476,6 +476,87 @@ def _check_geometry(
     )
 
 
+def _normalize(text: str) -> str:
+    """Lower-case + collapse whitespace, for robust substring matching."""
+    return " ".join(text.lower().split())
+
+
+def text_in_claim(needle: str, claim_text: str) -> bool:
+    """True if `needle` appears (normalized substring) in a claim's text. The
+    string analogue of value_in_text (C-4): a supplier/part name asserted in a
+    sourcing must literally come from a verified claim, not be invented."""
+    n = _normalize(needle)
+    return bool(n) and n in _normalize(claim_text)
+
+
+def _check_sourcing(item, *, quantities, check_claim_ref, failures) -> None:
+    """C-16: a BOM sourcing must be claim-backed — supplier and part_number
+    appear verbatim in a grounding claim, the grounding is VERIFIED/α-sound, and
+    the price (if any) is a GROUNDED quantity (verbatim number via C-1..C-4)."""
+    src = item.sourcing
+    if not src.grounding:
+        failures.append(
+            GateFailure(
+                code="SOURCING_NOT_GROUNDED",
+                detail=f"BOM item {item.id!r} sourcing has no grounding claim.",
+            )
+        )
+        return
+    grounding_claims = []
+    for cid in src.grounding:
+        claim = check_claim_ref(cid, f"BOM item {item.id!r} sourcing")
+        if claim is not None:
+            grounding_claims.append(claim)
+            if claim.status is not ClaimStatus.VERIFIED:
+                failures.append(
+                    GateFailure(
+                        code="SOURCING_NOT_GROUNDED",
+                        detail=(
+                            f"BOM item {item.id!r} sourcing grounded in non-verified "
+                            f"claim ({claim.status.value}): {claim.text!r}"
+                        ),
+                        claim_id=cid,
+                    )
+                )
+    # supplier & part_number must each appear in some grounding claim's text
+    for field_name, value in (("supplier", src.supplier), ("part_number", src.part_number)):
+        if value and not any(text_in_claim(value, c.text) for c in grounding_claims):
+            failures.append(
+                GateFailure(
+                    code="SOURCING_NOT_IN_CLAIM",
+                    detail=(
+                        f"BOM item {item.id!r} sourcing {field_name} {value!r} does not "
+                        "appear in any grounding claim — no invented shop/part."
+                    ),
+                )
+            )
+    # the price must be a GROUNDED quantity (its number is then verbatim-checked
+    # against its own claim by C-1..C-4 in the quantity loop)
+    if src.price_quantity_id is not None:
+        price_q = quantities.get(src.price_quantity_id)
+        if price_q is None:
+            failures.append(
+                GateFailure(
+                    code="DANGLING_REFERENCE",
+                    detail=(
+                        f"BOM item {item.id!r} sourcing price references unknown "
+                        f"quantity {src.price_quantity_id!r}"
+                    ),
+                )
+            )
+        elif price_q.origin is not ValueOrigin.GROUNDED:
+            failures.append(
+                GateFailure(
+                    code="SOURCING_NOT_GROUNDED",
+                    detail=(
+                        f"BOM item {item.id!r} price {src.price_quantity_id!r} must be a "
+                        "GROUNDED quantity (its number verbatim from a claim), not "
+                        f"{price_q.origin.value}."
+                    ),
+                )
+            )
+
+
 def gate_gamma(
     state: RunState,
     *,
@@ -762,6 +843,16 @@ def gate_gamma(
             )
         for cid in item.grounding:
             check_claim_ref(cid, f"BOM item {item.id!r}")
+
+        # C-16: sourcing (supplier/part/price) must be claim-backed — no invented
+        # shop, order number, or price.
+        if item.sourcing is not None:
+            _check_sourcing(
+                item,
+                quantities=quantities,
+                check_claim_ref=check_claim_ref,
+                failures=failures,
+            )
 
     # (constraint reference resolution is handled in the unified constraint
     #  section below, since left/right are now arithmetic expressions, C-13)

@@ -437,9 +437,17 @@ def format_specification(spec: Specification) -> str:
 
     if spec.bom:
         lines.append("Bill of materials:")
+        qmap = {q.id: q for q in spec.quantities}
         for item in spec.bom:
             extra = f" -> {item.component_id}" if item.component_id else ""
             lines.append(f"  • {item.count}x {item.name} ({item.role.value}{extra})")
+            if item.sourcing is not None:
+                s = item.sourcing
+                price = ""
+                if s.price_quantity_id and s.price_quantity_id in qmap:
+                    pq = qmap[s.price_quantity_id]
+                    price = f", {pq.value:g} {pq.unit}/pc"
+                lines.append(f"      source: {s.supplier} #{s.part_number}{price} (claim-backed)")
         lines.append("")
 
     if spec.steps:

@@ -335,6 +335,16 @@ def _specification_to_dict(spec: Specification) -> dict:
                 "count": b.count,
                 "component_id": b.component_id,
                 "grounding": list(b.grounding),
+                "sourcing": (
+                    {
+                        "supplier": b.sourcing.supplier,
+                        "part_number": b.sourcing.part_number,
+                        "price_quantity_id": b.sourcing.price_quantity_id,
+                        "grounding": list(b.sourcing.grounding),
+                    }
+                    if b.sourcing
+                    else None
+                ),
             }
             for b in spec.bom
         ],

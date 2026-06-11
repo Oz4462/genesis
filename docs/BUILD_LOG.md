@@ -974,3 +974,41 @@ Meldung statt eines falschen Netzes.
 **Gesamtstand:** **344 passed** (offline). Drei deterministische Geometrie-Exporte
 (OpenSCAD, build123d, STL), jeder ehrlich über seine Grenze. Kein Live-Run.
 
+## γ-DEPTH — Roadmap + Sourcing-Keystone (kein erfundener Shop/Preis)  ✅ (1/6)
+
+**Auslöser:** Owner-Roadmap „Spezifikation bis zum letzten Detail" (Beschaffung,
+Fastener-Fit, Kompatibilität, Elektronik, Montage/Ort, End-to-End) unter der harten
+Invariante: jedes Detail = belegter Claim oder deklarierte/nachgerechnete Größe,
+nie erfunden, im Zweifel ehrliche Lücke.
+
+**Festgehalten:** `docs/phases/PHASE_GAMMA_DEPTH.md` — 6 Module + das
+**sourced-or-gap**-Prinzip (faktischer Wert → GROUNDED-Quantity/C-4; faktischer
+Text → wörtlich im VERIFIED-Claim; Wahl → DECISION/C-7).
+
+**Keystone gebaut (Modul 1/6 — Sourcing-BOM):** `state.Sourcing(supplier,
+part_number, price_quantity_id?, grounding≥1)` an `BomItem`; Konstruktor-Guard
+`UnsourcedSourcingError`. GATE γ **C-16**: grounding VERIFIED+α-sound; supplier &
+part_number müssen **wörtlich** in einem Grounding-Claim stehen (`text_in_claim`,
+String-Pendant zu `value_in_text`); Preis als GROUNDED-Quantity (Zahl wörtlich via
+C-1..C-4). architect attacht Sourcing nur claim-belegt (sonst ehrliche Lücke);
+runner serialisiert; CLI zeigt `source: <supplier> #<part> <preis> (claim-backed)`.
+
+**Selbstkontrolle:**
+- [x] Tests grün? **354 passed** (344 + 10 Sourcing: belegt→ok, erfundener Supplier/
+      Part→`SOURCING_NOT_IN_CLAIM`, erfundener Preis→`VALUE_NOT_IN_GROUNDING`,
+      Decision-Preis→`SOURCING_NOT_GROUNDED`, kein-grounding→Konstruktor-Fehler,
+      dangling-Preis→`DANGLING_REFERENCE`, ohne Sourcing→erlaubt). offline, 0.91 s.
+- [x] Drift? `text_in_claim` konsistent zu `value_in_text`; architect/runner/CLI
+      kohärent erweitert.
+- [x] Halluzination? Anti-Halluzination IST der Modulkern — strukturell kein
+      erfundener Shop/Part/Preis; bewiesen.
+- [x] Doku? PHASE_GAMMA_DEPTH.md, dieser Eintrag.
+
+**Ehrliche Grenze (Offline):** Reale Sourcing-Claims entstehen erst durch Live-α-
+Recherche (Owner-Vorgabe: keine Live-Runs). Offline ist der **Mechanismus** mit
+gescripteten Claims bewiesen; ohne Claim abstrahiert GENESIS ehrlich.
+
+**Offen (2–6/6):** Fastener→Loch (belegte Referenz), Komponenten-Kompatibilität,
+Elektronik-Domäne (E-BOM + elektrische Einheiten), Montage-Detail (Werkzeug/
+Drehmoment) + Ort/Umgebung, End-to-End-Capstone durch α/β/γ/δ. **354 passed.**
+

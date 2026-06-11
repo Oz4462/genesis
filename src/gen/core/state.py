@@ -320,6 +320,36 @@ class BomRole(enum.Enum):
 
 
 @dataclass
+class Sourcing:
+    """Procurement provenance for a BOM item — where to actually buy it.
+
+    INVARIANT (enforced here AND re-checked by GATE γ C-16): `grounding` is
+    non-empty. A supplier, order number, or price is a factual claim about the
+    world; it must be anchored in VERIFIED claims, and GATE γ additionally
+    requires `supplier` and `part_number` to appear in a grounding claim's text
+    (the string analogue of the value-in-claim guard C-4). The price is a
+    GROUNDED quantity (`price_quantity_id`), so its number is verbatim-checked
+    against a claim too. No invented shop, order number, or price
+    (PHASE_GAMMA_DEPTH.md §1).
+
+    `supplier`          e.g. "McMaster-Carr" — must appear in a grounding claim.
+    `part_number`       order number or standard, e.g. "91290A115" / "ISO 4762".
+    `price_quantity_id` a GROUNDED price quantity (currency unit), or None.
+    `grounding`         claim_ids backing the sourcing. MUST be non-empty.
+    """
+
+    supplier: str
+    part_number: str
+    price_quantity_id: str | None = None
+    grounding: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if not self.grounding:
+            from .errors import UnsourcedSourcingError
+            raise UnsourcedSourcingError(f"{self.supplier}/{self.part_number}")
+
+
+@dataclass
 class BomItem:
     """One line of the bill of materials.
 
@@ -327,6 +357,7 @@ class BomItem:
     its geometry); without one it is purchased/external. Optional `grounding`
     holds claim_ids backing factual properties of the item (availability,
     spec) — if present, GATE γ requires them sound like any other reference.
+    `sourcing` (optional) says where to buy it — every field claim-backed.
     """
 
     id: str
@@ -335,6 +366,7 @@ class BomItem:
     count: int = 1
     component_id: str | None = None
     grounding: list[str] = field(default_factory=list)
+    sourcing: "Sourcing | None" = None
 
 
 @dataclass

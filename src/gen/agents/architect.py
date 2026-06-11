@@ -40,6 +40,7 @@ from ..core.state import (
     GeometryNode,
     Quantity,
     RunState,
+    Sourcing,
     Specification,
     Step,
     ValueOrigin,
@@ -454,10 +455,39 @@ class Architect:
         count = int(count_raw) if isinstance(count_raw, int) and not isinstance(count_raw, bool) else 1
         component_id = str(raw.get("component_id")).strip() if raw.get("component_id") else None
         grounding = [cid for cid in _as_str_list(raw.get("grounding")) if cid in verified]
+        sourcing = self._parse_sourcing(raw.get("sourcing"), bid, verified, log)
         return BomItem(
             id=bid, name=str(raw.get("name") or bid).strip(), role=role,
             count=count, component_id=component_id, grounding=grounding,
+            sourcing=sourcing,
         )
+
+    def _parse_sourcing(self, raw: object, bom_id: str, verified: dict[str, Claim], log):
+        """Build a Sourcing only if it is claim-backed; otherwise None (honest gap).
+
+        No invented shop/part/price reaches the spec: grounding is filtered to
+        VERIFIED claims and the gate re-checks that supplier/part appear in a
+        claim. Empty grounding -> dropped (the constructor would also refuse it).
+        """
+        if not isinstance(raw, dict):
+            return None
+        grounding = [cid for cid in _as_str_list(raw.get("grounding")) if cid in verified]
+        if not grounding:
+            log(f"architect: drop sourcing for {bom_id!r} (no verified grounding) -> gap")
+            return None
+        try:
+            return Sourcing(
+                supplier=str(raw.get("supplier") or "").strip(),
+                part_number=str(raw.get("part_number") or "").strip(),
+                price_quantity_id=(
+                    str(raw.get("price_quantity_id")).strip()
+                    if raw.get("price_quantity_id") else None
+                ),
+                grounding=grounding,
+            )
+        except GenesisError as exc:
+            log(f"architect: drop sourcing for {bom_id!r}: {exc}")
+            return None
 
     def _parse_step(self, raw: object, position: int, log) -> Step | None:
         if not isinstance(raw, dict):
