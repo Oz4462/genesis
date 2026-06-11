@@ -531,11 +531,17 @@ Widerstand des LED-Streifens (`R=V/I=8 Ω`) liefert **exakt** die Nennlast 1,5 A
 genau den Strom, den der Elektronik-Constraint (PSU 2 A ≥ LED 1,5 A) annimmt. Damit
 wird der Constraint nicht nur deklariert, sondern **gerechnet**.
 
-**Ehrliche Grenze:** Dies ist **linearer DC** (Widerstände + unabhängige Quellen).
-Eine echte LED ist eine nichtlineare Diode; hier per Arbeitspunkt-Ersatzwiderstand
-`R=V/I` modelliert — genau das, was die DC-Strom-Prüfung sinnvoll macht, keine
-Transienten-/Großsignal-/AC-Analyse. Die bleiben eine externe-Simulator-Schicht
-unter demselben Beweis-Standard. Modul `circuit.py` (braucht numpy), getestet in
+**AC-Erweiterung (komplexe MNA):** `solve_ac(components, omega)` löst den
+Frequenzbereich — reaktive Admittanzen `Y_C=jωC`, `Y_L=1/(jωL)`, komplexe Knoten-
+Phasoren (Betrag + Phase). **Verifiziert** gegen die analytische RC-Tiefpass-
+Übertragungsfunktion `H(jω)=1/(1+jωRC)`: am Cutoff `ω=1/RC` exakt `|H|=1/√2`,
+Phase −45°; über das ganze Band deckungsgleich. (DC ist der ω→0-Spezialfall.)
+
+**Ehrliche Grenze:** linearer DC + **linearer AC** (Widerstände, Kondensatoren,
+Spulen, unabhängige Quellen). Eine echte LED ist eine nichtlineare Diode; hier per
+Arbeitspunkt-Ersatzwiderstand `R=V/I` modelliert. **Nichtlineare** (Diode/Newton-
+Raphson) und **Transienten**-Analyse bleiben eine weitere Schicht unter demselben
+Beweis-Standard. Modul `circuit.py` (braucht numpy), getestet in
 `tests/test_circuit.py`.
 
 **Quelle:** Modified Nodal Analysis (Standard-Schaltungsanalyse, Ho/Ruehli/Brennan

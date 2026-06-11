@@ -20,7 +20,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from gen.circuit import CurrentSource, Resistor, VoltageSource, solve_dc  # noqa: E402
+from gen.circuit import (  # noqa: E402
+    Capacitor,
+    CurrentSource,
+    Inductor,
+    Resistor,
+    VoltageSource,
+    solve_ac,
+    solve_dc,
+)
 
 
 def test_ohms_law():
@@ -57,3 +65,36 @@ def test_capstone_psu_delivers_the_rated_led_current():
     assert math.isclose(v["VCC"], 12.0, rel_tol=1e-9)
     assert math.isclose(i["PSU"], a_led, rel_tol=1e-9)      # PSU delivers exactly 1.5 A
     assert i["PSU"] <= q["q_psu_a"].value                   # within the 2 A rating
+
+
+# --- AC (frequency-domain) MNA vs the analytic transfer function ---------------
+
+def test_rc_lowpass_at_cutoff():
+    # RC low-pass H(jw) = 1/(1 + jwRC); at w = 1/RC, |H| = 1/sqrt(2), phase = -45 deg
+    R, C = 1000.0, 1e-6
+    wc = 1.0 / (R * C)
+    v = solve_ac([VoltageSource("IN", "0", 1.0, "S"),
+                  Resistor("IN", "OUT", R), Capacitor("OUT", "0", C)], wc)
+    H = v["OUT"]
+    assert math.isclose(abs(H), 1.0 / math.sqrt(2), rel_tol=1e-9)
+    assert math.isclose(math.degrees(math.atan2(H.imag, H.real)), -45.0, abs_tol=1e-6)
+
+
+def test_rc_lowpass_matches_theory_across_band():
+    R, C = 2200.0, 4.7e-9
+    for w in (1e3, 1e5, 1e7):
+        v = solve_ac([VoltageSource("IN", "0", 1.0, "S"),
+                      Resistor("IN", "OUT", R), Capacitor("OUT", "0", C)], w)
+        theory = 1.0 / (1.0 + 1j * w * R * C)
+        assert math.isclose(abs(v["OUT"]), abs(theory), rel_tol=1e-9)
+
+
+def test_lc_resonance_blocks_then_passes():
+    # series L with shunt R: at low w the inductor passes, at high w it blocks
+    R, L = 50.0, 1e-3
+    lo = solve_ac([VoltageSource("IN", "0", 1.0, "S"), Inductor("IN", "OUT", L),
+                   Resistor("OUT", "0", R)], 10.0)
+    hi = solve_ac([VoltageSource("IN", "0", 1.0, "S"), Inductor("IN", "OUT", L),
+                   Resistor("OUT", "0", R)], 1e6)
+    assert abs(lo["OUT"]) > 0.9          # inductor ~ short at low frequency
+    assert abs(hi["OUT"]) < 0.1          # inductor ~ open at high frequency

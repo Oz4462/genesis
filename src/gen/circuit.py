@@ -58,8 +58,22 @@ class CurrentSource:
     amps: float
 
 
+@dataclass(frozen=True)
+class Capacitor:
+    a: str
+    b: str
+    farads: float
+
+
+@dataclass(frozen=True)
+class Inductor:
+    a: str
+    b: str
+    henries: float
+
+
 def _nodes(component) -> tuple[str, ...]:
-    if isinstance(component, Resistor):
+    if isinstance(component, (Resistor, Capacitor, Inductor)):
         return (component.a, component.b)
     if isinstance(component, VoltageSource):
         return (component.p, component.n)
@@ -118,3 +132,60 @@ def solve_dc(components, ground: str = GROUND) -> tuple[dict[str, float], dict[s
         (vs.name or f"V{k}"): float(-x[n + k]) for k, vs in enumerate(vsources)
     }
     return node_v, source_i
+
+
+def solve_ac(
+    components, omega: float, ground: str = GROUND
+) -> dict[str, complex]:
+    """Solve the AC steady state at angular frequency `omega` [rad/s] by complex
+    MNA. Reactive admittances are Y_C = jωC and Y_L = 1/(jωL); voltage sources are
+    phasors (amplitude as a complex value, default phase 0). Returns the complex
+    node voltage phasors (magnitude = amplitude, angle = phase). Deterministic.
+
+    The frequency-domain counterpart of `solve_dc` (DC is the ω→0 special case for
+    a purely resistive network).
+    """
+    nodes = sorted({nd for c in components for nd in _nodes(c)} - {ground})
+    idx = {nd: i for i, nd in enumerate(nodes)}
+    vsources = [c for c in components if isinstance(c, VoltageSource)]
+    n, m = len(nodes), len(vsources)
+
+    A = np.zeros((n + m, n + m), dtype=complex)
+    z = np.zeros(n + m, dtype=complex)
+
+    def _stamp_admittance(a: str, b: str, y: complex) -> None:
+        if a != ground:
+            A[idx[a], idx[a]] += y
+        if b != ground:
+            A[idx[b], idx[b]] += y
+        if a != ground and b != ground:
+            A[idx[a], idx[b]] -= y
+            A[idx[b], idx[a]] -= y
+
+    for c in components:
+        if isinstance(c, Resistor):
+            _stamp_admittance(c.a, c.b, 1.0 / c.ohms)
+        elif isinstance(c, Capacitor):
+            _stamp_admittance(c.a, c.b, 1j * omega * c.farads)
+        elif isinstance(c, Inductor):
+            _stamp_admittance(c.a, c.b, 1.0 / (1j * omega * c.henries))
+        elif isinstance(c, CurrentSource):
+            if c.frm != ground:
+                z[idx[c.frm]] -= c.amps
+            if c.to != ground:
+                z[idx[c.to]] += c.amps
+
+    for k, vs in enumerate(vsources):
+        row = n + k
+        if vs.p != ground:
+            A[idx[vs.p], row] += 1.0
+            A[row, idx[vs.p]] += 1.0
+        if vs.n != ground:
+            A[idx[vs.n], row] -= 1.0
+            A[row, idx[vs.n]] -= 1.0
+        z[row] = vs.volts
+
+    x = np.linalg.solve(A, z)
+    node_v = {nd: complex(x[idx[nd]]) for nd in nodes}
+    node_v[ground] = 0.0 + 0.0j
+    return node_v
