@@ -683,6 +683,31 @@ Benchmark.
 
 ---
 
+## 23. FEM des konkreten Halters in Biegung — die konservative Schranke geprüft
+
+§22 rechnet die kanonische **Zug**-Kt; §23 schließt es für das **echte Teil**:
+`bracket_fem.py` vernetzt die **tatsächliche Halter-Geometrie** (Box mit Durchgangs-
+loch) mit gmsh — verfeinert **sowohl** am eingespannten Wurzelquerschnitt (max.
+Biegung) **als auch** am Loch — speist sie in den 3-D-Solver (`fem3d`), belastet sie
+als **Kragträger** (feste Wandfläche, transversale Spitzenlast) und liest die echte
+Spitzenspannung.
+
+**Ehrlicher Befund (verifiziert):** das 3-D-Feld **bestätigt** die Handrechnung —
+die Wurzel-Oberflächenspannung konvergiert (von unten, CST-Tets) gegen die
+analytische `σ_nom = 6FL/(bh²) = 7,355 MPa` — und zeigt, dass die Schranke
+**konservativ** war: das Loch sitzt **mittig** (halbes Wurzelmoment), also ist es
+selbst mit Konzentration **nicht** die kritische Stelle (`σ_hole < σ_root`), und der
+reale Peak (~6,5 MPa) liegt **weit unter** der Kt=3-Schranke (22 MPa) und **weit
+unter** der Festigkeit (50 MPa). **Eine konservative Handrechnung, vom FEM bestätigt
+und quantifiziert.**
+
+**Ehrliche Grenze:** lineare Elastizität, konstant-Dehnungs-Tets (Peak auf grobem
+Netz unterschätzt → Verfeinerung, „konvergiert nach oben"), statische Spitzenlast,
+PLA `E≈3500 MPa`, `ν≈0,35` deklariert. gmsh optional (Test skippt ohne). Modul
+`bracket_fem.py`, getestet in `tests/test_bracket_fem.py`.
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).
