@@ -107,6 +107,7 @@
     <button data-v="spec">γ · Bauanleitung</button>
     <button data-v="capstone">Capstone</button>
     <button data-v="assess">Physik-Verdikt</button>
+    <button data-v="clarify">Klärungs-Dialog</button>
     <button data-v="eval">Garantie-Metrik</button>
     <button data-v="signoff">Sign-off</button>
     <button data-v="ask">Eigene Frage</button>
@@ -144,6 +145,9 @@
 
   <div class="view" id="v-assess"><div id="assessBox"><button class="btn" onclick="loadAssess()">Physik-Verdikt berechnen</button>
     <p class="hint" style="margin-top:10px">Die verdrahtete Quality-Engine: Auto-Auswahl der zutreffenden Physik-Checks, Sicherheitsfaktoren, Klärungsbedarf — ein ehrliches Gesamt-Verdikt.</p></div></div>
+
+  <div class="view" id="v-clarify"><div id="clarifyBox"><button class="btn" onclick="loadClarify()">Dialog starten (unterspezifizierte Welle)</button>
+    <p class="hint" style="margin-top:10px">GENESIS erkennt, was zur Bewertung fehlt, und fragt <b>dich</b> — deine Antworten werden als deklarierte Entscheidungen übernommen, dann wird neu geprüft.</p></div></div>
 
   <div class="view" id="v-eval"><div id="evalBox"><button class="btn" onclick="loadEval()">Garantie messen</button>
     <p class="hint" style="margin-top:10px">Das Eval-Harness: bestehen alle soliden Fälle, scheitern alle manipulierten? Die nicht verhandelbare Zahl: <b>Leaks = 0</b>.</p></div></div>
@@ -250,6 +254,25 @@ async function loadCapstone(){const box=$("#capBox");box.innerHTML=spin("Capston
 async function loadAssess(){const box=$("#assessBox");box.innerHTML=spin("Physik-Engine rechnet…");
  try{const r=await get("/api/assess");box.innerHTML=r.specs.map(s=>assessCard(s.assessment,s.label)).join("");}
  catch(e){box.innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
+
+async function loadClarify(){const box=$("#clarifyBox");box.innerHTML=spin("Spezifikation wird geprüft…");
+ try{const r=await get("/api/clarify/demo");
+  let h=assessCard(r.assessment,"Vorher: "+r.idea);
+  h+=`<div class="card"><h3>Deine Antworten</h3><p class="hint">Beantworte die Rückfragen — jede Antwort wird als deklarierte Entscheidung übernommen (nie als Fakt ausgegeben).</p>`;
+  h+=r.questions.map((q,i)=>`<div style="margin:10px 0"><div class="small" style="margin-bottom:5px">${esc(q.question)} <span class="badge b-dim">${esc(q.expected_unit??"")}</span></div>
+    <input type="text" id="ans${i}" data-m="${esc(q.measurand)}" data-u="${esc(q.expected_unit??"")}" placeholder="Wert in ${esc(q.expected_unit??"?")}" style="max-width:260px"></div>`).join("");
+  h+=`<div style="margin-top:12px"><button class="btn" onclick="answerClarify(${r.questions.length})">Antworten übernehmen &amp; neu prüfen</button></div><div id="clarifyResult"></div></div>`;
+  box.innerHTML=h;}catch(e){box.innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
+
+async function answerClarify(n){
+  const answers={};
+  for(let i=0;i<n;i++){const el=$("#ans"+i);const v=parseFloat((el.value||"").replace(",","."));
+    if(!isNaN(v))answers[el.dataset.m]={value:v,unit:el.dataset.u};}
+  if(!Object.keys(answers).length){$("#clarifyResult").innerHTML=`<div class="gapbox"><b>Hinweis:</b> bitte mindestens eine Antwort eingeben (Zahl).</div>`;return;}
+  $("#clarifyResult").innerHTML=spin("Neu prüfen…");
+  const r=await(await fetch("/api/clarify/answer",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({answers})})).json();
+  $("#clarifyResult").innerHTML=`<div class="sect" style="margin-top:16px">Nachher</div>`+assessCard(r.assessment,"Nach deinen Antworten");}
 
 async function loadEval(){const box=$("#evalBox");box.innerHTML=spin("Eval-Harness läuft…");
  try{const r=await get("/api/eval");

@@ -24,9 +24,9 @@ handles structured underspecification deterministically. Offline, pure functions
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
-from .core.state import Specification
+from .core.state import Quantity, Specification, ValueOrigin
 from .physics_selection import RECIPES
 
 # Human-readable question per measurand the recipes need. A measurand without a template
@@ -114,3 +114,41 @@ def is_underspecified(spec: Specification) -> bool:
     """True if any indicated physics is missing an input — i.e. clarification is warranted
     before the design can be fully evaluated."""
     return bool(clarifying_questions(spec))
+
+
+def expected_unit(measurand: str) -> str | None:
+    """The unit the recipes expect for `measurand` (a hint for an answer form), or None
+    if no recipe consumes it."""
+    for recipe in RECIPES:
+        for _arg, (m, unit) in recipe.inputs.items():
+            if m == measurand:
+                return unit
+    return None
+
+
+def apply_answers(
+    spec: Specification, answers: dict[str, tuple[float, str]]
+) -> Specification:
+    """Fold the human's clarification answers into the spec — each as a DECLARED
+    DECISION quantity carrying its measurand (the same provenance discipline as every
+    other value: the human's answer is a design decision, not a fact).
+
+    `answers` maps measurand -> (value, unit). Only answers for measurands the spec does
+    NOT already declare are added (an existing declaration is never silently overwritten);
+    the unit is taken as declared — the selection layer converts soundly and surfaces a
+    dimension mismatch as a gap rather than guessing. Returns a NEW Specification (the
+    input is not mutated). Deterministic.
+    """
+    present = {q.measurand for q in spec.quantities if q.measurand}
+    new_quantities = list(spec.quantities)
+    for i, (measurand, (value, unit)) in enumerate(sorted(answers.items())):
+        if measurand in present:
+            continue
+        qid = f"q_clarified_{i}_{measurand.replace('.', '_')}"
+        new_quantities.append(Quantity(
+            id=qid, name=f"clarified: {measurand}", value=float(value), unit=unit,
+            origin=ValueOrigin.DECISION,
+            rationale="provided by the human in the clarification dialog",
+            measurand=measurand,
+        ))
+    return replace(spec, quantities=new_quantities)

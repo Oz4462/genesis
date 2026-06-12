@@ -90,6 +90,23 @@ def test_ratification_flow_no_auto_approval(client):
     assert full["ratified"] is True and full["unratified"] == []
 
 
+def test_clarify_dialog_closes_the_loop(client):
+    demo = client.get("/api/clarify/demo").json()
+    assert demo["assessment"]["overall"] == "needs_clarification"
+    qs = demo["questions"]
+    assert len(qs) == 1 and qs[0]["measurand"] == "material.shear_strength"
+    assert qs[0]["expected_unit"] == "MPa"
+    answered = client.post("/api/clarify/answer", json={
+        "answers": {"material.shear_strength": {"value": 260.0, "unit": "MPa"}}
+    }).json()
+    assert answered["assessment"]["overall"] == "physics_verified"   # yellow -> green
+
+
+def test_clarify_answer_with_no_usable_answers_stays_unverified(client):
+    r = client.post("/api/clarify/answer", json={"answers": {}}).json()
+    assert r["assessment"]["overall"] == "needs_clarification"       # honest: nothing changed
+
+
 def test_live_ask_is_refused_honestly_while_gated(client, monkeypatch):
     monkeypatch.delenv("GENESIS_ALLOW_LIVE", raising=False)
     r = client.post("/api/ask", json={"question": "irgendeine Frage", "mode": "report"})

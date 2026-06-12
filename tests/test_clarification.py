@@ -84,3 +84,37 @@ def test_is_deterministic():
     a = clarifying_questions(spec)
     b = clarifying_questions(spec)
     assert [(q.measurand, q.priority) for q in a] == [(q.measurand, q.priority) for q in b]
+
+
+# --- the dialog loop: answers close the gap and the verdict turns green ----------
+
+def test_answers_take_an_underspecified_spec_to_verified():
+    from gen.clarification import apply_answers, expected_unit
+    from gen.demo import drive_shaft_spec
+    from gen.pipeline import assess_specification
+
+    spec = drive_shaft_spec()
+    spec.quantities = [q for q in spec.quantities
+                       if q.measurand != "material.shear_strength"]
+    before = assess_specification(spec)
+    assert before.overall == "needs_clarification"
+    assert expected_unit("material.shear_strength") == "MPa"
+
+    answered = apply_answers(spec, {"material.shear_strength": (260.0, "MPa")})
+    after = assess_specification(answered)
+    assert after.overall == "physics_verified"                  # the loop closes
+    added = next(q for q in answered.quantities
+                 if q.measurand == "material.shear_strength")
+    assert added.origin.value == "decision"                     # declared, with provenance
+    assert "clarification dialog" in added.rationale
+    assert len(spec.quantities) == len(answered.quantities) - 1  # input not mutated
+
+
+def test_answers_never_overwrite_an_existing_declaration():
+    from gen.clarification import apply_answers
+    from gen.demo import drive_shaft_spec
+
+    spec = drive_shaft_spec()                                    # fully specified
+    answered = apply_answers(spec, {"shaft.torque": (999.0, "N*m")})
+    torque = [q for q in answered.quantities if q.measurand == "shaft.torque"]
+    assert len(torque) == 1 and torque[0].value == 150.0         # original wins, no dup

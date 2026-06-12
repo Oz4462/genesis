@@ -146,6 +146,21 @@ class SignOffBody(BaseModel):
     approver: str = ""
 
 
+class AnswerBody(BaseModel):
+    answers: dict[str, dict] = {}      # measurand -> {"value": float, "unit": str}
+
+
+def _underspecified_shaft():
+    """The clarification-demo spec: the drive shaft with its shear strength removed —
+    torsion is indicated but cannot run until the human answers."""
+    from ..demo import drive_shaft_spec
+
+    spec = drive_shaft_spec()
+    spec.quantities = [q for q in spec.quantities
+                       if q.measurand != "material.shear_strength"]
+    return spec
+
+
 class AskBody(BaseModel):
     question: str
     mode: str = "report"           # report | solution | spec
@@ -261,6 +276,35 @@ def create_app() -> FastAPI:
             "ratified": is_ratified(packet, signoff),
             "unratified": _ratification_dict(missing),
         }
+
+    @app.get("/api/clarify/demo")
+    def clarify_demo() -> dict:
+        from ..clarification import expected_unit
+
+        spec = _underspecified_shaft()
+        a = assess_specification(spec)
+        return {
+            "idea": spec.idea,
+            "assessment": _assessment_dict(a),
+            "questions": [
+                {"measurand": q.measurand, "question": q.question,
+                 "unblocks": list(q.unblocks), "priority": q.priority,
+                 "expected_unit": expected_unit(q.measurand)}
+                for q in a.clarification_questions
+            ],
+        }
+
+    @app.post("/api/clarify/answer")
+    def clarify_answer(body: AnswerBody) -> dict:
+        from ..clarification import apply_answers
+
+        answers = {
+            m: (float(v["value"]), str(v["unit"]))
+            for m, v in body.answers.items()
+            if isinstance(v, dict) and "value" in v and "unit" in v
+        }
+        answered = apply_answers(_underspecified_shaft(), answers)
+        return {"assessment": _assessment_dict(assess_specification(answered))}
 
     @app.post("/api/ask")
     async def ask(body: AskBody):
