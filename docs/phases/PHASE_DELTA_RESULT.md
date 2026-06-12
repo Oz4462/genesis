@@ -3,6 +3,12 @@
 > Erste beweisbare δ-Schicht: deterministische Geometrie-Validierung. Format wie
 > die α/β/γ-RESULT-Dateien. Keine Schönfärberei.
 
+> **Hinweis (historischer Snapshot):** Dieses RESULT dokumentiert die *erste*
+> δ-Schicht (Stand damals: 318 Tests). δ wurde seitdem zur vollen deterministischen
+> Physik-Engine ausgebaut — 13 Validatoren, δ-Physik-Gate, Auto-Select,
+> Quality-Engine, Web-UI. Aktueller Stand und alle Schichten: `PHASE_DELTA.md`
+> (§1–§51) und das README.
+
 ## Zusammenfassung
 
 Phase δ (Validierung vor dem Bauen) hat ihre **erste beweisbare Schicht** als Code
