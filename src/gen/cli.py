@@ -36,7 +36,7 @@ from .llm.base import ScriptedLLM
 from .llm.ollama import OllamaLLM
 from .ledger.store import InMemoryLedgerStore
 from .export.build123d import specification_to_build123d
-from .export.markdown import specification_to_markdown
+from .export.markdown import BOM_ROLE_LABELS_DE, specification_to_markdown
 from .export.openscad import specification_to_openscad
 from .export.stl import specification_to_stl
 from .runner import Dependencies, run, run_solution, run_specification
@@ -61,7 +61,13 @@ _DOC_CONTENT = (
     "build123d is built on the Open Cascade (OCCT) kernel for boundary "
     "representation (B-rep) solid modeling."
 )
-_CLAIM_TEXT = "build123d is built on the Open Cascade (OCCT) kernel for boundary representation (B-rep) solid modeling."
+# Language contract (PHASE_DELTA §57): the claim TEXT is German (the reader's
+# language); the supporting QUOTE stays character-for-character in the source's
+# original language — exactly what the live scholar prompt demands.
+_CLAIM_TEXT = (
+    "build123d basiert auf dem Kernel Open Cascade (OCCT) für "
+    "Boundary-Representation-Volumenmodellierung (B-Rep)."
+)
 
 
 def _demo_http():
@@ -81,8 +87,8 @@ class _DemoBackend:
     name = "demo"
 
     async def search(self, query: str, limit: int):
-        # skeptic verifies with the claim text ("built on"); scout uses a shorter query.
-        if "built on" in query.lower():
+        # skeptic verifies with the (German) claim text; scout uses a shorter query.
+        if "basiert auf" in query.lower():
             urls = [_I1, _I2]                 # independent corroboration for skeptic
         else:
             urls = [_DOC]                     # the primary doc for scout/scholar
@@ -148,6 +154,15 @@ _G_DOCS = {
     _G_BRACKET: "Cantilever brackets are used for wall-mounted shelves.",
 }
 
+# Language contract (PHASE_DELTA §57): claim texts German, quotes verbatim in the
+# source's original language. The numbers stay byte-identical (C-4 checks each
+# grounded value against the German claim text).
+_G_CLAIMS_DE = {
+    _G_LOAD: "Ein typisches Wandregal muss eine Last von 12 kg tragen.",
+    _G_SCREW: "Eine M4-Schraube hat einen Nenndurchmesser von 4 mm.",
+    _G_BRACKET: "Kragarm-Halterungen werden für wandmontierte Regale verwendet.",
+}
+
 
 def _spec_demo_http():
     pages = {
@@ -195,18 +210,18 @@ def _spec_demo_generator() -> ScriptedLLM:
             return json.dumps(["wall bracket parts"])
         if "extract ATOMIC" in system:
             content = user.split("SOURCE TEXT:", 1)[-1]
-            for text in _G_DOCS.values():
+            for url, text in _G_DOCS.items():
                 if text in content:
-                    # the claim IS the doc sentence; the quote is verbatim
-                    return json.dumps([{"text": text, "quote": text}])
+                    # German claim text; the quote is the verbatim source sentence
+                    return json.dumps([{"text": _G_CLAIMS_DE[url], "quote": text}])
             return "[]"
         if "group VERIFIED" in system:
             claims = _parse_id_lines(user.split("VERIFIED CLAIMS:", 1)[-1])
-            anchor = [cid for cid, text in claims.items() if "Cantilever" in text]
+            anchor = [cid for cid, text in claims.items() if "Kragarm" in text]
             if not anchor:
                 return "[]"
             return json.dumps(
-                [{"name": "Cantilever bracket", "grounding": anchor, "tradeoffs": []}]
+                [{"name": "Kragarm-Halter", "grounding": anchor, "tradeoffs": []}]
             )
         if "build SPECIFICATION" in system:
             approaches = _parse_id_lines(user.split("GROUNDED APPROACHES:", 1)[-1].split("VERIFIED CLAIMS:", 1)[0])
@@ -220,37 +235,37 @@ def _spec_demo_generator() -> ScriptedLLM:
                 {
                     "approach_id": ap_id,
                     "quantities": [
-                        {"id": "q_load", "name": "verified shelf load", "unit": "kg",
+                        {"id": "q_load", "name": "belegte Regallast", "unit": "kg",
                          "origin": "grounded", "value": 12, "grounding": [c_load]},
-                        {"id": "q_screw_d", "name": "screw diameter", "unit": "mm",
+                        {"id": "q_screw_d", "name": "Schraubendurchmesser", "unit": "mm",
                          "origin": "grounded", "value": 4, "grounding": [c_screw]},
-                        {"id": "q_sf", "name": "safety factor", "unit": "1",
+                        {"id": "q_sf", "name": "Sicherheitsfaktor", "unit": "1",
                          "origin": "decision", "value": 2,
-                         "rationale": "conservative for static indoor load; 1.5 and 3 considered"},
-                        {"id": "q_design", "name": "design load", "unit": "kg",
+                         "rationale": "konservativ für statische Innenraumlast; 1.5 und 3 erwogen"},
+                        {"id": "q_design", "name": "Auslegungslast", "unit": "kg",
                          "origin": "derived", "formula": "q_load * q_sf",
                          "inputs": ["q_load", "q_sf"]},
-                        {"id": "q_hole_d", "name": "screw hole diameter", "unit": "mm",
+                        {"id": "q_hole_d", "name": "Schraubenloch-Durchmesser", "unit": "mm",
                          "origin": "decision", "value": 4.5,
-                         "rationale": "clearance fit for an M4 screw"},
-                        {"id": "q_hole_r", "name": "screw hole radius", "unit": "mm",
+                         "rationale": "Spielpassung für eine M4-Schraube"},
+                        {"id": "q_hole_r", "name": "Schraubenloch-Radius", "unit": "mm",
                          "origin": "derived", "formula": "q_hole_d / 2",
                          "inputs": ["q_hole_d"]},
-                        {"id": "q_w", "name": "bracket width", "unit": "mm",
+                        {"id": "q_w", "name": "Halter-Breite", "unit": "mm",
                          "origin": "decision", "value": 60,
-                         "rationale": "fits a standard shelf depth"},
-                        {"id": "q_h", "name": "bracket height", "unit": "mm",
+                         "rationale": "passt zu einer üblichen Regaltiefe"},
+                        {"id": "q_h", "name": "Halter-Höhe", "unit": "mm",
                          "origin": "decision", "value": 80,
-                         "rationale": "lever arm for the design load"},
-                        {"id": "q_t", "name": "bracket thickness", "unit": "mm",
+                         "rationale": "Hebelarm für die Auslegungslast"},
+                        {"id": "q_t", "name": "Halter-Dicke", "unit": "mm",
                          "origin": "decision", "value": 6,
-                         "rationale": "printable wall thickness"},
-                        {"id": "q_density", "name": "PLA density", "unit": "g/mm^3",
+                         "rationale": "druckbare Wanddicke"},
+                        {"id": "q_density", "name": "PLA-Dichte", "unit": "g/mm^3",
                          "origin": "decision", "value": 0.00124,
-                         "rationale": "PLA ~1.24 g/cm³ expressed per mm³ for unit consistency"},
+                         "rationale": "PLA ~1.24 g/cm³, je mm³ ausgedrückt für Einheiten-Konsistenz"},
                     ],
                     "components": [
-                        {"id": "c_bracket", "name": "bracket",
+                        {"id": "c_bracket", "name": "Halter",
                          "quantity_ids": ["q_w", "q_h", "q_t", "q_hole_d", "q_hole_r"],
                          "material_density": "q_density",
                          "geometry": {
@@ -262,35 +277,35 @@ def _spec_demo_generator() -> ScriptedLLM:
                          }},
                     ],
                     "bom": [
-                        {"id": "b_bracket", "name": "bracket", "role": "part",
+                        {"id": "b_bracket", "name": "Halter", "role": "part",
                          "count": 1, "component_id": "c_bracket"},
-                        {"id": "b_screw", "name": "M4 screw", "role": "part",
+                        {"id": "b_screw", "name": "M4-Schraube", "role": "part",
                          "count": 2, "grounding": [c_screw]},
-                        {"id": "b_printer", "name": "3D printer", "role": "tool", "count": 1},
-                        {"id": "b_driver", "name": "screwdriver", "role": "tool", "count": 1},
+                        {"id": "b_printer", "name": "3D-Drucker", "role": "tool", "count": 1},
+                        {"id": "b_driver", "name": "Schraubendreher", "role": "tool", "count": 1},
                     ],
                     "steps": [
                         {"id": "s1", "index": 1,
-                         "action": "3D-print the bracket per its CSG geometry.",
+                         "action": "Den Halter gemäß seiner CSG-Geometrie 3D-drucken.",
                          "uses": ["b_printer"], "inputs": ["b_bracket"],
                          "outputs": ["a_printed"],
-                         "check": "Printed part measures q_w x q_h x q_t within printer tolerance.",
+                         "check": "Das gedruckte Teil misst q_w x q_h x q_t innerhalb der Drucker-Toleranz.",
                          "quantity_refs": ["q_w", "q_h", "q_t"]},
                         {"id": "s2", "index": 2,
-                         "action": "Mount the printed bracket to the wall with both screws.",
+                         "action": "Den gedruckten Halter mit beiden Schrauben an der Wand montieren.",
                          "uses": ["b_driver", "b_screw"], "inputs": ["a_printed"],
                          "outputs": ["a_mounted"],
-                         "check": "Bracket carries the design load q_design without movement.",
+                         "check": "Der Halter trägt die Auslegungslast q_design ohne Bewegung.",
                          "quantity_refs": ["q_design"]},
                     ],
                     "constraints": [
                         {"id": "k1", "kind": "ge", "left": "q_hole_d",
                          "right": "q_screw_d",
-                         "reason": "screw must pass through the hole"},
+                         "reason": "die Schraube muss durch das Loch passen"},
                     ],
                     "decisions": [
-                        {"id": "d_mat", "title": "Material", "choice": "PLA, 3D-printed",
-                         "rationale": "locally available; sufficient for static indoor load"},
+                        {"id": "d_mat", "title": "Material", "choice": "PLA, 3D-gedruckt",
+                         "rationale": "lokal verfügbar; ausreichend für statische Innenraumlast"},
                     ],
                 }
             )
@@ -307,7 +322,7 @@ def build_spec_demo() -> tuple[str, Dependencies, Config]:
         verifier_llm=_demo_verifier(),
         ledger=InMemoryLedgerStore(),
     )
-    idea = "A wall-mounted shelf bracket that carries the verified shelf load"
+    idea = "Ein wandmontierter Regalhalter, der die belegte Regallast trägt"
     return idea, deps, default_config()
 
 
@@ -353,24 +368,24 @@ def build_live(generator: str, verifier: str) -> tuple[Dependencies, Config]:
 def format_report(report: Report) -> str:
     lines = []
     lines.append("=" * 64)
-    lines.append("GENESIS — Phase α verified research report")
+    lines.append("GENESIS — Phase α: verifizierter Recherche-Report")
     lines.append("=" * 64)
-    lines.append(f"Question: {report.question}")
+    lines.append(f"Frage: {report.question}")
     lines.append("")
     if report.statement_to_claim:
-        lines.append("Verified findings (each line is backed by a ledger claim):")
+        lines.append("Verifizierte Befunde (jede Zeile ist durch einen Ledger-Claim belegt):")
         for sentence in report.body.splitlines():
             lines.append(f"  • {sentence}")
     else:
-        lines.append("Verified findings: none — nothing could be independently verified.")
+        lines.append("Verifizierte Befunde: keine — nichts konnte unabhängig verifiziert werden.")
     if report.gaps:
         lines.append("")
-        lines.append("Gaps / explicitly NOT asserted as fact:")
+        lines.append("Lücken / ausdrücklich NICHT als Fakt behauptet:")
         for gap in report.gaps:
             lines.append(f"  - {gap}")
     if report.sources_used:
         lines.append("")
-        lines.append("Sources used:")
+        lines.append("Verwendete Quellen:")
         for src in report.sources_used:
             lines.append(f"    {src}")
     lines.append("=" * 64)
@@ -380,22 +395,22 @@ def format_report(report: Report) -> str:
 def format_solution(sr: SolutionReport) -> str:
     lines = []
     lines.append("=" * 64)
-    lines.append("GENESIS — Phase β grounded solution space")
+    lines.append("GENESIS — Phase β: belegter Lösungsraum")
     lines.append("=" * 64)
     lines.append(f"Problem: {sr.problem}")
     lines.append("")
     if sr.approaches:
-        lines.append("Grounded approaches (each anchored in VERIFIED claims):")
+        lines.append("Belegte Lösungsansätze (jeder in VERIFIZIERTEN Claims verankert):")
         for ap in sr.approaches:
             lines.append(f"  • {ap.name}")
-            lines.append(f"      grounding: {', '.join(ap.grounding)}")
+            lines.append(f"      Beleg: {', '.join(ap.grounding)}")
             if ap.tradeoffs:
-                lines.append(f"      tradeoffs: {', '.join(ap.tradeoffs)}")
+                lines.append(f"      Abwägungen: {', '.join(ap.tradeoffs)}")
     else:
-        lines.append("Grounded approaches: none — nothing could be anchored.")
+        lines.append("Belegte Lösungsansätze: keine — nichts konnte verankert werden.")
     if sr.gaps:
         lines.append("")
-        lines.append("Gaps / explicitly NOT asserted:")
+        lines.append("Lücken / ausdrücklich NICHT behauptet:")
         for gap in sr.gaps:
             lines.append(f"  - {gap}")
     lines.append("=" * 64)
@@ -418,28 +433,28 @@ def format_specification(spec: Specification) -> str:
     """Render the complete, gated build instruction (the γ deliverable)."""
     lines = []
     lines.append("=" * 64)
-    lines.append("GENESIS — Phase γ verified build specification")
+    lines.append("GENESIS — Phase γ: verifizierte Bau-Spezifikation")
     lines.append("=" * 64)
-    lines.append(f"Idea: {spec.idea}")
+    lines.append(f"Idee: {spec.idea}")
     if spec.approach_id:
-        lines.append(f"Anchored in approach: {spec.approach_id}")
+        lines.append(f"Verankert im Lösungsansatz: {spec.approach_id}")
     lines.append("")
 
     if spec.quantities:
-        lines.append("Quantities (every value grounded, derived, or a declared decision):")
+        lines.append("Größen (jeder Wert belegt, berechnet oder eine erklärte Entscheidung):")
         for q in spec.quantities:
             if q.origin is ValueOrigin.GROUNDED:
-                origin = f"GROUNDED in {', '.join(q.grounding)}"
+                origin = f"BELEGT durch {', '.join(q.grounding)}"
             elif q.origin is ValueOrigin.DERIVED:
-                origin = f"DERIVED = {q.derivation.formula}" if q.derivation else "DERIVED"
+                origin = f"BERECHNET = {q.derivation.formula}" if q.derivation else "BERECHNET"
             else:
-                origin = f"DECISION — {q.rationale}"
+                origin = f"ENTSCHEIDUNG — {q.rationale}"
             unc = f" ± {q.uncertainty:g}" if q.uncertainty is not None else ""
             lines.append(f"  • {q.id}: {q.name} = {q.value:g}{unc} {q.unit}   [{origin}]")
         lines.append("")
 
     if spec.components:
-        lines.append("Components (parametric CSG geometry; params are quantity ids):")
+        lines.append("Bauteile (parametrische CSG-Geometrie; Parameter sind Größen-Ids):")
         for comp in spec.components:
             lines.append(f"  • {comp.id}: {comp.name}")
             if comp.geometry is not None:
@@ -452,75 +467,76 @@ def format_specification(spec: Specification) -> str:
         def _bom_lines(items) -> None:
             for item in items:
                 extra = f" -> {item.component_id}" if item.component_id else ""
-                lines.append(f"  • {item.count}x {item.name} ({item.role.value}{extra})")
+                role = BOM_ROLE_LABELS_DE.get(item.role.value, item.role.value)
+                lines.append(f"  • {item.count}x {item.name} ({role}{extra})")
                 if item.sourcing is not None:
                     s = item.sourcing
                     price = ""
                     if s.price_quantity_id and s.price_quantity_id in qmap:
                         pq = qmap[s.price_quantity_id]
-                        price = f", {pq.value:g} {pq.unit}/pc"
-                    lines.append(f"      source: {s.supplier} #{s.part_number}{price} (claim-backed)")
+                        price = f", {pq.value:g} {pq.unit}/Stk"
+                    lines.append(f"      Bezug: {s.supplier} #{s.part_number}{price} (claim-belegt)")
 
         mech = [b for b in spec.bom if b.domain is BomDomain.MECHANICAL]
         elec = [b for b in spec.bom if b.domain is BomDomain.ELECTRONIC]
-        lines.append("Bill of materials (mechanical):")
-        _bom_lines(mech) if mech else lines.append("  • (none)")
+        lines.append("Stückliste (Mechanik):")
+        _bom_lines(mech) if mech else lines.append("  • (keine)")
         lines.append("")
         if elec:
-            lines.append("Bill of materials (electronics):")
+            lines.append("Stückliste (Elektronik):")
             _bom_lines(elec)
             lines.append("")
-        lines.append(f"Estimated cost: {format_cost(bom_cost(spec))}")
+        lines.append(f"Geschätzte Kosten: {format_cost(bom_cost(spec))}")
         lines.append("")
 
     if spec.steps:
         qmap2 = {q.id: q for q in spec.quantities}
-        lines.append("Build steps (each with a human-verifiable check):")
+        lines.append("Bauschritte (jeder mit einer menschlich prüfbaren Kontrolle):")
         for step in sorted(spec.steps, key=lambda s: s.index):
             lines.append(f"  {step.index}. {step.action}")
             if step.tool:
-                lines.append(f"       tool:  {step.tool}")
+                lines.append(f"       Werkzeug:  {step.tool}")
             if step.uses:
-                lines.append(f"       uses:  {', '.join(step.uses)}")
+                lines.append(f"       verwendet: {', '.join(step.uses)}")
             if step.torque_quantity_id and step.torque_quantity_id in qmap2:
                 tq = qmap2[step.torque_quantity_id]
-                lines.append(f"       torque: {tq.value:g} {tq.unit}")
-            lines.append(f"       check: {step.check}")
+                lines.append(f"       Anzugsmoment: {tq.value:g} {tq.unit}")
+            lines.append(f"       Prüfung: {step.check}")
         lines.append("")
 
     if spec.constraints:
-        lines.append("Checked constraints:")
+        lines.append("Geprüfte Anforderungen:")
         for k in spec.constraints:
             lines.append(f"  • {k.left} {k.kind} {k.right} — {k.reason}")
         lines.append("")
 
     if spec.decisions:
-        lines.append("Decision sheet (ratify or change these — they are choices, not facts):")
+        lines.append("Entscheidungsblatt (bestätigen oder ändern — Entscheidungen, keine Fakten):")
         for d in spec.decisions:
             lines.append(f"  • {d.title}: {d.choice} — {d.rationale}")
         lines.append("")
 
     if spec.site is not None:
         qmap3 = {q.id: q for q in spec.quantities}
-        lines.append("Site & environment (where to build it):")
+        lines.append("Ort & Umgebung (wo gebaut wird):")
         if spec.site.available_space is not None:
             dims = []
             for qid in spec.site.available_space:
                 if qid in qmap3:
                     dims.append(f"{qmap3[qid].value:g} {qmap3[qid].unit}")
             if dims:
-                lines.append(f"  • available space: {' x '.join(dims)}")
+                lines.append(f"  • verfügbarer Platz: {' x '.join(dims)}")
         for d in spec.site.requirements:
             lines.append(f"  • {d.title}: {d.choice} — {d.rationale}")
         lines.append("")
 
     if spec.components:
         # Phase δ: deterministic geometric validation (envelope + volume + defects)
-        lines.append("Geometric validation (δ — geometry only, no physics judgement):")
+        lines.append("Geometrische Validierung (δ — nur Geometrie, kein Physik-Urteil):")
         envelope = geometry_envelope(_spec_state(spec))
         quantities = {q.id: q for q in spec.quantities}
         for cid, (ex, ey, ez) in envelope.items():
-            lines.append(f"  • {cid} envelope: {ex:g} x {ey:g} x {ez:g} (bounding box)")
+            lines.append(f"  • {cid} Hüllmaß: {ex:g} x {ey:g} x {ez:g} (Bounding Box)")
             comp = next((c for c in spec.components if c.id == cid), None)
             if comp is not None and comp.geometry is not None:
                 lines.append(_volume_line(comp, quantities))
@@ -529,31 +545,33 @@ def format_specification(spec: Specification) -> str:
                     lines.append(mass_line)
         result = gate_delta(_spec_state(spec))
         if result.passed:
-            lines.append("  • status: no provably broken geometry (PASS — necessary, not sufficient)")
+            lines.append("  • Status: keine beweisbar defekte Geometrie "
+                         "(PASS — notwendig, nicht hinreichend)")
         else:
             for f in result.failures:
                 lines.append(f"  • {f.code}: {f.detail}")
         lines.append("")
 
     if spec.netlist is not None:
-        lines.append("Electrical rule check (ERC — connectivity only, no simulation):")
+        lines.append("Elektrische Regelprüfung (ERC — nur Verbindungen, keine Simulation):")
         for net in spec.netlist.nets:
-            lines.append(f"  • net {net.name}: {', '.join(net.pins)}")
+            lines.append(f"  • Netz {net.name}: {', '.join(net.pins)}")
         erc = gate_erc(_spec_state(spec))
         if erc.passed:
-            lines.append("  • status: no provably broken wiring (PASS — necessary, not sufficient)")
+            lines.append("  • Status: keine beweisbar defekte Verdrahtung "
+                         "(PASS — notwendig, nicht hinreichend)")
         else:
             for f in erc.failures:
                 lines.append(f"  • {f.code}: {f.detail}")
         lines.append("")
 
     if spec.code_artifacts:
-        lines.append("Software validation (CODE — proven by execution):")
+        lines.append("Software-Validierung (CODE — durch Ausführung bewiesen):")
         code = gate_code(_spec_state(spec))
         for art in spec.code_artifacts:
             lines.append(f"  • {art.name} ({art.language}): {art.description}")
         if code.passed:
-            lines.append("  • status: all code checks pass (the machine executed them)")
+            lines.append("  • Status: alle Code-Prüfungen bestanden (die Maschine hat sie ausgeführt)")
         else:
             for f in code.failures:
                 lines.append(f"  • {f.code}: {f.detail}")
@@ -561,38 +579,40 @@ def format_specification(spec: Specification) -> str:
 
     if spec.experiment is not None:
         exp = spec.experiment
-        lines.append("Experiment design (reproducibility — no result asserted):")
+        lines.append("Versuchsdesign (Reproduzierbarkeit — kein Ergebnis behauptet):")
         if exp.measured:
-            lines.append(f"  • measured outcome: {exp.measured}")
-        lines.append(f"  • groups: {', '.join(exp.groups)} (control: {exp.control})")
-        lines.append(f"  • replicates: {exp.replicates}")
+            lines.append(f"  • gemessene Zielgröße: {exp.measured}")
+        lines.append(f"  • Gruppen: {', '.join(exp.groups)} (Kontrollgruppe: {exp.control})")
+        lines.append(f"  • Replikate: {exp.replicates}")
         pr = gate_protocol(_spec_state(spec))
         if pr.passed:
-            lines.append("  • status: reproducibility design is sound (control + replicates)")
+            lines.append("  • Status: Reproduzierbarkeits-Design ist solide "
+                         "(Kontrollgruppe + Replikate)")
         else:
             for f in pr.failures:
                 lines.append(f"  • {f.code}: {f.detail}")
         lines.append("")
 
     if not spec.components and not spec.steps:
-        lines.append("Specification: none asserted — nothing could be grounded.")
+        lines.append("Spezifikation: keine behauptet — nichts konnte belegt werden.")
         lines.append("")
 
     warnings = completeness_warnings(spec)
     if warnings:
-        lines.append("Completeness warnings (the spec is sound but probably under-specified):")
+        lines.append("Vollständigkeits-Warnungen (die Spezifikation ist solide, "
+                     "aber vermutlich unterspezifiziert):")
         for w in warnings:
             lines.append(f"  ! {w}")
         lines.append("")
 
     if spec.gaps:
-        lines.append("Gaps / explicitly NOT asserted:")
+        lines.append("Lücken / ausdrücklich NICHT behauptet:")
         for gap in spec.gaps:
             lines.append(f"  - {gap}")
         lines.append("")
 
     if spec.claim_ids_used:
-        lines.append("Ledger claims referenced:")
+        lines.append("Referenzierte Ledger-Claims:")
         for cid in spec.claim_ids_used:
             lines.append(f"    {cid}")
     lines.append("=" * 64)
@@ -604,12 +624,12 @@ def _volume_line(comp, quantities) -> str:
     try:
         vol = volume_of(comp.geometry, quantities)
     except Exception:  # noqa: BLE001 - a bad geometry is already a δ failure
-        return "      volume: not computable"
+        return "      Volumen: nicht berechenbar"
     unit = geometry_length_unit(comp.geometry, quantities)
     unit_str = f" {unit}³" if unit else ""
     if vol.exact:
-        return f"      volume: {vol.value:g}{unit_str} (exact)"
-    return f"      volume: <= {vol.value:g}{unit_str} (upper bound — {vol.note})"
+        return f"      Volumen: {vol.value:g}{unit_str} (exakt)"
+    return f"      Volumen: <= {vol.value:g}{unit_str} (obere Schranke — {vol.note})"
 
 
 def _mass_line(comp, quantities) -> str | None:
@@ -618,9 +638,9 @@ def _mass_line(comp, quantities) -> str | None:
         return None
     m = mass_of(comp, quantities)
     if m.value is None:
-        return f"      mass: not computable — {m.note}"
-    qualifier = "exact" if m.exact else f"upper bound — {m.note}"
-    return f"      mass: {m.value:g} {m.unit} ({qualifier})"
+        return f"      Masse: nicht berechenbar — {m.note}"
+    qualifier = "exakt" if m.exact else f"obere Schranke — {m.note}"
+    return f"      Masse: {m.value:g} {m.unit} ({qualifier})"
 
 
 def _spec_state(spec: Specification) -> RunState:
@@ -658,13 +678,14 @@ def render_spec(spec: Specification, fmt: str) -> str:
             verdict = stl_integrity_check(stl)
             if verdict["ok"]:
                 return stl
-            return ("# STL export refused: the kernel mesh failed integrity: "
+            return ("# STL-Export verweigert: das Kernel-Mesh hat die "
+                    "Integritätsprüfung nicht bestanden: "
                     + "; ".join(verdict["issues"]))
         try:
             return specification_to_stl(spec)
         except GenesisError as exc:
             # honest: a CSG-boolean part is not mesh-evaluated here
-            return f"# STL export unavailable: {exc}"
+            return f"# STL-Export nicht verfügbar: {exc}"
     return format_specification(spec)
 
 
@@ -677,18 +698,18 @@ def format_assessment_footer(spec) -> str:
     a = assess_specification(spec)
     lines = [
         "",
-        "Quality assessment (the wired engine's honest verdict):",
-        f"  overall:                {a.overall}",
-        f"  physics:                checked={a.physics_checked} ok={a.physics_ok} "
-        f"({len(a.physics_checks)} checks, {len(a.physics_gaps)} gaps)",
-        f"  constraints consistent: {a.constraints_consistent}",
+        "Qualitätsbewertung (das ehrliche Verdikt der verdrahteten Engine):",
+        f"  Gesamturteil:            {a.overall}",
+        f"  Physik:                  geprüft={a.physics_checked} ok={a.physics_ok} "
+        f"({len(a.physics_checks)} Prüfungen, {len(a.physics_gaps)} Lücken)",
+        f"  Anforderungen konsistent: {a.constraints_consistent}",
     ]
     if a.needs_clarification:
-        lines.append(f"  clarification needed:   {len(a.clarification_questions)} question(s)")
+        lines.append(f"  Klärung nötig:           {len(a.clarification_questions)} Frage(n)")
         for q in a.clarification_questions[:5]:
             lines.append(f"     - {q.question}")
     if a.physics_gaps:
-        lines.append("  physics gaps (indicated but unrunnable):")
+        lines.append("  Physik-Lücken (indiziert, aber nicht berechenbar):")
         for gap in a.physics_gaps[:5]:
             lines.append(f"     - {gap}")
     return "\n".join(lines)
@@ -763,7 +784,7 @@ def main(argv: list[str] | None = None) -> int:
         ga = gate_gamma(state)
         gp = gate_protocol(state)
         for label, g in (("γ", ga), ("PROTOCOL", gp)):
-            print(f"Gate {label}: {'PASS' if g.passed else 'FAIL'} ({len(g.failures)} failures)")
+            print(f"Gate {label}: {'PASS' if g.passed else 'FAIL'} ({len(g.failures)} Abweichungen)")
         return 0 if (ga.passed and gp.passed) else 3
 
     if args.mode == "capstone":
@@ -784,7 +805,7 @@ def main(argv: list[str] | None = None) -> int:
         ge = gate_erc(state)
         gc = gate_code(state)
         for label, g in (("γ", ga), ("δ", gd), ("ERC", ge), ("CODE", gc)):
-            print(f"Gate {label}: {'PASS' if g.passed else 'FAIL'} ({len(g.failures)} failures)")
+            print(f"Gate {label}: {'PASS' if g.passed else 'FAIL'} ({len(g.failures)} Abweichungen)")
         return 0 if all(g.passed for g in (ga, gd, ge, gc)) else 3
 
     if args.mode == "assess":
@@ -802,22 +823,22 @@ def main(argv: list[str] | None = None) -> int:
 
         all_verified = True
         for label, spec, claims in (
-            ("drive shaft (physics fits)", drive_shaft_spec(), drive_shaft_state().claims),
-            ("LED bracket (static, no physics measurands)", capstone_spec(), capstone_claims()),
+            ("Antriebswelle (Physik greift)", drive_shaft_spec(), drive_shaft_state().claims),
+            ("LED-Halter (statisch, keine Physik-Measurands)", capstone_spec(), capstone_claims()),
         ):
             a = assess_specification(spec, claims=claims)
             print(f"=== {label} ===")
-            print(f"  overall:               {a.overall}")
-            print(f"  physics: checked={a.physics_checked} complete={a.physics_complete} "
-                  f"ok={a.physics_ok}  ({len(a.physics_checks)} checks, {len(a.physics_gaps)} gaps)")
-            print(f"  constraints consistent: {a.constraints_consistent}")
-            print(f"  clarification needed:   {a.needs_clarification} "
-                  f"({len(a.clarification_questions)} questions)")
+            print(f"  Gesamturteil:           {a.overall}")
+            print(f"  Physik: geprüft={a.physics_checked} vollständig={a.physics_complete} "
+                  f"ok={a.physics_ok}  ({len(a.physics_checks)} Prüfungen, {len(a.physics_gaps)} Lücken)")
+            print(f"  Anforderungen konsistent: {a.constraints_consistent}")
+            print(f"  Klärung nötig:          {a.needs_clarification} "
+                  f"({len(a.clarification_questions)} Fragen)")
             for q in a.clarification_questions:
                 print(f"     - {q.question}")
             if a.corroboration is not None:
-                print(f"  corroboration:          ok={a.corroboration.ok} "
-                      f"({a.corroboration.n_verified} verified claims)")
+                print(f"  Korroboration:          ok={a.corroboration.ok} "
+                      f"({a.corroboration.n_verified} verifizierte Claims)")
             print("")
             if a.overall != "physics_verified" and a.overall != "no_physics_indicated":
                 all_verified = False
@@ -836,10 +857,10 @@ def main(argv: list[str] | None = None) -> int:
         all_ok = True
         for spec in (capstone_spec(), drive_shaft_spec()):
             p = assess_printability(spec)
-            print(f"=== printability: {spec.run_id} ===")
-            print(f"  status: {p.status}")
+            print(f"=== Druckbarkeit: {spec.run_id} ===")
+            print(f"  Status: {p.status}")
             if p.mesh is not None:
-                print(f"  mesh:   watertight={p.mesh['watertight']} "
+                print(f"  Mesh:   watertight={p.mesh['watertight']} "
                       f"genus={p.mesh['genus']} facets={p.mesh['n_facets']} "
                       f"volume={p.mesh['volume']:.1f} mm³")
             for c in p.components:
@@ -849,9 +870,9 @@ def main(argv: list[str] | None = None) -> int:
                       f"height={fl['height']:.0f} mm "
                       f"unsupported_overhang={c['unsupported_overhang_area']:.1f} mm²")
             for b in p.blockers:
-                print(f"  BLOCKER:  {b}")
+                print(f"  BLOCKER: {b}")
             for adv in p.advisories:
-                print(f"  advisory: {adv}")
+                print(f"  Hinweis: {adv}")
             print("")
             all_ok = all_ok and (p.ok or p.status == "no_geometry")
         return 0 if all_ok else 3

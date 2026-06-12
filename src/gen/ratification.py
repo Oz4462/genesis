@@ -61,14 +61,14 @@ def ratification_packet(
     items: list[RatificationItem] = []
     for d in spec.decisions:
         items.append(RatificationItem(
-            "decision", d.id, f"{d.title}: choose {d.choice!r} — {d.rationale}", True))
+            "decision", d.id, f"{d.title}: Wahl {d.choice!r} — {d.rationale}", True))
     for i, gap in enumerate(spec.gaps):
         items.append(RatificationItem("gap", f"gap:{i}", gap, True))
     for name, result in sorted((gate_results or {}).items()):
         verdict = "PASS" if result.passed else "FAIL"
         items.append(RatificationItem(
             "gate", f"gate:{name}",
-            f"{name}: {verdict} ({len(result.failures)} failures)",
+            f"{name}: {verdict} ({len(result.failures)} Abweichungen)",
             blocking=not result.passed))
     return items
 

@@ -85,7 +85,7 @@ def test_cli_demo_returns_zero_and_prints_report(capsys):
     rc = main(["--demo"])
     out = capsys.readouterr().out
     assert rc == 0
-    assert "Verified findings" in out
+    assert "Verifizierte Befunde" in out
     assert "Open Cascade" in out
 
 
@@ -102,7 +102,7 @@ def test_cli_assess_mode_prints_the_honest_verdict(capsys):
     assert rc == 0
     assert "physics_verified" in out          # drive shaft — physics validators fit
     assert "no_physics_indicated" in out      # bracket — no physics measurands, surfaced honestly
-    assert "constraints consistent: True" in out
+    assert "Anforderungen konsistent: True" in out
 
 
 def test_cli_demo_spec_appends_the_quality_assessment(capsys):
@@ -111,14 +111,14 @@ def test_cli_demo_spec_appends_the_quality_assessment(capsys):
     rc = main(["--demo", "--mode", "spec"])
     out = capsys.readouterr().out
     assert rc == 0
-    assert "Quality assessment" in out and "constraints consistent:" in out
+    assert "Qualitätsbewertung" in out and "Anforderungen konsistent:" in out
 
 
 def test_cli_demo_spec_scad_format_stays_clean(capsys):
     # machine formats must NOT get the human assessment footer (it would corrupt the source)
     rc = main(["--demo", "--mode", "spec", "--format", "scad"])
     out = capsys.readouterr().out
-    assert rc == 0 and "Quality assessment" not in out
+    assert rc == 0 and "Qualitätsbewertung" not in out
 
 
 def test_cli_real_mode_same_family_fails_closed_before_any_call(capsys):

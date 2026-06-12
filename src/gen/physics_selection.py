@@ -247,15 +247,15 @@ def _resolve(by_measurand: dict[str, Quantity], measurand: str, unit: str):
     refuses (reason) on a missing quantity, a dimension mismatch, or an opaque unit."""
     q = by_measurand.get(measurand)
     if q is None:
-        return None, f"no quantity tagged measurand {measurand!r}"
+        return None, f"keine Größe mit measurand {measurand!r}"
     try:
         if parse_unit(q.unit) != parse_unit(unit):
-            return None, f"{measurand}: unit {q.unit!r} not dimensionally {unit!r}"
+            return None, f"{measurand}: Einheit {q.unit!r} ist nicht dimensionsgleich zu {unit!r}"
         scale_from, scale_to = unit_scale(q.unit), unit_scale(unit)
     except UnitError as exc:
         return None, f"{measurand}: {exc}"
     if scale_from is None or scale_to is None:
-        return None, f"{measurand}: opaque unit {q.unit!r} — refusing to convert"
+        return None, f"{measurand}: opake Einheit {q.unit!r} — Umrechnung verweigert"
     return q.value * scale_from / scale_to, None
 
 
@@ -284,8 +284,8 @@ def select_physics_checks(spec: Specification) -> tuple[list[PhysicsCheck], list
                 inputs[arg] = value
         if problems:
             gaps.append(
-                f"{recipe.name} ({recipe.validator}) indicated by {recipe.trigger!r} "
-                f"but cannot run: {'; '.join(problems)}"
+                f"{recipe.name} ({recipe.validator}) ist durch {recipe.trigger!r} "
+                f"indiziert, kann aber nicht laufen: {'; '.join(problems)}"
             )
         else:
             checks.append(PhysicsCheck(recipe.name, recipe.validator, inputs))

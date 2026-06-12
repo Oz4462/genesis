@@ -206,14 +206,14 @@ def evaluate(cases: list[Case]) -> EvalReport:
 
 
 def format_report(report: EvalReport) -> str:
-    lines = ["Anti-hallucination gate evaluation (deterministic, offline):", ""]
+    lines = ["Anti-Halluzinations-Gate-Evaluation (deterministisch, offline):", ""]
     for name, exp, act in report.verdicts:
         mark = "OK " if exp == act else "XX "
-        lines.append(f"  {mark}{'PASS' if act else 'FAIL'} (expected {'PASS' if exp else 'FAIL'})  {name}")
+        lines.append(f"  {mark}{'PASS' if act else 'FAIL'} (erwartet {'PASS' if exp else 'FAIL'})  {name}")
     lines.append("")
-    lines.append(f"  score: {report.correct}/{report.total} correct")
-    lines.append(f"  leaks (hallucinations that passed): {len(report.leaks)}  "
-                 f"(rate {report.leak_rate:.0%})  <- must be 0")
-    lines.append(f"  false alarms (sound specs blocked): {len(report.false_alarms)}  "
-                 f"(rate {report.false_alarm_rate:.0%})")
+    lines.append(f"  Ergebnis: {report.correct}/{report.total} korrekt")
+    lines.append(f"  Leaks (durchgerutschte Halluzinationen): {len(report.leaks)}  "
+                 f"(Rate {report.leak_rate:.0%})  <- muss 0 sein")
+    lines.append(f"  Fehlalarme (fälschlich blockierte solide Specs): {len(report.false_alarms)}  "
+                 f"(Rate {report.false_alarm_rate:.0%})")
     return "\n".join(lines)

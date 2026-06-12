@@ -10,6 +10,12 @@ This lives in `gen` (not in tests) so both the CLI capstone demo and the
 acceptance test consume the SAME spec — no drift between what is demonstrated and
 what is verified. Real data replaces the scripted claims via live α-research, with
 no code change.
+
+Language contract (owner directive 2026-06-12, PHASE_DELTA §57): every
+human-facing string (claim texts, quantity names, rationales, steps, checks,
+decisions, gaps, ideas) is GERMAN; ids, units, formulas stay English, and every
+number keeps its source spelling byte-for-byte — GATE γ C-4 checks each grounded
+value verbatim against its claim text, so "4.5 mm" must never become "4,5 mm".
 """
 
 from __future__ import annotations
@@ -79,41 +85,43 @@ def _claim(cid: str, text: str) -> Claim:
 
 def capstone_claims() -> list[Claim]:
     return [
-        _claim("c_anchor", "Cantilever brackets are used for wall-mounted LED shelves."),
-        _claim("c_load", "A typical wall shelf must carry a load of 12 kg."),
-        _claim("c_screw", "An M4 screw has a nominal diameter of 4 mm."),
+        _claim("c_anchor", "Kragarm-Halterungen werden für wandmontierte LED-Regale verwendet."),
+        _claim("c_load", "Ein typisches Wandregal muss eine Last von 12 kg tragen."),
+        _claim("c_screw", "Eine M4-Schraube hat einen Nenndurchmesser von 4 mm."),
         _claim("c_iso273",
-               "ISO 273 specifies a medium clearance hole diameter of 4.5 mm for an M4 screw."),
-        _claim("c_led", "The LED strip runs at 12 V and draws 1.5 A."),
-        _claim("c_psu", "The power supply provides 12 V at up to 2 A."),
-        _claim("c_src", "McMaster-Carr lists part 91290A115, an M4x16 socket head screw."),
+               "ISO 273 legt für eine M4-Schraube einen mittleren "
+               "Durchgangsloch-Durchmesser von 4.5 mm fest."),
+        _claim("c_led", "Der LED-Streifen läuft mit 12 V und zieht 1.5 A."),
+        _claim("c_psu", "Das Netzteil liefert 12 V bei bis zu 2 A."),
+        _claim("c_src", "McMaster-Carr führt das Teil 91290A115, eine M4x16-Innensechskantschraube."),
         _claim("c_price",
-               "The M4x16 socket head screw costs 0.42 EUR per piece at McMaster-Carr."),
-        _claim("c_gravity", "Standard gravity is defined as 9.80665 m/s^2."),
+               "Die M4x16-Innensechskantschraube kostet bei McMaster-Carr 0.42 EUR pro Stück."),
+        _claim("c_gravity", "Die Normfallbeschleunigung ist definiert als 9.80665 m/s^2."),
         _claim("c_pla",
-               "FDM-printed PLA loaded in-plane (along the print layers) has a "
-               "tensile strength of about 50 MPa."),
+               "FDM-gedrucktes PLA, in der Druckebene belastet (entlang der "
+               "Druckschichten), hat eine Zugfestigkeit von etwa 50 MPa."),
         _claim("c_kirsch",
-               "A circular hole in a plate under tension has a stress "
-               "concentration factor of 3 (Kirsch solution)."),
+               "Ein kreisrundes Loch in einer Platte unter Zug hat einen "
+               "Spannungskonzentrationsfaktor von 3 (Kirsch-Lösung)."),
         _claim("c_screw_class",
-               "An ISO 898-1 property class 8.8 screw has an ultimate tensile "
-               "strength of 800 MPa."),
+               "Eine Schraube der Festigkeitsklasse 8.8 nach ISO 898-1 hat eine "
+               "Zugfestigkeit von 800 MPa."),
         _claim("c_screw_area",
-               "An M4 coarse-pitch screw has a tensile stress area of 8.78 mm^2."),
+               "Eine M4-Schraube mit Regelgewinde hat einen Spannungsquerschnitt "
+               "von 8.78 mm^2."),
         _claim("c_screw_shear",
-               "EN 1993-1-8 gives a shear coefficient of 0.6 for property class "
-               "8.8 bolts."),
+               "EN 1993-1-8 gibt für Schrauben der Festigkeitsklasse 8.8 einen "
+               "Abscherbeiwert von 0.6 an."),
         _claim("c_iso2768",
-               "ISO 2768-1 class m specifies a general tolerance of 0.1 mm for a "
-               "linear dimension over 3 up to 6 mm."),
-        _claim("c_fdm_nozzle", "A standard FDM nozzle is 0.4 mm in diameter."),
+               "ISO 2768-1 Klasse m legt für ein Längenmaß über 3 bis 6 mm eine "
+               "Allgemeintoleranz von 0.1 mm fest."),
+        _claim("c_fdm_nozzle", "Eine Standard-FDM-Düse hat 0.4 mm Durchmesser."),
         _claim("c_fdm_wall",
-               "An FDM wall should be at least 2 perimeter lines wide to print "
-               "reliably."),
+               "Eine FDM-Wand sollte mindestens 2 Perimeterlinien breit sein, um "
+               "zuverlässig zu drucken."),
         _claim("c_fdm_hole",
-               "The minimum reliably printable horizontal hole on FDM is 2.0 mm "
-               "in diameter."),
+               "Das kleinste zuverlässig druckbare horizontale Loch im FDM-Druck "
+               "hat 2.0 mm Durchmesser."),
     ]
 
 
@@ -150,75 +158,76 @@ def capstone_spec() -> Specification:
                    {"q_sigma_nom": _snom_val, "q_kt": STRESS_CONCENTRATION_CIRCULAR_HOLE},
                    {"q_sigma_nom": _u_snom})
     quantities = [
-        _g("q_load", "verified shelf load", 12.0, "kg", ["c_load"], _u_load),
-        _g("q_screw_d", "screw diameter", 4.0, "mm", ["c_screw"]),
-        _g("q_hole_d", "clearance hole diameter", 4.5, "mm", ["c_iso273"]),
-        _d("q_sf", "safety factor", 2.0, "1", "conservative for static indoor load"),
-        _der("q_design", "design load", 24.0, "kg", "q_load * q_sf", ("q_load", "q_sf"),
+        _g("q_load", "belegte Regallast", 12.0, "kg", ["c_load"], _u_load),
+        _g("q_screw_d", "Schraubendurchmesser", 4.0, "mm", ["c_screw"]),
+        _g("q_hole_d", "Durchgangsloch-Durchmesser", 4.5, "mm", ["c_iso273"]),
+        _d("q_sf", "Sicherheitsfaktor", 2.0, "1", "konservativ für statische Innenraumlast"),
+        _der("q_design", "Auslegungslast", 24.0, "kg", "q_load * q_sf", ("q_load", "q_sf"),
              _u_design),
-        _der("q_hole_r", "hole radius", 2.25, "mm", "q_hole_d / 2", ("q_hole_d",)),
-        _d("q_w", "bracket projection", 60.0, "mm",
-           "shelf projection depth from the wall — the load's lever arm (L)"),
-        _d("q_h", "bracket breadth", 80.0, "mm",
-           "breadth across the wall — the bending section breadth (b)"),
-        _d("q_t", "bracket thickness", 12.0, "mm",
-           "section depth in the load direction (h); sized so the peak hole stress "
-           "at the design load stays below the in-plane PLA strength"),
-        _d("q_density", "PLA density", 0.00124, "g/mm^3", "PLA ~1.24 g/cm³ per mm³"),
-        _g("q_led_v", "LED voltage", 12.0, "V", ["c_led"]),
-        _g("q_led_a", "LED current", 1.5, "A", ["c_led"]),
-        _g("q_psu_v", "PSU voltage", 12.0, "V", ["c_psu"]),
-        _g("q_psu_a", "PSU current", 2.0, "A", ["c_psu"]),
-        _d("q_torque", "bolt torque", 2.5, "N*m", "M4 in plastic, snug"),
-        _g("q_price", "screw unit price", 0.42, "EUR", ["c_price"]),
+        _der("q_hole_r", "Lochradius", 2.25, "mm", "q_hole_d / 2", ("q_hole_d",)),
+        _d("q_w", "Halter-Auskragung", 60.0, "mm",
+           "Regaltiefe ab der Wand — der Hebelarm der Last (L)"),
+        _d("q_h", "Halter-Breite", 80.0, "mm",
+           "Breite entlang der Wand — die Breite b des Biegequerschnitts"),
+        _d("q_t", "Halter-Dicke", 12.0, "mm",
+           "Querschnittshöhe in Lastrichtung (h); so dimensioniert, dass die "
+           "Spitzenspannung am Loch bei Auslegungslast unter der PLA-Festigkeit "
+           "in der Druckebene bleibt"),
+        _d("q_density", "PLA-Dichte", 0.00124, "g/mm^3", "PLA ~1.24 g/cm³, je mm³ ausgedrückt"),
+        _g("q_led_v", "LED-Spannung", 12.0, "V", ["c_led"]),
+        _g("q_led_a", "LED-Strom", 1.5, "A", ["c_led"]),
+        _g("q_psu_v", "Netzteil-Spannung", 12.0, "V", ["c_psu"]),
+        _g("q_psu_a", "Netzteil-Strom", 2.0, "A", ["c_psu"]),
+        _d("q_torque", "Schrauben-Anzugsmoment", 2.5, "N*m", "M4 in Kunststoff, handfest"),
+        _g("q_price", "Schrauben-Stückpreis", 0.42, "EUR", ["c_price"]),
         # δ-layer-2 statics: does the bracket hold the verified load — counting the
         # safety factor, the mount-hole stress raiser, the print orientation, and
         # the fastener shear? Each value is grounded (g, Kt, strength, screw specs)
         # or recomputed (force, stress, capacity); GENESIS does the arithmetic
         # (verification/derivation.py), GATE γ recomputes it (C-6), checks it
         # dimensionally (C-15), and tests every verdict numerically (C-13).
-        _g("q_g", "standard gravity", STANDARD_GRAVITY, "m/s^2", ["c_gravity"]),
-        _der("q_force", "design-load force at the bracket tip",
+        _g("q_g", "Normfallbeschleunigung", STANDARD_GRAVITY, "m/s^2", ["c_gravity"]),
+        _der("q_force", "Auslegungskraft an der Halterspitze",
              24.0 * STANDARD_GRAVITY, "N",
              weight_formula("q_design", "q_g"), ("q_design", "q_g"), _u_force),
-        _der("q_sigma_nom", "nominal bending stress at the design load "
-             "(cantilever, arm=q_w, b=q_h, h=q_t)",
+        _der("q_sigma_nom", "nominale Biegespannung bei Auslegungslast "
+             "(Kragarm, Arm=q_w, b=q_h, h=q_t)",
              6.0 * (24.0 * STANDARD_GRAVITY) * 60.0 / (80.0 * 12.0 * 12.0), "MPa",
              cantilever_bending_stress_formula("q_force", "q_w", "q_h", "q_t"),
              ("q_force", "q_w", "q_h", "q_t"), _u_snom),
-        _g("q_kt", "stress concentration factor (circular hole, Kirsch)",
+        _g("q_kt", "Spannungskonzentrationsfaktor (kreisrundes Loch, Kirsch)",
            STRESS_CONCENTRATION_CIRCULAR_HOLE, "1", ["c_kirsch"]),
-        _der("q_sigma_peak", "peak stress at the mounting hole",
+        _der("q_sigma_peak", "Spitzenspannung am Befestigungsloch",
              STRESS_CONCENTRATION_CIRCULAR_HOLE
              * (6.0 * (24.0 * STANDARD_GRAVITY) * 60.0 / (80.0 * 12.0 * 12.0)), "MPa",
              peak_stress_formula("q_sigma_nom", "q_kt"), ("q_kt", "q_sigma_nom"), _u_speak),
-        _g("q_strength", "in-plane PLA tensile strength", 50.0, "MPa", ["c_pla"]),
+        _g("q_strength", "PLA-Zugfestigkeit in der Druckebene", 50.0, "MPa", ["c_pla"]),
         # fastener shear (bracket-side, EN 1993-1-8): demand per screw vs capacity
-        _g("q_bolt_uts", "class-8.8 screw ultimate tensile strength",
+        _g("q_bolt_uts", "Zugfestigkeit der Schraube (Klasse 8.8)",
            BOLT_UTS_CLASS_88_MPA, "MPa", ["c_screw_class"]),
-        _g("q_bolt_area", "M4 tensile stress area",
+        _g("q_bolt_area", "Spannungsquerschnitt M4",
            M4_TENSILE_STRESS_AREA_MM2, "mm^2", ["c_screw_area"]),
-        _g("q_shear_coeff", "EN 1993-1-8 shear coefficient (class 8.8)",
+        _g("q_shear_coeff", "Abscherbeiwert EN 1993-1-8 (Klasse 8.8)",
            BOLT_SHEAR_COEFFICIENT_88, "1", ["c_screw_shear"]),
-        _der("q_screw_shear_cap", "per-screw shear capacity",
+        _der("q_screw_shear_cap", "Abschertragfähigkeit je Schraube",
              BOLT_SHEAR_COEFFICIENT_88 * BOLT_UTS_CLASS_88_MPA
              * M4_TENSILE_STRESS_AREA_MM2, "N",
              bolt_shear_capacity_formula("q_shear_coeff", "q_bolt_uts", "q_bolt_area"),
              ("q_shear_coeff", "q_bolt_uts", "q_bolt_area")),
-        _d("q_n_screws", "number of mounting screws", 2.0, "1",
-           "two mounting screws (matches BOM item b_screw)"),
-        _der("q_screw_shear", "shear demand per screw at the design load",
+        _d("q_n_screws", "Anzahl der Befestigungsschrauben", 2.0, "1",
+           "zwei Befestigungsschrauben (entspricht Stücklisten-Position b_screw)"),
+        _der("q_screw_shear", "Scherbeanspruchung je Schraube bei Auslegungslast",
              (24.0 * STANDARD_GRAVITY) / 2.0, "N",
              per_fastener_shear_formula("q_force", "q_n_screws"),
              ("q_force", "q_n_screws")),
         # δ-tolerance: worst-case fit. With ISO 2768-1 m general tolerances on the
         # hole and the screw, does the clearance hole still admit the screw at the
         # WORST extreme (largest screw, smallest hole)? Deterministic stack-up.
-        _g("q_hole_tol", "hole general tolerance (ISO 2768-1 m)",
+        _g("q_hole_tol", "Allgemeintoleranz Loch (ISO 2768-1 m)",
            iso2768_medium_linear_tolerance(4.5), "mm", ["c_iso2768"]),
-        _g("q_screw_tol", "screw general tolerance (ISO 2768-1 m)",
+        _g("q_screw_tol", "Allgemeintoleranz Schraube (ISO 2768-1 m)",
            iso2768_medium_linear_tolerance(4.0), "mm", ["c_iso2768"]),
-        _der("q_min_clearance", "worst-case minimum clearance (hole over screw)",
+        _der("q_min_clearance", "Worst-Case-Mindestspiel (Loch über Schraube)",
              (4.5 - iso2768_medium_linear_tolerance(4.5))
              - (4.0 + iso2768_medium_linear_tolerance(4.0)), "mm",
              worst_case_min_clearance_formula("q_hole_d", "q_hole_tol",
@@ -226,104 +235,109 @@ def capstone_spec() -> Specification:
              ("q_hole_d", "q_hole_tol", "q_screw_d", "q_screw_tol")),
         # δ-DFM: is the part printable? minimum wall = 2 perimeters of a 0.4 mm
         # nozzle; minimum printable hole 2.0 mm. Deterministic, grounded rules.
-        _g("q_nozzle", "FDM nozzle diameter", FDM_NOZZLE_DIAMETER_MM, "mm", ["c_fdm_nozzle"]),
-        _g("q_perimeters", "minimum wall perimeters", FDM_WALL_PERIMETERS_MIN, "1",
+        _g("q_nozzle", "FDM-Düsendurchmesser", FDM_NOZZLE_DIAMETER_MM, "mm", ["c_fdm_nozzle"]),
+        _g("q_perimeters", "Mindestzahl Wand-Perimeter", FDM_WALL_PERIMETERS_MIN, "1",
            ["c_fdm_wall"]),
-        _der("q_min_wall", "minimum printable wall thickness",
+        _der("q_min_wall", "kleinste druckbare Wanddicke",
              FDM_WALL_PERIMETERS_MIN * FDM_NOZZLE_DIAMETER_MM, "mm",
              min_wall_formula("q_nozzle", "q_perimeters"), ("q_nozzle", "q_perimeters")),
-        _g("q_min_hole", "minimum printable hole diameter", FDM_MIN_HOLE_DIAMETER_MM, "mm",
+        _g("q_min_hole", "kleinster druckbarer Lochdurchmesser", FDM_MIN_HOLE_DIAMETER_MM, "mm",
            ["c_fdm_hole"]),
-        _d("sx", "available width", 200.0, "mm", "shelf niche width"),
-        _d("sy", "available height", 200.0, "mm", "shelf niche height"),
-        _d("sz", "available depth", 200.0, "mm", "shelf niche depth"),
+        _d("sx", "verfügbare Breite", 200.0, "mm", "Breite der Regalnische"),
+        _d("sy", "verfügbare Höhe", 200.0, "mm", "Höhe der Regalnische"),
+        _d("sz", "verfügbare Tiefe", 200.0, "mm", "Tiefe der Regalnische"),
     ]
     geometry = GeometryNode(kind="difference", children=[
         GeometryNode(kind="box", params={"size_x": "q_w", "size_y": "q_h", "size_z": "q_t"}),
         GeometryNode(kind="cylinder", params={"radius": "q_hole_r", "height": "q_t"}),
     ])
     components = [
-        Component(id="c_bracket", name="bracket", geometry=geometry,
+        Component(id="c_bracket", name="Halter", geometry=geometry,
                   quantity_ids=["q_w", "q_h", "q_t", "q_hole_d", "q_hole_r"],
                   material_density="q_density"),
     ]
     bom = [
-        BomItem(id="b_bracket", name="bracket", role=BomRole.PART, count=1,
+        BomItem(id="b_bracket", name="Halter", role=BomRole.PART, count=1,
                 component_id="c_bracket", domain=BomDomain.MECHANICAL),
-        BomItem(id="b_screw", name="M4x16 socket head screw", role=BomRole.PART, count=2,
+        BomItem(id="b_screw", name="M4x16-Innensechskantschraube", role=BomRole.PART, count=2,
                 domain=BomDomain.MECHANICAL, grounding=["c_screw"],
                 sourcing=Sourcing(supplier="McMaster-Carr", part_number="91290A115",
                                   price_quantity_id="q_price", grounding=["c_src", "c_price"])),
-        BomItem(id="b_led", name="12 V LED strip", role=BomRole.PART, count=1,
+        BomItem(id="b_led", name="12-V-LED-Streifen", role=BomRole.PART, count=1,
                 domain=BomDomain.ELECTRONIC, grounding=["c_led"]),
-        BomItem(id="b_psu", name="12 V / 2 A power supply", role=BomRole.PART, count=1,
+        BomItem(id="b_psu", name="Netzteil 12 V / 2 A", role=BomRole.PART, count=1,
                 domain=BomDomain.ELECTRONIC, grounding=["c_psu"]),
-        BomItem(id="b_printer", name="3D printer", role=BomRole.TOOL, count=1),
-        BomItem(id="b_hex", name="4 mm hex key", role=BomRole.TOOL, count=1),
+        BomItem(id="b_printer", name="3D-Drucker", role=BomRole.TOOL, count=1),
+        BomItem(id="b_hex", name="4-mm-Innensechskantschlüssel", role=BomRole.TOOL, count=1),
     ]
     steps = [
-        Step(id="s1", index=1, action="3D-print the bracket per its CSG geometry.",
+        Step(id="s1", index=1, action="Den Halter gemäß seiner CSG-Geometrie 3D-drucken.",
              uses=["b_printer"], inputs=["b_bracket"], outputs=["a_printed"],
-             check="Printed part measures 60 x 80 x 12 mm within tolerance.",
-             tool="3D printer", quantity_refs=["q_w", "q_h", "q_t"]),
-        Step(id="s2", index=2, action="Mount the bracket to the wall with both screws.",
+             check="Das gedruckte Teil misst 60 x 80 x 12 mm innerhalb der Toleranz.",
+             tool="3D-Drucker", quantity_refs=["q_w", "q_h", "q_t"]),
+        Step(id="s2", index=2, action="Den Halter mit beiden Schrauben an der Wand montieren.",
              uses=["b_hex", "b_screw"], inputs=["a_printed"], outputs=["a_mounted"],
-             check="Bracket carries the design load without movement.",
-             tool="4 mm hex key", torque_quantity_id="q_torque", quantity_refs=["q_design"]),
-        Step(id="s3", index=3, action="Attach the LED strip and connect the power supply.",
+             check="Der Halter trägt die Auslegungslast ohne Bewegung.",
+             tool="4-mm-Innensechskantschlüssel", torque_quantity_id="q_torque",
+             quantity_refs=["q_design"]),
+        Step(id="s3", index=3, action="Den LED-Streifen anbringen und das Netzteil anschließen.",
              uses=["b_led", "b_psu"], inputs=["a_mounted"], outputs=["a_done"],
-             check="LED lights at 12 V; supply current within its 2 A rating.",
+             check="Die LED leuchtet bei 12 V; der Versorgungsstrom bleibt innerhalb "
+                   "der 2-A-Nennleistung.",
              quantity_refs=["q_led_v", "q_psu_a"]),
     ]
     constraints = [
         Constraint(id="k_fit", kind="ge", left="q_hole_d", right="q_screw_d",
-                   reason="clearance hole admits the screw"),
+                   reason="das Durchgangsloch lässt die Schraube durch"),
         Constraint(id="k_volt", kind="eq", left="q_led_v", right="q_psu_v",
-                   reason="supply voltage must match the LED strip"),
+                   reason="die Versorgungsspannung muss zum LED-Streifen passen"),
         Constraint(id="k_curr", kind="ge", left="q_psu_a", right="q_led_a",
-                   reason="supply current must meet the LED draw"),
+                   reason="der Versorgungsstrom muss den LED-Bedarf decken"),
         Constraint(id="k_dfm_wall", kind="ge", left="q_t", right="q_min_wall",
-                   reason="section is at least the minimum printable FDM wall "
-                          "(two perimeters of a 0.4 mm nozzle)"),
+                   reason="der Querschnitt ist mindestens die kleinste druckbare "
+                          "FDM-Wand (zwei Perimeter einer 0.4-mm-Düse)"),
         Constraint(id="k_dfm_hole", kind="ge", left="q_hole_d", right="q_min_hole",
-                   reason="clearance hole is at least the minimum reliably printable "
-                          "FDM hole diameter"),
+                   reason="das Durchgangsloch ist mindestens der kleinste zuverlässig "
+                          "druckbare FDM-Lochdurchmesser"),
         Constraint(id="k_stress", kind="le", left="q_sigma_peak", right="q_strength",
-                   reason="peak hole stress at the design load (Kt·σ_nom) stays below "
-                          "the in-plane PLA strength — necessary, not sufficient"),
+                   reason="die Spitzenspannung am Loch bei Auslegungslast (Kt·σ_nom) "
+                          "bleibt unter der PLA-Festigkeit in der Druckebene — "
+                          "notwendig, nicht hinreichend"),
         Constraint(id="k_shear", kind="le", left="q_screw_shear", right="q_screw_shear_cap",
-                   reason="per-screw shear demand at the design load stays below the "
-                          "class-8.8 screw shear capacity (bracket-side fastener limit)"),
+                   reason="die Scherbeanspruchung je Schraube bei Auslegungslast bleibt "
+                          "unter der Abschertragfähigkeit der Klasse-8.8-Schraube "
+                          "(halterseitige Verbindungsgrenze)"),
         Constraint(id="k_assemble", kind="ge", left="q_min_clearance", right="0",
-                   reason="worst-case minimum clearance stays non-negative — the hole "
-                          "admits the screw even at the worst tolerance extreme"),
+                   reason="das Worst-Case-Mindestspiel bleibt nicht-negativ — das Loch "
+                          "lässt die Schraube auch am ungünstigsten Toleranzextrem durch"),
     ]
     decisions = [
-        Decision(id="d_mat", title="Material", choice="PLA, 3D-printed",
-                 rationale="available; sufficient for static indoor load"),
-        Decision(id="d_hole", title="Hole type",
-                 choice="through / clearance hole (ISO 273 medium)",
-                 rationale="bolt passes through the bracket", informed_by=["c_iso273"]),
-        Decision(id="d_tol", title="General tolerance class",
-                 choice="ISO 2768-1 medium (m)",
-                 rationale="default workshop tolerance; sets the hole/screw general "
-                           "tolerances for the worst-case fit check",
+        Decision(id="d_mat", title="Material", choice="PLA, 3D-gedruckt",
+                 rationale="verfügbar; ausreichend für statische Innenraumlast"),
+        Decision(id="d_hole", title="Lochtyp",
+                 choice="Durchgangsloch (ISO 273 mittel)",
+                 rationale="die Schraube geht durch den Halter hindurch", informed_by=["c_iso273"]),
+        Decision(id="d_tol", title="Allgemeintoleranzklasse",
+                 choice="ISO 2768-1 mittel (m)",
+                 rationale="übliche Werkstatt-Toleranz; bestimmt die Allgemeintoleranzen "
+                           "von Loch und Schraube für die Worst-Case-Passungsprüfung",
                  informed_by=["c_iso2768"]),
-        Decision(id="d_print", title="Print orientation",
-                 choice="on-edge — print layers parallel to the bending stress",
-                 rationale="FDM interlayer bonds are ~30-50% weaker than in-plane; "
-                           "orienting the layers in-plane keeps the loaded direction at "
-                           "the higher in-plane strength used in the stress check",
+        Decision(id="d_print", title="Druck-Orientierung",
+                 choice="hochkant — Druckschichten parallel zur Biegespannung",
+                 rationale="FDM-Schichtverbindungen sind ~30-50% schwächer als die "
+                           "Druckebene; mit den Schichten in der Lastebene trägt die "
+                           "belastete Richtung die höhere Festigkeit, die auch die "
+                           "Spannungsprüfung ansetzt",
                  informed_by=["c_pla"]),
     ]
     site = SiteRequirements(
         available_space=("sx", "sy", "sz"),
         requirements=[
-            Decision(id="d_loc", title="Location", choice="indoor, dry wall",
-                     rationale="electronics are not weatherproof"),
-            Decision(id="d_vent", title="Ventilation",
-                     choice="passive, 5 cm clearance above the PSU",
-                     rationale="dissipate power-supply heat"),
+            Decision(id="d_loc", title="Ort", choice="innen, trockene Wand",
+                     rationale="die Elektronik ist nicht wetterfest"),
+            Decision(id="d_vent", title="Belüftung",
+                     choice="passiv, 5 cm Freiraum über dem Netzteil",
+                     rationale="Abwärme des Netzteils abführen"),
         ],
     )
     # software deliverable: a tiny helper that computes the LED operating-point
@@ -332,7 +346,7 @@ def capstone_spec() -> Specification:
     code_artifacts = [
         CodeArtifact(
             id="ca_led_r", name="led_resistance", language="python",
-            description="operating-point resistance R = V / I of the LED strip",
+            description="Arbeitspunkt-Widerstand R = V / I des LED-Streifens",
             source=(
                 "def led_resistance(volts, amps):\n"
                 "    '''Operating-point resistance of a load drawing `amps` at `volts`.'''\n"
@@ -366,7 +380,7 @@ def capstone_spec() -> Specification:
     )
     return Specification(
         run_id="capstone",
-        idea="A wall-mounted LED shelf bracket carrying the verified load",
+        idea="Ein wandmontierter LED-Regalhalter, der die belegte Last trägt",
         approach_id="ap1", quantities=quantities, components=components, bom=bom,
         steps=steps, constraints=constraints, decisions=decisions, site=site,
         netlist=netlist, code_artifacts=code_artifacts,
@@ -374,23 +388,27 @@ def capstone_spec() -> Specification:
             # The σ-check now counts the safety factor, the Kirsch hole stress raiser,
             # the print orientation and the fastener shear. What honestly remains is
             # external or declared-out — narrowed, not a blanket disclaimer.
-            "Fastener PULL-OUT from the wall is not checked — it depends on the wall "
-            "substrate and anchor (drywall plug vs concrete vs timber), which the "
-            "spec does not fix; only the bracket-side screw shear is checked.",
-            "The hole stress uses the conservative Kirsch Kt=3 (uniaxial circular "
-            "hole). The canonical tension Kt is now COMPUTED by the 3-D FEM "
-            "(plate_hole.py: ~3.1, Kirsch 3 + finite width); the bracket's specific "
-            "bending+hole case is a direct extension of the same solver.",
-            "Fatigue and dynamic / impact loading are out of scope by the declared "
-            "static indoor-load case; only the static design load (safety factor 2) "
-            "is checked.",
-            "The 50 MPa in-plane strength assumes a good print (high infill, correct "
-            "temperature) at the declared on-edge orientation; a poor or wrongly "
-            "oriented print is weaker.",
-            "Overhang/support is orientation-dependent and checked separately "
-            "(orientation.overhang_check over the BREP): the bracket printed flat "
-            "(+Z) needs no support; printed on its side the hole overhangs. Bridge "
-            "spans and support-volume cost are still not modelled.",
+            "Der AUSZUG der Schrauben aus der Wand ist nicht geprüft — er hängt vom "
+            "Wanduntergrund und Dübel ab (Gipskartondübel vs Beton vs Holz), den die "
+            "Spezifikation nicht festlegt; geprüft ist nur der halterseitige "
+            "Schrauben-Abschub.",
+            "Die Lochspannung nutzt das konservative Kirsch-Kt=3 (einachsig, "
+            "kreisrundes Loch). Das kanonische Zug-Kt wird inzwischen von der "
+            "3-D-FEM BERECHNET (plate_hole.py: ~3.1, Kirsch 3 + endliche Breite); "
+            "der konkrete Biegung+Loch-Fall des Halters ist eine direkte "
+            "Erweiterung desselben Lösers.",
+            "Ermüdung und dynamische / stoßartige Lasten sind durch den erklärten "
+            "statischen Innenraum-Lastfall außerhalb des Geltungsbereichs; geprüft "
+            "ist nur die statische Auslegungslast (Sicherheitsfaktor 2).",
+            "Die 50 MPa Festigkeit in der Druckebene setzen einen guten Druck "
+            "(hohe Füllung, korrekte Temperatur) in der erklärten "
+            "Hochkant-Orientierung voraus; ein schlechter oder falsch orientierter "
+            "Druck ist schwächer.",
+            "Überhang/Stützmaterial ist orientierungsabhängig und wird separat "
+            "geprüft (orientation.overhang_check über das BREP): flach gedruckt "
+            "(+Z) braucht der Halter keine Stützen; auf der Seite gedruckt hängt "
+            "das Loch über. Brückenspannweiten und Stützvolumen-Kosten sind noch "
+            "nicht modelliert.",
         ],
         claim_ids_used=[c.id for c in capstone_claims()], produced_by="capstone",
     )
@@ -400,7 +418,7 @@ def capstone_state() -> RunState:
     """The full RunState (claims + approach + spec) for gate verification."""
     st = RunState(question=Question(raw="led shelf bracket", run_id="capstone"))
     st.claims = capstone_claims()
-    st.approaches = [Approach(id="ap1", name="Cantilever LED bracket", grounding=["c_anchor"])]
+    st.approaches = [Approach(id="ap1", name="Kragarm-LED-Halter", grounding=["c_anchor"])]
     st.specification = capstone_spec()
     return st
 
@@ -415,48 +433,50 @@ def capstone_state() -> RunState:
 def protocol_claims() -> list[Claim]:
     return [
         _claim("c_bio_anchor",
-               "Controlled nutrient dosing is used to study plant growth."),
+               "Kontrollierte Nährstoffdosierung wird zur Untersuchung des "
+               "Pflanzenwachstums eingesetzt."),
         _claim("c_bio_tox",
-               "The nutrient solution is phytotoxic above 200 g/m^3."),
+               "Die Nährlösung ist oberhalb von 200 g/m^3 phytotoxisch."),
     ]
 
 
 def protocol_spec() -> Specification:
     quantities = [
-        _d("q_conc", "applied nutrient concentration", 150.0, "g/m^3",
-           "below the toxic threshold, in the effective range"),
-        _g("q_conc_max", "phytotoxic threshold", 200.0, "g/m^3", ["c_bio_tox"]),
+        _d("q_conc", "aufgebrachte Nährstoffkonzentration", 150.0, "g/m^3",
+           "unterhalb der toxischen Schwelle, im wirksamen Bereich"),
+        _g("q_conc_max", "Phytotoxizitätsschwelle", 200.0, "g/m^3", ["c_bio_tox"]),
     ]
     steps = [
-        Step(id="p1", index=1, action="Prepare the nutrient solution at the target dose.",
-             outputs=["a_solution"], check="Concentration measured at 150 g/m^3.",
+        Step(id="p1", index=1, action="Die Nährlösung in der Zieldosis ansetzen.",
+             outputs=["a_solution"], check="Konzentration gemessen bei 150 g/m^3.",
              quantity_refs=["q_conc"]),
-        Step(id="p2", index=2, action="Apply the solution to the treatment group; water "
-             "the control group only.", inputs=["a_solution"], outputs=["a_dosed"],
-             check="Each plant receives an equal volume."),
-        Step(id="p3", index=3, action="Measure stem height after 14 days.",
+        Step(id="p2", index=2, action="Die Lösung auf die Behandlungsgruppe aufbringen; "
+             "die Kontrollgruppe nur wässern.", inputs=["a_solution"], outputs=["a_dosed"],
+             check="Jede Pflanze erhält das gleiche Volumen."),
+        Step(id="p3", index=3, action="Die Stängelhöhe nach 14 Tagen messen.",
              inputs=["a_dosed"], outputs=["a_data"],
-             check="Record stem height per plant, blind to group."),
+             check="Stängelhöhe je Pflanze erfassen, blind zur Gruppe."),
     ]
     constraints = [
         Constraint(id="k_safe", kind="le", left="q_conc", right="q_conc_max",
-                   reason="applied dose stays below the phytotoxic threshold"),
+                   reason="die aufgebrachte Dosis bleibt unter der Phytotoxizitätsschwelle"),
     ]
     experiment = ExperimentDesign(
-        measured="stem height", groups=["treatment", "control"],
-        control="control", replicates=5,
+        measured="Stängelhöhe", groups=["Behandlung", "Kontrolle"],
+        control="Kontrolle", replicates=5,
     )
     return Specification(
-        run_id="protocol", idea="Show whether nutrient dosing increases plant growth",
+        run_id="protocol", idea="Zeigen, ob Nährstoffdosierung das Pflanzenwachstum steigert",
         approach_id="ap_bio", quantities=quantities, steps=steps, constraints=constraints,
         experiment=experiment,
-        decisions=[Decision(id="d_blind", title="Blinding",
-                            choice="measure blind to group",
-                            rationale="removes measurement bias")],
+        decisions=[Decision(id="d_blind", title="Verblindung",
+                            choice="blind zur Gruppe messen",
+                            rationale="beseitigt Mess-Bias")],
         gaps=[
-            "Effect size, dose-response beyond the single tested dose, and field "
-            "(vs controlled) conditions are not asserted — they require the actual "
-            "experiment run, which GENESIS specifies but does not perform.",
+            "Effektstärke, Dosis-Wirkung jenseits der einen getesteten Dosis und "
+            "Feld- (vs. kontrollierte) Bedingungen werden nicht behauptet — sie "
+            "erfordern den tatsächlichen Versuchslauf, den GENESIS spezifiziert, "
+            "aber nicht durchführt.",
         ],
         claim_ids_used=[c.id for c in protocol_claims()], produced_by="protocol",
     )
@@ -465,7 +485,7 @@ def protocol_spec() -> Specification:
 def protocol_state() -> RunState:
     st = RunState(question=Question(raw="plant growth protocol", run_id="protocol"))
     st.claims = protocol_claims()
-    st.approaches = [Approach(id="ap_bio", name="Controlled nutrient dosing",
+    st.approaches = [Approach(id="ap_bio", name="Kontrollierte Nährstoffdosierung",
                              grounding=["c_bio_anchor"])]
     st.specification = protocol_spec()
     return st
@@ -483,15 +503,17 @@ def protocol_state() -> RunState:
 def drive_shaft_claims() -> list[Claim]:
     return [
         _claim("c_shaft_anchor",
-               "Rotating drive shafts transmit torque between machine elements."),
-        _claim("c_steel_g", "Structural steel has a shear modulus of about 80 GPa."),
+               "Rotierende Antriebswellen übertragen Drehmoment zwischen "
+               "Maschinenelementen."),
+        _claim("c_steel_g", "Baustahl hat einen Schubmodul von etwa 80 GPa."),
         _claim("c_steel_tau",
-               "AISI 1045 medium-carbon steel has a shear strength of about 260 MPa."),
+               "AISI-1045-Stahl mit mittlerem Kohlenstoffgehalt hat eine "
+               "Scherfestigkeit von etwa 260 MPa."),
         _claim("c_steel_uts",
-               "AISI 1045 cold-drawn steel has an ultimate tensile strength of about "
+               "Kaltgezogener AISI-1045-Stahl hat eine Zugfestigkeit von etwa "
                "585 MPa."),
         _claim("c_steel_se",
-               "AISI 1045 steel has a bending endurance limit of about 290 MPa."),
+               "AISI-1045-Stahl hat eine Biege-Dauerfestigkeit von etwa 290 MPa."),
     ]
 
 
@@ -508,42 +530,46 @@ def _dm(qid, name, value, unit, rationale, measurand):
 def drive_shaft_spec() -> Specification:
     quantities = [
         # torsion: a rated torque twisting a steel shaft of chosen size
-        _dm("q_torque", "transmitted torque", 150.0, "N*m",
-            "rated drive torque (declared in N*m to exercise unit conversion to N*mm)",
+        _dm("q_torque", "übertragenes Drehmoment", 150.0, "N*m",
+            "Nenn-Antriebsmoment (in N*m deklariert, um die Einheitenumrechnung "
+            "nach N*mm zu beweisen)",
             "shaft.torque"),
-        _dm("q_shaft_d", "shaft diameter", 25.0, "mm", "chosen shaft size", "shaft.diameter"),
-        _dm("q_shaft_L", "shaft length between bearings", 600.0, "mm",
-            "bearing span", "shaft.length"),
-        _gm("q_steel_g", "steel shear modulus", 80000.0, "MPa", ["c_steel_g"],
+        _dm("q_shaft_d", "Wellendurchmesser", 25.0, "mm", "gewählte Wellengröße",
+            "shaft.diameter"),
+        _dm("q_shaft_L", "Wellenlänge zwischen den Lagern", 600.0, "mm",
+            "Lagerabstand", "shaft.length"),
+        _gm("q_steel_g", "Schubmodul Stahl", 80000.0, "MPa", ["c_steel_g"],
             "material.shear_modulus"),
-        _gm("q_steel_tau", "steel shear strength", 260.0, "MPa", ["c_steel_tau"],
+        _gm("q_steel_tau", "Scherfestigkeit Stahl", 260.0, "MPa", ["c_steel_tau"],
             "material.shear_strength"),
         # rotating-bending fatigue: an alternating bending stress on the spinning shaft
-        _dm("q_bend_amp", "rotating-bending stress amplitude", 80.0, "MPa",
-            "alternating bending at the load span", "fatigue.stress_amplitude"),
-        _dm("q_bend_mean", "mean (steady) stress", 20.0, "MPa",
-            "steady stress component", "fatigue.mean_stress"),
-        _gm("q_steel_uts", "steel ultimate tensile strength", 585.0, "MPa", ["c_steel_uts"],
+        _dm("q_bend_amp", "Umlaufbiegung: Spannungsamplitude", 80.0, "MPa",
+            "wechselnde Biegung an der Lastspanne", "fatigue.stress_amplitude"),
+        _dm("q_bend_mean", "mittlere (statische) Spannung", 20.0, "MPa",
+            "statischer Spannungsanteil", "fatigue.mean_stress"),
+        _gm("q_steel_uts", "Zugfestigkeit Stahl", 585.0, "MPa", ["c_steel_uts"],
             "material.uts"),
-        _gm("q_steel_se", "steel endurance limit", 290.0, "MPa", ["c_steel_se"],
+        _gm("q_steel_se", "Dauerfestigkeit Stahl", 290.0, "MPa", ["c_steel_se"],
             "material.endurance_limit"),
         # whirl resonance: keep the first whirl mode well above the running speed
-        _dm("q_op_speed", "operating rotation frequency", 50.0, "Hz",
+        _dm("q_op_speed", "Betriebsdrehfrequenz", 50.0, "Hz",
             "3000 rpm = 50 Hz", "vibration.excitation_frequency"),
-        _dm("q_whirl", "first whirl natural frequency", 150.0, "Hz",
-            "first lateral/whirl mode, kept 3x above the running speed",
+        _dm("q_whirl", "erste biegekritische Drehzahl (Whirl)", 150.0, "Hz",
+            "erste Lateral-/Whirl-Mode, 3x über der Betriebsdrehzahl gehalten",
             "vibration.first_natural_frequency"),
     ]
     return Specification(
         run_id="drive_shaft",
-        idea="A rotating drive shaft sized against torsion, rotating-bending fatigue, "
-             "and whirl resonance",
+        idea="Eine rotierende Antriebswelle, ausgelegt gegen Torsion, "
+             "Umlaufbiegungs-Ermüdung und Whirl-Resonanz",
         approach_id="ap_shaft", quantities=quantities,
         gaps=[
-            "Keyway / shoulder stress concentrations are not modelled in the nominal "
-            "checks — apply a fatigue notch factor K_f (notch_fatigue) separately.",
-            "Bearing life, the coupling, and the shaft-to-hub connection are out of "
-            "scope; only the shaft body's torsion, fatigue and whirl are checked.",
+            "Spannungskonzentrationen an Passfedernut / Wellenabsatz sind in den "
+            "Nominal-Prüfungen nicht modelliert — separat einen "
+            "Ermüdungs-Kerbfaktor K_f ansetzen (notch_fatigue).",
+            "Lagerlebensdauer, Kupplung und Welle-Nabe-Verbindung sind außerhalb "
+            "des Geltungsbereichs; geprüft sind nur Torsion, Ermüdung und Whirl "
+            "des Wellenkörpers.",
         ],
         claim_ids_used=[c.id for c in drive_shaft_claims()], produced_by="drive_shaft",
     )
@@ -552,7 +578,7 @@ def drive_shaft_spec() -> Specification:
 def drive_shaft_state() -> RunState:
     st = RunState(question=Question(raw="rotating drive shaft", run_id="drive_shaft"))
     st.claims = drive_shaft_claims()
-    st.approaches = [Approach(id="ap_shaft", name="Rotating drive shaft",
+    st.approaches = [Approach(id="ap_shaft", name="Rotierende Antriebswelle",
                              grounding=["c_shaft_anchor"])]
     st.specification = drive_shaft_spec()
     return st

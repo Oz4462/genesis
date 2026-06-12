@@ -20,6 +20,14 @@ from ..costing import bom_cost, format_cost
 from ..verification.gates import gate_delta, geometry_envelope
 from ..verification.geometry import GeometryError, geometry_length_unit, mass_of, volume_of
 
+#: German display labels for BOM roles (PHASE_DELTA §57). The stored enum values
+#: stay English (machine values); only the rendered document is German.
+BOM_ROLE_LABELS_DE = {
+    "part": "Bauteil",
+    "material": "Material",
+    "tool": "Werkzeug",
+}
+
 
 def _origin(q) -> str:
     if q.origin is ValueOrigin.GROUNDED:
@@ -93,7 +101,8 @@ def specification_to_markdown(spec: Specification) -> str:
                     pid = it.sourcing.price_quantity_id
                     if pid and pid in q:
                         price = f"{q[pid].value:g} {q[pid].unit}"
-                a(f"| {it.count} | {it.name} | {it.role.value} | {src} | {price} |")
+                role = BOM_ROLE_LABELS_DE.get(it.role.value, it.role.value)
+                a(f"| {it.count} | {it.name} | {role} | {src} | {price} |")
             a("")
 
         _bom_table("Stückliste (Mechanik)", mech or [])

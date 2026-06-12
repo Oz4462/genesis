@@ -58,7 +58,7 @@ def test_unpriced_part_makes_it_partial():
     cost = bom_cost(spec)
     assert cost.subtotals == {"EUR": 0.84}
     assert not cost.complete and cost.unpriced == ["b_bracket"]
-    assert "partial" in format_cost(cost) and "b_bracket" in format_cost(cost)
+    assert "unvollständig" in format_cost(cost) and "b_bracket" in format_cost(cost)
 
 
 def test_mixed_currencies_are_kept_separate():
@@ -85,4 +85,4 @@ def test_no_prices_at_all():
                          bom=[BomItem(id="b", name="x", role=BomRole.PART)])
     cost = bom_cost(spec)
     assert cost.subtotals == {} and not cost.complete
-    assert "not provable" in format_cost(cost)
+    assert "nicht beweisbar" in format_cost(cost)

@@ -51,8 +51,8 @@ def test_each_unsound_case_actually_fails_the_gate():
 
 def test_report_renders():
     out = format_report(evaluate(anti_hallucination_cases()))
-    assert "leaks (hallucinations that passed): 0" in out
-    assert "score:" in out
+    assert "Leaks (durchgerutschte Halluzinationen): 0" in out
+    assert "Ergebnis:" in out
 
 
 # --- multi-gate harness: the delta-physics gate is measured too -----------------
@@ -82,4 +82,4 @@ def test_leak_rate_denominator_counts_unsound_cases():
     assert report.n_unsound == sum(1 for c in all_cases() if not c.expected_pass)
     assert report.n_sound == sum(1 for c in all_cases() if c.expected_pass)
     out = format_report(report)
-    assert "rate 0%" in out                                     # leak rate rendered, 0%
+    assert "Rate 0%" in out                                     # leak rate rendered, 0%

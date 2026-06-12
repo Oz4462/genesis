@@ -59,19 +59,25 @@ def completeness_warnings(spec: Specification) -> list[str]:
     referenced = _referenced_quantity_ids(spec)
     for q in spec.quantities:
         if q.id not in referenced:
-            warnings.append(f"quantity {q.id!r} ({q.name}) is declared but never used")
+            warnings.append(f"Größe {q.id!r} ({q.name}) ist deklariert, wird aber nirgends verwendet")
 
     # 2. tools nobody uses
     used_bom = {bid for s in spec.steps for bid in s.uses}
     for item in spec.bom:
         if item.role is BomRole.TOOL and item.id not in used_bom:
-            warnings.append(f"tool {item.id!r} ({item.name}) is in the BOM but used by no step")
+            warnings.append(
+                f"Werkzeug {item.id!r} ({item.name}) steht in der Stückliste, "
+                "wird aber von keinem Schritt verwendet"
+            )
 
     # 3. fabricated components with no BOM line
     bom_component_ids = {b.component_id for b in spec.bom if b.component_id}
     for comp in spec.components:
         if comp.geometry is not None and comp.id not in bom_component_ids:
-            warnings.append(f"component {comp.id!r} ({comp.name}) has geometry but no BOM line")
+            warnings.append(
+                f"Bauteil {comp.id!r} ({comp.name}) hat Geometrie, "
+                "aber keine Stücklisten-Position"
+            )
 
     # 4. the build produces no final artifact (an output never consumed downstream)
     if spec.steps:
@@ -81,6 +87,9 @@ def completeness_warnings(spec: Specification) -> list[str]:
             produced.update(s.outputs)
             consumed.update(s.inputs)
         if produced and not (produced - consumed):
-            warnings.append("the build produces no final artifact (every output is consumed again)")
+            warnings.append(
+                "der Bau erzeugt kein finales Artefakt "
+                "(jedes Zwischenergebnis wird wieder verbraucht)"
+            )
 
     return warnings

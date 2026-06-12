@@ -63,10 +63,13 @@ gegen geschlossene Formen/Research-Anker verifiziert. CSG-Vokabular kann
 Rotation (beliebige Achse, alle Backends doku-verifiziert, §53).
 Kalibrierung zusätzlich mit Split-Conformal-Quantilen (verteilungsfreie
 Coverage-Garantie, §56). Ergebnisse DEUTSCH (Owner-Direktive 2026-06-12, §57):
-Scholar-Claims, Approach-Namen, Spezifikations-Texte und das Markdown-Bauhandbuch
-sind deutsch; Zitate bleiben wortlautgetreu in der Quellsprache (C-4 ist
-sprachneutral); ids/units/Formeln englisch. Demo-Claim-Welt bewusst noch
-englisch (eigener Pass nötig: Quelle↔Zitat↔C-4-Kopplung).
+Scholar-Claims, Approach-Namen, Spezifikations-Texte, Markdown-Bauhandbuch,
+CLI-Renderer, Klärungsfragen (alle Measurands), Vollständigkeits-Warnungen,
+Physik-Lücken, Druckbarkeits-Verdikt, Kosten-Roll-up UND die komplette
+Demo-Welt (capstone/protocol/drive_shaft + scripted α/γ-Welten) sind deutsch;
+Zitate bleiben wortlautgetreu in der Quellsprache (C-4 ist sprachneutral,
+Zahlen byte-genau in Quell-Schreibweise); ids/units/Formeln/measurands/
+Gate-Diagnostik englisch.
 Druckbarkeit geometrisch: bridge_spans + first_layer_report (orientation.py),
 STL-Slicebarkeits-Beweis (mesh_integrity.py, Euler–Poincaré + Divergenzsatz);
 verdrahtet: pipeline.assess_printability → CLI `--mode print` + Web-UI-Tab

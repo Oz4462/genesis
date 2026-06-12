@@ -53,7 +53,7 @@ def test_missing_input_yields_one_targeted_question():
     q = questions[0]
     assert q.measurand == "material.shear_strength"
     assert q.unblocks == ("shaft torsion",)
-    assert "shear strength" in q.question.lower()
+    assert "scherfestigkeit" in q.question.lower()
 
 
 def test_high_value_question_ranks_first_and_is_asked_once():
@@ -106,7 +106,7 @@ def test_answers_take_an_underspecified_spec_to_verified():
     added = next(q for q in answered.quantities
                  if q.measurand == "material.shear_strength")
     assert added.origin.value == "decision"                     # declared, with provenance
-    assert "clarification dialog" in added.rationale
+    assert "Klärungsdialog" in added.rationale
     assert len(spec.quantities) == len(answered.quantities) - 1  # input not mutated
 
 

@@ -400,7 +400,7 @@ def test_spec_demo_end_to_end(tmp_path):
     assert q_design.value == 24.0
 
     rendered = format_specification(spec)
-    assert "Build steps" in rendered and "Decision sheet" in rendered
+    assert "Bauschritte" in rendered and "Entscheidungsblatt" in rendered
 
     checkpoint = json.loads(
         (tmp_path / "demo-bracket" / "checkpoint.json").read_text(encoding="utf-8")

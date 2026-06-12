@@ -334,7 +334,7 @@ tests/                 881 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-En
 
 ## 15 · Status & ehrliche Grenzen
 
-**Fertig und bewiesen (offline):** die komplette α/β/γ/δ-Kette mit allen Gates, die Physik-Engine (27 Validatoren + FEM, inkl. Rotation im CSG-Vokabular, der Flug-Achsen und der NIST-verankerten Krypto-Achse), die Druckbarkeits-Schicht (bis in CLI, Web-UI und den gegateten STL-Export verdrahtet), die Quality-Engine (inkl. Conformal-Prediction-Schwellen mit verteilungsfreier Garantie), deutsche Ergebnis-Verträge (Claims, Bauanleitung, Spezifikations-Texte — Zitate bleiben wortlautgetreu in der Quellsprache), CLI, Web-UI (Idee→Ergebnis-Flow für Laien), Packaging, Gold-Set-Vertrag — 881 Tests, deterministisch, reproduzierbar.
+**Fertig und bewiesen (offline):** die komplette α/β/γ/δ-Kette mit allen Gates, die Physik-Engine (27 Validatoren + FEM, inkl. Rotation im CSG-Vokabular, der Flug-Achsen und der NIST-verankerten Krypto-Achse), die Druckbarkeits-Schicht (bis in CLI, Web-UI und den gegateten STL-Export verdrahtet), die Quality-Engine (inkl. Conformal-Prediction-Schwellen mit verteilungsfreier Garantie), deutsche Ergebnisse auf jeder menschenlesbaren Oberfläche (Claims, Bauanleitung, Spezifikations-Texte, CLI-Renderer, Klärungsfragen, Warnungen, Druck-Verdikt und die komplette Demo-Welt — Zitate bleiben wortlautgetreu in der Quellsprache), CLI, Web-UI (Idee→Ergebnis-Flow für Laien), Packaging, Gold-Set-Vertrag — 881 Tests, deterministisch, reproduzierbar.
 
 **Live bewiesen:** α (Fakten-Report) und β gegen echte lokale Modelle, inklusive empirischer Bestätigung, dass der Wortlaut-Wächter echte Modell-Paraphrasen abfängt.
 

@@ -24,14 +24,16 @@ def test_markdown_has_all_sections():
     md = specification_to_markdown(capstone_spec())
     # the deliverable document is GERMAN (owner directive 2026-06-12): every
     # human-facing label/heading German, ids/units/values untouched
-    assert md.startswith("# Bauanleitung: A wall-mounted LED shelf bracket")
+    assert md.startswith("# Bauanleitung: Ein wandmontierter LED-Regalhalter")
     assert "## Größen" in md
-    assert "| `q_load` | verified shelf load | 12 | kg | belegt durch c_load |" in md
+    assert "| `q_load` | belegte Regallast | 12 | kg | belegt durch c_load |" in md
     assert "## Stückliste (Mechanik)" in md
     assert "## Stückliste (Elektronik)" in md
+    assert "| Werkzeug |" in md                  # BOM roles rendered as German labels
     assert "McMaster-Carr #91290A115" in md and "0.42 EUR" in md
-    assert "**Geschätzte Kosten:** 0.84 EUR (partial" in md
-    assert "## Bauschritte" in md and "Anzugsmoment: 2.5 N*m" in md and "Werkzeug: 4 mm hex key" in md
+    assert "**Geschätzte Kosten:** 0.84 EUR (unvollständig" in md
+    assert ("## Bauschritte" in md and "Anzugsmoment: 2.5 N*m" in md
+            and "Werkzeug: 4-mm-Innensechskantschlüssel" in md)
     assert "## Geprüfte Anforderungen" in md
     assert "## Entscheidungsblatt" in md
     assert "## Ort & Umgebung" in md and "verfügbarer Platz: 200 mm × 200 mm × 200 mm" in md

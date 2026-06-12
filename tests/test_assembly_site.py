@@ -153,6 +153,6 @@ def test_assembly_and_site_render_in_cli():
     )
     spec = Specification(run_id="r", idea="i", quantities=qs, steps=[step], site=site)
     out = format_specification(spec)
-    assert "tool:  4 mm hex key" in out
-    assert "torque: 2.5 N*m" in out
-    assert "Site & environment" in out and "available space: 100 mm x 100 mm x 100 mm" in out
+    assert "Werkzeug:  4 mm hex key" in out
+    assert "Anzugsmoment: 2.5 N*m" in out
+    assert "Ort & Umgebung" in out and "verfügbarer Platz: 100 mm x 100 mm x 100 mm" in out

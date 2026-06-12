@@ -64,15 +64,15 @@ def test_delta_geometry_and_site_and_properties():
 def test_rendered_spec_has_all_depth_sections():
     from gen.cli import format_specification
     out = format_specification(capstone_spec())
-    assert "Bill of materials (mechanical):" in out
-    assert "Bill of materials (electronics):" in out and "12 V LED strip" in out
-    assert "McMaster-Carr #91290A115" in out and "0.42 EUR/pc" in out
-    assert "tool:  4 mm hex key" in out and "torque: 2.5 N*m" in out
-    assert "Site & environment" in out and "available space: 200 mm x 200 mm x 200 mm" in out
-    assert "volume:" in out and "mass:" in out
-    assert "no provably broken geometry" in out
+    assert "Stückliste (Mechanik):" in out
+    assert "Stückliste (Elektronik):" in out and "12-V-LED-Streifen" in out
+    assert "McMaster-Carr #91290A115" in out and "0.42 EUR/Stk" in out
+    assert "Werkzeug:  4-mm-Innensechskantschlüssel" in out and "Anzugsmoment: 2.5 N*m" in out
+    assert "Ort & Umgebung" in out and "verfügbarer Platz: 200 mm x 200 mm x 200 mm" in out
+    assert "Volumen:" in out and "Masse:" in out
+    assert "keine beweisbar defekte Geometrie" in out
     # cost roll-up: honest partial (only the screw is priced)
-    assert "Estimated cost: 0.84 EUR (partial" in out
+    assert "Geschätzte Kosten: 0.84 EUR (unvollständig" in out
 
 
 # --- the invariant: drop one claim -> the dependent detail fails ---------------

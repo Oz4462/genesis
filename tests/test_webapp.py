@@ -101,7 +101,7 @@ def test_spec_demo_ships_files_and_printability(client):
     assert "difference" in files["modell.scad"]            # real CAD source
     assert files["bauanleitung.md"].startswith("#")        # a markdown manual
     stl = files["modell.stl"]
-    assert stl.startswith("solid genesis_") or stl.startswith("# STL export")
+    assert stl.startswith("solid genesis_") or stl.startswith("# STL-Export")
     assert r["printability"]["status"] in {
         "print_ready", "needs_attention", "not_printable", "unavailable",
     }
@@ -127,11 +127,11 @@ def test_printability_endpoint_is_honest_in_both_worlds(client):
         assert cap["mesh"]["watertight"] and cap["mesh"]["genus"] == 1
         (comp,) = cap["components"]
         assert comp["plate_contact"] and comp["unsupported_overhang_area"] == 0.0
-        assert any("elephant-foot" in a for a in cap["advisories"])
+        assert any("Elephant-Foot" in a for a in cap["advisories"])
         assert cap["blockers"] == []
     else:
         assert cap["status"] == "unavailable" and cap["mesh"] is None
-        assert any("not judged" in a for a in cap["advisories"])
+        assert any("nicht beurteilt" in a for a in cap["advisories"])
 
 
 def test_eval_endpoint_reports_zero_leaks(client):

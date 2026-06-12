@@ -87,4 +87,4 @@ def test_protocol_round_trips():
     spec = protocol_spec()
     spec2 = specification_from_dict(_specification_to_dict(spec))
     assert _specification_to_dict(spec2) == _specification_to_dict(spec)
-    assert spec2.experiment is not None and spec2.experiment.control == "control"
+    assert spec2.experiment is not None and spec2.experiment.control == "Kontrolle"

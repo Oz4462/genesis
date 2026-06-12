@@ -58,10 +58,10 @@ def bom_cost(spec: Specification) -> Cost:
 
 
 def format_cost(cost: Cost) -> str:
-    """One-line human summary of the cost roll-up."""
+    """One-line human summary of the cost roll-up (German — a result string)."""
     if not cost.subtotals:
-        return "no priced items (cost not provable — needs claim-backed prices)"
+        return "keine bepreisten Teile (Kosten nicht beweisbar — braucht claim-belegte Preise)"
     parts = ", ".join(f"{total:g} {cur}" for cur, total in sorted(cost.subtotals.items()))
     if cost.complete:
-        return f"{parts} (all parts priced)"
-    return f"{parts} (partial — unpriced: {', '.join(cost.unpriced)})"
+        return f"{parts} (alle Teile bepreist)"
+    return f"{parts} (unvollständig — ohne Preis: {', '.join(cost.unpriced)})"

@@ -1968,11 +1968,26 @@ besteht). (b) **Architect-Vertrag** Regel 9: Namen, Schritte, Prüfungen,
 Entscheidungen, Begründungen, Lücken, BOM-Namen deutsch; ids/units/Formeln/
 measurands englisch. (c) **Synthesizer**: Ansatz-Namen deutsch. (d)
 **Markdown-Bauanleitung** komplett deutsch (Überschriften, Tabellen, Herkunft
-„belegt durch/berechnet/Entscheidung", δ-Verdikt). **Ehrlich offen:** die
-DEMO-Claim-Welt (capstone/drive_shaft) bleibt vorerst englisch — ihre
-Übersetzung muss Quelle↔Zitat↔C-4 konsistent halten und bekommt einen eigenen
-verifizierten Pass; ob die LIVE-Modelle den Sprachvertrag zuverlässig erfüllen,
-misst der Gold-Set-Lauf.
+„belegt durch/berechnet/Entscheidung", δ-Verdikt). (e) **Demo-Welt-Pass**
+(2026-06-12, zweiter Schritt): die GESAMTE Demo-Welt ist deutsch — `demo.py`
+(Capstone/Protokoll/Antriebswelle: Claims, Größen-Namen, Begründungen,
+Schritte, Prüfungen, Entscheidungen, Lücken, Stückliste, Ort), die scripted
+α/γ-Demo-Welten in `cli.py` (deutscher Claim-Text, Zitat zeichengenau englisch
+aus der Quelle; Backend-/Synthesizer-Marker auf die deutschen Texte
+nachgezogen: „basiert auf"/„Kragarm"), die CLI-Text-Renderer (Report, Lösung,
+Spezifikation, Qualitäts-Footer, Druck-/Assess-/Eval-Ausgabe), die
+Engine-Ergebnistexte (Klärungsfragen inkl. neuer Templates für ALLE
+Flug-/Druck-/Krypto-Measurands, Vollständigkeits-Warnungen,
+Physik-Lücken-Texte, Druckbarkeits-Blocker/-Hinweise, Kosten-Roll-up) und die
+BOM-Rollen-Labels (part/material/tool → Bauteil/Material/Werkzeug in
+Markdown + Web-UI). C-4 hält, weil jede Zahl ihre Quell-Schreibweise
+byte-genau behält („4.5 mm", „0.42 EUR") und C-16-Anker (McMaster-Carr,
+91290A115) wörtlich in den deutschen Claims stehen. Bewiesen: volle Suite
+(881/835+19) + HTTP-Smoke über die echte Web-API (deutsche Größen, Lücken,
+Klärungsfragen, Bauanleitung). Bewusst englisch bleiben: ids, units, Formeln,
+measurands, Gate-Failure-Diagnostik, Logs, Mesh-Integritäts-Issues
+(Entwickler-Diagnose, keine Ergebnisse). **Ehrlich offen:** ob die
+LIVE-Modelle den Sprachvertrag zuverlässig erfüllen, misst der Gold-Set-Lauf.
 
 ---
 

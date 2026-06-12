@@ -81,7 +81,7 @@ def test_dimension_mismatch_becomes_a_gap():
     qs[1] = _q("d", 20.0, "kg", "shaft.diameter")              # diameter in a mass unit
     checks, gaps = select_physics_checks(_spec(qs))
     assert checks == []
-    assert len(gaps) == 1 and "not dimensionally" in gaps[0]
+    assert len(gaps) == 1 and "nicht dimensionsgleich" in gaps[0]
 
 
 def test_absent_trigger_contributes_nothing():

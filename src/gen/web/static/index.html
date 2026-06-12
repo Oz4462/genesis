@@ -402,7 +402,7 @@ function planInner(s){
       return `<tr><td>${esc(q.name)}</td><td class="mono">${esc(q.value)} ${esc(q.unit)}${q.uncertainty?` ± ${esc(q.uncertainty)}`:""}</td>
         <td><span class="badge ${o[0]}">${esc(o[1])}</span> <span class="small muted">${q.formula?esc("= "+q.formula):q.rationale?esc(q.rationale):q.grounding.map(esc).join(", ")}</span></td></tr>`}).join("")+`</table>`;
   if(s.bom.length){h+=`<div class="sect">Einkaufsliste</div><table><tr><th>Teil</th><th>Anzahl</th><th>Rolle</th><th>Bezug</th></tr>`+
-    s.bom.map(b=>`<tr><td>${esc(b.name)}</td><td>${esc(b.count)}</td><td>${esc(b.role)}</td><td class="small muted">${esc(b.sourcing??"—")}</td></tr>`).join("")+`</table>`;}
+    s.bom.map(b=>`<tr><td>${esc(b.name)}</td><td>${esc(b.count)}</td><td>${esc({part:"Bauteil",material:"Material",tool:"Werkzeug"}[b.role]??b.role)}</td><td class="small muted">${esc(b.sourcing??"—")}</td></tr>`).join("")+`</table>`;}
   if(s.steps.length){h+=`<div class="sect">Schritt für Schritt — mit Prüfung nach jedem Schritt</div>`+
     s.steps.map(st=>`<div class="statement" style="cursor:default"><b>${esc(st.index)}.</b> ${esc(st.action)}<div class="small muted" style="margin-top:4px">✓ Prüfung: ${esc(st.check)}${st.tool?` · Werkzeug: ${esc(st.tool)}`:""}</div></div>`).join("");}
   if(s.decisions.length){h+=`<div class="sect">Getroffene Entscheidungen — du darfst widersprechen</div>`+

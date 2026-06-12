@@ -86,7 +86,7 @@ def test_missing_kernel_is_unavailable_never_a_silent_pass(monkeypatch):
     monkeypatch.setattr(gen.orientation, "_require_cadquery", _no_kernel)
     p = assess_printability(_pocket_spec())
     assert p.status == "unavailable" and not p.ok
-    assert any("not judged" in a for a in p.advisories)
+    assert any("nicht beurteilt" in a for a in p.advisories)
 
 
 def test_capstone_is_printable_with_elephant_foot_advisory():
@@ -99,7 +99,7 @@ def test_capstone_is_printable_with_elephant_foot_advisory():
     (comp,) = p.components
     assert comp["first_layer"]["plate_contact"]
     assert comp["unsupported_overhang_area"] == 0.0     # vertical hole: no overhang
-    assert any("elephant-foot" in a for a in p.advisories)
+    assert any("Elephant-Foot" in a for a in p.advisories)
 
 
 def test_bridgeable_ceiling_composes_to_zero_unsupported_overhang():
@@ -109,7 +109,7 @@ def test_bridgeable_ceiling_composes_to_zero_unsupported_overhang():
     assert comp["overhang"]["overhang_area"] > 100.0    # the blanket rule flags ~8x16
     assert comp["unsupported_overhang_area"] == 0.0     # ...the bridge layer clears it
     assert p.blockers == [] and p.ok
-    assert not any("support" in a for a in p.advisories)
+    assert not any("Stützmaterial" in a for a in p.advisories)
 
 
 def test_broken_kernel_mesh_is_a_blocker(monkeypatch):
@@ -118,7 +118,7 @@ def test_broken_kernel_mesh_is_a_blocker(monkeypatch):
     monkeypatch.setattr(brep_stl, "specification_to_brep_stl", lambda spec: BROKEN_STL)
     p = assess_printability(_pocket_spec())
     assert p.status == "not_printable" and not p.ok
-    assert any("mesh integrity" in b for b in p.blockers)
+    assert any("Mesh-Integritätsprüfung" in b for b in p.blockers)
 
 
 def test_cli_stl_export_refuses_a_broken_mesh(monkeypatch):
@@ -129,7 +129,7 @@ def test_cli_stl_export_refuses_a_broken_mesh(monkeypatch):
 
     monkeypatch.setattr(brep_stl, "specification_to_brep_stl", lambda spec: BROKEN_STL)
     out = render_spec(capstone_spec(), "stl")
-    assert out.startswith("# STL export refused")
+    assert out.startswith("# STL-Export verweigert")
     assert "open" in out                                # the holes are named
 
 
@@ -140,7 +140,7 @@ def test_cli_mode_print_reports_the_verdicts(capsys):
     rc = main(["--mode", "print"])
     out = capsys.readouterr().out
     assert rc == 0
-    assert "printability: capstone" in out and "status: needs_attention" in out
+    assert "Druckbarkeit: capstone" in out and "Status: needs_attention" in out
     assert "genus=1" in out                             # the hole, proven in the mesh
-    assert "printability: drive_shaft" in out and "status: no_geometry" in out
-    assert "elephant-foot" in out
+    assert "Druckbarkeit: drive_shaft" in out and "Status: no_geometry" in out
+    assert "Elephant-Foot" in out

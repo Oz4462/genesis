@@ -66,7 +66,7 @@ def test_component_without_bom_line_warned():
     spec = Specification(run_id="r", idea="i", quantities=[_q("q")],
                          components=[Component(id="c1", name="widget", geometry=geom)])
     warns = completeness_warnings(spec)
-    assert any("c1" in w and "no BOM line" in w for w in warns)
+    assert any("c1" in w and "keine Stücklisten-Position" in w for w in warns)
 
 
 def test_no_final_artifact_warned():
@@ -78,7 +78,7 @@ def test_no_final_artifact_warned():
             Step(id="s2", index=2, action="consume a1", check="ok", inputs=["a1"]),
         ],
     )
-    assert any("no final artifact" in w for w in completeness_warnings(spec))
+    assert any("kein finales Artefakt" in w for w in completeness_warnings(spec))
 
 
 def test_complete_build_has_final_artifact():
@@ -90,4 +90,4 @@ def test_complete_build_has_final_artifact():
                  inputs=["a1"], outputs=["a2"]),
         ],
     )
-    assert not any("no final artifact" in w for w in completeness_warnings(spec))
+    assert not any("kein finales Artefakt" in w for w in completeness_warnings(spec))

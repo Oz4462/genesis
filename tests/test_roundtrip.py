@@ -53,7 +53,7 @@ def test_reconstructed_fields_match():
     led = next(b for b in spec.bom if b.id == "b_led")
     assert led.domain.value == "electronic"
     s2 = next(s for s in spec.steps if s.id == "s2")
-    assert s2.tool == "4 mm hex key" and s2.torque_quantity_id == "q_torque"
+    assert s2.tool == "4-mm-Innensechskantschlüssel" and s2.torque_quantity_id == "q_torque"
     assert spec.site is not None and spec.site.available_space == ("sx", "sy", "sz")
     bracket = next(c for c in spec.components if c.id == "c_bracket")
     assert bracket.material_density == "q_density"

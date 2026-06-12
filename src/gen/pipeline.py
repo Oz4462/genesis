@@ -212,25 +212,25 @@ def assess_printability(spec: Specification) -> PrintabilityAssessment:
 
             if not first_layer["plate_contact"]:
                 blockers.append(
-                    f"{comp.id}: no flat build-plate contact — the part cannot adhere"
+                    f"{comp.id}: keine ebene Druckbett-Kontaktfläche — das Teil haftet nicht"
                 )
             if bridges["needs_support"]:
                 blockers.append(
-                    f"{comp.id}: flat ceiling not bridgeable "
-                    f"(worst span {bridges['worst_span']:.1f} mm > limit, or no "
-                    "opposite anchored pair) — needs support"
+                    f"{comp.id}: ebene Decke nicht überbrückbar "
+                    f"(größte Spannweite {bridges['worst_span']:.1f} mm > Limit, oder "
+                    "kein gegenüberliegendes verankertes Paar) — braucht Stützmaterial"
                 )
             elif unsupported_area > 1e-9:
                 advisories.append(
-                    f"{comp.id}: {unsupported_area:.1f} mm² of overhang beyond the "
-                    "45° rule prints only with support material"
+                    f"{comp.id}: {unsupported_area:.1f} mm² Überhang jenseits der "
+                    "45°-Regel druckt nur mit Stützmaterial"
                 )
             if first_layer["elephant_foot_risk"]:
                 advisories.append(
-                    f"{comp.id}: sharp base edge — elephant-foot bulge will undersize "
-                    f"features near the plate; add a "
-                    f"{first_layer['recommended_base_chamfer']} mm base chamfer "
-                    "(or slicer initial-layer compensation)"
+                    f"{comp.id}: scharfe Bodenkante — der Elephant-Foot-Wulst untermaßt "
+                    f"Features nahe der Druckplatte; eine "
+                    f"{first_layer['recommended_base_chamfer']} mm Fase am Boden vorsehen "
+                    "(oder Erste-Schicht-Kompensation im Slicer)"
                 )
 
         from .export.brep_stl import specification_to_brep_stl
@@ -239,10 +239,13 @@ def assess_printability(spec: Specification) -> PrintabilityAssessment:
     except GeometryError as exc:
         return PrintabilityAssessment(
             status="unavailable", components=components, mesh=None,
-            blockers=[], advisories=[f"not judged: {exc}"],
+            blockers=[], advisories=[f"nicht beurteilt: {exc}"],
         )
     if not mesh["ok"]:
-        blockers.append("exported STL failed mesh integrity: " + "; ".join(mesh["issues"]))
+        blockers.append(
+            "exportiertes STL hat die Mesh-Integritätsprüfung nicht bestanden: "
+            + "; ".join(mesh["issues"])
+        )
 
     if blockers:
         status = "not_printable"

@@ -91,11 +91,11 @@ def test_mechanical_and_electronic_split_render():
     pi = BomItem(id="b_pi", name="Raspberry Pi 4", role=BomRole.PART, domain=BomDomain.ELECTRONIC)
     spec = Specification(run_id="r", idea="i", bom=[screw, pi])
     out = format_specification(spec)
-    assert "Bill of materials (mechanical):" in out
-    assert "Bill of materials (electronics):" in out
+    assert "Stückliste (Mechanik):" in out
+    assert "Stückliste (Elektronik):" in out
     # the Pi appears under electronics, the screw under mechanical
-    mech_idx = out.index("(mechanical)")
-    elec_idx = out.index("(electronics)")
+    mech_idx = out.index("(Mechanik)")
+    elec_idx = out.index("(Elektronik)")
     assert out.index("M4 screw") < elec_idx
     assert out.index("Raspberry Pi 4") > elec_idx
     assert mech_idx < elec_idx
