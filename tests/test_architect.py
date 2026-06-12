@@ -244,3 +244,74 @@ def test_idempotent_across_refine_rounds():
     second = state.specification
     assert {q.id for q in first.quantities} == {q.id for q in second.quantities}
     assert len(second.quantities) == 3                          # no accumulation
+
+
+# --- the measurand contract: the agent path becomes physics-aware ----------------
+
+def _q_decision(qid, name, unit, value, measurand=None):
+    item = {"id": qid, "name": name, "unit": unit, "origin": "decision",
+            "value": value, "rationale": "declared design input"}
+    if measurand is not None:
+        item["measurand"] = measurand
+    return item
+
+
+def _shaft_state() -> RunState:
+    st = RunState(question=Question(raw="a rotating drive shaft", run_id="rs"))
+    st.claims = [_claim("c_anchor", "Rotating drive shafts transmit torque.")]
+    st.approaches = [Approach(id="ap_s", name="Drive shaft", grounding=["c_anchor"])]
+    return st
+
+
+def _shaft_proposal(**overrides) -> dict:
+    base = {
+        "approach_id": "ap_s",
+        "quantities": [
+            _q_decision("q_t", "torque", "N*m", 150, "shaft.torque"),
+            _q_decision("q_d", "diameter", "mm", 25, "shaft.diameter"),
+            _q_decision("q_l", "length", "mm", 600, "shaft.length"),
+            _q_decision("q_g", "shear modulus", "MPa", 80000, "material.shear_modulus"),
+            _q_decision("q_tau", "shear strength", "MPa", 260, "material.shear_strength"),
+        ],
+        "components": [], "bom": [], "steps": [], "constraints": [], "decisions": [],
+    }
+    base.update(overrides)
+    return base
+
+
+def test_declared_measurands_survive_into_the_spec_and_drive_physics():
+    # the whole transformation, scripted end to end: the architect DECLARES measurand
+    # tags -> the assembled spec carries them -> auto-selection builds the torsion
+    # check (unit-converted) -> the wired assessment verifies the physics.
+    from gen.pipeline import assess_specification
+
+    state = _shaft_state()
+    run(_architect_for(_shaft_proposal()).run(state))
+    spec = state.specification
+    assert {q.measurand for q in spec.quantities} == {
+        "shaft.torque", "shaft.diameter", "shaft.length",
+        "material.shear_modulus", "material.shear_strength"}
+    a = assess_specification(spec)
+    assert a.overall == "physics_verified"
+    assert len(a.physics_checks) == 1 and a.physics_checks[0].validator == "torsion"
+    assert a.physics_checks[0].inputs["torque"] == 150000.0     # N*m -> N*mm, unit-correct
+
+
+def test_malformed_measurand_drops_the_tag_not_the_quantity():
+    proposal = _shaft_proposal(quantities=[
+        _q_decision("q_t", "torque", "N*m", 150, "Shaft Torque!!"),   # malformed tag
+        _q_decision("q_d", "diameter", "mm", 25),                      # untagged
+    ])
+    state = _shaft_state()
+    run(_architect_for(proposal).run(state))
+    spec = state.specification
+    by_id = {q.id: q for q in spec.quantities}
+    assert by_id["q_t"].measurand is None                       # tag dropped...
+    assert by_id["q_t"].value == 150.0                          # ...the quantity survives
+    assert any("malformed measurand" in line for line in state.log)
+
+
+def test_untagged_proposals_behave_exactly_as_before():
+    state = _state()
+    run(_architect_for(_proposal()).run(state))
+    assert all(q.measurand is None for q in state.specification.quantities)

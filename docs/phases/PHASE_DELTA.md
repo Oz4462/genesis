@@ -1725,6 +1725,36 @@ Debugging (Root-Cause vor Fix).
 
 ---
 
+## 51. Der measurand-Vertrag des Architects — der Agenten-Pfad wird physik-bewusst
+
+Bisher griff die Auto-Physik (§39) nur auf **hand-getaggten** Specs (`drive_shaft_spec`):
+der `architect` emittierte Quantities **ohne** `measurand`-Tags, also konnte eine von ihm
+produzierte Spec nie einen δ-Physik-Check auslösen. Diese Transformation schließt das —
+nach demselben Prinzip wie die Wert-Herkunft: der Tag wird **deklariert, nie inferiert**.
+
+Der Architect-Vertrag (System-Prompt, Regel 8) erlaubt jetzt ein optionales
+`"measurand"`-Feld pro Quantity — ein dotted-lowercase-Tag (`shaft.torque`,
+`material.shear_strength`, …), **nur** wenn das Design diese Physik wirklich hat („never
+guess or force a tag"). Das Parsing (`_parse_measurand`) übernimmt den Tag **nur** in
+gültiger Form (`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`); ein fehlgeformter Tag wird
+**gedroppt und geloggt, die Quantity überlebt** — der Tag ist eine optionale Deklaration,
+nie zurechtgeraten. Alle drei Herkunfts-Zweige (GROUNDED/DECISION/DERIVED) tragen ihn.
+
+**Verifiziert, scripted end-to-end** (3 neue Tests, offline, ScriptedLLM): ein Architect-
+Proposal mit getaggten Wellen-Quantities → die **assemblierte** Spec trägt alle 5 Tags →
+Auto-Select baut **genau** den Torsions-Check (Drehmoment **einheiten-korrekt** `150 N·m →
+150000 N·mm`) → `assess_specification` → **`physics_verified`**. Fehlgeformter Tag
+(`"Shaft Torque!!"`) → Tag weg, Quantity intakt, Log-Eintrag. Ungetaggte Proposals
+verhalten sich **exakt wie zuvor** (alle measurand `None`).
+
+**Ehrliche Grenze:** dies ist der **Vertrag + der scripted Beweis** der ganzen Kette
+Architect→Spec→Auto-Select→Gate→Verdikt. Ob ein **echtes** LLM die Tags zuverlässig und
+ehrlich emittiert (statt sie zu raten), ist genau die Frage des aufgeschobenen, gemessenen
+Live-Laufs — dort greift dann C-17 (same-measurand-Konsistenz) als zusätzlicher Wächter.
+Modul `agents/architect.py`, getestet in `tests/test_architect.py`.
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).

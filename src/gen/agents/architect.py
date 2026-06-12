@@ -54,6 +54,9 @@ from ..verification.gates import gate_gamma, value_in_text
 from ..verification.units import formula_dimension, parse_unit
 
 _ID_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+# a measurand tag is a dotted lowercase key, e.g. "shaft.torque" — the declared,
+# non-inferred link the physics auto-selection and GATE γ C-17 operate on.
+_MEASURAND_RE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$")
 
 _SYSTEM = (
     "You structure VERIFIED factual claims and one GROUNDED solution approach into "
@@ -67,9 +70,14 @@ _SYSTEM = (
     "fact; (5) geometry params reference quantity ids, never raw numbers; "
     "(6) every step needs an action, a human-verifiable check, and inputs that are "
     "BOM items or outputs of earlier steps; (7) ids must be identifier-safe "
-    "([A-Za-z_][A-Za-z0-9_]*). Return ONE JSON object: "
+    "([A-Za-z_][A-Za-z0-9_]*); (8) when a quantity IS a physical measurand of the "
+    "design, you may DECLARE it with an optional 'measurand' key — a dotted "
+    "lowercase tag naming what it measures (e.g. shaft.torque, shaft.diameter, "
+    "material.shear_strength, fatigue.stress_amplitude, vessel.pressure, "
+    "vibration.excitation_frequency, column.axial_load) — ONLY when the design "
+    "genuinely has that physics; never guess or force a tag. Return ONE JSON object: "
     '{"approach_id":"...","quantities":[{"id","name","unit","origin",'
-    '"value","grounding","formula","inputs","rationale"}],'
+    '"value","grounding","formula","inputs","rationale","measurand"}],'
     '"components":[{"id","name","quantity_ids","geometry":{"kind","params",'
     '"children"}}],"bom":[{"id","name","role","count","component_id","grounding"}],'
     '"steps":[{"id","index","action","uses","inputs","outputs","check",'
@@ -88,6 +96,24 @@ def _as_number(value: object) -> float | None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
     return float(value)
+
+
+def _parse_measurand(item: dict, qid: str, log) -> str | None:
+    """The DECLARED measurand tag of a proposed quantity, or None.
+
+    Accepted only in the dotted-lowercase form (e.g. "shaft.torque") — a malformed
+    tag is dropped (logged) while the quantity itself survives: the tag is an
+    optional declaration, never inferred and never guessed into shape."""
+    raw = item.get("measurand")
+    if raw is None:
+        return None
+    tag = str(raw).strip()
+    if not tag:
+        return None
+    if not _MEASURAND_RE.match(tag):
+        log(f"architect: drop malformed measurand {tag!r} on quantity {qid!r}")
+        return None
+    return tag
 
 
 class Architect:
@@ -242,7 +268,7 @@ class Architect:
         # --- quantities: the five Zwänge start here ------------------------------
         quantities: list[Quantity] = []
         known_values: dict[str, float] = {}
-        derived_pending: dict[str, tuple[str, str, Derivation]] = {}
+        derived_pending: dict[str, tuple[str, str, Derivation, str | None]] = {}
         seen_ids: set[str] = set()
 
         for item in proposal.get("quantities") or []:
@@ -279,6 +305,7 @@ class Architect:
                     quantity = Quantity(
                         id=qid, name=name, value=value, unit=unit,
                         origin=ValueOrigin.GROUNDED, grounding=grounding,
+                        measurand=_parse_measurand(item, qid, log),
                         produced_by=self.name, model=self._llm.model,
                     )
                 except GenesisError as exc:
@@ -298,6 +325,7 @@ class Architect:
                     quantity = Quantity(
                         id=qid, name=name, value=value, unit=unit,
                         origin=ValueOrigin.DECISION, rationale=rationale,
+                        measurand=_parse_measurand(item, qid, log),
                         produced_by=self.name, model=self._llm.model,
                     )
                 except GenesisError as exc:
@@ -319,14 +347,17 @@ class Architect:
                         f"architect: ignoring LLM-supplied value for derived {qid!r} "
                         "— code computes it"
                     )
-                derived_pending[qid] = (name, unit, Derivation(formula=formula, inputs=inputs))
+                derived_pending[qid] = (
+                    name, unit, Derivation(formula=formula, inputs=inputs),
+                    _parse_measurand(item, qid, log),
+                )
                 seen_ids.add(qid)
 
             else:
                 log(f"architect: drop quantity {qid!r} (unknown origin {origin!r})")
 
         computed, derivation_errors = topological_values(
-            known_values, {qid: d for qid, (_, _, d) in derived_pending.items()}
+            known_values, {qid: d for qid, (_, _, d, _) in derived_pending.items()}
         )
         # Units known so far: grounded/decision quantities carry their declared
         # unit; derived quantities carry their declared unit too. Used to verify
@@ -334,8 +365,8 @@ class Architect:
         # the architect never asserts a dimensionally inconsistent value (the gate
         # backstops this independently with DIMENSION_MISMATCH).
         unit_of = {q.id: q.unit for q in quantities}
-        unit_of.update({qid: unit for qid, (_, unit, _) in derived_pending.items()})
-        for qid, (name, unit, derivation) in derived_pending.items():
+        unit_of.update({qid: unit for qid, (_, unit, _, _) in derived_pending.items()})
+        for qid, (name, unit, derivation, measurand) in derived_pending.items():
             if qid in derivation_errors:
                 log(f"architect: drop derived {qid!r}: {derivation_errors[qid]}")
                 continue
@@ -345,6 +376,7 @@ class Architect:
                 Quantity(
                     id=qid, name=name, value=computed[qid], unit=unit,
                     origin=ValueOrigin.DERIVED, derivation=derivation,
+                    measurand=measurand,
                     produced_by=self.name, model=self._llm.model,
                 )
             )
