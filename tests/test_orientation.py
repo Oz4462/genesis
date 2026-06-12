@@ -98,3 +98,121 @@ def test_support_volume_scales_with_density():
     sparse = overhang_check(_SPHERE, _QS, support_density=0.1)["support_volume"]
     dense = overhang_check(_SPHERE, _QS, support_density=0.4)["support_volume"]
     assert abs(dense - 4.0 * sparse) < 1e-9            # linear in density
+
+
+# --- first layer: adhesion + elephant foot --------------------------------------
+
+from gen.orientation import bridge_spans, first_layer_report  # noqa: E402
+
+
+def test_box_first_layer_contact_and_elephant_foot_risk():
+    r = first_layer_report(_BOX, _QS)
+    assert r["plate_contact"]
+    assert abs(r["contact_area"] - 100.0) < 1.0        # the 10x10 bottom face
+    assert abs(r["footprint"][0] - 10.0) < 0.1 and abs(r["footprint"][1] - 10.0) < 0.1
+    assert abs(r["height"] - 10.0) < 1e-6
+    # vertical walls meet the plate at 90 deg -> the squashed first layers bulge
+    assert r["sharp_base_edge"] and r["elephant_foot_risk"]
+    assert r["recommended_base_chamfer"] == 0.3
+
+
+def test_sphere_has_no_plate_contact_at_all():
+    r = first_layer_report(_SPHERE, _QS)
+    assert not r["plate_contact"] and r["contact_area"] == 0.0
+    assert not r["sharp_base_edge"] and not r["elephant_foot_risk"]
+    assert r["recommended_base_chamfer"] == 0.0
+
+
+# --- bridges: the refinement of the blanket support rule ------------------------
+
+def _table(gap: float, leg: float = 5.0, depth: float = 20.0,
+           leg_h: float = 10.0, top_t: float = 5.0):
+    """Two legs + a top plate; the underside between the legs spans `gap` [mm]."""
+    width = gap + 2.0 * leg
+    off = (gap + leg) / 2.0
+    qs = {k: _q(k, v) for k, v in {
+        "leg_x": leg, "depth": depth, "leg_h": leg_h, "top_x": width,
+        "top_t": top_t, "dx": off, "ndx": -off, "zero": 0.0,
+        "top_z": (leg_h + top_t) / 2.0,
+    }.items()}
+    leg_box = GeometryNode(kind="box",
+                           params={"size_x": "leg_x", "size_y": "depth", "size_z": "leg_h"})
+    node = GeometryNode(kind="union", children=[
+        GeometryNode(kind="translate", params={"x": "ndx", "y": "zero", "z": "zero"},
+                     children=[leg_box]),
+        GeometryNode(kind="translate", params={"x": "dx", "y": "zero", "z": "zero"},
+                     children=[leg_box]),
+        GeometryNode(kind="translate", params={"x": "zero", "y": "zero", "z": "top_z"},
+                     children=[GeometryNode(kind="box",
+                                            params={"size_x": "top_x", "size_y": "depth",
+                                                    "size_z": "top_t"})]),
+    ])
+    return node, qs
+
+
+def test_table_30mm_gap_is_too_long_to_bridge():
+    r = bridge_spans(*_table(30.0))
+    assert r["needs_support"] and not r["ok"]
+    assert abs(r["worst_span"] - 30.0) < 0.1           # anchored at the legs, 30 mm run
+    (region,) = r["regions"]
+    assert sum(region["anchored_sides"].values()) == 2  # one opposite pair (the legs)
+
+
+def test_table_8mm_gap_is_a_printable_bridge():
+    r = bridge_spans(*_table(8.0))
+    assert r["ok"] and not r["needs_support"]
+    assert abs(r["worst_span"] - 8.0) < 0.1
+
+
+def test_pocket_ceiling_bridges_across_the_short_side():
+    # 20x20x10 block with an 8x16x6 pocket opening DOWNWARD: the pocket ceiling is
+    # anchored on all four sides -> bridgeable across the 8 mm direction. The blanket
+    # overhang rule flags it; the bridge layer honestly clears it.
+    qs = {k: _q(k, v) for k, v in {
+        "bx": 20.0, "by": 20.0, "bz": 10.0, "cx": 8.0, "cy": 16.0, "cz": 6.0,
+        "zero": 0.0, "cdz": -2.0,
+    }.items()}
+    node = GeometryNode(kind="difference", children=[
+        GeometryNode(kind="box", params={"size_x": "bx", "size_y": "by", "size_z": "bz"}),
+        GeometryNode(kind="translate", params={"x": "zero", "y": "zero", "z": "cdz"},
+                     children=[GeometryNode(kind="box",
+                                            params={"size_x": "cx", "size_y": "cy",
+                                                    "size_z": "cz"})]),
+    ])
+    r = bridge_spans(node, qs)
+    assert r["ok"]
+    (region,) = r["regions"]
+    assert all(region["anchored_sides"].values())      # all four sides anchored
+    assert abs(region["span"] - 8.0) < 0.1             # the SHORT direction
+    assert overhang_check(node, qs)["needs_support"]   # the blanket rule still flags it
+
+
+def test_cantilever_ceiling_cannot_be_bridged():
+    # plate on ONE end pillar: the underside is anchored on a single side only --
+    # that is a cantilever, not a bridge, regardless of its size.
+    qs = {k: _q(k, v) for k, v in {
+        "px": 4.0, "depth": 20.0, "ph": 10.0, "tx": 20.0, "tt": 2.0,
+        "pdx": -8.0, "zero": 0.0, "tz": 6.0,
+    }.items()}
+    node = GeometryNode(kind="union", children=[
+        GeometryNode(kind="translate", params={"x": "pdx", "y": "zero", "z": "zero"},
+                     children=[GeometryNode(kind="box",
+                                            params={"size_x": "px", "size_y": "depth",
+                                                    "size_z": "ph"})]),
+        GeometryNode(kind="translate", params={"x": "zero", "y": "zero", "z": "tz"},
+                     children=[GeometryNode(kind="box",
+                                            params={"size_x": "tx", "size_y": "depth",
+                                                    "size_z": "tt"})]),
+    ])
+    r = bridge_spans(node, qs)
+    assert r["needs_support"]
+    (region,) = r["regions"]
+    assert region["span"] is None                      # no opposite anchored pair
+    assert r["worst_span"] == float("inf")
+
+
+def test_bridge_and_first_layer_are_deterministic():
+    node, qs = _table(8.0)
+    assert bridge_spans(node, qs, tolerance=0.2) == bridge_spans(node, qs, tolerance=0.2)
+    assert (first_layer_report(_BOX, _QS, tolerance=0.2)
+            == first_layer_report(_BOX, _QS, tolerance=0.2))

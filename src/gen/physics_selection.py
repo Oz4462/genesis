@@ -118,6 +118,45 @@ RECIPES: list[CheckRecipe] = [
             "smooth_endurance_se": ("material.endurance_limit", "MPa"),
         },
     ),
+    # ---- printability: design errors that only show up on the print bed ----
+    CheckRecipe(
+        name="bridge span", validator="bridge_span", trigger="feature.bridge_span",
+        inputs={"span": ("feature.bridge_span", "mm")},
+    ),
+    CheckRecipe(
+        name="FDM fit clearance", validator="fdm_fit_clearance",
+        trigger="fit.clearance",
+        inputs={"clearance": ("fit.clearance", "mm")},
+        extra={"fit": "loose"},
+    ),
+    CheckRecipe(
+        name="pin diameter", validator="pin_diameter", trigger="feature.pin_diameter",
+        inputs={"diameter": ("feature.pin_diameter", "mm")},
+    ),
+    CheckRecipe(
+        name="modeled thread", validator="thread_size",
+        trigger="feature.thread_major_diameter",
+        inputs={"major_diameter": ("feature.thread_major_diameter", "mm")},
+    ),
+    CheckRecipe(
+        name="unsupported wall", validator="unsupported_wall",
+        trigger="feature.unsupported_wall_thickness",
+        inputs={"thickness": ("feature.unsupported_wall_thickness", "mm")},
+    ),
+    CheckRecipe(
+        name="embossed detail", validator="emboss_detail",
+        trigger="feature.emboss_width",
+        inputs={"width": ("feature.emboss_width", "mm")},
+        extra={"kind": "emboss"},
+    ),
+    CheckRecipe(
+        name="layer adhesion (cross-layer load)", validator="layer_adhesion",
+        trigger="print.stress_across_layers",
+        inputs={
+            "stress_across_layers": ("print.stress_across_layers", "MPa"),
+            "base_strength": ("material.uts", "MPa"),
+        },
+    ),
 ]
 
 

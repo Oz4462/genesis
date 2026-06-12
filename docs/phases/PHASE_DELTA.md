@@ -1755,6 +1755,61 @@ Modul `agents/architect.py`, getestet in `tests/test_architect.py`.
 
 ---
 
+## 52. Druckbarkeits-Schicht — die Designfehler, die erst auf dem Druckbett sichtbar werden
+
+**Was sie fängt:** Die Research-Erkenntnis (vollständiges Write-up mit allen 16
+Fehlerklassen + Quellen: `docs/research/PRINT_DESIGN_FAILURES.md`): die meisten
+Druckfehler sind **Prozess-Physik, keine Geometriefehler** — sie existieren im CAD gar
+nicht. Drei neue deterministische Schichten schließen das:
+
+1. **7 Closed-Form-Validatoren** (`printability.py`, im Registry-Muster von §38, alle
+   per Recipe auto-selektierbar §39): Brückenspann ≤ 10 mm (`bridge_span`),
+   FDM-Passungs-Floor 0,2/0,1 mm (`fdm_fit_clearance` — der Stack-up kann positiv sein
+   und die Teile klemmen trotzdem), Pin-Ø ≥ 3 mm (`pin_diameter`, Fillet-Empfehlung
+   < 5 mm), modelliertes Gewinde ≥ M5 (`thread_size`, sonst Insert/Tap), freistehende
+   Wand ≥ 1,0 mm (`unsupported_wall` — strenger als die 0,8er-Regel aus §11),
+   Präge-/Gravur-Breite 0,9/0,5 mm (`emboss_detail`) und — der meist-übersehene —
+   **Quer-Schicht-Last** (`layer_adhesion`): FDM verliert > 55 % Festigkeit über die
+   Schichthaftung; zulässig ist 0,45 × Nennfestigkeit, Druckspannung wird als Eingabe
+   abgelehnt statt uminterpretiert. Registry jetzt **20 Validatoren**, 13 Recipes.
+2. **Geometrisch über das BREP** (`orientation.py`): `bridge_spans` — die ehrliche
+   **Verfeinerung** der 45°-Pauschalregel (§20): flache Decken-Cluster, Randkanten als
+   verankert/frei klassifiziert; beidseitig verankert + ≤ 10 mm = druckbare Brücke,
+   Taschendecke brückt über die KURZE Seite, Cantilever bleibt unbridgebar.
+   `first_layer_report` — Erste-Lage-Versagen: keine ebene Bett-Kontaktfläche =
+   Haftungsversagen (Kugel), vertikale Wand auf dem Bett = **Elephant-Foot-Risiko**
+   (+ 0,3-mm-Fasen-Empfehlung); Warping bekommt **Evidenz statt Verdikt** (Footprint/
+   Kontaktfläche/Höhe — ein universeller Schwellwert wäre erfunden).
+3. **Mesh-Integrität** (`mesh_integrity.py`, stdlib): ist das exportierte STL überhaupt
+   slicebar? Wasserdicht + konsistent gewickelt ⟺ jede gerichtete Kante genau 1× mit
+   Umkehrung; **Euler–Poincaré** χ = V−E+F = 2−2g; Divergenzsatz-Volumen > 0 ⟺ Normalen
+   außen. Das inside-out-Mesh ist wasserdicht UND konsistent — nur der Volumen-Test
+   fängt es (eigener Test beweist genau das).
+
+**Verifizierte Anker:** Tetraeder exakt V=4/E=6/F=4, χ=2, Volumen 1/6; Capstone-STL
+**Genus 1** (χ=0) — das Loch topologisch im Mesh bewiesen, Volumen = Kernel-Volumen;
+Tisch mit 30-mm-Spann → Stützen, mit 8 mm → druckbare Brücke; Taschendecke 8×16 →
+Spann 8 (kurze Seite), während §20 sie pauschal flaggt; Cantilever → `span=None`;
+0,9-mm-Wand besteht §11 und fällt freistehend durch; 30 MPa quer bestehen die
+nominalen 50 MPa und das Gate fällt ehrlich durch (22,5 MPa zulässig).
+
+**Ehrliche Grenze:** Prozess-Designregeln für Standard-FDM/0,4-mm-Düse — notwendig,
+nicht hinreichend. `bridge_spans` ist exakt für die achsenparallele CSG-Welt; gedrehte
+Brücken degradieren konservativ. Vertex-Matching der Mesh-Prüfung ist exakt (korrekt
+für Single-Kernel-Tessellation, am Capstone bewiesen); fremde gejitterte Meshes können
+falsche offene Kanten melden — keine geratene Weld-Toleranz. Warping/Seam/Slicer-Tuning
+bleiben deklarierte Lücken. Z-Retention 0,45 ist konservativer Literatur-Default, kein
+Material-Messwert.
+
+**Quellen:** Hydra Research FFF Design Rules; Xometry; FacFox (>55 % Z-Verlust);
+Forge Labs; Ahn et al. 2002 (FDM-Anisotropie); Botsch et al., *Polygon Mesh
+Processing* (Euler–Poincaré, Mesh-Volumen); Elephant-Foot-/Warping-Guides — alle in
+`docs/research/PRINT_DESIGN_FAILURES.md`. Module: `printability.py`,
+`mesh_integrity.py`, `orientation.py`; Tests: `test_printability.py`,
+`test_mesh_integrity.py`, `test_orientation.py`, `test_physics_selection.py`.
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).

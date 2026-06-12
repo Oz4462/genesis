@@ -100,3 +100,47 @@ def test_is_deterministic():
     a, ga = select_physics_checks(spec)
     b, gb = select_physics_checks(spec)
     assert [c.inputs for c in a] == [c.inputs for c in b] and ga == gb
+
+
+# --- printability recipes -------------------------------------------------------
+
+def test_printability_quantities_select_their_checks():
+    spec = _spec([
+        _q("bs", 0.8, "cm", "feature.bridge_span"),            # 0.8 cm -> 8 mm
+        _q("cl", 0.25, "mm", "fit.clearance"),
+        _q("pin", 4.0, "mm", "feature.pin_diameter"),
+        _q("thr", 6.0, "mm", "feature.thread_major_diameter"),
+        _q("wall", 1.2, "mm", "feature.unsupported_wall_thickness"),
+        _q("emb", 1.0, "mm", "feature.emboss_width"),
+        _q("sz", 10.0, "MPa", "print.stress_across_layers"),
+        _q("uts", 50.0, "MPa", "material.uts"),
+    ])
+    checks, gaps = select_physics_checks(spec)
+    assert gaps == []
+    assert {c.validator for c in checks} == {
+        "bridge_span", "fdm_fit_clearance", "pin_diameter", "thread_size",
+        "unsupported_wall", "emboss_detail", "layer_adhesion",
+    }
+    bridge = next(c for c in checks if c.validator == "bridge_span")
+    assert bridge.inputs["span"] == 8.0                        # sound cm -> mm
+    result = evaluate_spec_physics(spec)
+    assert result["gate"].passed and len(result["checks"]) == 7
+
+
+def test_cross_layer_load_without_uts_is_a_gap():
+    checks, gaps = select_physics_checks(_spec([
+        _q("sz", 10.0, "MPa", "print.stress_across_layers"),
+    ]))
+    assert checks == []
+    assert len(gaps) == 1 and "material.uts" in gaps[0]
+
+
+def test_a_delaminating_cross_layer_load_fails_the_gate():
+    # 30 MPa across the layers passes the quoted 50 MPa -- and still fails against
+    # the retained 45 % (22.5 MPa): the print delaminates, the gate must say so.
+    result = evaluate_spec_physics(_spec([
+        _q("sz", 30.0, "MPa", "print.stress_across_layers"),
+        _q("uts", 50.0, "MPa", "material.uts"),
+    ]))
+    assert not result["gate"].passed
+    assert result["gate"].failures[0].code == "PHYSICS_CHECK_FAILED"

@@ -138,7 +138,7 @@ async def main() -> int:
                     # no claim_sources row -> DEFERRED trigger must reject at COMMIT
             except asyncpg.PostgresError as exc:
                 trigger_fired = True
-                print(f"3b. DB trigger claim_requires_source FIRES (layer 3): OK")
+                print("3b. DB trigger claim_requires_source FIRES (layer 3): OK")
                 print(f"   -> {type(exc).__name__}: {str(exc).splitlines()[0][:90]}")
             if not trigger_fired:
                 print("3b. DB trigger did NOT fire — provenance layer 3 is BROKEN: BUG")

@@ -43,6 +43,15 @@ from .modal import resonance_check
 from .notch_fatigue import notch_fatigue_check
 from .plate_bending import plate_bending_check
 from .pressure_vessel import pressure_vessel_check
+from .printability import (
+    bridge_span_check,
+    emboss_detail_check,
+    fdm_fit_clearance_check,
+    layer_adhesion_check,
+    pin_diameter_check,
+    thread_size_check,
+    unsupported_wall_check,
+)
 from .thermal import overtemperature_check
 from .thermal_stress import thermal_mismatch_check
 from .torsion import shaft_torsion_check
@@ -64,6 +73,14 @@ VALIDATORS = {
     "fracture": fracture_check,
     "plate_bending": plate_bending_check,
     "bolted_joint": bolted_joint_check,
+    # printability — the design errors that only show up on the print bed
+    "bridge_span": bridge_span_check,
+    "fdm_fit_clearance": fdm_fit_clearance_check,
+    "pin_diameter": pin_diameter_check,
+    "thread_size": thread_size_check,
+    "unsupported_wall": unsupported_wall_check,
+    "emboss_detail": emboss_detail_check,
+    "layer_adhesion": layer_adhesion_check,
 }
 
 

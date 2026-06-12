@@ -7,7 +7,7 @@
 > Open-Source-Infrastruktur, damit Menschen — privat wie Unternehmen — aus einer kleinen Idee etwas Vollständiges erschaffen können: mit Quellen statt Behauptungen, mit nachgerechneter Physik statt geratener Zahlen, und mit ehrlichen Lücken statt erfundener Antworten.
 
 ```
-797 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
+829 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
 ```
 
 ---
@@ -99,9 +99,9 @@ Eine Phase endet erst, wenn ihr Gate besteht. Gates sind **reine, deterministisc
 
 ## 5 · Die Physik-Engine (Phase δ)
 
-Eine deterministische, LLM-freie Engineering-Validierungs-Engine (`docs/phases/PHASE_DELTA.md`, §1–§51). **Jeder Validator ist gegen geschlossene Formen verifiziert** — exakt, wo es beweisbar ist (Maschinengenauigkeit), sonst als ehrliche Konvergenz oder konservative Schranke mit deklarierter Grenze.
+Eine deterministische, LLM-freie Engineering-Validierungs-Engine (`docs/phases/PHASE_DELTA.md`, §1–§52). **Jeder Validator ist gegen geschlossene Formen verifiziert** — exakt, wo es beweisbar ist (Maschinengenauigkeit), sonst als ehrliche Konvergenz oder konservative Schranke mit deklarierter Grenze.
 
-**13 Validatoren hinter dem δ-Physik-Gate:**
+**20 Validatoren hinter dem δ-Physik-Gate** (13 Physik + 7 Druckbarkeit):
 
 | Versagensmodus | Validator | Verifiziert gegen |
 |---|---|---|
@@ -118,6 +118,15 @@ Eine deterministische, LLM-freie Engineering-Validierungs-Engine (`docs/phases/P
 | Resonanz | `resonance` | Eigenfrequenz-Abstand (Modalanalyse-gestützt) |
 | Plattenbiegung | `plate_bending` | Kirchhoff-Kreisplatte (Timoshenko/Roark) |
 | Schraubenvorspannung | `bolted_joint` | Shigley/VDI 2230, Separationslast exakt |
+| Brücke zu lang (FDM) | `bridge_span` | 10-mm-Regel (Hydra/Xometry/FacFox) |
+| Passung klemmt (FDM) | `fdm_fit_clearance` | Prozess-Floor 0,2/0,1 mm |
+| Pin zu dünn (FDM) | `pin_diameter` | ≥ 3 mm, Fillet-Empfehlung < 5 mm |
+| Gewinde zu klein (FDM) | `thread_size` | ≥ M5, sonst Insert/Tap |
+| Freie Wand zu dünn (FDM) | `unsupported_wall` | ≥ 1,0 mm (strenger als 0,8-Regel) |
+| Prägung zu fein (FDM) | `emboss_detail` | 0,9 mm Emboss / 0,5 mm Engrave |
+| Quer-Schicht-Last (FDM) | `layer_adhesion` | > 55 % Z-Festigkeitsverlust → 0,45 × Nennwert |
+
+**Druckbarkeit — die Fehler, die erst auf dem Druckbett sichtbar werden** (Research-Write-up: `docs/research/PRINT_DESIGN_FAILURES.md`): zusätzlich zu den 7 Quantity-Validatoren prüft `orientation.bridge_spans` Brücken geometrisch über das echte BREP (verankert-vs-frei klassifizierte Deckenränder; Taschendecke brückt über die kurze Seite, Cantilever bleibt unbridgebar), `orientation.first_layer_report` fängt Erste-Lage-Versagen (keine Bett-Kontaktfläche, Elephant-Foot-Risiko + 0,3-mm-Fasen-Empfehlung; Warping bekommt Evidenz statt erfundenem Schwellwert), und `mesh_integrity.stl_integrity_check` beweist die Slicebarkeit des exportierten STL exakt (wasserdicht + konsistent gewickelt über gerichtete Kanten, Euler–Poincaré χ = 2−2g — der Capstone-Halter kommt als Genus 1 heraus, das Loch topologisch bewiesen —, Divergenzsatz-Volumen > 0 gegen inside-out-Meshes).
 
 **Dahinter rechnet echte FEM** (reines numpy, optional gmsh/cadquery): 3-D-Kontinuum mit linearen **und quadratischen** Tetraedern (T10 trifft die Biegefrequenz auf 0,2 %), berechnete Loch-Spannungskonzentration (trifft Howlands Kt≈3,14), Thermik stationär **und transient**, Modalanalyse (exakt 6 Starrkörpermoden), Monte-Carlo-Unsicherheit (JCGM 101), SPICE-artige Schaltungsanalyse (DC/AC/nichtlinear/transient), exakte BREP-Geometrie (OpenCASCADE) und orientierungsabhängiges FDM-DFM.
 
@@ -157,7 +166,7 @@ pip install -e .[full]      # alles inkl. Dev-Tools (pytest, ruff, httpx)
 Ohne die optionalen Pakete bleibt alles funktionsfähig — die betreffenden Features/Tests **skippen ehrlich**, statt zu raten.
 
 ```bash
-python -m pytest tests/ -q          # 797 passed (volle Deps) — ohne LLM-Token, ohne Netz
+python -m pytest tests/ -q          # 829 passed (volle Deps) — ohne LLM-Token, ohne Netz
 ```
 
 ## 8 · Nutzung: CLI
@@ -272,7 +281,7 @@ Der Scorer (`gen/goldset.py`) berechnet Fakten-Genauigkeit, **Abstention-Recall*
 - **Zwei unabhängige Methoden:** FEM gegen geschlossene Form, BREP gegen analytisches Volumen, MNA gegen Ohm — Übereinstimmung als Schutz gegen Fehler in einer von beiden.
 - **Tests mit Zähnen:** Jeder Wächter hat Negativtests (der manipulierte Fall **muss** scheitern). Das Eval-Harness aggregiert das zu Leaks = 0.
 - **Real-World-Verifikation:** Die Web-UI wurde nicht nur unit-getestet, sondern im echten Browser bedient (Playwright): Klärungs-Dialog Gelb→Grün, Sign-off-Verweigerung, Live-Ablehnungskarte.
-- **797 Tests** (volle Abhängigkeiten) / 767 + 10 skipped (Minimal-Umgebung) — alle ohne LLM-Token und ohne Netz; zusätzlich grün mit Deprecation-Warnings als Fehlern. Lint-Baseline: `ruff check src tests` = sauber.
+- **829 Tests** (volle Abhängigkeiten) / 791 + 11 skipped (Minimal-Umgebung) — alle ohne LLM-Token und ohne Netz; zusätzlich grün mit Deprecation-Warnings als Fehlern. Lint-Baseline: `ruff check src tests` = sauber.
 
 ## 14 · Projektstruktur
 
@@ -289,8 +298,9 @@ src/gen/
                        FEM: Balken, 3-D-Tets (linear/quadratisch), Loch-Kt, Halter
   torsion.py buckling.py fatigue.py notch_fatigue.py fracture.py contact.py
   pressure_vessel.py creep.py plate_bending.py bolted_joint.py thermal.py
-  thermal_stress.py modal.py
-                       die 13 Physik-Validatoren (+ Modal-/Thermik-FEM dahinter)
+  thermal_stress.py modal.py printability.py
+                       die 20 Validatoren (+ Modal-/Thermik-FEM dahinter)
+  mesh_integrity.py    STL-Slicebarkeits-Beweis (wasserdicht, Euler, Orientierung)
   physics_validation.py   GATE δ-Physik (Registry, nie ein stiller Pass)
   physics_selection.py    Auto-Select: measurand-Tags → Checks + Lücken
   pipeline.py             das eine ehrliche Gesamt-Verdikt
@@ -306,14 +316,14 @@ src/gen/
 goldset/v1.json        das kuratierte Mess-Set für die Live-Läufe
 sql/001_ledger.sql     Quellenzwang als DB-Constraint
 docs/                  VISION, ARCHITECTURE, DATA_MODEL, PIPELINE, phases/ (α–δ inkl.
-                       PHASE_DELTA.md §1–§51), agents/
-tests/                 797 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-Engine,
+                       PHASE_DELTA.md §1–§52), research/, agents/
+tests/                 829 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-Engine,
                        Web-API & 4 Frageklassen
 ```
 
 ## 15 · Status & ehrliche Grenzen
 
-**Fertig und bewiesen (offline):** die komplette α/β/γ/δ-Kette mit allen Gates, die Physik-Engine (13 Validatoren + FEM), die Quality-Engine, CLI, Web-UI, Packaging, Gold-Set-Vertrag — 794 Tests, deterministisch, reproduzierbar.
+**Fertig und bewiesen (offline):** die komplette α/β/γ/δ-Kette mit allen Gates, die Physik-Engine (20 Validatoren + FEM), die Druckbarkeits-Schicht, die Quality-Engine, CLI, Web-UI, Packaging, Gold-Set-Vertrag — 829 Tests, deterministisch, reproduzierbar.
 
 **Live bewiesen:** α (Fakten-Report) und β gegen echte lokale Modelle, inklusive empirischer Bestätigung, dass der Wortlaut-Wächter echte Modell-Paraphrasen abfängt.
 
@@ -334,7 +344,8 @@ tests/                 797 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-En
 | `docs/DATA_MODEL.md` | Ledger + Graph + DB-Schema, exakt |
 | `docs/PIPELINE.md` | Die Phasen und ihre Gates |
 | `docs/phases/PHASE_ALPHA…DELTA(.RESULT).md` | Max. Detail pro Phase; RESULT-Dateien sind ehrliche, historische Abnahme-Snapshots |
-| `docs/phases/PHASE_DELTA.md` (§1–§51) | Jede Validierungs-Schicht: was sie fängt, wogegen sie verifiziert ist, was ihre ehrliche Grenze ist, Quelle |
+| `docs/phases/PHASE_DELTA.md` (§1–§52) | Jede Validierungs-Schicht: was sie fängt, wogegen sie verifiziert ist, was ihre ehrliche Grenze ist, Quelle |
+| `docs/research/PRINT_DESIGN_FAILURES.md` | 16 Klassen von 3D-Druck-Designfehlern: gebaut vs. Evidenz vs. ehrliche Lücke, mit Quellen |
 | `docs/agents/*.md` | Pro Agent: Verantwortung, I/O, Werkzeuge, Fehlerzustände |
 | `CLAUDE.md` / `CONTRIBUTING.md` | Arbeitskonventionen; ein Commit = ein selbstkontrollierter Schritt |
 

@@ -45,14 +45,19 @@ tests/                    Tests, inkl. Gate-Akzeptanztests
 
 ## Aktueller Fokus
 **Phase α + β + γ abgeschlossen + δ voll ausgebaut + Quality-Engine verdrahtet**
-(771 Tests offline mit vollen Deps / 744+9 skipped ohne; α/β live bewiesen).
+(829 Tests offline mit vollen Deps / 791+11 skipped ohne; α/β live bewiesen).
 γ: Idee → vollständige Spezifikation hinter GATE γ (Wächter C-1..C-18 inkl.
-Cross-Claim-Konsistenz und GUM-Unsicherheit), 2 CAD-Exporte (OpenSCAD + build123d).
-δ: deterministische Physik-Engine (`docs/phases/PHASE_DELTA.md` §1–§50) — 13
+Cross-Claim-Konsistenz und GUM-Unsicherheit), 2 CAD-Exporte (OpenSCAD + build123d)
++ druckfertiges STL (OCCT-Kernel, Volumen-bewiesen).
+δ: deterministische Physik-Engine (`docs/phases/PHASE_DELTA.md` §1–§52) — 20
 Closed-Form-/FEM-Validatoren (Statik, Thermik, Modal, Knicken, Ermüdung, Bruch,
-Torsion, Kontakt, Druck, Kriechen, Platte, Schraube, Thermospannung) hinter GATE
-δ-Physik mit Auto-Select aus measurand-getaggten Quantities; jede Achse gegen
-geschlossene Formen verifiziert.
+Torsion, Kontakt, Druck, Kriechen, Platte, Schraube, Thermospannung + 7
+Druckbarkeits-Regeln: Brücke, FDM-Passung, Pin, Gewinde, freie Wand, Prägung,
+Quer-Schicht-Last) hinter GATE δ-Physik mit Auto-Select aus measurand-getaggten
+Quantities; jede Achse gegen geschlossene Formen/Research-Anker verifiziert.
+Druckbarkeit geometrisch: bridge_spans + first_layer_report (orientation.py),
+STL-Slicebarkeits-Beweis (mesh_integrity.py, Euler–Poincaré + Divergenzsatz);
+Research-Write-up: docs/research/PRINT_DESIGN_FAILURES.md.
 Quality-Engine: Eval-Harness (Leaks=0), Verify→Refine-Loop, proaktive Klärung,
 Telemetrie, HITL-Ratifikation, Kalibrierung, Geometrie-/Constraint-/Grounding-
 Integrität — komponiert zu einem ehrlichen Verdikt (`pipeline.assess_specification`,
