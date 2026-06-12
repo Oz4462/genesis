@@ -3,71 +3,128 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GENESIS — aus deiner Idee wird ein belegter Plan</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%238b7cf6' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%235eead4'/%3E%3C/svg%3E">
+<title>GENESIS — Werkstatt für Träumer, Denker, Erfinder</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%238b7cf6' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%23f5b95f'/%3E%3C/svg%3E">
 <style>
   :root{
-    --bg:#09090b; --panel:#101014; --card:#141419; --border:rgba(255,255,255,.08);
-    --border-hover:rgba(255,255,255,.16); --text:#e7e7ea; --muted:#9b9ba3; --dim:#6b6b74;
-    --accent:#8b7cf6; --accent2:#5eead4;
+    --bg:#07070d; --panel:#0e0e18; --card:#12121e; --card2:#161624;
+    --border:rgba(186,178,255,.10); --border-hover:rgba(186,178,255,.22);
+    --text:#ece9f4; --muted:#9b97ad; --dim:#6a6680;
+    --violet:#8b7cf6; --teal:#5eead4; --spark:#f5b95f;
     --ok:#34d399; --ok-bg:rgba(52,211,153,.10);
     --warn:#fbbf24; --warn-bg:rgba(251,191,36,.10);
     --bad:#f87171; --bad-bg:rgba(248,113,113,.10);
     --info:#7dd3fc; --info-bg:rgba(125,211,252,.10);
+    --serif:"Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --mono:"Cascadia Mono", "Cascadia Code", Consolas, monospace;
   }
   *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
   body{margin:0;background:var(--bg);color:var(--text);
-       font:15px/1.55 "Segoe UI",system-ui,-apple-system,sans-serif;}
-  ::selection{background:rgba(139,124,246,.35)}
-  .bgglow{position:fixed;inset:0;pointer-events:none;z-index:0;
-    background:radial-gradient(700px 360px at 30% -5%,rgba(139,124,246,.16),transparent),
-               radial-gradient(560px 300px at 85% 0%,rgba(94,234,212,.08),transparent);}
-  .wrap{position:relative;z-index:1;max-width:880px;margin:0 auto;padding:26px 20px 80px}
-  header{display:flex;align-items:center;gap:14px;margin-bottom:4px}
-  .logo{font-size:21px;font-weight:700;letter-spacing:.12em;cursor:pointer}
-  .logo b{background:linear-gradient(90deg,var(--accent),var(--accent2));
+       font:15px/1.6 "Segoe UI",system-ui,sans-serif;overflow-x:hidden}
+  ::selection{background:rgba(139,124,246,.4)}
+
+  /* ----- Atmosphäre: Aurora + Sterne + Korn ----- */
+  .sky{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+  .aurora{position:absolute;inset:-20%;
+    background:
+      radial-gradient(45% 35% at 22% 8%, rgba(139,124,246,.20), transparent 70%),
+      radial-gradient(40% 30% at 80% 4%, rgba(94,234,212,.10), transparent 70%),
+      radial-gradient(30% 26% at 60% 30%, rgba(245,185,95,.06), transparent 70%);
+    animation:drift 26s ease-in-out infinite alternate}
+  @keyframes drift{from{transform:translate3d(-1.5%,-1%,0) scale(1)}
+                   to{transform:translate3d(1.5%,2%,0) scale(1.05)}}
+  .stars, .stars::after{position:absolute;inset:0;content:"";
+    background-image:
+      radial-gradient(1px 1px at 12% 22%, rgba(255,255,255,.5), transparent),
+      radial-gradient(1px 1px at 34% 64%, rgba(255,255,255,.32), transparent),
+      radial-gradient(1.5px 1.5px at 56% 14%, rgba(255,255,255,.4), transparent),
+      radial-gradient(1px 1px at 71% 47%, rgba(255,255,255,.28), transparent),
+      radial-gradient(1px 1px at 88% 21%, rgba(255,255,255,.45), transparent),
+      radial-gradient(1.5px 1.5px at 44% 84%, rgba(255,255,255,.25), transparent),
+      radial-gradient(1px 1px at 7% 76%, rgba(255,255,255,.3), transparent),
+      radial-gradient(1px 1px at 93% 69%, rgba(255,255,255,.35), transparent)}
+  .stars::after{transform:translate(31%, 53%) scale(1.3);opacity:.6}
+  .grain{position:absolute;inset:0;opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.7'/%3E%3C/svg%3E")}
+
+  .wrap{position:relative;z-index:1;max-width:880px;margin:0 auto;padding:24px 20px 90px}
+  header{display:flex;align-items:center;gap:14px}
+  .logo{font-size:20px;font-weight:700;letter-spacing:.14em;cursor:pointer}
+  .logo b{background:linear-gradient(90deg,var(--violet),var(--teal));
           -webkit-background-clip:text;background-clip:text;color:transparent}
   .pill{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;
     color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:5px 13px;
-    background:var(--panel);white-space:nowrap}
+    background:rgba(14,14,24,.7);backdrop-filter:blur(6px);white-space:nowrap}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 8px var(--warn);flex:none}
   .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
-  .view{display:none}.view.active{display:block;animation:fade .3s ease}
-  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-  .hero{margin:46px 0 8px;font-size:34px;font-weight:700;line-height:1.2;text-align:center}
-  .hero b{background:linear-gradient(90deg,var(--accent),var(--accent2));
-          -webkit-background-clip:text;background-clip:text;color:transparent}
-  .herosub{color:var(--muted);font-size:14.5px;text-align:center;max-width:620px;margin:10px auto 30px}
-  .askbox{background:var(--card);border:1px solid var(--border);border-radius:18px;
-          padding:16px;transition:border-color .2s;box-shadow:0 8px 40px rgba(0,0,0,.35)}
-  .askbox:focus-within{border-color:var(--accent)}
-  .asklabel{font-size:13px;font-weight:600;color:var(--accent2);margin:2px 2px 8px;
-            letter-spacing:.04em}
-  textarea{width:100%;background:var(--panel);color:var(--text);
-           border:1px dashed var(--border-hover);border-radius:12px;min-height:96px;
-           font:inherit;font-size:16px;resize:vertical;padding:12px 14px}
-  textarea:focus{outline:none;border:1px solid var(--accent)}
-  textarea::placeholder{color:var(--muted)}
-  .askrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+
+  .view{display:none}.view.active{display:block}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .r1,.r2,.r3,.r4,.r5{opacity:0;animation:rise .7s cubic-bezier(.2,.7,.2,1) forwards}
+  .r2{animation-delay:.12s}.r3{animation-delay:.24s}.r4{animation-delay:.38s}.r5{animation-delay:.52s}
+
+  /* ----- Start: der Traum ----- */
+  .eyebrow{margin:64px 0 0;text-align:center;font-size:13px;letter-spacing:.32em;
+    text-transform:uppercase;color:var(--dim)}
+  .eyebrow .who{color:var(--spark);font-weight:600}
+  .hero{margin:14px 0 6px;text-align:center;font-family:var(--serif);
+    font-size:clamp(34px,6vw,52px);font-weight:600;line-height:1.15;letter-spacing:.01em}
+  .hero em{font-style:italic;background:linear-gradient(100deg,var(--violet) 10%,var(--teal) 55%,var(--spark) 95%);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .herosub{color:var(--muted);font-size:15px;text-align:center;max-width:600px;margin:14px auto 38px;line-height:1.7}
+  .herosub b{color:var(--text)}
+
+  .askbox{background:linear-gradient(180deg,var(--card2),var(--card));
+    border:1px solid var(--border);border-radius:20px;padding:18px;
+    box-shadow:0 18px 60px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.04);
+    transition:border-color .25s, box-shadow .25s}
+  .askbox:focus-within{border-color:rgba(139,124,246,.55);
+    box-shadow:0 18px 60px rgba(0,0,0,.5), 0 0 0 4px rgba(139,124,246,.12)}
+  .asklabel{font-size:12.5px;font-weight:600;color:var(--spark);margin:0 2px 9px;letter-spacing:.06em}
+  textarea{width:100%;background:rgba(7,7,13,.6);color:var(--text);
+    border:1px dashed var(--border-hover);border-radius:13px;min-height:100px;
+    font:inherit;font-size:16px;resize:vertical;padding:13px 15px}
+  textarea:focus{outline:none;border:1px solid var(--violet)}
+  textarea::placeholder{color:var(--dim)}
+  .askrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:11px}
   .mode{display:flex;gap:6px;flex-wrap:wrap}
-  .mode button{background:var(--panel);border:1px solid var(--border);color:var(--muted);
-    padding:7px 13px;border-radius:999px;font-size:12.5px;cursor:pointer;font-weight:500}
-  .mode button.sel{color:var(--text);border-color:var(--accent);background:rgba(139,124,246,.12)}
-  .go{margin-left:auto;background:linear-gradient(90deg,var(--accent),#6d5ce8);color:#fff;
-      border:0;border-radius:12px;padding:11px 26px;font-size:14.5px;font-weight:700;
-      cursor:pointer;box-shadow:0 4px 18px rgba(139,124,246,.35)}
-  .go:hover{filter:brightness(1.1)} .go:disabled{opacity:.5;cursor:wait}
-  .chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:22px 0 8px}
+  .mode button{background:rgba(7,7,13,.5);border:1px solid var(--border);color:var(--muted);
+    padding:7px 13px;border-radius:999px;font-size:12.5px;cursor:pointer;font-weight:500;
+    transition:all .2s}
+  .mode button:hover{color:var(--text);border-color:var(--border-hover)}
+  .mode button.sel{color:var(--text);border-color:rgba(139,124,246,.6);
+    background:rgba(139,124,246,.14);box-shadow:0 0 14px rgba(139,124,246,.15)}
+  .go{margin-left:auto;background:linear-gradient(95deg,var(--violet),#6d5ce8 60%,#5a4bd6);
+    color:#fff;border:0;border-radius:13px;padding:12px 30px;font-size:15px;font-weight:700;
+    cursor:pointer;box-shadow:0 6px 26px rgba(139,124,246,.4);
+    animation:breathe 3.2s ease-in-out infinite;transition:transform .15s}
+  .go:hover{transform:translateY(-1px);filter:brightness(1.12)}
+  .go:disabled{opacity:.5;cursor:wait;animation:none}
+  @keyframes breathe{0%,100%{box-shadow:0 6px 26px rgba(139,124,246,.35)}
+                     50%{box-shadow:0 6px 34px rgba(139,124,246,.6)}}
+
+  .chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:26px 0 8px}
   .chips span{color:var(--dim);font-size:12.5px;align-self:center}
   .chip{background:transparent;border:1px solid var(--border);color:var(--muted);
-        padding:7px 14px;border-radius:999px;font-size:12.5px;cursor:pointer}
-  .chip:hover{color:var(--text);border-color:var(--border-hover);background:var(--panel)}
-  .wiring{margin-top:42px;background:var(--panel);border:1px solid var(--border);
-          border-radius:14px;padding:14px 18px;font-size:12.5px;color:var(--muted)}
-  .wiring b{color:var(--text);font-weight:600}
-  .wiring .mono{color:var(--accent2)}
-  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;
-        padding:18px 20px;margin-bottom:14px;transition:border-color .2s}
+    padding:7px 14px;border-radius:999px;font-size:12.5px;cursor:pointer;transition:all .2s}
+  .chip:hover{color:var(--text);border-color:rgba(245,185,95,.5);background:rgba(245,185,95,.06);
+    transform:translateY(-1px)}
+
+  .promises{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:46px}
+  .promise{background:rgba(14,14,24,.6);border:1px solid var(--border);border-radius:15px;
+    padding:15px 17px;backdrop-filter:blur(4px)}
+  .promise .t{font-family:var(--serif);font-style:italic;font-size:16.5px;margin-bottom:5px}
+  .promise .t .ico{font-style:normal;margin-right:7px}
+  .promise p{margin:0;color:var(--muted);font-size:12.8px;line-height:1.55}
+  .wiring{margin-top:38px;border:1px solid var(--border);border-radius:14px;
+    padding:13px 17px;font-size:12.3px;color:var(--dim);background:rgba(10,10,18,.5)}
+  .wiring b{color:var(--muted);font-weight:600}
+  .wiring .mono{color:var(--teal);font-family:var(--mono);font-size:11.5px}
+
+  /* ----- gemeinsame Bausteine ----- */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:15px;
+        padding:18px 20px;margin-bottom:13px;transition:border-color .2s}
   .card:hover{border-color:var(--border-hover)}
   .card h3{margin:0 0 6px;font-size:15.5px}
   .card .hint{color:var(--muted);font-size:13px;margin:0 0 12px}
@@ -78,75 +135,106 @@
   .b-bad{color:var(--bad);background:var(--bad-bg);border-color:rgba(248,113,113,.25)}
   .b-info{color:var(--info);background:var(--info-bg);border-color:rgba(125,211,252,.25)}
   .b-dim{color:var(--muted);background:rgba(255,255,255,.04);border-color:var(--border)}
-  .btn{background:#fff;color:#0a0a0c;border:0;border-radius:9px;padding:9px 18px;
+  .btn{background:#fff;color:#0a0a0c;border:0;border-radius:10px;padding:9px 18px;
        font-size:13.5px;font-weight:600;cursor:pointer}
   .btn:hover{opacity:.88}
-  .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
   table{width:100%;border-collapse:collapse;font-size:13.5px}
-  th{color:var(--dim);text-align:left;font-weight:500;font-size:12px;letter-spacing:.05em;
+  th{color:var(--dim);text-align:left;font-weight:500;font-size:11.5px;letter-spacing:.06em;
      text-transform:uppercase;padding:6px 10px;border-bottom:1px solid var(--border)}
   td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top}
   tr:last-child td{border-bottom:0}
   .gapbox{background:var(--warn-bg);border:1px solid rgba(251,191,36,.3);border-radius:11px;
           padding:12px 16px;margin:10px 0;font-size:13.5px}
   .gapbox b{color:var(--warn)}
-  .statement{padding:9px 12px;border-radius:9px;margin:5px 0;background:var(--panel);
-             border:1px solid transparent;cursor:pointer;font-size:14px}
+  .statement{padding:10px 13px;border-radius:10px;margin:6px 0;background:var(--panel);
+             border:1px solid transparent;cursor:pointer;font-size:14px;transition:border-color .2s}
   .statement:hover{border-color:var(--border-hover)}
   .statement .src{display:none;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);
                   color:var(--muted);font-size:12.5px}
   .statement.open .src{display:block}
   .src a{color:var(--info);text-decoration:none;word-break:break-all}
-  .mono{font-family:Consolas,monospace;font-size:12.5px;color:var(--muted)}
+  .mono{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
   input[type=text]{background:var(--panel);color:var(--text);border:1px solid var(--border);
     border-radius:10px;padding:10px 13px;font:inherit}
-  input:focus{outline:none;border-color:var(--accent)}
-  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border);
-        border-top-color:var(--accent);border-radius:50%;animation:rot .7s linear infinite;
-        vertical-align:-2px;margin-right:8px}
-  @keyframes rot{to{transform:rotate(360deg)}}
+  input:focus{outline:none;border-color:var(--violet)}
   .muted{color:var(--muted)} .small{font-size:12.5px}
-  .sect{margin:18px 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+  .sect{margin:18px 0 8px;font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim)}
+
+  /* ----- Ergebnis ----- */
   .back{background:transparent;border:1px solid var(--border);color:var(--muted);
         border-radius:999px;padding:7px 16px;font-size:13px;cursor:pointer;margin:14px 0 18px}
   .back:hover{color:var(--text);border-color:var(--border-hover)}
-  .verdict{display:flex;align-items:center;gap:14px;background:var(--card);
-           border:1px solid var(--border);border-radius:16px;padding:18px 22px;margin-bottom:14px}
-  .verdict .icon{font-size:30px;line-height:1}
-  .verdict h2{margin:0;font-size:18px}
-  .verdict p{margin:3px 0 0;color:var(--muted);font-size:13px}
-  .verdict.v-ok{border-color:rgba(52,211,153,.35);animation:glowok 1.2s ease}
-  @keyframes glowok{0%{box-shadow:0 0 0 rgba(52,211,153,0)}40%{box-shadow:0 0 34px rgba(52,211,153,.25)}100%{box-shadow:none}}
-  .files{display:flex;gap:10px;flex-wrap:wrap}
-  .file{background:var(--panel);border:1px solid var(--border);border-radius:12px;
-        padding:12px 16px;cursor:pointer;font-size:13px;color:var(--text);min-width:150px;text-align:left}
-  .file:hover{border-color:var(--accent)}
-  .file .fn{font-weight:600} .file .fs{color:var(--dim);font-size:11.5px;margin-top:2px}
-  .working{text-align:center;padding:60px 0}
-  .working .big{font-size:18px;font-weight:600;margin-top:18px}
-  .working p{color:var(--muted);font-size:13.5px;max-width:460px;margin:8px auto}
-  .orb{width:54px;height:54px;margin:0 auto;border-radius:50%;
-       background:conic-gradient(var(--accent),var(--accent2),var(--accent));
-       animation:rot 1.6s linear infinite;position:relative}
-  .orb::after{content:"";position:absolute;inset:5px;border-radius:50%;background:var(--bg)}
+  .verdict{display:flex;align-items:center;gap:16px;background:linear-gradient(180deg,var(--card2),var(--card));
+           border:1px solid var(--border);border-radius:18px;padding:20px 24px;margin-bottom:13px}
+  .verdict .icon{font-size:34px;line-height:1}
+  .verdict h2{margin:0;font-family:var(--serif);font-size:21px;font-weight:600}
+  .verdict p{margin:4px 0 0;color:var(--muted);font-size:13.5px}
+  .verdict.v-ok{border-color:rgba(52,211,153,.4);animation:glowok 1.4s ease}
+  @keyframes glowok{0%{box-shadow:0 0 0 rgba(52,211,153,0)}40%{box-shadow:0 0 44px rgba(52,211,153,.3)}100%{box-shadow:none}}
+  .glance{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:13px}
+  .gl{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:12px 15px}
+  .gl .n{font-family:var(--serif);font-size:23px;line-height:1.1}
+  .gl .l{color:var(--dim);font-size:11.5px;letter-spacing:.04em;margin-top:3px}
+
+  details.zone{background:var(--card);border:1px solid var(--border);border-radius:15px;
+    margin-bottom:13px;overflow:hidden;transition:border-color .2s}
+  details.zone:hover{border-color:var(--border-hover)}
+  details.zone>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:11px;
+    padding:15px 20px;font-size:15px;font-weight:600;user-select:none}
+  details.zone>summary::-webkit-details-marker{display:none}
+  details.zone>summary .chev{margin-left:auto;color:var(--dim);transition:transform .25s;flex:none}
+  details.zone[open]>summary .chev{transform:rotate(90deg)}
+  details.zone .inner{padding:2px 20px 18px}
+  details.zone>summary:hover{background:rgba(255,255,255,.02)}
+
+  .files{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+  .file{background:var(--panel);border:1px solid var(--border);border-radius:13px;
+        padding:13px 16px;cursor:pointer;font-size:13px;color:var(--text);text-align:left;
+        transition:all .2s}
+  .file:hover{border-color:var(--spark);transform:translateY(-2px);
+    box-shadow:0 8px 22px rgba(245,185,95,.10)}
+  .file .fn{font-weight:600} .file .fs{color:var(--dim);font-size:11.5px;margin-top:3px}
+  .dlall{margin-top:12px}
+
+  /* ----- Arbeiten: das Observatorium dreht ----- */
+  .working{text-align:center;padding:64px 0}
+  .orbit{position:relative;width:96px;height:96px;margin:0 auto}
+  .orbit .ring{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(139,124,246,.35);
+    animation:spin 3.6s linear infinite}
+  .orbit .ring.r-2{inset:14px;border-color:rgba(94,234,212,.3);animation-duration:2.4s;animation-direction:reverse}
+  .orbit .spark{position:absolute;top:-4px;left:50%;width:9px;height:9px;margin-left:-4.5px;
+    border-radius:50%;background:var(--spark);box-shadow:0 0 14px var(--spark)}
+  .orbit .core{position:absolute;inset:38px;border-radius:50%;
+    background:radial-gradient(circle,rgba(245,185,95,.9),rgba(139,124,246,.5));
+    animation:pulse 1.8s ease-in-out infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.25);opacity:1}}
+  .working .big{font-family:var(--serif);font-size:20px;margin-top:24px}
+  .working p{color:var(--muted);font-size:13.5px;max-width:460px;margin:10px auto}
+  .steps{display:inline-block;text-align:left;margin-top:10px;color:var(--dim);font-size:13px}
+  .steps div{padding:3px 0;animation:stepglow 4.5s ease-in-out infinite}
+  .steps div:nth-child(2){animation-delay:1.5s}
+  .steps div:nth-child(3){animation-delay:3s}
+  @keyframes stepglow{0%,100%{color:var(--dim)}30%{color:var(--text)}}
 </style>
 </head>
 <body>
-<div class="bgglow"></div>
+<div class="sky"><div class="aurora"></div><div class="stars"></div><div class="grain"></div></div>
 <div class="wrap">
-  <header>
+  <header class="r1">
     <div class="logo" onclick="show('start')">GEN<b>ESIS</b></div>
     <div class="pill"><span class="dot" id="liveDot"></span><span id="pillText">…</span></div>
   </header>
 
   <!-- ============================== START ============================== -->
   <div class="view active" id="v-start">
-    <h1 class="hero">Was willst du <b>erschaffen</b>?</h1>
-    <p class="herosub">Beschreibe deine Idee in einem Satz. GENESIS recherchiert, verifiziert
-      und rechnet — und liefert dir einen belegten Plan mit allen Dateien.
-      Was nicht belegbar ist, bekommst du als ehrliche offene Frage zurück, nie als Halluzination.</p>
+    <p class="eyebrow r1">Für <span class="who" id="who">Träumer</span></p>
+    <h1 class="hero r2">Du bringst die Idee.<br><em>GENESIS bringt den Beweis.</em></h1>
+    <p class="herosub r3">Beschreibe, was du erschaffen willst — GENESIS recherchiert echte Quellen,
+      rechnet die Physik nach und legt dir einen <b>belegten Plan mit allen Dateien</b> hin.
+      Und wo etwas offen bleibt, sagt es dir das ehrlich ins Gesicht: keine Halluzination, kein Rätselraten.</p>
 
-    <div class="askbox">
+    <div class="askbox r4">
       <div class="asklabel">💡 Deine Idee — hier schreiben</div>
       <textarea id="idea" autofocus placeholder="Schreib einfach drauflos … z. B.: Eine Wandhalterung für meine 5-kg-Kamera, 3D-gedruckt"></textarea>
       <div class="askrow">
@@ -155,19 +243,28 @@
           <button data-m="report">🔎 Wissen mit Belegen</button>
           <button data-m="solution">🌱 Lösungswege finden</button>
         </div>
-        <button class="go" id="goBtn" onclick="ask()">Los geht's</button>
+        <button class="go" id="goBtn" onclick="ask()">Erschaffen ✦</button>
       </div>
     </div>
 
-    <div class="chips">
-      <span>Ohne KI ausprobieren:</span>
-      <button class="chip" onclick="demo('spec')">✨ Demo-Bauplan</button>
-      <button class="chip" onclick="demo('capstone')">🏗 LED-Halter (komplett geprüft)</button>
+    <div class="chips r5">
+      <span>Oder lass dich inspirieren:</span>
+      <button class="chip" onclick="demo('spec')">✨ Demo-Bauplan ansehen</button>
+      <button class="chip" onclick="demo('capstone')">🏗 LED-Halter, komplett geprüft</button>
       <button class="chip" onclick="demo('report')">📚 Demo-Recherche</button>
     </div>
 
-    <div class="wiring" id="wiring">
-      <b>⚙ Verdrahtung</b> — <span id="wireModels">…</span><br>
+    <div class="promises r5">
+      <div class="promise"><div class="t"><span class="ico">🔍</span>Nichts wird behauptet.</div>
+        <p>Jeder Satz im Ergebnis trägt seine Quelle — antippbar, nachlesbar, von einem zweiten Modell unabhängig geprüft.</p></div>
+      <div class="promise"><div class="t"><span class="ico">⚖️</span>Nichts wird geraten.</div>
+        <p>Physik wird von Code gerechnet und von einem Gate nachgerechnet — Sicherheitsfaktoren stehen dabei.</p></div>
+      <div class="promise"><div class="t"><span class="ico">🕯</span>Nichts wird versteckt.</div>
+        <p>Was offen bleibt, siehst du als ehrliche Frage — nicht als selbstbewusste Erfindung. Du entscheidest.</p></div>
+    </div>
+
+    <div class="wiring r5" id="wiring">
+      <b>⚙ Maschinenraum</b> — <span id="wireModels">…</span><br>
       <span id="wireNote" class="small">…</span>
     </div>
   </div>
@@ -189,6 +286,12 @@ const get=async u=>{const r=await fetch(u);if(!r.ok)throw new Error((await r.jso
 function show(v){document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
   $("#v-"+v).classList.add("active");window.scrollTo({top:0});}
 
+// Wort-Rotator: für wen diese Werkstatt gebaut ist
+const WHO=["Träumer","Denker","Erfinder","Macherinnen","Tüftler","Visionäre"];let whoI=0;
+setInterval(()=>{whoI=(whoI+1)%WHO.length;const el=$("#who");
+  el.style.opacity=0;setTimeout(()=>{el.textContent=WHO[whoI];el.style.opacity=1},300);},2600);
+$("#who").style.transition="opacity .3s";
+
 let MODE="spec";
 document.querySelectorAll("#mode button").forEach(b=>b.onclick=()=>{
   document.querySelectorAll("#mode button").forEach(x=>x.classList.remove("sel"));
@@ -203,11 +306,13 @@ document.querySelectorAll("#mode button").forEach(b=>b.onclick=()=>{
   $("#wireNote").textContent=s.wiring_note;
 }catch(e){ $("#pillText").textContent="Server nicht erreichbar"; }})();
 
-const working=t=>`<div class="working"><div class="orb"></div>
+const working=t=>`<div class="working">
+  <div class="orbit"><div class="ring"><div class="spark"></div></div><div class="ring r-2"></div><div class="core"></div></div>
   <div class="big">${esc(t)}</div>
-  <p>GENESIS recherchiert, verifiziert jede Behauptung mit einem zweiten Modell und rechnet
-  die Physik deterministisch nach. Mit lokalem Modell kann das ein paar Minuten dauern —
-  gute Antworten brauchen echte Arbeit. ✨</p></div>`;
+  <p>Gute Antworten brauchen echte Arbeit — mit lokalem Modell kann das ein paar Minuten dauern. Was nacheinander passiert:</p>
+  <div class="steps"><div>🔍 Quellen finden und wörtlich belegen</div>
+  <div>⚖️ Jede Behauptung von einem zweiten Modell prüfen lassen</div>
+  <div>🧮 Physik rechnen, Gate rechnet nach</div></div></div>`;
 
 // ---------------------------------------------------------------- Verdikt-Held
 const vBadge=v=>({physics_verified:["b-ok","Physik verifiziert"],
@@ -220,83 +325,105 @@ function verdictHero(a){
   if(!a)return"";
   const m={physics_verified:["✅","v-ok","Stark! Dein Plan ist physikalisch verifiziert.",
             "Jeder zutreffende Check wurde wirklich gerechnet und hat seine Marge erfüllt."],
-    no_physics_indicated:["🧩","","Plan erstellt — ohne Physik-Anspruch.",
+    no_physics_indicated:["🧩","","Dein Plan steht — ohne Physik-Anspruch.",
             "Diese Idee deklariert keine Physik-Messgrößen; gerechnet wurde ehrlich: nichts."],
     needs_clarification:["💬","","Fast da — GENESIS braucht noch etwas von dir.",
             "Beantworte die offenen Fragen unten, dann wird neu gerechnet. Ehrlich fragen schlägt raten."],
     physics_incomplete:["🧗","","Gute Basis — ein Check konnte noch nicht rechnen.",
-            "Eine angezeigte Prüfung hat noch keine Eingaben. Unten steht genau, was fehlt."],
+            "Einer Prüfung fehlen noch Eingaben. Unten steht genau, was fehlt."],
     physics_failed:["🛑","","Wichtig: So wäre es nicht sicher.",
-            "Ein Check hat seine Marge nicht erfüllt — besser jetzt wissen als nach dem Bau. Details unten."],
+            "Ein Check hat seine Marge nicht erfüllt — besser jetzt wissen als nach dem Bau."],
     inconsistent_constraints:["⚖️","","Deine Anforderungen widersprechen sich.",
-            "Zwei Vorgaben können nicht gleichzeitig gelten — unten siehst du welche."]}[a.overall]||["🧭","","Ergebnis","" ];
+            "Zwei Vorgaben können nicht gleichzeitig gelten — unten siehst du welche."]}[a.overall]||["🧭","","Ergebnis",""];
   return `<div class="verdict ${m[1]}"><div class="icon">${m[0]}</div>
     <div><h2>${esc(m[2])}</h2><p>${esc(m[3])}</p></div></div>`;
 }
 
+// ------------------------------------------------------ Auf einen Blick (Laie)
+function glance(data){
+  const cells=[];
+  if(data.spec){
+    const q=data.spec.quantities||[];
+    cells.push([q.filter(x=>x.origin==="grounded").length,"Werte belegt"]);
+    cells.push([q.filter(x=>x.origin==="derived").length,"Werte berechnet"]);
+    cells.push([(data.spec.steps||[]).length,"Bauschritte"]);
+  }
+  if(data.statement_to_claim)cells.push([Object.keys(data.statement_to_claim).length,"belegte Aussagen"]);
+  if(data.solution)cells.push([(data.solution.approaches||[]).length,"Lösungswege"]);
+  if(data.assessment)cells.push([data.assessment.check_results.length,"Physik-Checks"]);
+  if(FILES.length)cells.push([FILES.length,"Dateien für dich"]);
+  if(!cells.length)return"";
+  return `<div class="glance">`+cells.map(([n,l])=>
+    `<div class="gl"><div class="n">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")+`</div>`;
+}
+
 // ------------------------------------------------------------------ Bausteine
-function assessCard(a,label){
-  const [cls,txt]=vBadge(a.overall);
-  let h=`<div class="card"><h3>${esc(label??"Qualität & Physik")} <span class="badge ${cls}">${esc(txt)}</span></h3>`;
-  if(a.check_results.length){h+=`<table><tr><th>Check</th><th>Validator</th><th>Sicherheitsfaktor</th><th></th></tr>`+
-    a.check_results.map(c=>`<tr><td>${esc(c.name)}</td><td class="mono">${esc(c.validator)}</td>
+function zone(icon,title,chipHtml,inner,open){
+  if(!inner)return"";
+  return `<details class="zone"${open?" open":""}><summary><span>${icon}</span> ${esc(title)} ${chipHtml||""}
+    <span class="chev">›</span></summary><div class="inner">${inner}</div></details>`;
+}
+
+function assessInner(a){
+  let h="";
+  if(a.check_results.length){h+=`<p class="hint" style="margin-top:8px">Jede Zeile ist eine wirklich gerechnete Prüfung. „Sicherheitsfaktor 2×" heißt: doppelt so stark wie nötig.</p>
+    <table><tr><th>Prüfung</th><th>Sicherheitsfaktor</th><th></th></tr>`+
+    a.check_results.map(c=>`<tr><td>${esc(c.name)} <span class="mono small">${esc(c.validator)}</span></td>
       <td>${c.safety_factor!=null?Number(c.safety_factor).toFixed(2)+"×":"—"}</td>
-      <td><span class="badge ${c.ok?"b-ok":"b-bad"}">${c.ok?"OK":"FAIL"}</span></td></tr>`).join("")+`</table>`;}
-  else h+=`<p class="hint">Keine Physik-Checks ausgeführt — die Spezifikation deklariert keine Physik-Messgrößen. Das ist ein ehrliches „nichts gerechnet“, kein Freifahrtschein.</p>`;
-  if(a.gaps.length){h+=`<div class="sect">Noch nicht rechenbar</div>`+a.gaps.map(g=>`<div class="gapbox"><b>Lücke:</b> ${esc(g)}</div>`).join("");}
-  h+=`<p class="small muted" style="margin-bottom:0">Anforderungen konsistent: ${a.constraints_consistent?"ja":"<b>NEIN</b>"}`+
-     (a.corroboration_ok!=null?` · Quellen unabhängig bestätigt: ${a.corroboration_ok?"ja":"<b>NEIN</b>"}`:"")+`</p></div>`;
+      <td><span class="badge ${c.ok?"b-ok":"b-bad"}">${c.ok?"erfüllt":"NICHT erfüllt"}</span></td></tr>`).join("")+`</table>`;}
+  else h+=`<p class="hint" style="margin-top:8px">Keine Physik-Checks ausgeführt — die Idee deklariert keine Physik-Messgrößen. Das ist ein ehrliches „nichts gerechnet", kein Freifahrtschein gegen Halluzination.</p>`;
+  if(a.gaps.length)h+=`<div class="sect">Noch nicht rechenbar</div>`+a.gaps.map(g=>`<div class="gapbox"><b>Lücke:</b> ${esc(g)}</div>`).join("");
+  h+=`<p class="small muted" style="margin-bottom:0">Anforderungen widerspruchsfrei: ${a.constraints_consistent?"ja":"<b>NEIN</b>"}`+
+     (a.corroboration_ok!=null?` · Quellen unabhängig bestätigt: ${a.corroboration_ok?"ja":"<b>NEIN</b>"}`:"")+`</p>`;
   return h;
 }
 
-function specCards(s){
-  let h=`<div class="card"><h3>${esc(s.idea)}</h3>`;
-  if(s.gaps.length){h+=`<div class="sect">Ehrliche Lücken / Restrisiko</div>`+s.gaps.map(g=>`<div class="gapbox"><b>Lücke:</b> ${esc(g)}</div>`).join("");}
-  h+=`<div class="sect">Größen (jede mit deklarierter Herkunft)</div><table><tr><th>Größe</th><th>Wert</th><th>Herkunft</th></tr>`+
+function planInner(s){
+  let h="";
+  if(s.gaps.length){h+=`<div class="sect">Ehrlich offen</div>`+s.gaps.map(g=>`<div class="gapbox"><b>Offen:</b> ${esc(g)}</div>`).join("");}
+  h+=`<div class="sect">Die Maße deines Projekts — und woher jedes kommt</div><table><tr><th>Größe</th><th>Wert</th><th>Woher?</th></tr>`+
     s.quantities.map(q=>{const o={grounded:["b-ok","belegt"],derived:["b-info","berechnet"],decision:["b-warn","Entscheidung"]}[q.origin]||["b-dim",q.origin];
       return `<tr><td>${esc(q.name)}</td><td class="mono">${esc(q.value)} ${esc(q.unit)}${q.uncertainty?` ± ${esc(q.uncertainty)}`:""}</td>
         <td><span class="badge ${o[0]}">${esc(o[1])}</span> <span class="small muted">${q.formula?esc("= "+q.formula):q.rationale?esc(q.rationale):q.grounding.map(esc).join(", ")}</span></td></tr>`}).join("")+`</table>`;
   if(s.bom.length){h+=`<div class="sect">Einkaufsliste</div><table><tr><th>Teil</th><th>Anzahl</th><th>Rolle</th><th>Bezug</th></tr>`+
     s.bom.map(b=>`<tr><td>${esc(b.name)}</td><td>${esc(b.count)}</td><td>${esc(b.role)}</td><td class="small muted">${esc(b.sourcing??"—")}</td></tr>`).join("")+`</table>`;}
-  if(s.steps.length){h+=`<div class="sect">Bauschritte (jeder mit Prüfkriterium)</div>`+
+  if(s.steps.length){h+=`<div class="sect">Schritt für Schritt — mit Prüfung nach jedem Schritt</div>`+
     s.steps.map(st=>`<div class="statement" style="cursor:default"><b>${esc(st.index)}.</b> ${esc(st.action)}<div class="small muted" style="margin-top:4px">✓ Prüfung: ${esc(st.check)}${st.tool?` · Werkzeug: ${esc(st.tool)}`:""}</div></div>`).join("");}
-  if(s.decisions.length){h+=`<div class="sect">Getroffene Entscheidungen (du darfst widersprechen)</div>`+
+  if(s.decisions.length){h+=`<div class="sect">Getroffene Entscheidungen — du darfst widersprechen</div>`+
     s.decisions.map(d=>`<div class="statement" style="cursor:default"><b>${esc(d.title)}:</b> ${esc(d.choice)}<div class="small muted" style="margin-top:4px">${esc(d.rationale)}</div></div>`).join("");}
-  return h+`</div>`;
+  return h;
 }
 
 const pBadge=v=>({print_ready:["b-ok","druckfertig"],
-  needs_attention:["b-warn","druckbar — mit Hinweisen"],
+  needs_attention:["b-warn","druckbar — mit Tipps"],
   not_printable:["b-bad","nicht druckbar"],
-  no_geometry:["b-dim","keine Geometrie — nichts zu drucken"],
-  unavailable:["b-dim","CAD-Kernel fehlt — nicht beurteilt"]}[v]||["b-dim",v]);
+  no_geometry:["b-dim","nichts zu drucken"],
+  unavailable:["b-dim","nicht beurteilt (CAD-Kernel fehlt)"]}[v]||["b-dim",v]);
 
-function printCard(p){
-  if(!p||p.status==="no_geometry")return"";
-  const [cls,txt]=pBadge(p.status);
-  let h=`<div class="card"><h3>3D-Druck-Tauglichkeit <span class="badge ${cls}">${esc(txt)}</span></h3>`;
-  if(p.mesh){h+=`<p class="small" style="margin:6px 0">Mesh-Beweis: wasserdicht <span class="badge ${p.mesh.watertight?"b-ok":"b-bad"}">${p.mesh.watertight?"ja":"NEIN"}</span>
-    &nbsp;Topologie <span class="badge b-info">Genus ${esc(p.mesh.genus??"?")}</span>
-    &nbsp;<span class="muted">${esc(p.mesh.n_facets)} Facetten · ${Number(p.mesh.volume).toFixed(1)} mm³</span></p>`;
+function printInner(p){
+  let h="";
+  if(p.mesh){h+=`<p class="small" style="margin:8px 0">Das 3D-Modell wurde mathematisch geprüft: wasserdicht
+    <span class="badge ${p.mesh.watertight?"b-ok":"b-bad"}">${p.mesh.watertight?"ja":"NEIN"}</span>
+    &nbsp;<span class="muted">${esc(p.mesh.n_facets)} Facetten · ${Number(p.mesh.volume).toFixed(1)} mm³ · Topologie Genus ${esc(p.mesh.genus??"?")}</span></p>`;
     if(p.mesh.issues.length)h+=p.mesh.issues.map(i=>`<div class="gapbox"><b>Mesh-Defekt:</b> ${esc(i)}</div>`).join("");}
-  if(p.components.length){h+=`<table><tr><th>Bauteil</th><th>Bett-Kontakt</th><th>Überhang frei</th><th>Brücken</th><th>Elephant-Foot</th></tr>`+
+  if(p.components.length){h+=`<table><tr><th>Bauteil</th><th>Haftet am Druckbett?</th><th>Überhang frei</th><th>Brücken</th><th>Elephant-Foot</th></tr>`+
     p.components.map(c=>`<tr><td class="mono">${esc(c.component)}</td>
-      <td><span class="badge ${c.plate_contact?"b-ok":"b-bad"}">${c.plate_contact?`${Number(c.footprint[0]).toFixed(0)}×${Number(c.footprint[1]).toFixed(0)} mm`:"KEINER"}</span></td>
+      <td><span class="badge ${c.plate_contact?"b-ok":"b-bad"}">${c.plate_contact?`ja · ${Number(c.footprint[0]).toFixed(0)}×${Number(c.footprint[1]).toFixed(0)} mm`:"NEIN"}</span></td>
       <td>${Number(c.unsupported_overhang_area).toFixed(1)} mm²</td>
       <td>${c.worst_bridge_span!=null?Number(c.worst_bridge_span).toFixed(1)+" mm":"—"}</td>
       <td>${c.elephant_foot_risk?`<span class="badge b-warn">Tipp: ${esc(c.recommended_base_chamfer)} mm Fase</span>`:`<span class="badge b-ok">ok</span>`}</td></tr>`).join("")+`</table>`;}
   h+=p.blockers.map(b=>`<div class="gapbox"><b>Blocker:</b> ${esc(b)}</div>`).join("");
   h+=p.advisories.map(a=>`<div class="gapbox"><b>Tipp:</b> ${esc(a)}</div>`).join("");
-  return h+`</div>`;
+  return h;
 }
 
-function reportCards(r){
-  let h=`<div class="card"><h3>${esc(r.question)}</h3><p class="hint">Tippe auf einen Satz, um Beleg + Quellen zu sehen — jeder Satz ist verifiziert.</p>`;
+function reportInner(r){
+  let h=`<p class="hint" style="margin-top:8px">Tippe auf einen Satz — du siehst den wörtlichen Beleg und die Quellen.</p>`;
   h+=Object.entries(r.statement_to_claim).map(([sent,cid])=>{const c=(r.claims||{})[cid]||{};
     return `<div class="statement" onclick="this.classList.toggle('open')">${esc(sent)} <span class="badge b-ok">verifiziert</span>
       <div class="src"><b>Beleg:</b> ${esc(c.text)}<br>${(c.sources||[]).concat(c.verification||[]).map(link).join("<br>")}</div></div>`}).join("");
   if((r.gaps||[]).length)h+=`<div class="sect">Ehrlich offen geblieben</div>`+r.gaps.map(g=>`<div class="gapbox"><b>Offen:</b> ${esc(g)}</div>`).join("");
-  return h+`</div>`;
+  return h;
 }
 
 function questionsCard(a){
@@ -310,48 +437,91 @@ function questionsCard(a){
   return h;
 }
 
-function filesCard(files){
-  if(!files)return"";
-  const entries=Object.entries(files);
-  if(!entries.length)return"";
-  let h=`<div class="card"><h3>📦 Deine Dateien</h3>
-    <p class="hint">Alles zum Mitnehmen: Bauanleitung, CAD-Quellen und das druckfertige, geprüfte STL.</p><div class="files">`;
-  h+=entries.map(([name,content],i)=>{
-    const refused=String(content).startsWith("#");
+// ------------------------------------------------------------- Download-Center
+function mdSummary(data){
+  const L=[];const today=new Date().toISOString().slice(0,10);
+  L.push(`# GENESIS-Ergebnis (${today})`,``);
+  if(data.spec){L.push(`## Idee`,data.spec.idea,``);
+    L.push(`## Größen (Wert — Herkunft)`);
+    (data.spec.quantities||[]).forEach(q=>L.push(`- ${q.name}: ${q.value} ${q.unit} — ${q.origin}${q.formula?` (= ${q.formula})`:""}`));
+    if((data.spec.bom||[]).length){L.push(``,`## Einkaufsliste`);
+      data.spec.bom.forEach(b=>L.push(`- ${b.count}× ${b.name}${b.sourcing?` — ${b.sourcing}`:""}`));}
+    if((data.spec.steps||[]).length){L.push(``,`## Bauschritte`);
+      data.spec.steps.forEach(s=>L.push(`${s.index}. ${s.action}  _(Prüfung: ${s.check})_`));}
+    if((data.spec.gaps||[]).length){L.push(``,`## Ehrliche Lücken`);
+      data.spec.gaps.forEach(g=>L.push(`- ${g}`));}}
+  if(data.statement_to_claim){L.push(`## Frage`,data.question||"",``,`## Belegte Aussagen`);
+    Object.entries(data.statement_to_claim).forEach(([s,cid])=>{const c=(data.claims||{})[cid]||{};
+      L.push(`- ${s}`,`  - Beleg: ${c.text||""}`,...(c.sources||[]).map(u=>`  - Quelle: ${u}`));});
+    (data.gaps||[]).forEach(g=>L.push(`- OFFEN: ${g}`));}
+  if(data.solution){L.push(`## Lösungswege`);(data.solution.approaches||[]).forEach(a=>L.push(`- ${a.name}`));}
+  if(data.assessment){L.push(``,`## Physik-Verdikt: ${data.assessment.overall}`);
+    data.assessment.check_results.forEach(c=>L.push(`- ${c.name}: Sicherheitsfaktor ${c.safety_factor!=null?Number(c.safety_factor).toFixed(2)+"x":"—"} ${c.ok?"OK":"FAIL"}`));
+    data.assessment.gaps.forEach(g=>L.push(`- Lücke: ${g}`));}
+  if(data.printability&&data.printability.status!=="no_geometry"){L.push(``,`## 3D-Druck: ${data.printability.status}`);
+    (data.printability.blockers||[]).forEach(b=>L.push(`- Blocker: ${b}`));
+    (data.printability.advisories||[]).forEach(a=>L.push(`- Tipp: ${a}`));}
+  L.push(``,`---`,`Erstellt von GENESIS — jede Behauptung mit Quelle, jede Lücke deklariert.`);
+  return L.join("\n");
+}
+
+let FILES=[];let LAST_QUESTION="";
+function dl(i){const [name,content]=FILES[i];
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([content],{type:"text/plain;charset=utf-8"}));
+  a.download=name;a.click();URL.revokeObjectURL(a.href);}
+function dlAll(){FILES.forEach((_,i)=>setTimeout(()=>dl(i),i*350));}
+
+function filesInner(){
+  if(!FILES.length)return"";
+  let h=`<p class="hint" style="margin-top:8px">Alles gehört dir — erzeugt auf deinem Rechner, nichts verlässt ihn.</p><div class="files">`;
+  h+=FILES.map(([name,content],i)=>{
+    const refused=String(content).startsWith("#")&&/Export|refused|unavailable/.test(String(content).slice(0,80));
     const kb=(new Blob([content]).size/1024).toFixed(1);
     return `<button class="file" onclick="dl(${i})" ${refused?'style="opacity:.55"':""}>
       <div class="fn">${refused?"⚠ ":"⬇ "}${esc(name)}</div>
       <div class="fs">${refused?"siehe Hinweis in der Datei":kb+" kB"}</div></button>`;}).join("");
-  return h+`</div></div>`;
+  h+=`</div><div class="dlall"><button class="btn ghost" style="background:transparent;color:var(--text);border:1px solid var(--border)" onclick="dlAll()">⬇ Alles herunterladen (${FILES.length} Dateien)</button></div>`;
+  return h;
 }
 
-// ------------------------------------------------------------------- Aktionen
-let FILES=[];let LAST_QUESTION="";
-function dl(i){const [name,content]=FILES[i];
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([content],{type:"text/plain"}));
-  a.download=name;a.click();URL.revokeObjectURL(a.href);}
-
+// -------------------------------------------------------------------- Render
 function renderResult(data,opts){
   const o=opts||{};let h="";
   FILES=Object.entries(data.files||{});
-  if(o.gates)h+=`<div class="card"><h3>Alle Tore bestanden?</h3>`+o.gates.map(g=>
-    `<span class="badge ${g.passed?"b-ok":"b-bad"}" style="margin-right:8px">Gate ${esc(g.name)}: ${g.passed?"PASS":"FAIL"}</span>`).join("")+`</div>`;
+  FILES.push(["zusammenfassung.md",mdSummary(data)]);
+  FILES.push(["ergebnis.json",JSON.stringify(data,null,2)]);
+
   if(data.assessment)h+=verdictHero(data.assessment);
-  if(data.spec)h+=specCards(data.spec);
-  if(data.solution){h+=`<div class="card"><h3>${esc(data.solution.problem)}</h3>`+
+  else h+=`<div class="verdict"><div class="icon">📜</div><div><h2>Dein Ergebnis ist da.</h2><p>Jede Aussage trägt ihre Quelle — tippe sie an.</p></div></div>`;
+  h+=glance(data);
+  h+=questionsCard(data.assessment);
+
+  if(data.spec)h+=zone("📋","Dein Plan","",planInner(data.spec),true);
+  if(data.solution)h+=zone("🌱","Lösungswege","",
     data.solution.approaches.map(a=>`<div class="statement" style="cursor:default">${esc(a.name)} <span class="badge b-ok">verankert</span></div>`).join("")+
-    (data.solution.gaps||[]).map(g=>`<div class="gapbox"><b>Offen:</b> ${esc(g)}</div>`).join("")+`</div>`;}
-  if(data.statement_to_claim)h+=reportCards(data);
-  if(data.assessment){h+=questionsCard(data.assessment);h+=assessCard(data.assessment);}
-  if(data.printability)h+=printCard(data.printability);
-  h+=filesCard(data.files);
+    (data.solution.gaps||[]).map(g=>`<div class="gapbox"><b>Offen:</b> ${esc(g)}</div>`).join(""),true);
+  if(data.statement_to_claim)h+=zone("📚","Antwort mit Belegen","",reportInner(data),true);
+
+  if(data.printability&&data.printability.status!=="no_geometry"){
+    const [cls,txt]=pBadge(data.printability.status);
+    h+=zone("🖨","3D-Druck-Check",`<span class="badge ${cls}">${esc(txt)}</span>`,
+      printInner(data.printability),data.printability.status==="not_printable");}
+
+  if(data.assessment){const [cls,txt]=vBadge(data.assessment.overall);
+    h+=zone("🔬","Die Beweise — für Neugierige",`<span class="badge ${cls}">${esc(txt)}</span>`,
+      assessInner(data.assessment),data.assessment.overall==="physics_failed");}
+
+  if(o.gates)h+=zone("🚪","Alle Tore","",o.gates.map(g=>
+    `<span class="badge ${g.passed?"b-ok":"b-bad"}" style="margin:8px 8px 0 0">Gate ${esc(g.name)}: ${g.passed?"PASS":"FAIL"}</span>`).join(""),false);
+
+  h+=zone("📦","Deine Dateien",`<span class="badge b-info">${FILES.length} zum Download</span>`,filesInner(),true);
   $("#out").innerHTML=h;
 }
 
 async function demo(kind){
   show("result");
-  $("#out").innerHTML=working("Demo läuft — deterministisch, ohne KI");
+  $("#out").innerHTML=working("Die Demo entsteht — deterministisch, ohne KI");
   try{
     if(kind==="report"){renderResult(await get("/api/report/demo"));}
     else if(kind==="spec"){renderResult(await get("/api/spec/demo"));}
@@ -371,8 +541,8 @@ async function ask(extra){
     if(!r.ok){$("#out").innerHTML=`<div class="verdict"><div class="icon">🔒</div><div>
       <h2>Der Live-Modus ist noch zu — ganz bewusst.</h2>
       <p>${esc(data.message)}</p></div></div>
-      <div class="card"><h3>Bis dahin: probier die Demos!</h3>
-      <p class="hint">Sie zeigen ohne KI, wie ein fertiges Ergebnis aussieht — mit Belegen, Physik und Dateien.</p>
+      <div class="card"><h3>Bis dahin: schau dir an, wie ein fertiges Ergebnis aussieht</h3>
+      <p class="hint">Die Demos zeigen ohne KI den ganzen Weg — Belege, Physik, Dateien.</p>
       <button class="btn" onclick="demo('capstone')">LED-Halter ansehen</button></div>`;return;}
     renderResult(data);
   }catch(e){$("#out").innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
