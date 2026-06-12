@@ -26,7 +26,7 @@ Die vollständige α-Pipeline (Anti-Halluzination), der β-Lösungsraum und die 
 
 ```
 $ python -m pytest tests/ -q
-787 passed
+794 passed
 ```
 
 Alle Tests laufen **ohne einen einzigen LLM-Token und ohne Netzwerk**. Das heißt: Die Garantie „kein Fakt ohne Quelle, keine widerlegte Aussage als Tatsache, Lücken werden als Lücken markiert, im Zweifel Abstention" ist **bewiesen** — und von einem unabhängigen, adversarialen Audit bestätigt (Details: `docs/phases/PHASE_ALPHA_RESULT.md`).
@@ -110,7 +110,7 @@ src/gen/
                                 δ/ε-Schichten: DFM, Toleranz, GUM/MC, SPICE-MNA, BREP, CODE-Gate
   config.py / runner.py / cli.py  Konfiguration, run(question)->Report, `python -m gen`
 sql/001_ledger.sql              Fakten-Ledger; Quellenzwang als DB-Constraint
-tests/                          787 Tests, inkl. Gate-Akzeptanz, δ-Physik-Engine (13 Validatoren + Gate + Auto-Select), Quality-Engine (Eval/Refine/Klärung/Ratifikation/Kalibrierung/Telemetrie/Pipeline) & 4 Frageklassen
+tests/                          794 Tests, inkl. Gate-Akzeptanz, δ-Physik-Engine (13 Validatoren + Gate + Auto-Select), Quality-Engine (Eval/Refine/Klärung/Ratifikation/Kalibrierung/Telemetrie/Pipeline) & 4 Frageklassen
 ```
 
 ## Die zentrale Idee in einer Datenstruktur
