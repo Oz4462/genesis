@@ -73,6 +73,31 @@ def test_assess_shows_verified_shaft_and_unchecked_bracket(client):
     assert all(f is not None and f > 1.0 for f in factors)  # computed margins served
 
 
+def test_status_exposes_the_model_wiring(client):
+    # the UI must show WHICH models are wired and HOW to change them — the user
+    # asked "wo kann ich die llm verdrahten": here, visibly.
+    s = client.get("/api/status").json()
+    assert s["models"]["generator"] and s["models"]["verifier"]
+    assert "GENESIS_GENERATOR" in s["wiring_note"]
+    assert "GENESIS_ALLOW_LIVE" in s["wiring_note"]
+
+
+def test_spec_demo_ships_files_and_printability(client):
+    # the single result page carries everything: deliverable files inline (the
+    # SAME render paths as the CLI, incl. the gated STL) plus the print verdict.
+    r = client.get("/api/spec/demo").json()
+    files = r["files"]
+    assert set(files) == {"bauanleitung.md", "modell.scad",
+                          "modell_build123d.py", "modell.stl"}
+    assert "difference" in files["modell.scad"]            # real CAD source
+    assert files["bauanleitung.md"].startswith("#")        # a markdown manual
+    stl = files["modell.stl"]
+    assert stl.startswith("solid genesis_") or stl.startswith("# STL export")
+    assert r["printability"]["status"] in {
+        "print_ready", "needs_attention", "not_printable", "unavailable",
+    }
+
+
 def test_printability_endpoint_is_honest_in_both_worlds(client):
     # with the CAD kernel: the bracket is judged (mesh proven, advisories served);
     # without it: an explicit "unavailable" — never a silent pass. The geometry-less

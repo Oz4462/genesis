@@ -139,6 +139,62 @@ def _ratification_dict(items: list[RatificationItem]) -> list[dict]:
     ]
 
 
+def _files_dict(spec: Specification) -> dict:
+    """Render the spec's deliverable files inline (strings), one honest entry each.
+
+    Uses the SAME render paths as the CLI (including the mesh-integrity-gated STL).
+    A format that cannot be rendered yields an explanatory note instead of being
+    silently dropped — the UI shows every deliverable or the reason it is absent."""
+    from ..cli import render_spec
+
+    out: dict[str, str] = {}
+    for key, fmt in (("bauanleitung.md", "md"), ("modell.scad", "scad"),
+                     ("modell_build123d.py", "b123d"), ("modell.stl", "stl")):
+        try:
+            out[key] = render_spec(spec, fmt)
+        except Exception as exc:  # noqa: BLE001 - surfaced per file, never a crash
+            out[key] = f"# Export nicht möglich: {type(exc).__name__}: {exc}"
+    return out
+
+
+def _printability_dict(spec: Specification) -> dict:
+    """One spec's printability verdict, JSON-safe (the shared serializer for the
+    printability endpoint and the result payloads)."""
+    from ..pipeline import assess_printability
+
+    p = assess_printability(spec)
+    return {
+        "status": p.status,
+        "ok": p.ok,
+        "mesh": ({
+            "watertight": p.mesh["watertight"],
+            "consistent_winding": p.mesh["consistent_winding"],
+            "genus": p.mesh["genus"], "n_facets": p.mesh["n_facets"],
+            "volume": p.mesh["volume"], "issues": p.mesh["issues"],
+        } if p.mesh is not None else None),
+        "components": [
+            {
+                "component": c["component"],
+                "plate_contact": c["first_layer"]["plate_contact"],
+                "footprint": list(c["first_layer"]["footprint"]),
+                "height": c["first_layer"]["height"],
+                "elephant_foot_risk": c["first_layer"]["elephant_foot_risk"],
+                "recommended_base_chamfer": c["first_layer"]["recommended_base_chamfer"],
+                "overhang_area": c["overhang"]["overhang_area"],
+                "unsupported_overhang_area": c["unsupported_overhang_area"],
+                # JSON has no Infinity: an unbridgeable span is surfaced as
+                # null + the blocker text, never as a fake number.
+                "worst_bridge_span": (
+                    None if c["bridges"]["worst_span"] in (None, float("inf"))
+                    else c["bridges"]["worst_span"]),
+            }
+            for c in p.components
+        ],
+        "blockers": p.blockers,
+        "advisories": p.advisories,
+    }
+
+
 # --- request bodies ---------------------------------------------------------------
 
 class SignOffBody(BaseModel):
@@ -180,6 +236,16 @@ def create_app() -> FastAPI:
         return {
             "engine": "GENESIS",
             "live_enabled": _live_enabled(),
+            "models": {
+                "generator": os.environ.get("GENESIS_GENERATOR", "qwen2.5:14b"),
+                "verifier": os.environ.get("GENESIS_VERIFIER", "gemma4:latest"),
+            },
+            "wiring_note": (
+                "Modelle werden über die Umgebungsvariablen GENESIS_GENERATOR und "
+                "GENESIS_VERIFIER verdrahtet (lokales Ollama); der Live-Modus öffnet "
+                "sich nur mit GENESIS_ALLOW_LIVE=1. Generator und Verifizierer müssen "
+                "verschiedene Modellfamilien sein — das erzwingt der Code."
+            ),
             "offline_modes": ["report", "spec", "capstone", "assess", "eval", "ratification"],
             "note": ("Live-Läufe sind deaktiviert (Owner-Gate). Alle anderen Ansichten "
                      "sind deterministisch und offline."),
@@ -203,7 +269,9 @@ def create_app() -> FastAPI:
         idea, deps, cfg = build_spec_demo()
         spec = await run_specification(idea, deps, config=cfg, run_id="web-demo-spec")
         return {"spec": _spec_dict(spec),
-                "assessment": _assessment_dict(assess_specification(spec))}
+                "assessment": _assessment_dict(assess_specification(spec)),
+                "printability": _printability_dict(spec),
+                "files": _files_dict(spec)}
 
     @app.get("/api/capstone")
     def capstone() -> dict:
@@ -219,7 +287,9 @@ def create_app() -> FastAPI:
             _gate_dict("CODE", gate_code(state)),
         ]
         return {"spec": _spec_dict(spec), "gates": gates,
-                "assessment": _assessment_dict(assess_specification(spec))}
+                "assessment": _assessment_dict(assess_specification(spec)),
+                "printability": _printability_dict(spec),
+                "files": _files_dict(spec)}
 
     @app.get("/api/assess")
     def assess() -> dict:
@@ -240,47 +310,14 @@ def create_app() -> FastAPI:
     @app.get("/api/printability")
     def printability() -> dict:
         from ..demo import capstone_spec, drive_shaft_spec
-        from ..pipeline import assess_printability
 
         out = []
         for label, spec in (
             ("LED-Halter (Geometrie vorhanden)", capstone_spec()),
             ("Antriebswelle (keine Geometrie deklariert)", drive_shaft_spec()),
         ):
-            p = assess_printability(spec)
-            out.append({
-                "label": label,
-                "run_id": spec.run_id,
-                "status": p.status,
-                "ok": p.ok,
-                "mesh": ({
-                    "watertight": p.mesh["watertight"],
-                    "consistent_winding": p.mesh["consistent_winding"],
-                    "genus": p.mesh["genus"], "n_facets": p.mesh["n_facets"],
-                    "volume": p.mesh["volume"], "issues": p.mesh["issues"],
-                } if p.mesh is not None else None),
-                "components": [
-                    {
-                        "component": c["component"],
-                        "plate_contact": c["first_layer"]["plate_contact"],
-                        "footprint": list(c["first_layer"]["footprint"]),
-                        "height": c["first_layer"]["height"],
-                        "elephant_foot_risk": c["first_layer"]["elephant_foot_risk"],
-                        "recommended_base_chamfer":
-                            c["first_layer"]["recommended_base_chamfer"],
-                        "overhang_area": c["overhang"]["overhang_area"],
-                        "unsupported_overhang_area": c["unsupported_overhang_area"],
-                        # JSON has no Infinity: an unbridgeable span is surfaced as
-                        # null + the blocker text, never as a fake number.
-                        "worst_bridge_span": (
-                            None if c["bridges"]["worst_span"] in (None, float("inf"))
-                            else c["bridges"]["worst_span"]),
-                    }
-                    for c in p.components
-                ],
-                "blockers": p.blockers,
-                "advisories": p.advisories,
-            })
+            out.append({"label": label, "run_id": spec.run_id,
+                        **_printability_dict(spec)})
         return {"specs": out}
 
     @app.get("/api/eval")
@@ -376,7 +413,9 @@ def create_app() -> FastAPI:
         if body.mode == "spec":
             spec = await run_specification(body.question, deps, config=cfg)
             return {"spec": _spec_dict(spec),
-                    "assessment": _assessment_dict(assess_specification(spec))}
+                    "assessment": _assessment_dict(assess_specification(spec)),
+                    "printability": _printability_dict(spec),
+                    "files": _files_dict(spec)}
         if body.mode == "solution":
             sr = await run_solution(body.question, deps, config=cfg)
             return {"solution": {

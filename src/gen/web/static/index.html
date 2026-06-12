@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GENESIS — verifizierte Spezifikationen ohne Halluzination</title>
+<title>GENESIS — aus deiner Idee wird ein belegter Plan</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%238b7cf6' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%235eead4'/%3E%3C/svg%3E">
 <style>
   :root{
@@ -20,32 +20,53 @@
        font:15px/1.55 "Segoe UI",system-ui,-apple-system,sans-serif;}
   ::selection{background:rgba(139,124,246,.35)}
   .bgglow{position:fixed;inset:0;pointer-events:none;z-index:0;
-    background:radial-gradient(600px 300px at 20% -5%,rgba(139,124,246,.14),transparent),
-               radial-gradient(500px 260px at 85% 0%,rgba(94,234,212,.07),transparent);}
-  .wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:28px 20px 80px}
-  header{display:flex;align-items:center;gap:14px;margin-bottom:6px}
-  .logo{font-size:22px;font-weight:700;letter-spacing:.12em}
+    background:radial-gradient(700px 360px at 30% -5%,rgba(139,124,246,.16),transparent),
+               radial-gradient(560px 300px at 85% 0%,rgba(94,234,212,.08),transparent);}
+  .wrap{position:relative;z-index:1;max-width:880px;margin:0 auto;padding:26px 20px 80px}
+  header{display:flex;align-items:center;gap:14px;margin-bottom:4px}
+  .logo{font-size:21px;font-weight:700;letter-spacing:.12em;cursor:pointer}
   .logo b{background:linear-gradient(90deg,var(--accent),var(--accent2));
           -webkit-background-clip:text;background-clip:text;color:transparent}
-  .sub{color:var(--muted);font-size:13.5px;margin:0 0 22px}
-  .live-pill{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12.5px;
-    color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:5px 12px;
-    background:var(--panel)}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 8px var(--warn)}
+  .pill{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;
+    color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:5px 13px;
+    background:var(--panel);white-space:nowrap}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 8px var(--warn);flex:none}
   .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
-  nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:22px}
-  nav button{background:transparent;border:1px solid transparent;color:var(--muted);
-    padding:7px 14px;border-radius:9px;font-size:13.5px;cursor:pointer;font-weight:500}
-  nav button:hover{color:var(--text);background:var(--panel)}
-  nav button.active{color:var(--text);background:var(--card);border-color:var(--border)}
-  .view{display:none}.view.active{display:block;animation:fade .25s ease}
-  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .view{display:none}.view.active{display:block;animation:fade .3s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .hero{margin:46px 0 8px;font-size:34px;font-weight:700;line-height:1.2;text-align:center}
+  .hero b{background:linear-gradient(90deg,var(--accent),var(--accent2));
+          -webkit-background-clip:text;background-clip:text;color:transparent}
+  .herosub{color:var(--muted);font-size:14.5px;text-align:center;max-width:620px;margin:10px auto 30px}
+  .askbox{background:var(--card);border:1px solid var(--border);border-radius:18px;
+          padding:16px;transition:border-color .2s;box-shadow:0 8px 40px rgba(0,0,0,.35)}
+  .askbox:focus-within{border-color:var(--accent)}
+  textarea{width:100%;background:transparent;color:var(--text);border:0;min-height:86px;
+           font:inherit;font-size:16px;resize:vertical;padding:4px 6px}
+  textarea:focus{outline:none}
+  .askrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+  .mode{display:flex;gap:6px;flex-wrap:wrap}
+  .mode button{background:var(--panel);border:1px solid var(--border);color:var(--muted);
+    padding:7px 13px;border-radius:999px;font-size:12.5px;cursor:pointer;font-weight:500}
+  .mode button.sel{color:var(--text);border-color:var(--accent);background:rgba(139,124,246,.12)}
+  .go{margin-left:auto;background:linear-gradient(90deg,var(--accent),#6d5ce8);color:#fff;
+      border:0;border-radius:12px;padding:11px 26px;font-size:14.5px;font-weight:700;
+      cursor:pointer;box-shadow:0 4px 18px rgba(139,124,246,.35)}
+  .go:hover{filter:brightness(1.1)} .go:disabled{opacity:.5;cursor:wait}
+  .chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:22px 0 8px}
+  .chips span{color:var(--dim);font-size:12.5px;align-self:center}
+  .chip{background:transparent;border:1px solid var(--border);color:var(--muted);
+        padding:7px 14px;border-radius:999px;font-size:12.5px;cursor:pointer}
+  .chip:hover{color:var(--text);border-color:var(--border-hover);background:var(--panel)}
+  .wiring{margin-top:42px;background:var(--panel);border:1px solid var(--border);
+          border-radius:14px;padding:14px 18px;font-size:12.5px;color:var(--muted)}
+  .wiring b{color:var(--text);font-weight:600}
+  .wiring .mono{color:var(--accent2)}
   .card{background:var(--card);border:1px solid var(--border);border-radius:14px;
         padding:18px 20px;margin-bottom:14px;transition:border-color .2s}
   .card:hover{border-color:var(--border-hover)}
   .card h3{margin:0 0 6px;font-size:15.5px}
   .card .hint{color:var(--muted);font-size:13px;margin:0 0 12px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}
   .badge{display:inline-block;padding:2.5px 10px;border-radius:999px;font-size:11.5px;
          font-weight:600;letter-spacing:.03em;border:1px solid transparent;vertical-align:middle}
   .b-ok{color:var(--ok);background:var(--ok-bg);border-color:rgba(52,211,153,.25)}
@@ -57,7 +78,6 @@
        font-size:13.5px;font-weight:600;cursor:pointer}
   .btn:hover{opacity:.88}
   .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
-  .btn:disabled{opacity:.45;cursor:not-allowed}
   table{width:100%;border-collapse:collapse;font-size:13.5px}
   th{color:var(--dim);text-align:left;font-weight:500;font-size:12px;letter-spacing:.05em;
      text-transform:uppercase;padding:6px 10px;border-bottom:1px solid var(--border)}
@@ -74,104 +94,83 @@
   .statement.open .src{display:block}
   .src a{color:var(--info);text-decoration:none;word-break:break-all}
   .mono{font-family:Consolas,monospace;font-size:12.5px;color:var(--muted)}
-  .big{font-size:30px;font-weight:700;margin:2px 0}
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
-  .kpi{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:14px 16px}
-  .kpi .l{color:var(--muted);font-size:12px}
-  textarea,input[type=text]{width:100%;background:var(--panel);color:var(--text);
-    border:1px solid var(--border);border-radius:10px;padding:11px 14px;font:inherit;resize:vertical}
-  textarea:focus,input:focus{outline:none;border-color:var(--accent)}
-  label.chk{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:9px;
-            cursor:pointer;font-size:13.5px}
-  label.chk:hover{background:var(--panel)}
+  input[type=text]{background:var(--panel);color:var(--text);border:1px solid var(--border);
+    border-radius:10px;padding:10px 13px;font:inherit}
+  input:focus{outline:none;border-color:var(--accent)}
   .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border);
         border-top-color:var(--accent);border-radius:50%;animation:rot .7s linear infinite;
         vertical-align:-2px;margin-right:8px}
   @keyframes rot{to{transform:rotate(360deg)}}
   .muted{color:var(--muted)} .small{font-size:12.5px}
   .sect{margin:18px 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+  .back{background:transparent;border:1px solid var(--border);color:var(--muted);
+        border-radius:999px;padding:7px 16px;font-size:13px;cursor:pointer;margin:14px 0 18px}
+  .back:hover{color:var(--text);border-color:var(--border-hover)}
+  .verdict{display:flex;align-items:center;gap:14px;background:var(--card);
+           border:1px solid var(--border);border-radius:16px;padding:18px 22px;margin-bottom:14px}
+  .verdict .icon{font-size:30px;line-height:1}
+  .verdict h2{margin:0;font-size:18px}
+  .verdict p{margin:3px 0 0;color:var(--muted);font-size:13px}
+  .verdict.v-ok{border-color:rgba(52,211,153,.35);animation:glowok 1.2s ease}
+  @keyframes glowok{0%{box-shadow:0 0 0 rgba(52,211,153,0)}40%{box-shadow:0 0 34px rgba(52,211,153,.25)}100%{box-shadow:none}}
+  .files{display:flex;gap:10px;flex-wrap:wrap}
+  .file{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+        padding:12px 16px;cursor:pointer;font-size:13px;color:var(--text);min-width:150px;text-align:left}
+  .file:hover{border-color:var(--accent)}
+  .file .fn{font-weight:600} .file .fs{color:var(--dim);font-size:11.5px;margin-top:2px}
+  .working{text-align:center;padding:60px 0}
+  .working .big{font-size:18px;font-weight:600;margin-top:18px}
+  .working p{color:var(--muted);font-size:13.5px;max-width:460px;margin:8px auto}
+  .orb{width:54px;height:54px;margin:0 auto;border-radius:50%;
+       background:conic-gradient(var(--accent),var(--accent2),var(--accent));
+       animation:rot 1.6s linear infinite;position:relative}
+  .orb::after{content:"";position:absolute;inset:5px;border-radius:50%;background:var(--bg)}
 </style>
 </head>
 <body>
 <div class="bgglow"></div>
 <div class="wrap">
   <header>
-    <div class="logo">GEN<b>ESIS</b></div>
-    <div class="live-pill"><span class="dot" id="liveDot"></span><span id="liveLabel">…</span></div>
+    <div class="logo" onclick="show('start')">GEN<b>ESIS</b></div>
+    <div class="pill"><span class="dot" id="liveDot"></span><span id="pillText">…</span></div>
   </header>
-  <p class="sub">Idee → recherchiert → <b>verifiziert</b> → Spezifikation. Jede Behauptung mit Quelle, jede Lücke sichtbar, lieber ehrliche Enthaltung als Halluzination.</p>
 
-  <nav id="nav">
-    <button data-v="home" class="active">Übersicht</button>
-    <button data-v="report">α · Fakten-Report</button>
-    <button data-v="spec">γ · Bauanleitung</button>
-    <button data-v="capstone">Capstone</button>
-    <button data-v="assess">Physik-Verdikt</button>
-    <button data-v="print">Druckbarkeit</button>
-    <button data-v="clarify">Klärungs-Dialog</button>
-    <button data-v="eval">Garantie-Metrik</button>
-    <button data-v="signoff">Sign-off</button>
-    <button data-v="ask">Eigene Frage</button>
-  </nav>
+  <!-- ============================== START ============================== -->
+  <div class="view active" id="v-start">
+    <h1 class="hero">Was willst du <b>erschaffen</b>?</h1>
+    <p class="herosub">Beschreibe deine Idee in einem Satz. GENESIS recherchiert, verifiziert
+      und rechnet — und liefert dir einen belegten Plan mit allen Dateien.
+      Was nicht belegbar ist, bekommst du als ehrliche offene Frage zurück, nie als Halluzination.</p>
 
-  <div class="view active" id="v-home">
-    <div class="grid">
-      <div class="card"><h3>Was GENESIS garantiert</h3>
-        <p class="hint">Kein Fakt ohne Quelle. Werte stehen wörtlich in verifizierten Belegen, Rechnungen rechnet Code (und ein Gate rechnet nach), Entscheidungen sind deklariert — und was nicht belegbar ist, wird als <b>Lücke</b> gezeigt statt erfunden.</p>
-        <span class="badge b-ok">komplette Garantie offline als Test-Suite bewiesen</span></div>
-      <div class="card"><h3>Physik-Engine</h3>
-        <p class="hint">13 Validatoren (FEM, Thermik, Schwingung, Knicken, Ermüdung, Bruch, Torsion, Kontakt, Druck, Kriechen …) hinter einem ehrlichen Gate: nie ein stiller Pass.</p>
-        <span class="badge b-info">deterministisch · LLM-frei</span></div>
-      <div class="card"><h3>Live-Modus</h3>
-        <p class="hint" id="homeLive">…</p>
-        <span class="badge b-warn" id="homeLiveBadge">…</span></div>
+    <div class="askbox">
+      <textarea id="idea" placeholder="z. B. Eine Wandhalterung für meine 5-kg-Kamera, 3D-gedruckt …"></textarea>
+      <div class="askrow">
+        <div class="mode" id="mode">
+          <button data-m="spec" class="sel">🛠 Bauplan erstellen</button>
+          <button data-m="report">🔎 Wissen mit Belegen</button>
+          <button data-m="solution">🌱 Lösungswege finden</button>
+        </div>
+        <button class="go" id="goBtn" onclick="ask()">Los geht's</button>
+      </div>
     </div>
-    <div class="card"><h3>So liest du diese Oberfläche</h3>
-      <p class="hint" style="margin-bottom:0">
-      <span class="badge b-ok">grün</span> = unabhängig verifiziert / Marge erfüllt &nbsp;·&nbsp;
-      <span class="badge b-warn">gelb</span> = ehrliche Lücke oder offene Entscheidung &nbsp;·&nbsp;
-      <span class="badge b-bad">rot</span> = Prüfung gescheitert (das Design ist so nicht freigegeben) &nbsp;·&nbsp;
-      <span class="badge b-dim">grau</span> = nicht zutreffend / nicht geprüft.
-      Klicke im Fakten-Report auf einen Satz, um seinen Beleg zu sehen.</p></div>
+
+    <div class="chips">
+      <span>Ohne KI ausprobieren:</span>
+      <button class="chip" onclick="demo('spec')">✨ Demo-Bauplan</button>
+      <button class="chip" onclick="demo('capstone')">🏗 LED-Halter (komplett geprüft)</button>
+      <button class="chip" onclick="demo('report')">📚 Demo-Recherche</button>
+    </div>
+
+    <div class="wiring" id="wiring">
+      <b>⚙ Verdrahtung</b> — <span id="wireModels">…</span><br>
+      <span id="wireNote" class="small">…</span>
+    </div>
   </div>
 
-  <div class="view" id="v-report"><div id="reportBox"><button class="btn" onclick="loadReport()">Demo-Recherche anzeigen</button>
-    <p class="hint" style="margin-top:10px">Der deterministische α-Lauf (Build123d-Frage): jeder Satz im Ergebnis ist auf einen verifizierten Claim mit Quellen abgebildet.</p></div></div>
-
-  <div class="view" id="v-spec"><div id="specBox"><button class="btn" onclick="loadSpec()">Demo-Bauanleitung anzeigen</button>
-    <p class="hint" style="margin-top:10px">Der γ-Lauf: aus Idee + verifizierten Fakten wird eine Spezifikation — Größen mit Herkunft, Stückliste, Schritte mit Prüfkriterium, Quality-Verdikt.</p></div></div>
-
-  <div class="view" id="v-capstone"><div id="capBox"><button class="btn" onclick="loadCapstone()">Capstone laden (LED-Regalhalter)</button>
-    <p class="hint" style="margin-top:10px">Die komplette Spezifikation durch <b>alle</b> Gates (γ, δ, ERC, CODE) — Mechanik, Elektronik, Beschaffung, Montage.</p></div></div>
-
-  <div class="view" id="v-assess"><div id="assessBox"><button class="btn" onclick="loadAssess()">Physik-Verdikt berechnen</button>
-    <p class="hint" style="margin-top:10px">Die verdrahtete Quality-Engine: Auto-Auswahl der zutreffenden Physik-Checks, Sicherheitsfaktoren, Klärungsbedarf — ein ehrliches Gesamt-Verdikt.</p></div></div>
-
-  <div class="view" id="v-print"><div id="printBox"><button class="btn" onclick="loadPrint()">Druckbarkeit prüfen</button>
-    <p class="hint" style="margin-top:10px">Die Designfehler, die erst auf dem Druckbett sichtbar werden: Mesh-Integrität (wasserdicht, Topologie, Orientierung), Brücken/Überhänge, erste Lage (Haftung, Elephant-Foot). Ohne CAD-Kernel oder ohne Geometrie sagt GENESIS das ehrlich — nie ein stiller Pass.</p></div></div>
-
-  <div class="view" id="v-clarify"><div id="clarifyBox"><button class="btn" onclick="loadClarify()">Dialog starten (unterspezifizierte Welle)</button>
-    <p class="hint" style="margin-top:10px">GENESIS erkennt, was zur Bewertung fehlt, und fragt <b>dich</b> — deine Antworten werden als deklarierte Entscheidungen übernommen, dann wird neu geprüft.</p></div></div>
-
-  <div class="view" id="v-eval"><div id="evalBox"><button class="btn" onclick="loadEval()">Garantie messen</button>
-    <p class="hint" style="margin-top:10px">Das Eval-Harness: bestehen alle soliden Fälle, scheitern alle manipulierten? Die nicht verhandelbare Zahl: <b>Leaks = 0</b>.</p></div></div>
-
-  <div class="view" id="v-signoff"><div id="signBox"><button class="btn" onclick="loadSignoff()">Sign-off-Paket laden</button>
-    <p class="hint" style="margin-top:10px">Die KI schlägt vor — <b>du</b> entscheidest: jede Entscheidung und jede Lücke braucht deine explizite Zustimmung, sonst gilt die Spec nicht als freigegeben.</p></div></div>
-
-  <div class="view" id="v-ask">
-    <div class="card"><h3>Eigene Frage / Idee</h3>
-      <p class="hint">Stellt die Frage an die echte Recherche-Pipeline (lokales Ollama + Web-Quellen). Antworten kommen mit Belegen — oder als ehrliche Enthaltung.</p>
-      <textarea id="askQ" rows="3" placeholder="z. B. Wandhalterung für eine 5-kg-Kamera …"></textarea>
-      <div style="display:flex;gap:10px;margin-top:12px;align-items:center">
-        <select id="askMode" style="background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:9px 12px;font:inherit">
-          <option value="report">Fakten-Report (α)</option>
-          <option value="solution">Lösungsraum (β)</option>
-          <option value="spec">Bauanleitung (γ)</option>
-        </select>
-        <button class="btn" onclick="ask()">Fragen</button>
-      </div></div>
-    <div id="askBox"></div>
+  <!-- ============================== ERGEBNIS ============================== -->
+  <div class="view" id="v-result">
+    <button class="back" onclick="show('start')">← Neue Idee</button>
+    <div id="out"></div>
   </div>
 </div>
 
@@ -181,41 +180,67 @@ const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 // only http(s) URLs become links; anything else (javascript:, data:, ...) renders as text
 const link=u=>/^https?:\/\//i.test(String(u))?`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(u)}</a>`:esc(u);
 const get=async u=>{const r=await fetch(u);if(!r.ok)throw new Error((await r.json()).message||r.status);return r.json()};
-const spin=t=>`<div class="card"><span class="spin"></span>${esc(t)}</div>`;
 
-document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{
-  document.querySelectorAll("#nav button").forEach(x=>x.classList.remove("active"));
-  document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
-  b.classList.add("active"); $("#v-"+b.dataset.v).classList.add("active");
-});
+function show(v){document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
+  $("#v-"+v).classList.add("active");window.scrollTo({top:0});}
+
+let MODE="spec";
+document.querySelectorAll("#mode button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("#mode button").forEach(x=>x.classList.remove("sel"));
+  b.classList.add("sel");MODE=b.dataset.m;});
 
 (async()=>{ try{ const s=await get("/api/status");
   $("#liveDot").className="dot"+(s.live_enabled?" on":"");
-  $("#liveLabel").textContent=s.live_enabled?"Live-Modus aktiv":"Live gesperrt (Owner-Gate)";
-  $("#homeLive").textContent=s.note;
-  $("#homeLiveBadge").textContent=s.live_enabled?"aktiv":"deaktiviert — bewusst";
-  $("#homeLiveBadge").className="badge "+(s.live_enabled?"b-ok":"b-warn");
-}catch(e){ $("#liveLabel").textContent="Server nicht erreichbar"; }})();
+  $("#pillText").textContent=(s.live_enabled?"Live an":"Live aus")+" · "+s.models.generator;
+  $("#wireModels").innerHTML=`Generator: <span class="mono">${esc(s.models.generator)}</span>
+    &nbsp;·&nbsp; unabhängiger Prüfer: <span class="mono">${esc(s.models.verifier)}</span>
+    &nbsp;·&nbsp; Live-Modus: <b>${s.live_enabled?"aktiv":"aus (Owner-Gate)"}</b>`;
+  $("#wireNote").textContent=s.wiring_note;
+}catch(e){ $("#pillText").textContent="Server nicht erreichbar"; }})();
 
+const working=t=>`<div class="working"><div class="orb"></div>
+  <div class="big">${esc(t)}</div>
+  <p>GENESIS recherchiert, verifiziert jede Behauptung mit einem zweiten Modell und rechnet
+  die Physik deterministisch nach. Mit lokalem Modell kann das ein paar Minuten dauern —
+  gute Antworten brauchen echte Arbeit. ✨</p></div>`;
+
+// ---------------------------------------------------------------- Verdikt-Held
 const vBadge=v=>({physics_verified:["b-ok","Physik verifiziert"],
-  no_physics_indicated:["b-dim","keine Physik deklariert — nichts geprüft"],
+  no_physics_indicated:["b-dim","keine Physik deklariert — nichts gerechnet"],
   needs_clarification:["b-warn","Klärung nötig"],physics_incomplete:["b-warn","Physik unvollständig (Lücke)"],
   physics_failed:["b-bad","Physik-Check gescheitert"],
   inconsistent_constraints:["b-bad","widersprüchliche Anforderungen"]}[v]||["b-dim",v]);
 
+function verdictHero(a){
+  if(!a)return"";
+  const m={physics_verified:["✅","v-ok","Stark! Dein Plan ist physikalisch verifiziert.",
+            "Jeder zutreffende Check wurde wirklich gerechnet und hat seine Marge erfüllt."],
+    no_physics_indicated:["🧩","","Plan erstellt — ohne Physik-Anspruch.",
+            "Diese Idee deklariert keine Physik-Messgrößen; gerechnet wurde ehrlich: nichts."],
+    needs_clarification:["💬","","Fast da — GENESIS braucht noch etwas von dir.",
+            "Beantworte die offenen Fragen unten, dann wird neu gerechnet. Ehrlich fragen schlägt raten."],
+    physics_incomplete:["🧗","","Gute Basis — ein Check konnte noch nicht rechnen.",
+            "Eine angezeigte Prüfung hat noch keine Eingaben. Unten steht genau, was fehlt."],
+    physics_failed:["🛑","","Wichtig: So wäre es nicht sicher.",
+            "Ein Check hat seine Marge nicht erfüllt — besser jetzt wissen als nach dem Bau. Details unten."],
+    inconsistent_constraints:["⚖️","","Deine Anforderungen widersprechen sich.",
+            "Zwei Vorgaben können nicht gleichzeitig gelten — unten siehst du welche."]}[a.overall]||["🧭","","Ergebnis","" ];
+  return `<div class="verdict ${m[1]}"><div class="icon">${m[0]}</div>
+    <div><h2>${esc(m[2])}</h2><p>${esc(m[3])}</p></div></div>`;
+}
+
+// ------------------------------------------------------------------ Bausteine
 function assessCard(a,label){
   const [cls,txt]=vBadge(a.overall);
-  let h=`<div class="card"><h3>${esc(label??"Quality-Verdikt")} <span class="badge ${cls}">${esc(txt)}</span></h3>`;
+  let h=`<div class="card"><h3>${esc(label??"Qualität & Physik")} <span class="badge ${cls}">${esc(txt)}</span></h3>`;
   if(a.check_results.length){h+=`<table><tr><th>Check</th><th>Validator</th><th>Sicherheitsfaktor</th><th></th></tr>`+
     a.check_results.map(c=>`<tr><td>${esc(c.name)}</td><td class="mono">${esc(c.validator)}</td>
       <td>${c.safety_factor!=null?Number(c.safety_factor).toFixed(2)+"×":"—"}</td>
       <td><span class="badge ${c.ok?"b-ok":"b-bad"}">${c.ok?"OK":"FAIL"}</span></td></tr>`).join("")+`</table>`;}
-  else h+=`<p class="hint">Keine Physik-Checks ausgeführt — die Spezifikation deklariert keine Physik-Messgrößen. Das ist ein ehrliches „nichts geprüft“, kein Freifahrtschein.</p>`;
-  if(a.clarification_questions.length){h+=`<div class="sect">Rückfragen (nach Informationswert sortiert)</div>`+
-    a.clarification_questions.map(q=>`<div class="gapbox"><b>Frage:</b> ${esc(q.question)} <span class="badge b-dim">schaltet ${q.unblocks.length} Check(s) frei</span></div>`).join("");}
-  if(a.gaps.length){h+=`<div class="sect">Physik-Lücken</div>`+a.gaps.map(g=>`<div class="gapbox"><b>Lücke:</b> ${esc(g)}</div>`).join("");}
-  h+=`<p class="small muted" style="margin-bottom:0">Constraints konsistent: ${a.constraints_consistent?"ja":"<b>NEIN</b>"}`+
-     (a.corroboration_ok!=null?` · Quellen unabhängig korroboriert: ${a.corroboration_ok?"ja":"<b>NEIN</b>"}`:"")+`</p></div>`;
+  else h+=`<p class="hint">Keine Physik-Checks ausgeführt — die Spezifikation deklariert keine Physik-Messgrößen. Das ist ein ehrliches „nichts gerechnet“, kein Freifahrtschein.</p>`;
+  if(a.gaps.length){h+=`<div class="sect">Noch nicht rechenbar</div>`+a.gaps.map(g=>`<div class="gapbox"><b>Lücke:</b> ${esc(g)}</div>`).join("");}
+  h+=`<p class="small muted" style="margin-bottom:0">Anforderungen konsistent: ${a.constraints_consistent?"ja":"<b>NEIN</b>"}`+
+     (a.corroboration_ok!=null?` · Quellen unabhängig bestätigt: ${a.corroboration_ok?"ja":"<b>NEIN</b>"}`:"")+`</p></div>`;
   return h;
 }
 
@@ -226,131 +251,135 @@ function specCards(s){
     s.quantities.map(q=>{const o={grounded:["b-ok","belegt"],derived:["b-info","berechnet"],decision:["b-warn","Entscheidung"]}[q.origin]||["b-dim",q.origin];
       return `<tr><td>${esc(q.name)}</td><td class="mono">${esc(q.value)} ${esc(q.unit)}${q.uncertainty?` ± ${esc(q.uncertainty)}`:""}</td>
         <td><span class="badge ${o[0]}">${esc(o[1])}</span> <span class="small muted">${q.formula?esc("= "+q.formula):q.rationale?esc(q.rationale):q.grounding.map(esc).join(", ")}</span></td></tr>`}).join("")+`</table>`;
-  if(s.bom.length){h+=`<div class="sect">Stückliste</div><table><tr><th>Teil</th><th>Anzahl</th><th>Rolle</th><th>Bezug</th></tr>`+
+  if(s.bom.length){h+=`<div class="sect">Einkaufsliste</div><table><tr><th>Teil</th><th>Anzahl</th><th>Rolle</th><th>Bezug</th></tr>`+
     s.bom.map(b=>`<tr><td>${esc(b.name)}</td><td>${esc(b.count)}</td><td>${esc(b.role)}</td><td class="small muted">${esc(b.sourcing??"—")}</td></tr>`).join("")+`</table>`;}
   if(s.steps.length){h+=`<div class="sect">Bauschritte (jeder mit Prüfkriterium)</div>`+
     s.steps.map(st=>`<div class="statement" style="cursor:default"><b>${esc(st.index)}.</b> ${esc(st.action)}<div class="small muted" style="margin-top:4px">✓ Prüfung: ${esc(st.check)}${st.tool?` · Werkzeug: ${esc(st.tool)}`:""}</div></div>`).join("");}
-  if(s.decisions.length){h+=`<div class="sect">Entscheidungen (ratifizierbar — keine Fakten)</div>`+
+  if(s.decisions.length){h+=`<div class="sect">Getroffene Entscheidungen (du darfst widersprechen)</div>`+
     s.decisions.map(d=>`<div class="statement" style="cursor:default"><b>${esc(d.title)}:</b> ${esc(d.choice)}<div class="small muted" style="margin-top:4px">${esc(d.rationale)}</div></div>`).join("");}
   return h+`</div>`;
 }
 
-async function loadReport(){const box=$("#reportBox");box.innerHTML=spin("α-Lauf läuft (deterministisch, offline)…");
- try{const r=await get("/api/report/demo");
-  let h=`<div class="card"><h3>${esc(r.question)}</h3><p class="hint">Klicke einen Satz, um Beleg + Quellen zu sehen.</p>`;
-  h+=Object.entries(r.statement_to_claim).map(([sent,cid])=>{const c=r.claims[cid]||{};
-    return `<div class="statement" onclick="this.classList.toggle('open')">${esc(sent)} <span class="badge b-ok">verifiziert</span>
-      <div class="src"><b>Beleg:</b> ${esc(c.text)}<br>${(c.sources||[]).concat(c.verification||[]).map(link).join("<br>")}</div></div>`}).join("");
-  if(r.gaps.length)h+=`<div class="sect">Lücken</div>`+r.gaps.map(g=>`<div class="gapbox"><b>Lücke:</b> ${esc(g)}</div>`).join("");
-  box.innerHTML=h+`</div>`;}catch(e){box.innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
-
-async function loadSpec(){const box=$("#specBox");box.innerHTML=spin("γ-Lauf läuft…");
- try{const r=await get("/api/spec/demo");box.innerHTML=specCards(r.spec)+assessCard(r.assessment);}
- catch(e){box.innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
-
-async function loadCapstone(){const box=$("#capBox");box.innerHTML=spin("Capstone durch alle Gates…");
- try{const r=await get("/api/capstone");
-  let h=`<div class="card"><h3>Gates</h3>`+r.gates.map(g=>
-    `<span class="badge ${g.passed?"b-ok":"b-bad"}" style="margin-right:8px">Gate ${esc(g.name)}: ${g.passed?"PASS":"FAIL"}</span>`).join("")+`</div>`;
-  box.innerHTML=h+specCards(r.spec)+assessCard(r.assessment);}
- catch(e){box.innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
-
-async function loadAssess(){const box=$("#assessBox");box.innerHTML=spin("Physik-Engine rechnet…");
- try{const r=await get("/api/assess");box.innerHTML=r.specs.map(s=>assessCard(s.assessment,s.label)).join("");}
- catch(e){box.innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
-
 const pBadge=v=>({print_ready:["b-ok","druckfertig"],
   needs_attention:["b-warn","druckbar — mit Hinweisen"],
   not_printable:["b-bad","nicht druckbar"],
-  no_geometry:["b-dim","keine Geometrie deklariert — nichts geprüft"],
+  no_geometry:["b-dim","keine Geometrie — nichts zu drucken"],
   unavailable:["b-dim","CAD-Kernel fehlt — nicht beurteilt"]}[v]||["b-dim",v]);
 
-async function loadPrint(){const box=$("#printBox");box.innerHTML=spin("Druckbarkeits-Engine prüft (BREP + Mesh)…");
- try{const r=await get("/api/printability");
-  box.innerHTML=r.specs.map(s=>{
-    const [cls,txt]=pBadge(s.status);
-    let h=`<div class="card"><h3>${esc(s.label)} <span class="badge ${cls}">${esc(txt)}</span></h3>`;
-    if(s.mesh){h+=`<div class="sect">STL-Mesh-Beweis (Slicebarkeit)</div>
-      <p class="small" style="margin:6px 0">wasserdicht: <span class="badge ${s.mesh.watertight?"b-ok":"b-bad"}">${s.mesh.watertight?"ja":"NEIN"}</span>
-      &nbsp;Wicklung konsistent: <span class="badge ${s.mesh.consistent_winding?"b-ok":"b-bad"}">${s.mesh.consistent_winding?"ja":"NEIN"}</span>
-      &nbsp;Topologie: <span class="badge b-info">Genus ${esc(s.mesh.genus??"?")}</span>
-      &nbsp;<span class="muted small">${esc(s.mesh.n_facets)} Facetten · ${Number(s.mesh.volume).toFixed(1)} mm³</span></p>`;
-      if(s.mesh.issues.length)h+=s.mesh.issues.map(i=>`<div class="gapbox"><b>Mesh-Defekt:</b> ${esc(i)}</div>`).join("");}
-    if(s.components.length){h+=`<div class="sect">Geometrie-Checks</div><table><tr><th>Bauteil</th><th>Bett-Kontakt</th><th>Überhang unsupported</th><th>Brücken</th><th>Elephant-Foot</th></tr>`+
-      s.components.map(c=>`<tr><td class="mono">${esc(c.component)}</td>
-        <td><span class="badge ${c.plate_contact?"b-ok":"b-bad"}">${c.plate_contact?`${Number(c.footprint[0]).toFixed(0)}×${Number(c.footprint[1]).toFixed(0)} mm`:"KEINER"}</span></td>
-        <td>${Number(c.unsupported_overhang_area).toFixed(1)} mm²</td>
-        <td>${c.worst_bridge_span!=null?Number(c.worst_bridge_span).toFixed(1)+" mm":"—"}</td>
-        <td>${c.elephant_foot_risk?`<span class="badge b-warn">Risiko · ${esc(c.recommended_base_chamfer)} mm Fase</span>`:`<span class="badge b-ok">ok</span>`}</td></tr>`).join("")+`</table>`;}
-    if(s.blockers.length)h+=`<div class="sect">Blocker</div>`+s.blockers.map(b=>`<div class="gapbox"><b>Blocker:</b> ${esc(b)}</div>`).join("");
-    if(s.advisories.length)h+=`<div class="sect">Hinweise</div>`+s.advisories.map(a=>`<div class="gapbox"><b>Hinweis:</b> ${esc(a)}</div>`).join("");
-    return h+`</div>`;}).join("");}
- catch(e){box.innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
+function printCard(p){
+  if(!p||p.status==="no_geometry")return"";
+  const [cls,txt]=pBadge(p.status);
+  let h=`<div class="card"><h3>3D-Druck-Tauglichkeit <span class="badge ${cls}">${esc(txt)}</span></h3>`;
+  if(p.mesh){h+=`<p class="small" style="margin:6px 0">Mesh-Beweis: wasserdicht <span class="badge ${p.mesh.watertight?"b-ok":"b-bad"}">${p.mesh.watertight?"ja":"NEIN"}</span>
+    &nbsp;Topologie <span class="badge b-info">Genus ${esc(p.mesh.genus??"?")}</span>
+    &nbsp;<span class="muted">${esc(p.mesh.n_facets)} Facetten · ${Number(p.mesh.volume).toFixed(1)} mm³</span></p>`;
+    if(p.mesh.issues.length)h+=p.mesh.issues.map(i=>`<div class="gapbox"><b>Mesh-Defekt:</b> ${esc(i)}</div>`).join("");}
+  if(p.components.length){h+=`<table><tr><th>Bauteil</th><th>Bett-Kontakt</th><th>Überhang frei</th><th>Brücken</th><th>Elephant-Foot</th></tr>`+
+    p.components.map(c=>`<tr><td class="mono">${esc(c.component)}</td>
+      <td><span class="badge ${c.plate_contact?"b-ok":"b-bad"}">${c.plate_contact?`${Number(c.footprint[0]).toFixed(0)}×${Number(c.footprint[1]).toFixed(0)} mm`:"KEINER"}</span></td>
+      <td>${Number(c.unsupported_overhang_area).toFixed(1)} mm²</td>
+      <td>${c.worst_bridge_span!=null?Number(c.worst_bridge_span).toFixed(1)+" mm":"—"}</td>
+      <td>${c.elephant_foot_risk?`<span class="badge b-warn">Tipp: ${esc(c.recommended_base_chamfer)} mm Fase</span>`:`<span class="badge b-ok">ok</span>`}</td></tr>`).join("")+`</table>`;}
+  h+=p.blockers.map(b=>`<div class="gapbox"><b>Blocker:</b> ${esc(b)}</div>`).join("");
+  h+=p.advisories.map(a=>`<div class="gapbox"><b>Tipp:</b> ${esc(a)}</div>`).join("");
+  return h+`</div>`;
+}
 
-async function loadClarify(){const box=$("#clarifyBox");box.innerHTML=spin("Spezifikation wird geprüft…");
- try{const r=await get("/api/clarify/demo");
-  let h=assessCard(r.assessment,"Vorher: "+r.idea);
-  h+=`<div class="card"><h3>Deine Antworten</h3><p class="hint">Beantworte die Rückfragen — jede Antwort wird als deklarierte Entscheidung übernommen (nie als Fakt ausgegeben).</p>`;
-  h+=r.questions.map((q,i)=>`<div style="margin:10px 0"><div class="small" style="margin-bottom:5px">${esc(q.question)} <span class="badge b-dim">${esc(q.expected_unit??"")}</span></div>
-    <input type="text" id="ans${i}" data-m="${esc(q.measurand)}" data-u="${esc(q.expected_unit??"")}" placeholder="Wert in ${esc(q.expected_unit??"?")}" style="max-width:260px"></div>`).join("");
-  h+=`<div style="margin-top:12px"><button class="btn" onclick="answerClarify(${r.questions.length})">Antworten übernehmen &amp; neu prüfen</button></div><div id="clarifyResult"></div></div>`;
-  box.innerHTML=h;}catch(e){box.innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
+function reportCards(r){
+  let h=`<div class="card"><h3>${esc(r.question)}</h3><p class="hint">Tippe auf einen Satz, um Beleg + Quellen zu sehen — jeder Satz ist verifiziert.</p>`;
+  h+=Object.entries(r.statement_to_claim).map(([sent,cid])=>{const c=(r.claims||{})[cid]||{};
+    return `<div class="statement" onclick="this.classList.toggle('open')">${esc(sent)} <span class="badge b-ok">verifiziert</span>
+      <div class="src"><b>Beleg:</b> ${esc(c.text)}<br>${(c.sources||[]).concat(c.verification||[]).map(link).join("<br>")}</div></div>`}).join("");
+  if((r.gaps||[]).length)h+=`<div class="sect">Ehrlich offen geblieben</div>`+r.gaps.map(g=>`<div class="gapbox"><b>Offen:</b> ${esc(g)}</div>`).join("");
+  return h+`</div>`;
+}
 
-async function answerClarify(n){
-  const answers={};
-  for(let i=0;i<n;i++){const el=$("#ans"+i);const v=parseFloat((el.value||"").replace(",","."));
-    if(!isNaN(v))answers[el.dataset.m]={value:v,unit:el.dataset.u};}
-  if(!Object.keys(answers).length){$("#clarifyResult").innerHTML=`<div class="gapbox"><b>Hinweis:</b> bitte mindestens eine Antwort eingeben (Zahl).</div>`;return;}
-  $("#clarifyResult").innerHTML=spin("Neu prüfen…");
-  const r=await(await fetch("/api/clarify/answer",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({answers})})).json();
-  $("#clarifyResult").innerHTML=`<div class="sect" style="margin-top:16px">Nachher</div>`+assessCard(r.assessment,"Nach deinen Antworten");}
+function questionsCard(a){
+  const qs=(a&&a.clarification_questions)||[];
+  if(!qs.length)return"";
+  let h=`<div class="card"><h3>💬 GENESIS braucht noch etwas von dir</h3>
+    <p class="hint">Beantworte, was du weißt — deine Angaben werden als deklarierte Entscheidungen übernommen (nie als Fakt ausgegeben), dann wird neu geprüft.</p>`;
+  h+=qs.map((q,i)=>`<div style="margin:10px 0"><div class="small" style="margin-bottom:5px">${esc(q.question)}</div>
+    <input type="text" id="q${i}" data-m="${esc(q.measurand)}" placeholder="dein Wert (mit Einheit, z. B. 260 MPa)" style="width:280px"></div>`).join("");
+  h+=`<div style="margin-top:12px"><button class="btn" onclick="reAsk(${qs.length})">Antworten übernehmen &amp; neu starten</button></div></div>`;
+  return h;
+}
 
-async function loadEval(){const box=$("#evalBox");box.innerHTML=spin("Eval-Harness läuft…");
- try{const r=await get("/api/eval");
-  let h=`<div class="kpis"><div class="kpi"><div class="l">Fälle korrekt</div><div class="big">${esc(r.correct)}/${esc(r.total)}</div></div>
-   <div class="kpi"><div class="l">Leaks (müssen 0 sein)</div><div class="big" style="color:${r.leaks.length?"var(--bad)":"var(--ok)"}">${r.leaks.length}</div></div>
-   <div class="kpi"><div class="l">Fehlalarme</div><div class="big">${r.false_alarms.length}</div></div></div>`;
-  h+=`<div class="card"><table><tr><th>Fall</th><th>Erwartet</th><th>Ergebnis</th><th></th></tr>`+
-   r.verdicts.map(v=>`<tr><td>${esc(v.name)}</td><td>${v.expected_pass?"PASS":"FAIL"}</td><td>${v.actual_pass?"PASS":"FAIL"}</td>
-     <td><span class="badge ${v.ok?"b-ok":"b-bad"}">${v.ok?"korrekt":"LEAK!"}</span></td></tr>`).join("")+`</table></div>`;
-  box.innerHTML=h;}catch(e){box.innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
+function filesCard(files){
+  if(!files)return"";
+  const entries=Object.entries(files);
+  if(!entries.length)return"";
+  let h=`<div class="card"><h3>📦 Deine Dateien</h3>
+    <p class="hint">Alles zum Mitnehmen: Bauanleitung, CAD-Quellen und das druckfertige, geprüfte STL.</p><div class="files">`;
+  h+=entries.map(([name,content],i)=>{
+    const refused=String(content).startsWith("#");
+    const kb=(new Blob([content]).size/1024).toFixed(1);
+    return `<button class="file" onclick="dl(${i})" ${refused?'style="opacity:.55"':""}>
+      <div class="fn">${refused?"⚠ ":"⬇ "}${esc(name)}</div>
+      <div class="fs">${refused?"siehe Hinweis in der Datei":kb+" kB"}</div></button>`;}).join("");
+  return h+`</div></div>`;
+}
 
-async function loadSignoff(){const box=$("#signBox");box.innerHTML=spin("Paket wird gebaut…");
- try{const r=await get("/api/ratification");
-  let h=`<div class="card"><h3>Ratifikation — nichts gilt ohne deine Zustimmung</h3>
-    <p class="hint">Hake jede Entscheidung und jede Lücke ab, die du bewusst akzeptierst. Erst wenn <b>alles</b> Blockierende abgezeichnet ist, gilt die Spezifikation als freigegeben.</p>`;
-  h+=r.items.map(it=>`<label class="chk"><input type="checkbox" data-ref="${esc(it.ref)}" ${it.blocking?"":"checked disabled"}>
-    <span><span class="badge ${it.kind==="gap"?"b-warn":it.kind==="gate"?(it.blocking?"b-bad":"b-ok"):"b-info"}">${esc(it.kind)}</span> ${esc(it.summary)}</span></label>`).join("");
-  h+=`<div style="margin-top:14px"><button class="btn" onclick="checkSignoff()">Freigabe prüfen</button></div><div id="signResult"></div></div>`;
-  box.innerHTML=h;}catch(e){box.innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
+// ------------------------------------------------------------------- Aktionen
+let FILES=[];let LAST_QUESTION="";
+function dl(i){const [name,content]=FILES[i];
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([content],{type:"text/plain"}));
+  a.download=name;a.click();URL.revokeObjectURL(a.href);}
 
-async function checkSignoff(){
-  const approved=[...document.querySelectorAll('#signBox input[type=checkbox]:checked')].map(c=>c.dataset.ref).filter(Boolean);
-  const r=await(await fetch("/api/ratification/check",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({approved,approver:"ui"})})).json();
-  $("#signResult").innerHTML=r.ratified
-    ?`<div class="gapbox" style="background:var(--ok-bg);border-color:rgba(52,211,153,.3)"><b style="color:var(--ok)">Freigegeben.</b> Jedes blockierende Element wurde explizit abgezeichnet.</div>`
-    :`<div class="gapbox"><b>Noch nicht freigegeben</b> — es fehlen ${r.unratified.length} Zustimmung(en).</div>`;}
-
-async function ask(){const box=$("#askBox");const q=$("#askQ").value.trim();
- if(!q){box.innerHTML=`<div class="gapbox"><b>Hinweis:</b> bitte erst eine Frage eingeben.</div>`;return;}
- box.innerHTML=spin("Anfrage…");
- try{const r=await fetch("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},
-   body:JSON.stringify({question:q,mode:$("#askMode").value})});
-  const data=await r.json();
-  if(!r.ok){box.innerHTML=`<div class="card"><h3>Live-Modus gesperrt <span class="badge b-warn">ehrliche Ablehnung</span></h3>
-    <p class="hint" style="margin:0">${esc(data.message)}</p></div>`;return;}
-  if(data.spec)box.innerHTML=specCards(data.spec)+assessCard(data.assessment);
-  else if(data.solution)box.innerHTML=`<div class="card"><h3>${esc(data.solution.problem)}</h3>`+
+function renderResult(data,opts){
+  const o=opts||{};let h="";
+  FILES=Object.entries(data.files||{});
+  if(o.gates)h+=`<div class="card"><h3>Alle Tore bestanden?</h3>`+o.gates.map(g=>
+    `<span class="badge ${g.passed?"b-ok":"b-bad"}" style="margin-right:8px">Gate ${esc(g.name)}: ${g.passed?"PASS":"FAIL"}</span>`).join("")+`</div>`;
+  if(data.assessment)h+=verdictHero(data.assessment);
+  if(data.spec)h+=specCards(data.spec);
+  if(data.solution){h+=`<div class="card"><h3>${esc(data.solution.problem)}</h3>`+
     data.solution.approaches.map(a=>`<div class="statement" style="cursor:default">${esc(a.name)} <span class="badge b-ok">verankert</span></div>`).join("")+
-    data.solution.gaps.map(g=>`<div class="gapbox"><b>Lücke:</b> ${esc(g)}</div>`).join("")+`</div>`;
-  else{const h=Object.entries(data.statement_to_claim).map(([s,cid])=>{const c=data.claims[cid]||{};
-    return `<div class="statement" onclick="this.classList.toggle('open')">${esc(s)} <span class="badge b-ok">verifiziert</span>
-     <div class="src"><b>Beleg:</b> ${esc(c.text)}<br>${(c.sources||[]).map(link).join("<br>")}</div></div>`}).join("");
-   box.innerHTML=`<div class="card"><h3>${esc(data.question)}</h3>${h}`+
-    (data.gaps||[]).map(g=>`<div class="gapbox"><b>Lücke:</b> ${esc(g)}</div>`).join("")+`</div>`;}
- }catch(e){box.innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
+    (data.solution.gaps||[]).map(g=>`<div class="gapbox"><b>Offen:</b> ${esc(g)}</div>`).join("")+`</div>`;}
+  if(data.statement_to_claim)h+=reportCards(data);
+  if(data.assessment){h+=questionsCard(data.assessment);h+=assessCard(data.assessment);}
+  if(data.printability)h+=printCard(data.printability);
+  h+=filesCard(data.files);
+  $("#out").innerHTML=h;
+}
+
+async function demo(kind){
+  show("result");
+  $("#out").innerHTML=working("Demo läuft — deterministisch, ohne KI");
+  try{
+    if(kind==="report"){renderResult(await get("/api/report/demo"));}
+    else if(kind==="spec"){renderResult(await get("/api/spec/demo"));}
+    else{const r=await get("/api/capstone");renderResult(r,{gates:r.gates});}
+  }catch(e){$("#out").innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
+
+async function ask(extra){
+  const q=(extra??$("#idea").value).trim();
+  if(!q){$("#idea").focus();return;}
+  LAST_QUESTION=q;
+  show("result");
+  $("#out").innerHTML=working("GENESIS arbeitet an deiner Idee …");
+  try{
+    const r=await fetch("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({question:q,mode:MODE})});
+    const data=await r.json();
+    if(!r.ok){$("#out").innerHTML=`<div class="verdict"><div class="icon">🔒</div><div>
+      <h2>Der Live-Modus ist noch zu — ganz bewusst.</h2>
+      <p>${esc(data.message)}</p></div></div>
+      <div class="card"><h3>Bis dahin: probier die Demos!</h3>
+      <p class="hint">Sie zeigen ohne KI, wie ein fertiges Ergebnis aussieht — mit Belegen, Physik und Dateien.</p>
+      <button class="btn" onclick="demo('capstone')">LED-Halter ansehen</button></div>`;return;}
+    renderResult(data);
+  }catch(e){$("#out").innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
+
+function reAsk(n){
+  const parts=[];
+  for(let i=0;i<n;i++){const el=$("#q"+i);if(el&&el.value.trim())
+    parts.push(`${el.dataset.m} = ${el.value.trim()}`);}
+  if(!parts.length)return;
+  ask(LAST_QUESTION+"\nBereits geklärte Werte (vom Menschen entschieden): "+parts.join("; "));}
+
+$("#idea").addEventListener("keydown",e=>{if(e.key==="Enter"&&(e.ctrlKey||e.metaKey))ask();});
 </script>
 </body>
 </html>

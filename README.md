@@ -7,7 +7,7 @@
 > Open-Source-Infrastruktur, damit Menschen — privat wie Unternehmen — aus einer kleinen Idee etwas Vollständiges erschaffen können: mit Quellen statt Behauptungen, mit nachgerechneter Physik statt geratener Zahlen, und mit ehrlichen Lücken statt erfundener Antworten.
 
 ```
-837 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
+839 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
 ```
 
 ---
@@ -166,7 +166,7 @@ pip install -e .[full]      # alles inkl. Dev-Tools (pytest, ruff, httpx)
 Ohne die optionalen Pakete bleibt alles funktionsfähig — die betreffenden Features/Tests **skippen ehrlich**, statt zu raten.
 
 ```bash
-python -m pytest tests/ -q          # 837 passed (volle Deps) — ohne LLM-Token, ohne Netz
+python -m pytest tests/ -q          # 839 passed (volle Deps) — ohne LLM-Token, ohne Netz
 ```
 
 ## 8 · Nutzung: CLI
@@ -283,7 +283,7 @@ Der Scorer (`gen/goldset.py`) berechnet Fakten-Genauigkeit, **Abstention-Recall*
 - **Zwei unabhängige Methoden:** FEM gegen geschlossene Form, BREP gegen analytisches Volumen, MNA gegen Ohm — Übereinstimmung als Schutz gegen Fehler in einer von beiden.
 - **Tests mit Zähnen:** Jeder Wächter hat Negativtests (der manipulierte Fall **muss** scheitern). Das Eval-Harness aggregiert das zu Leaks = 0.
 - **Real-World-Verifikation:** Die Web-UI wurde nicht nur unit-getestet, sondern im echten Browser bedient (Playwright): Klärungs-Dialog Gelb→Grün, Sign-off-Verweigerung, Live-Ablehnungskarte.
-- **837 Tests** (volle Abhängigkeiten) / 794 + 16 skipped (Minimal-Umgebung) — alle ohne LLM-Token und ohne Netz; zusätzlich grün mit Deprecation-Warnings als Fehlern. Lint-Baseline: `ruff check src tests` = sauber.
+- **839 Tests** (volle Abhängigkeiten) / 796 + 16 skipped (Minimal-Umgebung) — alle ohne LLM-Token und ohne Netz; zusätzlich grün mit Deprecation-Warnings als Fehlern. Lint-Baseline: `ruff check src tests` = sauber.
 
 ## 14 · Projektstruktur
 
@@ -319,13 +319,13 @@ goldset/v1.json        das kuratierte Mess-Set für die Live-Läufe
 sql/001_ledger.sql     Quellenzwang als DB-Constraint
 docs/                  VISION, ARCHITECTURE, DATA_MODEL, PIPELINE, phases/ (α–δ inkl.
                        PHASE_DELTA.md §1–§52), research/, agents/
-tests/                 837 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-Engine,
+tests/                 839 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-Engine,
                        Web-API & 4 Frageklassen
 ```
 
 ## 15 · Status & ehrliche Grenzen
 
-**Fertig und bewiesen (offline):** die komplette α/β/γ/δ-Kette mit allen Gates, die Physik-Engine (20 Validatoren + FEM), die Druckbarkeits-Schicht (bis in CLI, Web-UI und den gegateten STL-Export verdrahtet), die Quality-Engine, CLI, Web-UI, Packaging, Gold-Set-Vertrag — 837 Tests, deterministisch, reproduzierbar.
+**Fertig und bewiesen (offline):** die komplette α/β/γ/δ-Kette mit allen Gates, die Physik-Engine (20 Validatoren + FEM), die Druckbarkeits-Schicht (bis in CLI, Web-UI und den gegateten STL-Export verdrahtet), die Quality-Engine, CLI, Web-UI (Idee→Ergebnis-Flow für Laien), Packaging, Gold-Set-Vertrag — 839 Tests, deterministisch, reproduzierbar.
 
 **Live bewiesen:** α (Fakten-Report) und β gegen echte lokale Modelle, inklusive empirischer Bestätigung, dass der Wortlaut-Wächter echte Modell-Paraphrasen abfängt.
 

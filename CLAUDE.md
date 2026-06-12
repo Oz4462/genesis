@@ -45,7 +45,7 @@ tests/                    Tests, inkl. Gate-Akzeptanztests
 
 ## Aktueller Fokus
 **Phase α + β + γ abgeschlossen + δ voll ausgebaut + Quality-Engine verdrahtet**
-(837 Tests offline mit vollen Deps / 794+16 skipped ohne; α/β live bewiesen).
+(839 Tests offline mit vollen Deps / 796+16 skipped ohne; α/β live bewiesen).
 γ: Idee → vollständige Spezifikation hinter GATE γ (Wächter C-1..C-18 inkl.
 Cross-Claim-Konsistenz und GUM-Unsicherheit), 2 CAD-Exporte (OpenSCAD + build123d)
 + druckfertiges STL (OCCT-Kernel, Volumen-bewiesen).
