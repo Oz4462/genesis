@@ -237,6 +237,52 @@ def create_app() -> FastAPI:
                             assess_specification(spec, claims=claims))})
         return {"specs": out}
 
+    @app.get("/api/printability")
+    def printability() -> dict:
+        from ..demo import capstone_spec, drive_shaft_spec
+        from ..pipeline import assess_printability
+
+        out = []
+        for label, spec in (
+            ("LED-Halter (Geometrie vorhanden)", capstone_spec()),
+            ("Antriebswelle (keine Geometrie deklariert)", drive_shaft_spec()),
+        ):
+            p = assess_printability(spec)
+            out.append({
+                "label": label,
+                "run_id": spec.run_id,
+                "status": p.status,
+                "ok": p.ok,
+                "mesh": ({
+                    "watertight": p.mesh["watertight"],
+                    "consistent_winding": p.mesh["consistent_winding"],
+                    "genus": p.mesh["genus"], "n_facets": p.mesh["n_facets"],
+                    "volume": p.mesh["volume"], "issues": p.mesh["issues"],
+                } if p.mesh is not None else None),
+                "components": [
+                    {
+                        "component": c["component"],
+                        "plate_contact": c["first_layer"]["plate_contact"],
+                        "footprint": list(c["first_layer"]["footprint"]),
+                        "height": c["first_layer"]["height"],
+                        "elephant_foot_risk": c["first_layer"]["elephant_foot_risk"],
+                        "recommended_base_chamfer":
+                            c["first_layer"]["recommended_base_chamfer"],
+                        "overhang_area": c["overhang"]["overhang_area"],
+                        "unsupported_overhang_area": c["unsupported_overhang_area"],
+                        # JSON has no Infinity: an unbridgeable span is surfaced as
+                        # null + the blocker text, never as a fake number.
+                        "worst_bridge_span": (
+                            None if c["bridges"]["worst_span"] in (None, float("inf"))
+                            else c["bridges"]["worst_span"]),
+                    }
+                    for c in p.components
+                ],
+                "blockers": p.blockers,
+                "advisories": p.advisories,
+            })
+        return {"specs": out}
+
     @app.get("/api/eval")
     def eval_harness() -> dict:
         from ..evaluation import all_cases, evaluate

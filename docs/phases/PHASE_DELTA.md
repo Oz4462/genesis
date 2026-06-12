@@ -1801,12 +1801,27 @@ falsche offene Kanten melden — keine geratene Weld-Toleranz. Warping/Seam/Slic
 bleiben deklarierte Lücken. Z-Retention 0,45 ist konservativer Literatur-Default, kein
 Material-Messwert.
 
+**Verdrahtung in den Lauf-Pfad (nicht nur Standalone-Module):**
+`pipeline.assess_printability(spec)` komponiert die drei Schichten zu **einem
+ehrlichen Verdikt** (`print_ready` / `needs_attention` / `not_printable` /
+`no_geometry` / `unavailable` — Kernel fehlt oder Geometrie fehlt ist ein
+explizites Nicht-Urteil, nie ein stiller Pass). Die Brücken-Verfeinerung
+**komponiert exakt**: bridgebare Decken-Fläche wird von der Überhang-Fläche
+abgezogen (gleiche Tessellation → exakt 0,0 für die voll-bridgebare Tasche).
+Oberflächen: CLI **`--mode print`** (Exit-Semantik spiegelt `--mode assess`:
+`no_geometry` ≙ `no_physics_indicated`), Web-UI Tab **„Druckbarkeit"**
+(`GET /api/printability`; ∞-Spann wird als `null`+Blocker-Text serialisiert,
+JSON kennt kein Infinity), und der **STL-Export ist jetzt gegated**: `--format
+stl` emittiert das Kernel-Mesh erst NACH bestandenem `stl_integrity_check` —
+ein kaputtes Mesh wird mit den Defekten verweigert statt ausgeliefert.
+
 **Quellen:** Hydra Research FFF Design Rules; Xometry; FacFox (>55 % Z-Verlust);
 Forge Labs; Ahn et al. 2002 (FDM-Anisotropie); Botsch et al., *Polygon Mesh
 Processing* (Euler–Poincaré, Mesh-Volumen); Elephant-Foot-/Warping-Guides — alle in
 `docs/research/PRINT_DESIGN_FAILURES.md`. Module: `printability.py`,
-`mesh_integrity.py`, `orientation.py`; Tests: `test_printability.py`,
-`test_mesh_integrity.py`, `test_orientation.py`, `test_physics_selection.py`.
+`mesh_integrity.py`, `orientation.py`, `pipeline.py`, `cli.py`, `web/`; Tests:
+`test_printability.py`, `test_mesh_integrity.py`, `test_orientation.py`,
+`test_physics_selection.py`, `test_printability_pipeline.py`, `test_webapp.py`.
 
 ---
 

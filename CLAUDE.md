@@ -45,7 +45,7 @@ tests/                    Tests, inkl. Gate-Akzeptanztests
 
 ## Aktueller Fokus
 **Phase α + β + γ abgeschlossen + δ voll ausgebaut + Quality-Engine verdrahtet**
-(829 Tests offline mit vollen Deps / 791+11 skipped ohne; α/β live bewiesen).
+(837 Tests offline mit vollen Deps / 794+16 skipped ohne; α/β live bewiesen).
 γ: Idee → vollständige Spezifikation hinter GATE γ (Wächter C-1..C-18 inkl.
 Cross-Claim-Konsistenz und GUM-Unsicherheit), 2 CAD-Exporte (OpenSCAD + build123d)
 + druckfertiges STL (OCCT-Kernel, Volumen-bewiesen).
@@ -57,6 +57,8 @@ Quer-Schicht-Last) hinter GATE δ-Physik mit Auto-Select aus measurand-getaggten
 Quantities; jede Achse gegen geschlossene Formen/Research-Anker verifiziert.
 Druckbarkeit geometrisch: bridge_spans + first_layer_report (orientation.py),
 STL-Slicebarkeits-Beweis (mesh_integrity.py, Euler–Poincaré + Divergenzsatz);
+verdrahtet: pipeline.assess_printability → CLI `--mode print` + Web-UI-Tab
+„Druckbarkeit", STL-Export mesh-integritäts-gegated;
 Research-Write-up: docs/research/PRINT_DESIGN_FAILURES.md.
 Quality-Engine: Eval-Harness (Leaks=0), Verify→Refine-Loop, proaktive Klärung,
 Telemetrie, HITL-Ratifikation, Kalibrierung, Geometrie-/Constraint-/Grounding-

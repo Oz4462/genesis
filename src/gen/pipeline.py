@@ -134,3 +134,123 @@ def assess_specification(
         corroboration=corroboration,
         overall=overall,
     )
+
+
+@dataclass(frozen=True)
+class PrintabilityAssessment:
+    """The honest geometric/mesh printability verdict over a Specification.
+
+    `status` is one of:
+      • "print_ready"      — mesh proven sliceable, plate contact, nothing unsupported.
+      • "needs_attention"  — printable, but with advisories (elephant-foot risk, …).
+      • "not_printable"    — at least one hard blocker (broken mesh, no plate
+                             contact, an unsupported/unbridgeable ceiling).
+      • "no_geometry"      — no component carries geometry; nothing was judged.
+      • "unavailable"      — the CAD kernel (cadquery/OCP) is absent; nothing was
+                             judged — surfaced, never a silent pass.
+    """
+
+    status: str
+    components: list[dict]
+    mesh: dict | None
+    blockers: list[str]
+    advisories: list[str]
+
+    @property
+    def ok(self) -> bool:
+        """True only when the geometry was actually judged and nothing blocks a
+        print (advisories allowed) — "unavailable"/"no_geometry" are NOT ok."""
+        return self.status in ("print_ready", "needs_attention")
+
+
+def assess_printability(spec: Specification) -> PrintabilityAssessment:
+    """Compose the printability layers into one honest verdict (the geometric
+    counterpart of ``assess_specification``; research write-up:
+    docs/research/PRINT_DESIGN_FAILURES.md, PHASE_DELTA §52).
+
+    Per geometry-carrying component it runs the 45°-overhang rule, the bridge
+    refinement (an anchored flat ceiling ≤ 10 mm prints support-free — its area is
+    SUBTRACTED from the overhang area, both measured on the SAME tessellation, so
+    a fully-bridgeable ceiling composes to "no support needed"), and the
+    first-layer report (plate contact, elephant foot). The exported kernel STL is
+    then proven sliceable by ``stl_integrity_check``. cadquery/OCP absent or no
+    geometry present yields an explicit non-ok status, never a silent pass.
+    Deterministic; offline; no model calls."""
+    from .core.errors import GeometryError
+    from .core.state import Quantity
+
+    parts = [c for c in spec.components if c.geometry is not None]
+    if not parts:
+        return PrintabilityAssessment(
+            status="no_geometry", components=[], mesh=None, blockers=[], advisories=[],
+        )
+
+    from .mesh_integrity import stl_integrity_check
+    from .orientation import bridge_spans, first_layer_report, overhang_check
+
+    quantities: dict[str, Quantity] = {q.id: q for q in spec.quantities}
+    components: list[dict] = []
+    blockers: list[str] = []
+    advisories: list[str] = []
+    try:
+        for comp in parts:
+            overhang = overhang_check(comp.geometry, quantities)
+            bridges = bridge_spans(comp.geometry, quantities)
+            first_layer = first_layer_report(comp.geometry, quantities)
+
+            bridged_area = sum(
+                r["area"] for r in bridges["regions"] if not r["needs_support"]
+            )
+            unsupported_area = max(0.0, overhang["overhang_area"] - bridged_area)
+            components.append({
+                "component": comp.id,
+                "overhang": overhang,
+                "bridges": bridges,
+                "first_layer": first_layer,
+                "unsupported_overhang_area": unsupported_area,
+            })
+
+            if not first_layer["plate_contact"]:
+                blockers.append(
+                    f"{comp.id}: no flat build-plate contact — the part cannot adhere"
+                )
+            if bridges["needs_support"]:
+                blockers.append(
+                    f"{comp.id}: flat ceiling not bridgeable "
+                    f"(worst span {bridges['worst_span']:.1f} mm > limit, or no "
+                    "opposite anchored pair) — needs support"
+                )
+            elif unsupported_area > 1e-9:
+                advisories.append(
+                    f"{comp.id}: {unsupported_area:.1f} mm² of overhang beyond the "
+                    "45° rule prints only with support material"
+                )
+            if first_layer["elephant_foot_risk"]:
+                advisories.append(
+                    f"{comp.id}: sharp base edge — elephant-foot bulge will undersize "
+                    f"features near the plate; add a "
+                    f"{first_layer['recommended_base_chamfer']} mm base chamfer "
+                    "(or slicer initial-layer compensation)"
+                )
+
+        from .export.brep_stl import specification_to_brep_stl
+
+        mesh = stl_integrity_check(specification_to_brep_stl(spec))
+    except GeometryError as exc:
+        return PrintabilityAssessment(
+            status="unavailable", components=components, mesh=None,
+            blockers=[], advisories=[f"not judged: {exc}"],
+        )
+    if not mesh["ok"]:
+        blockers.append("exported STL failed mesh integrity: " + "; ".join(mesh["issues"]))
+
+    if blockers:
+        status = "not_printable"
+    elif advisories:
+        status = "needs_attention"
+    else:
+        status = "print_ready"
+    return PrintabilityAssessment(
+        status=status, components=components, mesh=mesh,
+        blockers=blockers, advisories=advisories,
+    )

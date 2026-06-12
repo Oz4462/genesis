@@ -642,14 +642,24 @@ def render_spec(spec: Specification, fmt: str) -> str:
         return specification_to_build123d(spec)
     if fmt == "stl":
         # print-ready path first: evaluate the CSG (booleans included) on the OCCT
-        # kernel and tessellate — a directly sliceable mesh. Falls back to the
-        # primitive-only mesher when cadquery is absent, whose honest boolean
+        # kernel and tessellate — a directly sliceable mesh, PROVEN sliceable by the
+        # mesh-integrity gate (watertight, consistent winding, outward volume) before
+        # it is emitted: a broken kernel mesh is refused, never shipped. Falls back to
+        # the primitive-only mesher only when cadquery is absent, whose honest boolean
         # refusal then still applies.
+        stl = None
         try:
             from .export.brep_stl import specification_to_brep_stl
-            return specification_to_brep_stl(spec)
+            stl = specification_to_brep_stl(spec)
         except GenesisError:
             pass
+        if stl is not None:
+            from .mesh_integrity import stl_integrity_check
+            verdict = stl_integrity_check(stl)
+            if verdict["ok"]:
+                return stl
+            return ("# STL export refused: the kernel mesh failed integrity: "
+                    + "; ".join(verdict["issues"]))
         try:
             return specification_to_stl(spec)
         except GenesisError as exc:
@@ -701,13 +711,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("question", nargs="?", help="the research question / problem / idea")
     parser.add_argument("--demo", action="store_true", help="run the offline deterministic demo")
     parser.add_argument(
-        "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol", "assess"),
+        "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol",
+                           "assess", "print"),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
              "spec = Phase γ build specification; capstone = a complete, fully "
              "detailed γ-depth spec through all gates (demo-only); assess = the wired "
              "quality engine's honest verdict (clarification + δ-physics + constraints + "
-             "grounding) over the demo specs (default: report)",
+             "grounding) over the demo specs; print = the printability verdict "
+             "(overhang/bridges/first layer + STL mesh integrity) over the demo specs "
+             "(default: report)",
     )
     parser.add_argument(
         "--format", choices=("text", "md", "scad", "b123d", "stl"), default="text",
@@ -809,6 +822,39 @@ def main(argv: list[str] | None = None) -> int:
             if a.overall != "physics_verified" and a.overall != "no_physics_indicated":
                 all_verified = False
         return 0 if all_verified else 3
+
+    if args.mode == "print":
+        # The printability verdict (PHASE_DELTA §52): overhang + bridge refinement +
+        # first layer over the BREP, plus the STL mesh-integrity proof. Deterministic,
+        # offline. Exit semantics mirror --mode assess: "no_geometry" is the honest
+        # complete answer for a geometry-less spec (like "no_physics_indicated");
+        # "unavailable" (no cadquery) and "not_printable" exit non-zero — an unjudged
+        # or blocked design is never reported print-ready.
+        from .demo import capstone_spec, drive_shaft_spec
+        from .pipeline import assess_printability
+
+        all_ok = True
+        for spec in (capstone_spec(), drive_shaft_spec()):
+            p = assess_printability(spec)
+            print(f"=== printability: {spec.run_id} ===")
+            print(f"  status: {p.status}")
+            if p.mesh is not None:
+                print(f"  mesh:   watertight={p.mesh['watertight']} "
+                      f"genus={p.mesh['genus']} facets={p.mesh['n_facets']} "
+                      f"volume={p.mesh['volume']:.1f} mm³")
+            for c in p.components:
+                fl = c["first_layer"]
+                print(f"  {c['component']}: plate_contact={fl['plate_contact']} "
+                      f"footprint={fl['footprint'][0]:.0f}x{fl['footprint'][1]:.0f} mm "
+                      f"height={fl['height']:.0f} mm "
+                      f"unsupported_overhang={c['unsupported_overhang_area']:.1f} mm²")
+            for b in p.blockers:
+                print(f"  BLOCKER:  {b}")
+            for adv in p.advisories:
+                print(f"  advisory: {adv}")
+            print("")
+            all_ok = all_ok and (p.ok or p.status == "no_geometry")
+        return 0 if all_ok else 3
 
     if args.demo:
         if args.mode == "report":

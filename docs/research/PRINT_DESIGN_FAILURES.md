@@ -240,6 +240,19 @@ Geometrisch (über das BREP, cadquery-optional): `overhang_check` (bestehend),
 `bridge_spans`, `first_layer_report`. Mesh-seitig: `stl_integrity_check` auf dem
 exportierten STL. Alle deterministisch, offline, ohne LLM.
 
+**Lauf-Pfad-Verdrahtung** (alles oben läuft automatisch, nicht nur als Bibliothek):
+
+- `pipeline.assess_printability(spec)` — ein ehrliches Gesamt-Verdikt
+  (`print_ready`/`needs_attention`/`not_printable`/`no_geometry`/`unavailable`);
+  Brücken-Fläche wird exakt von der Überhang-Fläche abgezogen (gleiche
+  Tessellation), Kernel-fehlt/Geometrie-fehlt sind explizite Nicht-Urteile.
+- CLI `python -m gen --mode print` — das Verdikt über die Demo-Specs.
+- CLI `--format stl` — der Export ist **gegated**: das Kernel-Mesh wird erst nach
+  bestandenem `stl_integrity_check` emittiert, sonst mit Defektliste verweigert.
+- Web-UI Tab **„Druckbarkeit"** (`GET /api/printability`) — Mesh-Beweis,
+  Bett-Kontakt, unsupported Überhang, Brückenspann, Elephant-Foot mit
+  Fasen-Empfehlung; Blocker rot, Hinweise amber.
+
 ## Quellen (Research 2026-06-12)
 
 - Hydra Research — Design Rules & Best Practices for FFF 3D Printing

@@ -7,7 +7,7 @@
 > Open-Source-Infrastruktur, damit Menschen — privat wie Unternehmen — aus einer kleinen Idee etwas Vollständiges erschaffen können: mit Quellen statt Behauptungen, mit nachgerechneter Physik statt geratener Zahlen, und mit ehrlichen Lücken statt erfundener Antworten.
 
 ```
-829 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
+837 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
 ```
 
 ---
@@ -126,7 +126,7 @@ Eine deterministische, LLM-freie Engineering-Validierungs-Engine (`docs/phases/P
 | Prägung zu fein (FDM) | `emboss_detail` | 0,9 mm Emboss / 0,5 mm Engrave |
 | Quer-Schicht-Last (FDM) | `layer_adhesion` | > 55 % Z-Festigkeitsverlust → 0,45 × Nennwert |
 
-**Druckbarkeit — die Fehler, die erst auf dem Druckbett sichtbar werden** (Research-Write-up: `docs/research/PRINT_DESIGN_FAILURES.md`): zusätzlich zu den 7 Quantity-Validatoren prüft `orientation.bridge_spans` Brücken geometrisch über das echte BREP (verankert-vs-frei klassifizierte Deckenränder; Taschendecke brückt über die kurze Seite, Cantilever bleibt unbridgebar), `orientation.first_layer_report` fängt Erste-Lage-Versagen (keine Bett-Kontaktfläche, Elephant-Foot-Risiko + 0,3-mm-Fasen-Empfehlung; Warping bekommt Evidenz statt erfundenem Schwellwert), und `mesh_integrity.stl_integrity_check` beweist die Slicebarkeit des exportierten STL exakt (wasserdicht + konsistent gewickelt über gerichtete Kanten, Euler–Poincaré χ = 2−2g — der Capstone-Halter kommt als Genus 1 heraus, das Loch topologisch bewiesen —, Divergenzsatz-Volumen > 0 gegen inside-out-Meshes).
+**Druckbarkeit — die Fehler, die erst auf dem Druckbett sichtbar werden** (Research-Write-up: `docs/research/PRINT_DESIGN_FAILURES.md`): zusätzlich zu den 7 Quantity-Validatoren prüft `orientation.bridge_spans` Brücken geometrisch über das echte BREP (verankert-vs-frei klassifizierte Deckenränder; Taschendecke brückt über die kurze Seite, Cantilever bleibt unbridgebar), `orientation.first_layer_report` fängt Erste-Lage-Versagen (keine Bett-Kontaktfläche, Elephant-Foot-Risiko + 0,3-mm-Fasen-Empfehlung; Warping bekommt Evidenz statt erfundenem Schwellwert), und `mesh_integrity.stl_integrity_check` beweist die Slicebarkeit des exportierten STL exakt (wasserdicht + konsistent gewickelt über gerichtete Kanten, Euler–Poincaré χ = 2−2g — der Capstone-Halter kommt als Genus 1 heraus, das Loch topologisch bewiesen —, Divergenzsatz-Volumen > 0 gegen inside-out-Meshes). Alles in den Lauf-Pfad verdrahtet: `pipeline.assess_printability` liefert ein ehrliches Gesamt-Verdikt (Kernel fehlt / keine Geometrie = explizites Nicht-Urteil, nie ein stiller Pass), erreichbar als CLI `--mode print` und als Web-UI-Tab „Druckbarkeit"; der STL-Export emittiert das Mesh erst nach bestandenem Integritäts-Beweis.
 
 **Dahinter rechnet echte FEM** (reines numpy, optional gmsh/cadquery): 3-D-Kontinuum mit linearen **und quadratischen** Tetraedern (T10 trifft die Biegefrequenz auf 0,2 %), berechnete Loch-Spannungskonzentration (trifft Howlands Kt≈3,14), Thermik stationär **und transient**, Modalanalyse (exakt 6 Starrkörpermoden), Monte-Carlo-Unsicherheit (JCGM 101), SPICE-artige Schaltungsanalyse (DC/AC/nichtlinear/transient), exakte BREP-Geometrie (OpenCASCADE) und orientierungsabhängiges FDM-DFM.
 
@@ -166,7 +166,7 @@ pip install -e .[full]      # alles inkl. Dev-Tools (pytest, ruff, httpx)
 Ohne die optionalen Pakete bleibt alles funktionsfähig — die betreffenden Features/Tests **skippen ehrlich**, statt zu raten.
 
 ```bash
-python -m pytest tests/ -q          # 829 passed (volle Deps) — ohne LLM-Token, ohne Netz
+python -m pytest tests/ -q          # 837 passed (volle Deps) — ohne LLM-Token, ohne Netz
 ```
 
 ## 8 · Nutzung: CLI
@@ -180,8 +180,10 @@ genesis --demo                        # α-Demo: verifizierter Fakten-Report
 genesis --demo --mode spec            # γ-Demo: Bauanleitung + Quality-Verdikt-Footer
 genesis --demo --mode spec --format scad    # Geometrie als OpenSCAD-Quelltext
 genesis --demo --mode spec --format b123d   # … als build123d-Python
-genesis --demo --mode spec --format stl     # … als druckfertiges STL (Booleans via OCCT-Kernel)
+genesis --demo --mode spec --format stl     # … als druckfertiges STL (Booleans via OCCT-Kernel,
+                                            #    emittiert erst nach bestandenem Mesh-Integritäts-Beweis)
 genesis --mode assess                 # das ehrliche Quality-Verdikt über die Demo-Specs
+genesis --mode print                  # das Druckbarkeits-Verdikt (Mesh + Brücken + erste Lage)
 genesis --mode eval                   # die Anti-Halluzinations-Garantie als Metrik (Leaks = 0)
 genesis --mode protocol               # Bio-Domäne: reproduzierbares Pflanzen-Protokoll
 genesis-web                           # lokale Web-UI auf http://127.0.0.1:8077
@@ -281,7 +283,7 @@ Der Scorer (`gen/goldset.py`) berechnet Fakten-Genauigkeit, **Abstention-Recall*
 - **Zwei unabhängige Methoden:** FEM gegen geschlossene Form, BREP gegen analytisches Volumen, MNA gegen Ohm — Übereinstimmung als Schutz gegen Fehler in einer von beiden.
 - **Tests mit Zähnen:** Jeder Wächter hat Negativtests (der manipulierte Fall **muss** scheitern). Das Eval-Harness aggregiert das zu Leaks = 0.
 - **Real-World-Verifikation:** Die Web-UI wurde nicht nur unit-getestet, sondern im echten Browser bedient (Playwright): Klärungs-Dialog Gelb→Grün, Sign-off-Verweigerung, Live-Ablehnungskarte.
-- **829 Tests** (volle Abhängigkeiten) / 791 + 11 skipped (Minimal-Umgebung) — alle ohne LLM-Token und ohne Netz; zusätzlich grün mit Deprecation-Warnings als Fehlern. Lint-Baseline: `ruff check src tests` = sauber.
+- **837 Tests** (volle Abhängigkeiten) / 794 + 16 skipped (Minimal-Umgebung) — alle ohne LLM-Token und ohne Netz; zusätzlich grün mit Deprecation-Warnings als Fehlern. Lint-Baseline: `ruff check src tests` = sauber.
 
 ## 14 · Projektstruktur
 
@@ -317,13 +319,13 @@ goldset/v1.json        das kuratierte Mess-Set für die Live-Läufe
 sql/001_ledger.sql     Quellenzwang als DB-Constraint
 docs/                  VISION, ARCHITECTURE, DATA_MODEL, PIPELINE, phases/ (α–δ inkl.
                        PHASE_DELTA.md §1–§52), research/, agents/
-tests/                 829 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-Engine,
+tests/                 837 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-Engine,
                        Web-API & 4 Frageklassen
 ```
 
 ## 15 · Status & ehrliche Grenzen
 
-**Fertig und bewiesen (offline):** die komplette α/β/γ/δ-Kette mit allen Gates, die Physik-Engine (20 Validatoren + FEM), die Druckbarkeits-Schicht, die Quality-Engine, CLI, Web-UI, Packaging, Gold-Set-Vertrag — 829 Tests, deterministisch, reproduzierbar.
+**Fertig und bewiesen (offline):** die komplette α/β/γ/δ-Kette mit allen Gates, die Physik-Engine (20 Validatoren + FEM), die Druckbarkeits-Schicht (bis in CLI, Web-UI und den gegateten STL-Export verdrahtet), die Quality-Engine, CLI, Web-UI, Packaging, Gold-Set-Vertrag — 837 Tests, deterministisch, reproduzierbar.
 
 **Live bewiesen:** α (Fakten-Report) und β gegen echte lokale Modelle, inklusive empirischer Bestätigung, dass der Wortlaut-Wächter echte Modell-Paraphrasen abfängt.
 

@@ -73,6 +73,33 @@ def test_assess_shows_verified_shaft_and_unchecked_bracket(client):
     assert all(f is not None and f > 1.0 for f in factors)  # computed margins served
 
 
+def test_printability_endpoint_is_honest_in_both_worlds(client):
+    # with the CAD kernel: the bracket is judged (mesh proven, advisories served);
+    # without it: an explicit "unavailable" — never a silent pass. The geometry-less
+    # shaft is "no_geometry" either way.
+    r = client.get("/api/printability").json()
+    by_id = {s["run_id"]: s for s in r["specs"]}
+    shaft = by_id["drive_shaft"]
+    assert shaft["status"] == "no_geometry" and shaft["mesh"] is None
+
+    cap = by_id["capstone"]
+    try:
+        import cadquery  # noqa: F401
+        has_kernel = True
+    except ImportError:
+        has_kernel = False
+    if has_kernel:
+        assert cap["status"] == "needs_attention" and cap["ok"]
+        assert cap["mesh"]["watertight"] and cap["mesh"]["genus"] == 1
+        (comp,) = cap["components"]
+        assert comp["plate_contact"] and comp["unsupported_overhang_area"] == 0.0
+        assert any("elephant-foot" in a for a in cap["advisories"])
+        assert cap["blockers"] == []
+    else:
+        assert cap["status"] == "unavailable" and cap["mesh"] is None
+        assert any("not judged" in a for a in cap["advisories"])
+
+
 def test_eval_endpoint_reports_zero_leaks(client):
     r = client.get("/api/eval").json()
     assert r["leaks"] == [] and r["leak_rate"] == 0.0

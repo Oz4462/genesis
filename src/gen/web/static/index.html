@@ -107,6 +107,7 @@
     <button data-v="spec">γ · Bauanleitung</button>
     <button data-v="capstone">Capstone</button>
     <button data-v="assess">Physik-Verdikt</button>
+    <button data-v="print">Druckbarkeit</button>
     <button data-v="clarify">Klärungs-Dialog</button>
     <button data-v="eval">Garantie-Metrik</button>
     <button data-v="signoff">Sign-off</button>
@@ -145,6 +146,9 @@
 
   <div class="view" id="v-assess"><div id="assessBox"><button class="btn" onclick="loadAssess()">Physik-Verdikt berechnen</button>
     <p class="hint" style="margin-top:10px">Die verdrahtete Quality-Engine: Auto-Auswahl der zutreffenden Physik-Checks, Sicherheitsfaktoren, Klärungsbedarf — ein ehrliches Gesamt-Verdikt.</p></div></div>
+
+  <div class="view" id="v-print"><div id="printBox"><button class="btn" onclick="loadPrint()">Druckbarkeit prüfen</button>
+    <p class="hint" style="margin-top:10px">Die Designfehler, die erst auf dem Druckbett sichtbar werden: Mesh-Integrität (wasserdicht, Topologie, Orientierung), Brücken/Überhänge, erste Lage (Haftung, Elephant-Foot). Ohne CAD-Kernel oder ohne Geometrie sagt GENESIS das ehrlich — nie ein stiller Pass.</p></div></div>
 
   <div class="view" id="v-clarify"><div id="clarifyBox"><button class="btn" onclick="loadClarify()">Dialog starten (unterspezifizierte Welle)</button>
     <p class="hint" style="margin-top:10px">GENESIS erkennt, was zur Bewertung fehlt, und fragt <b>dich</b> — deine Antworten werden als deklarierte Entscheidungen übernommen, dann wird neu geprüft.</p></div></div>
@@ -253,6 +257,34 @@ async function loadCapstone(){const box=$("#capBox");box.innerHTML=spin("Capston
 
 async function loadAssess(){const box=$("#assessBox");box.innerHTML=spin("Physik-Engine rechnet…");
  try{const r=await get("/api/assess");box.innerHTML=r.specs.map(s=>assessCard(s.assessment,s.label)).join("");}
+ catch(e){box.innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
+
+const pBadge=v=>({print_ready:["b-ok","druckfertig"],
+  needs_attention:["b-warn","druckbar — mit Hinweisen"],
+  not_printable:["b-bad","nicht druckbar"],
+  no_geometry:["b-dim","keine Geometrie deklariert — nichts geprüft"],
+  unavailable:["b-dim","CAD-Kernel fehlt — nicht beurteilt"]}[v]||["b-dim",v]);
+
+async function loadPrint(){const box=$("#printBox");box.innerHTML=spin("Druckbarkeits-Engine prüft (BREP + Mesh)…");
+ try{const r=await get("/api/printability");
+  box.innerHTML=r.specs.map(s=>{
+    const [cls,txt]=pBadge(s.status);
+    let h=`<div class="card"><h3>${esc(s.label)} <span class="badge ${cls}">${esc(txt)}</span></h3>`;
+    if(s.mesh){h+=`<div class="sect">STL-Mesh-Beweis (Slicebarkeit)</div>
+      <p class="small" style="margin:6px 0">wasserdicht: <span class="badge ${s.mesh.watertight?"b-ok":"b-bad"}">${s.mesh.watertight?"ja":"NEIN"}</span>
+      &nbsp;Wicklung konsistent: <span class="badge ${s.mesh.consistent_winding?"b-ok":"b-bad"}">${s.mesh.consistent_winding?"ja":"NEIN"}</span>
+      &nbsp;Topologie: <span class="badge b-info">Genus ${esc(s.mesh.genus??"?")}</span>
+      &nbsp;<span class="muted small">${esc(s.mesh.n_facets)} Facetten · ${Number(s.mesh.volume).toFixed(1)} mm³</span></p>`;
+      if(s.mesh.issues.length)h+=s.mesh.issues.map(i=>`<div class="gapbox"><b>Mesh-Defekt:</b> ${esc(i)}</div>`).join("");}
+    if(s.components.length){h+=`<div class="sect">Geometrie-Checks</div><table><tr><th>Bauteil</th><th>Bett-Kontakt</th><th>Überhang unsupported</th><th>Brücken</th><th>Elephant-Foot</th></tr>`+
+      s.components.map(c=>`<tr><td class="mono">${esc(c.component)}</td>
+        <td><span class="badge ${c.plate_contact?"b-ok":"b-bad"}">${c.plate_contact?`${Number(c.footprint[0]).toFixed(0)}×${Number(c.footprint[1]).toFixed(0)} mm`:"KEINER"}</span></td>
+        <td>${Number(c.unsupported_overhang_area).toFixed(1)} mm²</td>
+        <td>${c.worst_bridge_span!=null?Number(c.worst_bridge_span).toFixed(1)+" mm":"—"}</td>
+        <td>${c.elephant_foot_risk?`<span class="badge b-warn">Risiko · ${esc(c.recommended_base_chamfer)} mm Fase</span>`:`<span class="badge b-ok">ok</span>`}</td></tr>`).join("")+`</table>`;}
+    if(s.blockers.length)h+=`<div class="sect">Blocker</div>`+s.blockers.map(b=>`<div class="gapbox"><b>Blocker:</b> ${esc(b)}</div>`).join("");
+    if(s.advisories.length)h+=`<div class="sect">Hinweise</div>`+s.advisories.map(a=>`<div class="gapbox"><b>Hinweis:</b> ${esc(a)}</div>`).join("");
+    return h+`</div>`;}).join("");}
  catch(e){box.innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
 
 async function loadClarify(){const box=$("#clarifyBox");box.innerHTML=spin("Spezifikation wird geprüft…");
