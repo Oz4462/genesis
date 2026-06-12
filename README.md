@@ -2,131 +2,342 @@
 
 *Generative Engine for Networked Ideation, Synthesis & Specification*
 
-Ein Mensch liefert ein Problem oder eine Idee. GENESIS recherchiert, **verifiziert**, synthetisiert, detailliert und simuliert — und liefert eine umsetzbare Spezifikation. Domänenübergreifend. **Ohne Halluzination.**
+**Ein Mensch liefert eine Idee. GENESIS recherchiert, verifiziert, berechnet und liefert eine umsetzbare, belegte Spezifikation — ohne Halluzination.**
 
-> Open-Source-Infrastruktur, damit Menschen — privat wie Unternehmen — aus einer kleinen Idee etwas Vollständiges erschaffen können.
-
-## Status
-
-**Phase α + β + γ abgeschlossen und beweisbar korrekt; δ als vollständige deterministische Engineering-Validierungs-Engine ausgebaut; Quality-Engine (Eval, Refine-Loop, Klärung, Ratifikation, Kalibrierung, Telemetrie) verdrahtet — α/β auch live gegen echte Modelle bewiesen.**
-
-Die vollständige α-Pipeline (Anti-Halluzination), der β-Lösungsraum und die γ-Spezifikation sind gebaut und getestet: Fakten-Ledger (Quellenzwang), Tool-Adapter (ehrliches Fetch), die Agenten (`scout`, `scholar`, `skeptic`, `conductor`, `synthesizer`, `architect`), Cross-Model-Verifikation, die Gates α, β und γ und die End-to-End-Verdrahtung mit CLI (`--mode report|solution|spec`).
-
-**Phase δ (voll ausgebaut, `docs/phases/PHASE_DELTA.md` §1–§50):** eine deterministische, LLM-freie Physik-Validierungs-Engine — 3-D-FEM (lineare + quadratische Tets), Thermik (stationär + transient), Modalanalyse, Knicken, Ermüdung (inkl. Kerbe), Bruchmechanik, Torsion, Hertz-Kontakt, Druckbehälter, Kriechen, Plattenbiegung, Schraubenvorspannung, Thermospannung — **13 Validatoren** hinter einem ehrlichen **δ-Physik-Gate** (drei harte Fehlermodi, nie ein stiller Pass), mit **Auto-Select** aus measurand-getaggten Spec-Größen (einheiten-ehrlich, Lücken statt Drops). Jeder Validator ist gegen geschlossene Formen verifiziert (exakt wo beweisbar, sonst ehrliche Konvergenz/Schranke).
-
-**Quality-Engine (verdrahtet, `--mode assess` + Footer im spec-Output):** Multi-Gate-Eval-Harness (Leaks = 0 als gemessene Metrik), geschlossener Verify→Refine-Loop (ehrliches stuck/exhaust, nie Fake-Erfolg), proaktive Klärung (EVPI-priorisierte Rückfragen), OTel-förmige Telemetrie, Human-in-the-Loop-Ratifikation (kein Auto-Approval), Confidence-Kalibrierung, Geometrie-Verifikation (gebauter BREP ≈ analytisch), Constraint-Widerspruchs-Detektor, Grounding-Integrität — komponiert zu **einem ehrlichen Gesamt-Verdikt** (`pipeline.assess_specification`), das eine Lücke nie als Pass maskiert.
-
-**Neu (Phase γ):** Eine Idee wird zu einer **vollständigen, umsetzbaren Bauanleitung** — Größen mit deklarierter Herkunft, parametrische 3D-Geometrie (CSG), Stückliste, Schritte mit Prüfkriterien, numerisch geprüfte Constraints, Entscheidungsblatt. Die fünf γ-Halluzinationsklassen sind strukturell verhindert (PHASE_GAMMA.md §0): kein Wert ohne wörtlichen Beleg im VERIFIED-Claim, keine LLM-Arithmetik (Code rechnet, GATE γ rechnet unabhängig nach), keine Referenz ins Nichts, keine versteckte Entscheidung, kein Schritt ohne Check — und lieber ehrliche Abstention als eine teilweise/gedriftete Anleitung. Zusätzlich prüft GATE γ die **dimensionale Homogenität** jeder Rechnung (Einheiten als abelsche Gruppe, `verification/units.py`) — der Mars-Climate-Orbiter-Wächter: kg + mm oder eine als Länge deklarierte Fläche werden abgefangen. **Cross-Claim-Konsistenz (C-17):** zwei Größen mit demselben deklarierten `measurand` müssen übereinstimmen (gleiche Dimension, gleicher Wert nach Einheiten-Umrechnung) — ein deterministischer Wächter gegen Widerspruch zwischen zwei akzeptierten, belegten Fakten (z. B. „12 V" vs „24 V" für dieselbe Größe), ohne Sprachverständnis und ohne False Positive (eine Einheiten-Differenz wie 12 V vs 0,012 kV ist kein Konflikt). **Unsicherheits-Propagation (C-18):** ein DERIVED-Wert darf eine kombinierte Standardunsicherheit tragen, und GATE γ rechnet sie nach dem GUM-Fortpflanzungsgesetz (JCGM 100) unabhängig nach — „Code rechnet, Gate rechnet nach", jetzt auf die Unsicherheit angewandt. Im Capstone propagiert die deklarierte Last-Unsicherheit (12 ± 0,6 kg) bis zur Spitzenspannung (σ_peak = 22,1 ± 1,1 MPa, U₉₅ = ±2,2), und selbst der Worst-Case bleibt < 50 MPa.
-
-**Phase δ (erste Schicht):** „validieren vor dem Bauen", aber nur was **deterministisch beweisbar** ist — keine erfundene Physik. GATE δ prüft die CSG-Geometrie über achsenparallele Bounding-Boxes: ein Loch, das das Teil verfehlt (`DEAD_OPERATION`), ein Schnitt nicht-berührender Teile (`EMPTY_INTERSECTION`), degenerierte Geometrie (`DEGENERATE_GEOMETRY`). Ehrliche Asymmetrie: ein **bestandenes** δ ist notwendig, nicht hinreichend (kein Festigkeits-/Herstellbarkeitsurteil); ein **gescheitertes** δ heißt „definitiv kaputt". Die Demo zeigt die Hüllbox + Status.
-
-**Phase δ (zweite Schicht — deterministische Statik, ohne neuen Gate-Code):** Der Capstone beantwortet die erste echte Physik-Frage — *„hält der Halter die belegte Last?"* — komplett in der bestehenden γ-Maschinerie, mit **vier** belegten Checks: (1) Bemessungslast `F=(m·SF)·g` mit der schon deklarierten Sicherheit, (2) Kragträger-Biegespannung `σ_nom=6·F·L/(b·h²)`, (3) Kerb-Spitzenspannung `σ_peak=Kt·σ_nom` mit **Kt=3** (Kirsch-Lösung für die Kreisbohrung), (4) Schraubenschub `F/n ≤ αv·f_ub·A_s` (EN 1993-1-8). `g`, `Kt`, Festigkeit und Schraubendaten sind **GROUNDED** (Zahl wörtlich aus einem Claim), alles andere **DERIVED** (Code rechnet, GATE γ rechnet nach C-6, dimensional als Druck/Kraft verifiziert C-15), die Urteile sind numerische Constraints (C-13). **Der Check hat Zähne:** unter Bemessungslast + Kt=3 ergab der ursprüngliche 6-mm-Halter `σ_peak≈88 MPa > 50 MPa` (FAIL) → ehrliche Umkonstruktion auf 12 mm (`σ_peak≈22 MPa`, 56 % Reserve; Schraubenschub 36×). Die verbleibenden Residuen sind **präzise** als Gaps benannt und je an eine Entscheidung oder eine externe Größe gebunden — Wand-Auszug (substratabhängig), exaktes FEM-Feld (vs. konservativem Kt=3), Ermüdung/Dynamik (durch die statische Last-Entscheidung außerhalb), Druckprozess-Streuung (`docs/phases/PHASE_DELTA.md §9`).
-
-**γ-Tiefe (Spezifikation bis zum letzten Detail):** claim-belegtes **Sourcing** (kein erfundener Shop/Preis), **Fastener→Loch** (ISO-273-Claim + Fit), **Komponenten-Kompatibilität** (Maß/Spannung/Strom-Constraints), getrennte **Elektronik-BOM** (V/A/W/Ω/Ah), **Montage-Detail** (Werkzeug/Drehmoment) + **Ort/Umgebung** (Platz-Fit in δ). Der **Capstone** (`python -m gen --mode capstone`) produziert eine komplette Spec (Mechanik + Elektronik + Beschaffung + Montage + Ort) durch **alle** Gates α/β/γ/δ — jeder faktische Wert belegt, kein erfundener Preis/Bauteil/Wert.
+> Open-Source-Infrastruktur, damit Menschen — privat wie Unternehmen — aus einer kleinen Idee etwas Vollständiges erschaffen können: mit Quellen statt Behauptungen, mit nachgerechneter Physik statt geratener Zahlen, und mit ehrlichen Lücken statt erfundener Antworten.
 
 ```
-$ python -m pytest tests/ -q
-794 passed
+794 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
 ```
 
-Alle Tests laufen **ohne einen einzigen LLM-Token und ohne Netzwerk**. Das heißt: Die Garantie „kein Fakt ohne Quelle, keine widerlegte Aussage als Tatsache, Lücken werden als Lücken markiert, im Zweifel Abstention" ist **bewiesen** — und von einem unabhängigen, adversarialen Audit bestätigt (Details: `docs/phases/PHASE_ALPHA_RESULT.md`).
+---
+
+## Inhalt
+
+1. [Das Problem & die Antwort](#1--das-problem--die-antwort)
+2. [Die Garantie](#2--die-garantie)
+3. [Architektur: die Phasen α → β → γ → δ](#3--architektur-die-phasen-α--β--γ--δ)
+4. [Die Gates](#4--die-gates)
+5. [Die Physik-Engine (Phase δ)](#5--die-physik-engine-phase-δ)
+6. [Die Quality-Engine](#6--die-quality-engine)
+7. [Installation](#7--installation)
+8. [Nutzung: CLI](#8--nutzung-cli)
+9. [Nutzung: Web-UI](#9--nutzung-web-ui)
+10. [Nutzung: Python-API](#10--nutzung-python-api)
+11. [Live-Modus (lokale LLMs)](#11--live-modus-lokale-llms)
+12. [Messung & Gold-Set](#12--messung--gold-set)
+13. [Verifikations-Philosophie](#13--verifikations-philosophie)
+14. [Projektstruktur](#14--projektstruktur)
+15. [Status & ehrliche Grenzen](#15--status--ehrliche-grenzen)
+16. [Dokumentation](#16--dokumentation)
+
+---
+
+## 1 · Das Problem & die Antwort
+
+Sprachmodelle erfinden. Sie liefern überzeugende Preise, die kein Shop führt, Normen, die nicht existieren, und Festigkeitswerte, die niemand gemessen hat. Für Recherche ist das ärgerlich — für eine **Bauanleitung**, die jemand wirklich umsetzt, ist es gefährlich.
+
+GENESIS dreht das Verhältnis um: **das Modell darf nur Struktur vorschlagen — niemals Fakten erschaffen.** Jeder faktische Wert muss wörtlich in einer verifizierten, unabhängig korroborierten Quelle stehen. Jede Rechnung führt Code aus, und ein unabhängiges Gate rechnet sie nach. Jede Designentscheidung ist als Entscheidung deklariert und vom Menschen ratifizierbar. Und wo nichts belegbar ist, sagt GENESIS das — **„Ich weiß es nicht" ist ein gültiger, erwünschter Output.**
+
+Das ist keine Prompt-Bitte, sondern Struktur: ein `Claim` ohne Quelle kann im Datenmodell **nicht existieren** (erzwungen im Konstruktor, im Ledger und als Datenbank-Trigger — drei Schichten).
+
+## 2 · Die Garantie
+
+| Prinzip | Bedeutung | Durchsetzung |
+|---|---|---|
+| **Kein Fakt ohne Quelle** | Jede Behauptung lebt im Fakten-Ledger mit Quelle, Konfidenz, Status | Konstruktor + Ledger + DB-Trigger |
+| **Wertzwang im Wortlaut** | Eine Zahl in der Spezifikation steht *wörtlich* in einem verifizierten Beleg | GATE γ C-4 |
+| **Code rechnet, Gate rechnet nach** | Das LLM macht nie Mathematik; abgeleitete Werte berechnet Code, das Gate rechnet sie unabhängig nach | GATE γ C-6 |
+| **Dimensionale Homogenität** | kg + mm oder eine als Länge deklarierte Fläche werden abgefangen (Einheiten als abelsche Gruppe) | GATE γ C-15 |
+| **Cross-Claim-Konsistenz** | Zwei Größen mit demselben deklarierten `measurand` dürfen sich nicht widersprechen | GATE γ C-17 |
+| **Unsicherheits-Propagation** | Messunsicherheiten propagieren nach GUM (JCGM 100) — und das Gate rechnet auch das nach | GATE γ C-18 |
+| **Keine versteckte Entscheidung** | Jede Wahl trägt eine Begründung und erscheint auf dem ratifizierbaren Entscheidungsblatt | Konstruktor + GATE γ |
+| **Cross-Model-Verifikation** | Der Verifizierer (skeptic) ist ein *anderes* Modell als der Generator; Selbst-Bestätigung zählt nicht | erzwungen vor jedem Call |
+| **Ehrliche Abstention** | Was nicht belegbar ist, wird Lücke — nie ein teilweiser oder gedrifteter Plan | alle Gates + Agenten |
+| **Determinismus** | Jeder Lauf hat eine `run_id`, ist gecheckpointet und exakt reproduzierbar | Runner + Config-Hash |
+
+## 3 · Architektur: die Phasen α → β → γ → δ
 
 ```
-$ pip install -e .                            # einmalig: Paket + `genesis`/`genesis-web`-Kommandos
-$ pip install -e .[web]                       # optional: lokale Web-UI (FastAPI/uvicorn)
-$ pip install -e .[full]                      # alles inkl. CAD-Kernel + Postgres + Dev-Tools
+Idee/Frage
+   │
+   ▼
+ α  RECHERCHE      scout → scholar → skeptic → conductor
+   │               Quellen finden → atomare Claims (Zitat wörtlich geprüft)
+   │               → cross-model verifizieren → Report (jeder Satz ↦ Claim)
+   ▼
+ β  LÖSUNGSRAUM    synthesizer: real existierende Ansätze, jeder in
+   │               verifizierten Claims verankert — nichts erfunden
+   ▼
+ γ  SPEZIFIKATION  architect: Größen (mit deklarierter Herkunft), parametrische
+   │               3D-Geometrie (CSG), Stückliste, Schritte mit Prüfkriterium,
+   │               numerisch geprüfte Constraints, Entscheidungsblatt
+   ▼
+ δ  VALIDIERUNG    deterministische, LLM-freie Physik- und Geometrie-Prüfung
+   │               (Engine: siehe unten) + Quality-Verdikt + Ratifikation
+   ▼
+ belegte, geprüfte, ratifizierbare Spezifikation  (+ CAD-Export: OpenSCAD,
+ build123d, STL — und ein vollständiges Markdown-Bauhandbuch)
 ```
 
+Jeder Agent erfüllt ein framework-freies Protocol (`core/interfaces.py`); Framework-Spezifisches lebt hinter Adaptern. Der Zustand ist typisiert (`core/state.py`), der Ledger erzwingt Provenance, Checkpoints machen Läufe reproduzierbar.
+
+## 4 · Die Gates
+
+Eine Phase endet erst, wenn ihr Gate besteht. Gates sind **reine, deterministische Funktionen** — kein Modell-Urteil:
+
+| Gate | Prüft | Beispiele harter Fehler |
+|---|---|---|
+| **α** | Report-Soundness | unbelegter Satz, widerlegter Claim als Fakt, tote Zitation |
+| **β** | Lösungsraum | unverankerter Ansatz |
+| **γ** (C-1…C-18) | Spezifikation | Wert nicht im Beleg-Wortlaut, gebrochene Ableitung, Dimensionsfehler, Cross-Claim-Widerspruch, falsche Unsicherheit |
+| **δ** | Geometrie | tote Bool-Operation, leerer Schnitt, degenerierte Geometrie (AABB — beweisbar, keine False Positives) |
+| **δ-Physik** | Engineering | `PHYSICS_CHECK_FAILED` (Marge nicht erfüllt), `PHYSICS_CHECK_ERROR` (unrechenbare Eingabe), `PHYSICS_UNKNOWN_VALIDATOR` — **nie ein stiller Pass** |
+| **ERC** | Elektrik | schwebende Netze, zwei Treiber auf einem Netz, ungetriebene Last |
+| **CODE** | Software | das Deliverable wird in einem isolierten Subprozess **ausgeführt**; rote Checks = FAIL |
+| **PROTOCOL** | Bio/Labor | Messung ohne Kontrollgruppe oder mit zu wenigen Replikaten |
+
+## 5 · Die Physik-Engine (Phase δ)
+
+Eine deterministische, LLM-freie Engineering-Validierungs-Engine (`docs/phases/PHASE_DELTA.md`, §1–§51). **Jeder Validator ist gegen geschlossene Formen verifiziert** — exakt, wo es beweisbar ist (Maschinengenauigkeit), sonst als ehrliche Konvergenz oder konservative Schranke mit deklarierter Grenze.
+
+**13 Validatoren hinter dem δ-Physik-Gate:**
+
+| Versagensmodus | Validator | Verifiziert gegen |
+|---|---|---|
+| Torsion (Welle) | `torsion` | τ=16T/πd³ ≡ T·r/J (Identität, exakt) |
+| Knicken (Stabilität) | `buckling` | Euler π²EI/(KL)², 4 Lagerungen < 0,1 % |
+| Ermüdung (zyklisch) | `fatigue` | Goodman/Soderberg/Gerber-Endpunkte, Basquin, Miner |
+| Kerb-Ermüdung | `notch_fatigue` | Peterson q=1/(1+a/r), K_f-Grenzfälle |
+| Bruchmechanik | `fracture` | Irwin K=Yσ√(πa), Paris-Integral vs. Numerik 3·10⁻¹¹ |
+| Hertz-Kontakt | `contact` | p₀=1,5·p_mean exakt, Grenzfall Kugel-auf-Ebene |
+| Druckbehälter | `pressure_vessel` | dünnwandig + Lamé (Randbedingungen exakt) |
+| Kriechen (heiß) | `creep` | Larson-Miller-Inverse exakt, Norton (σ₂/σ₁)ⁿ |
+| Übertemperatur | `overtemperature` | Fourier Q=kAΔT/L maschinengenau |
+| Thermospannung | `thermal_mismatch` | −EαΔT exakt, Timoshenko-Bimetall |
+| Resonanz | `resonance` | Eigenfrequenz-Abstand (Modalanalyse-gestützt) |
+| Plattenbiegung | `plate_bending` | Kirchhoff-Kreisplatte (Timoshenko/Roark) |
+| Schraubenvorspannung | `bolted_joint` | Shigley/VDI 2230, Separationslast exakt |
+
+**Dahinter rechnet echte FEM** (reines numpy, optional gmsh/cadquery): 3-D-Kontinuum mit linearen **und quadratischen** Tetraedern (T10 trifft die Biegefrequenz auf 0,2 %), berechnete Loch-Spannungskonzentration (trifft Howlands Kt≈3,14), Thermik stationär **und transient**, Modalanalyse (exakt 6 Starrkörpermoden), Monte-Carlo-Unsicherheit (JCGM 101), SPICE-artige Schaltungsanalyse (DC/AC/nichtlinear/transient), exakte BREP-Geometrie (OpenCASCADE) und orientierungsabhängiges FDM-DFM.
+
+**Auto-Select:** Die Spezifikation wählt ihre Checks selbst. Größen tragen deklarierte `measurand`-Tags (`shaft.torque`, `material.shear_strength`, …); ein Rezept-Katalog löst daraus die passenden Checks auf — **einheiten-korrekt konvertiert** (150 N·m → 150000 N·mm), und eine indizierte-aber-unrechenbare Prüfung wird **Lücke**, nie still verworfen und nie mit falscher Einheit gefüttert.
+
+## 6 · Die Quality-Engine
+
+Um die Gates herum sitzt eine verdrahtete Produktions-Schicht — komponiert zu **einem ehrlichen Gesamt-Verdikt** (`pipeline.assess_specification`), das eine Lücke nie als Pass maskiert:
+
+| Baustein | Was es tut |
+|---|---|
+| **Eval-Harness** (`evaluation.py`) | Die Garantie als gemessene Zahl: kuratierte solide + manipulierte Fälle über **beide** Gates; die nicht verhandelbare Metrik ist **Leaks = 0** |
+| **Verify→Refine-Loop** (`refinement.py`) | Gate-Fehler → gezielte Korrektur-Direktiven → begrenzte Re-Generierung (max. 5 Runden); meldet ehrlich `stuck`/`exhausted` — **nie Fake-Erfolg** |
+| **Proaktive Klärung** (`clarification.py`) | Erkennt Unterspezifikation und stellt die wertvollsten Rückfragen zuerst (EVPI-priorisiert); Antworten werden deklarierte Entscheidungen; fragt nie nach nicht vorhandener Physik |
+| **Ratifikation** (`ratification.py`) | Die KI schlägt vor, der Mensch entscheidet: jede Entscheidung, jede Lücke und jedes gescheiterte Gate blockiert „fertig", bis sie explizit abgezeichnet ist — **kein Auto-Approval** |
+| **Kalibrierung** (`calibration.py`) | Akzeptanz-Schwellen per Messung (Precision@Threshold), ECE, Konsistenz-Konfidenz — und ehrliches `None`, wenn die Daten die Schwelle nicht hergeben |
+| **Telemetrie** (`telemetry.py`) | OTel-förmiger Prozess-Trace (Gates, Verdikte, Runden, Zeiten) — auditierbar, deterministisch testbar |
+| **Geometrie-Verifikation** (`geometry_verification.py`) | Der gebaute CAD-Körper wird gegen die analytisch implizierte Geometrie kreuzgeprüft (Volumen + Maße exakt) |
+| **Constraint-Konsistenz** (`constraint_consistency.py`) | Findet strukturell widersprüchliche Anforderungen (a≥b ∧ a<b) **wertunabhängig**, ohne Solver |
+| **Grounding-Integrität** (`grounding_integrity.py`) | Verifikations-Quellen müssen von Original-Quellen **disjunkt** sein (keine zirkuläre Selbst-Bestätigung); jeder Report-Satz ↦ realer, nicht-widerlegter Claim |
+
+Das Gesamt-Verdikt unterscheidet ehrlich: `physics_verified` · `needs_clarification` · `physics_incomplete` (Lücke ≠ Pass) · `physics_failed` · `no_physics_indicated` (nichts geprüft ≠ Freifahrtschein) · `inconsistent_constraints`.
+
+## 7 · Installation
+
+Voraussetzung: **Python ≥ 3.11**. Alles läuft lokal; nichts verlässt deinen Rechner.
+
+```bash
+git clone <repo> && cd genesis
+pip install -e .            # Kern (numpy) + Kommandos `genesis` und `genesis-web`
+pip install -e .[web]       # + lokale Web-UI (FastAPI/uvicorn)
+pip install -e .[cad]       # + exakter CAD-Kernel (cadquery/OCP) und FEM-Mesher (gmsh)
+pip install -e .[postgres]  # + persistenter Fakten-Ledger (asyncpg; In-Memory ist Default)
+pip install -e .[full]      # alles inkl. Dev-Tools (pytest, ruff, httpx)
 ```
-$ python -m gen --demo                       # deterministischer α-Lauf, offline
-$ python -m gen --demo --mode spec           # deterministische γ-Bauanleitung, offline
-$ python -m gen --demo --mode spec --format scad  # CSG-Geometrie als OpenSCAD-Quelltext
-$ python -m gen --demo --mode spec --format b123d # CSG-Geometrie als build123d-Python
-$ python -m gen --demo --mode spec --format stl   # STL-Mesh (Primitive; Booleans -> scad/b123d)
-$ python -m gen --mode capstone                   # komplette Spec durch alle Gates (Demo)
-$ python -m gen --mode capstone --format md       # komplettes Markdown-Bauhandbuch
-$ python -m gen --mode eval                        # Anti-Halluzinations-Garantie als Metrik (0 Leaks)
-$ python -m gen --mode assess                      # ehrliches Quality-Verdikt (Klärung + δ-Physik + Constraints + Grounding)
-$ python -m gen.web                                # lokale Web-UI auf http://127.0.0.1:8077 (Laien-Oberfläche)
-$ python -m gen --mode protocol                    # Bio-Domäne: Pflanzen-Protokoll (γ + Reproduzierbarkeit)
-$ python -m gen "Frage..."                   # Live-α: lokale Ollama-Modelle + Wikipedia
-$ python -m gen --mode spec "Idee..."        # Live-γ: Idee -> belegte Spezifikation
+
+Ohne die optionalen Pakete bleibt alles funktionsfähig — die betreffenden Features/Tests **skippen ehrlich**, statt zu raten.
+
+```bash
+python -m pytest tests/ -q          # 794 passed (volle Deps) — ohne LLM-Token, ohne Netz
 ```
 
-**Live-Betrieb (neu):** Ein realer `OllamaLLM`-Adapter (Generator- und Verifier-Familie getrennt, vor jedem Aufruf erzwungen), ein keyloses `WikipediaBackend` als Discovery-Workhorse und der `PostgresLedgerStore` sind angebunden. Der Postgres-Ledger ist gegen eine echte PostgreSQL-Instanz verifiziert — alle drei Provenance-Schichten greifen, inklusive des DB-Triggers (`scripts/postgres_smoke.py`). Reale End-to-End-Läufe gegen lokale Ollama-Modelle (Generator ≠ Verifier-Familie) belegen beide Seiten der Garantie empirisch, ohne Cloud-Key (`scripts/live_smoke.py`):
+## 8 · Nutzung: CLI
 
-- **Abstention statt Halluzination:** Sind Quellen nicht abrufbar oder ein Zitat nicht wörtlich belegbar, abstrahiert das System (Gate bestanden, null Claims). In einem Lauf fing der Wörtlich-Zitat-Guard live eine echte Modell-Paraphrase ab — manuell gegengeprüft, korrekt verworfen.
-- **Autonomes VERIFIED:** Existiert echte, abrufbare Korroboration, erreicht GENESIS einen verifizierten Befund vollautomatisch — z. B. „Python is a programming language." mit `confidence 1.0`, gestützt durch zwei unabhängige Quellen, cross-model verifiziert, Gate bestanden.
+Alle folgenden Modi sind **deterministisch und offline** (kein Internet, kein LLM):
 
-Reales Testen mit kleinen lokalen Modellen deckte auch ehrliche Qualitätsgrenzen auf (Über-Fragmentierung, oberflächliches Verifier-Urteil) — root-cause-gefixt bzw. dokumentiert in `docs/BUILD_LOG.md` (LI-8). **Keine erfundene Tatsache gelangte je in einen Bericht.**
+```bash
+genesis --mode capstone               # komplette Spezifikation durch ALLE Gates (LED-Regalhalter)
+genesis --mode capstone --format md   #   … als vollständiges Markdown-Bauhandbuch
+genesis --demo                        # α-Demo: verifizierter Fakten-Report
+genesis --demo --mode spec            # γ-Demo: Bauanleitung + Quality-Verdikt-Footer
+genesis --demo --mode spec --format scad    # Geometrie als OpenSCAD-Quelltext
+genesis --demo --mode spec --format b123d   # … als build123d-Python
+genesis --demo --mode spec --format stl     # … als STL-Mesh
+genesis --mode assess                 # das ehrliche Quality-Verdikt über die Demo-Specs
+genesis --mode eval                   # die Anti-Halluzinations-Garantie als Metrik (Leaks = 0)
+genesis --mode protocol               # Bio-Domäne: reproduzierbares Pflanzen-Protokoll
+genesis-web                           # lokale Web-UI auf http://127.0.0.1:8077
+```
 
-## Warum diese Reihenfolge
+(Vor `pip install -e .` geht alles auch direkt aus dem Repo: `PYTHONPATH=src python -m gen …` bzw. `python -m gen.web`.)
 
-Wenn ein System halluziniert, ist jede weitere Fähigkeit (Ideenfindung, CAD, Simulation) wertlos — sie baut auf Erfundenem auf. Deshalb wird Anti-Halluzination **zuerst** und **isoliert** bewiesen. Erst dann kommen Ideation (Phase β), Spezifikation/CAD (γ), Simulation (δ), weitere Domänen (ε), Selbstlernen (ζ).
+Live-Modi (lokales Ollama nötig, siehe [§11](#11--live-modus-lokale-llms)):
 
-## Struktur
+```bash
+genesis "Wie funktioniert ein Wälzlager?"          # Live-α: Frage → belegter Report
+genesis --mode solution "Drehmoment begrenzen"     # Live-β: Problem → verankerter Lösungsraum
+genesis --mode spec "Wandhalter für 5-kg-Kamera"   # Live-γ: Idee → belegte Spezifikation
+```
+
+## 9 · Nutzung: Web-UI
+
+```bash
+genesis-web        # → http://127.0.0.1:8077  (bindet nur an localhost)
+```
+
+Die Oberfläche ist für **Laien** gebaut und macht die Ehrlichkeit sichtbar statt sie zu glätten:
+
+| Tab | Inhalt |
+|---|---|
+| **Übersicht** | Was GENESIS garantiert, Farb-Legende, Live-Status |
+| **α · Fakten-Report** | Jeder Satz klickbar → Beleg-Zitat + Quellen-Links |
+| **γ · Bauanleitung** | Größen mit Herkunfts-Badges (belegt · berechnet · Entscheidung), Stückliste, Schritte mit Prüfkriterium, Lücken prominent in Gelb |
+| **Capstone** | Die komplette Spezifikation mit allen Gate-Badges |
+| **Physik-Verdikt** | Auto-gewählte Checks mit gerechneten Sicherheitsfaktoren; „keine Physik deklariert" erscheint grau als *nichts geprüft* — nie als Pass |
+| **Klärungs-Dialog** | GENESIS fragt, du antwortest, das Verdikt wird neu berechnet — der Gelb→Grün-Flow live |
+| **Garantie-Metrik** | Das Eval-Harness mit **Leaks = 0** als Haupt-KPI |
+| **Sign-off** | Ratifikation als Checkliste: nichts gilt ohne deine expliziten Häkchen |
+| **Eigene Frage** | Der Live-Pfad — solange das Owner-Gate zu ist, antwortet GENESIS mit einer ehrlichen Ablehnung statt einer erfundenen Antwort |
+
+Farbcode: **grün** = unabhängig verifiziert / Marge erfüllt · **gelb** = ehrliche Lücke / offene Entscheidung · **rot** = Prüfung gescheitert · **grau** = nicht geprüft.
+
+## 10 · Nutzung: Python-API
+
+```python
+import gen
+
+# Live-Pipelines (Ollama nötig): α / β / γ
+report = await gen.run("Frage …", deps, config=cfg)
+spec   = await gen.run_specification("Idee …", deps, config=cfg)
+
+# Quality-Verdikt über eine Spezifikation (offline, deterministisch)
+from gen.demo import drive_shaft_spec
+verdikt = gen.assess_specification(drive_shaft_spec())
+print(verdikt.overall)                  # "physics_verified"
+
+# Die Physik-Validatoren auch direkt als verifizierte Rechenbibliothek:
+from gen.torsion import shaft_torsion_check
+shaft_torsion_check(torque=150000, diameter=25, length=600,
+                    shear_modulus_g=80000, shear_strength=260)
+# -> {"max_shear": 48.9, "safety_factor": 5.32, "ok": True, ...}
+
+from gen.buckling import buckling_check
+from gen.fatigue import goodman_check
+from gen.pressure_vessel import pressure_vessel_check
+# ... alle 13, jede gegen geschlossene Formen getestet
+```
+
+`import gen` lädt bewusst **kein** numpy (PEP-562-Lazy-Export) — wer nur die α/β/γ-Pipelines nutzt, bleibt dependency-leicht.
+
+## 11 · Live-Modus (lokale LLMs)
+
+Der Live-Pfad nutzt **lokales Ollama** (kein Cloud-Key) und ein keyloses Wikipedia-Backend:
+
+```bash
+ollama pull qwen2.5:14b     # Generator (scout/scholar)
+ollama pull gemma4          # Verifizierer (skeptic) — MUSS eine andere Modellfamilie sein
+```
+
+Gleiche Modellfamilie für Generator und Verifizierer? GENESIS **bricht ab, bevor irgendein Call passiert** — Cross-Model ist Pflicht, nicht Vorschlag. Mit `--checkpoint-dir runs` entsteht pro Lauf ein reproduzierbarer Audit-Checkpoint.
+
+In der Web-UI ist der Live-Pfad zusätzlich **hart gegated**: erst `GENESIS_ALLOW_LIVE=1` öffnet ihn — bis dahin liefert „Eigene Frage" eine ehrliche Ablehnung mit Begründung, niemals eine erfundene Offline-Antwort.
+
+**Status:** α/β sind live gegen echte Modelle bewiesen (inkl. eines Laufs, in dem der Wortlaut-Wächter eine echte Modell-Paraphrase abfing). Der erste gemessene Live-γ-Lauf ist bewusst aufgeschoben, bis die Messlatte definiert ist — siehe nächster Abschnitt.
+
+## 12 · Messung & Gold-Set
+
+„Produktionsreif" ist bei GENESIS **eine Messung, keine Behauptung.** Dafür existieren zwei Ebenen:
+
+**Offline (läuft heute):** `genesis --mode eval` misst die deterministische Diskriminierung beider Gates über kuratierte solide + manipulierte Spezifikationen. Ergebnis: 10/10 korrekt, **Leaks = 0** (kein Halluzinations-Typ rutscht durch), 0 Fehlalarme.
+
+**Live (vorbereitet, owner-gated):** `goldset/v1.json` — 24 kuratierte Fälle in drei Klassen:
+- **Fakten** (10): bekannt belegbare Antworten; die erwarteten Tokens müssen erscheinen,
+- **Fallen** (7): plausibel klingend, aber nicht verlässlich belegbar — Abstention oder belegte Antwort ist korrekt, eine selbstbewusste unbelegte Zahl ist die Halluzination,
+- **Nonsense** (7): nicht existente Entitäten (erfundenes Polymer, erfundene Norm, erfundenes Theorem) — **die einzig richtige Antwort ist Enthaltung.**
+
+Der Scorer (`gen/goldset.py`) berechnet Fakten-Genauigkeit, **Abstention-Recall** und Fallen-Resistenz, führt eine `hallucinations`-Liste, deren Leerheit die nicht verhandelbare Messlatte ist — und **verweigert** die Bewertung unvollständiger Läufe.
+
+## 13 · Verifikations-Philosophie
+
+- **Exakt, wo beweisbar:** uniforme Spannung, Fourier-Leitung, Starrkörpermoden, Lamé-Randbedingungen, Volumen — auf Maschinengenauigkeit gepinnt. Sonst: ehrliche Konvergenz (mit gemessener Rate) oder konservative Schranke, immer mit deklarierter Grenze.
+- **Zwei unabhängige Methoden:** FEM gegen geschlossene Form, BREP gegen analytisches Volumen, MNA gegen Ohm — Übereinstimmung als Schutz gegen Fehler in einer von beiden.
+- **Tests mit Zähnen:** Jeder Wächter hat Negativtests (der manipulierte Fall **muss** scheitern). Das Eval-Harness aggregiert das zu Leaks = 0.
+- **Real-World-Verifikation:** Die Web-UI wurde nicht nur unit-getestet, sondern im echten Browser bedient (Playwright): Klärungs-Dialog Gelb→Grün, Sign-off-Verweigerung, Live-Ablehnungskarte.
+- **794 Tests** (volle Abhängigkeiten) / 767 + 9 skipped (Minimal-Umgebung) — alle ohne LLM-Token und ohne Netz; zusätzlich grün mit Deprecation-Warnings als Fehlern. Lint-Baseline: `ruff check src tests` = sauber.
+
+## 14 · Projektstruktur
 
 ```
-CLAUDE.md                       Operative Arbeitsregeln (Quelle der Wahrheit für Claude Code)
-config.yaml                     Phase-α-Konfiguration (τ, Cross-Model-Familien, Backends)
-docs/
-  VISION.md                     Vision, Stand der Technik, ehrliche Risiken
-  BUILD_LOG.md                  Beweiskette des Baus (Selbstkontrolle je Aufgabe)
-  phases/PHASE_*.md             Spezifikation je Stufe (α, β, γ) + Akzeptanztests
-  phases/PHASE_*_RESULT.md      Ehrliches Ergebnis je Kriterium + Audit
-  agents/*.md                   Pro Agent: Verantwortung, I/O, Tools, Fehler, Tests
 src/gen/
-  core/interfaces.py            Framework-freie Protocols (Agent, Tool, LedgerStore, Gate, SearchBackend)
-  core/state.py                 Datenmodell — inkl. Claim mit Quellenzwang-Invariante
-  core/errors.py                Typisierte Fehler (lautes Scheitern statt stiller Defaults)
-  ledger/store.py               InMemory-Ledger (Quellenzwang, Unabhängigkeitsregel)
-  ledger/postgres.py            Postgres-Adapter (3. Schicht Quellenzwang, lazy asyncpg)
-  tools/fetch.py                WebFetchTool — toter Fetch wird NIE zur Quelle
-  tools/search.py               Semantic Scholar + generischer Web-Search-Adapter
-  llm/base.py                   LLM-Boundary (mockbar) + deterministischer ScriptedLLM
-  agents/scout.py               Breite — nur Quellen-Kandidaten
-  agents/scholar.py             Tiefe — atomare Claims, jedes Zitat gegen die Quelle geprüft
-  agents/skeptic.py             Verifikator — Cross-Model, neue unabhängige Quellen
-  agents/conductor.py           Orchestrator — Report/Spec nur aus Ledger-Claims
-  agents/synthesizer.py         Phase β — verankerte Lösungsansätze, erfindet nichts
-  agents/architect.py           Phase γ — Spezifikation; Wertzwang, Code rechnet, Self-Gate
-  verification/gates.py         GATEs α, β, γ — reine, getestete Verifikationslogik (+ Backstops)
-  verification/derivation.py    Safe-Evaluator — DERIVED-Werte: Code rechnet, Gate rechnet nach
-  verification/units.py         Dimensionsanalyse — Einheiten als abelsche Gruppe (C-15, Mars-Orbiter-Wächter)
-  verification/geometry.py      AABB-Algebra + Volumen — Phase δ (sound; exakt-wo-beweisbar, sonst Schranke)
-  verification/cross_model.py   Cross-Model-Pflicht + Confidence-Folding
-  export/openscad.py            CSG-Geometrie -> OpenSCAD-Quelltext (deterministisch, traceable, zentriert)
-  export/build123d.py           CSG-Geometrie -> build123d-Python (Algebra-Modus, OCCT)
-  export/stl.py                 CSG-Primitive -> ASCII-STL-Mesh (Booleans ehrlich deferred)
-  fem.py / fem3d.py / fem3d_quadratic.py / plate_hole.py / bracket_fem.py
-                                δ-FEM: Balken, 3-D-Tets (linear+quadratisch), Loch-Kt, Halter
-  structural.py / torsion.py / buckling.py / fatigue.py / notch_fatigue.py / fracture.py /
-  contact.py / pressure_vessel.py / creep.py / plate_bending.py / bolted_joint.py /
-  thermal.py / thermal_stress.py / modal.py
-                                δ-Physik-Validatoren (Closed-Form, je gegen exakte Anker verifiziert)
-  physics_validation.py         GATE δ-Physik — Registry (13 Validatoren), nie ein stiller Pass
-  physics_selection.py          Auto-Select — measurand-getaggte Spec-Größen -> Checks + Lücken
-  pipeline.py                   Ein ehrliches Gesamt-Verdikt (assess_specification)
-  evaluation.py / refinement.py / clarification.py / ratification.py / calibration.py /
-  telemetry.py / geometry_verification.py / constraint_consistency.py / grounding_integrity.py
-                                Quality-Engine: Eval-Harness, Refine-Loop, Klärung, HITL-Sign-off,
-                                Kalibrierung, OTel-Trace, Geometrie-/Constraint-/Grounding-Checks
-  dfm.py / orientation.py / tolerance.py / uncertainty.py / montecarlo.py / circuit.py /
-  brep.py / software.py / costing.py / completeness.py
-                                δ/ε-Schichten: DFM, Toleranz, GUM/MC, SPICE-MNA, BREP, CODE-Gate
-  config.py / runner.py / cli.py  Konfiguration, run(question)->Report, `python -m gen`
-sql/001_ledger.sql              Fakten-Ledger; Quellenzwang als DB-Constraint
-tests/                          794 Tests, inkl. Gate-Akzeptanz, δ-Physik-Engine (13 Validatoren + Gate + Auto-Select), Quality-Engine (Eval/Refine/Klärung/Ratifikation/Kalibrierung/Telemetrie/Pipeline) & 4 Frageklassen
+  core/                state.py (Claim/Quantity/Spec …), interfaces.py, errors.py, …
+  agents/              scout, scholar, skeptic, conductor, synthesizer, architect
+  ledger/              In-Memory- + Postgres-Fakten-Ledger (Quellenzwang)
+  tools/, llm/         ehrliches Fetch/Search, LLM-Boundary (Ollama + ScriptedLLM)
+  verification/        gates.py (α/β/γ/δ/ERC/CODE/PROTOCOL), derivation, units,
+                       geometry (AABB), cross_model
+  export/              OpenSCAD · build123d · STL · Markdown-Bauhandbuch
+  fem.py fem3d.py fem3d_quadratic.py plate_hole.py bracket_fem.py
+                       FEM: Balken, 3-D-Tets (linear/quadratisch), Loch-Kt, Halter
+  torsion.py buckling.py fatigue.py notch_fatigue.py fracture.py contact.py
+  pressure_vessel.py creep.py plate_bending.py bolted_joint.py thermal.py
+  thermal_stress.py modal.py
+                       die 13 Physik-Validatoren (+ Modal-/Thermik-FEM dahinter)
+  physics_validation.py   GATE δ-Physik (Registry, nie ein stiller Pass)
+  physics_selection.py    Auto-Select: measurand-Tags → Checks + Lücken
+  pipeline.py             das eine ehrliche Gesamt-Verdikt
+  evaluation.py refinement.py clarification.py ratification.py calibration.py
+  telemetry.py geometry_verification.py constraint_consistency.py
+  grounding_integrity.py goldset.py
+                       die Quality-Engine
+  dfm.py orientation.py tolerance.py uncertainty.py montecarlo.py circuit.py
+  brep.py software.py costing.py completeness.py
+                       weitere δ/ε-Schichten (DFM, Toleranz, GUM/MC, SPICE, BREP, CODE)
+  web/                 lokale Web-UI (FastAPI + statisches Frontend)
+  config.py runner.py cli.py demo.py
+goldset/v1.json        das kuratierte Mess-Set für die Live-Läufe
+sql/001_ledger.sql     Quellenzwang als DB-Constraint
+docs/                  VISION, ARCHITECTURE, DATA_MODEL, PIPELINE, phases/ (α–δ inkl.
+                       PHASE_DELTA.md §1–§51), agents/
+tests/                 794 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-Engine,
+                       Web-API & 4 Frageklassen
 ```
 
-## Die zentrale Idee in einer Datenstruktur
+## 15 · Status & ehrliche Grenzen
 
-Alles dreht sich um den `Claim` (`src/gen/core/state.py`): eine einzelne, prüfbare Aussage, die **nicht ohne Quelle existieren kann** (erzwungen im Konstruktor, im Ledger UND als DB-Constraint — drei Schichten). Der `scholar` erzeugt einen Claim nur, wenn sein Stützzitat **wörtlich in der abgerufenen Quelle** steht. Der `skeptic` prüft jeden Claim mit **neuen, unabhängigen Quellen** und einem **anderen Modell** als der Erzeuger. Das `gate_alpha` lässt nur Berichte durch, in denen jede Tatsache so belegt ist — und prüft die Quellen-/Zuordnungs-Invarianten selbst nach, statt dem Assembler zu vertrauen.
+**Fertig und bewiesen (offline):** die komplette α/β/γ/δ-Kette mit allen Gates, die Physik-Engine (13 Validatoren + FEM), die Quality-Engine, CLI, Web-UI, Packaging, Gold-Set-Vertrag — 794 Tests, deterministisch, reproduzierbar.
 
-## Nächster Schritt
+**Live bewiesen:** α (Fakten-Report) und β gegen echte lokale Modelle, inklusive empirischer Bestätigung, dass der Wortlaut-Wächter echte Modell-Paraphrasen abfängt.
 
-Phase α + β + γ sind als Architektur vollständig bewiesen; α/β sind zusätzlich live (Ollama, Wikipedia, Postgres) verifiziert; δ liefert die erste deterministische Validierungs-Schicht (Geometrie). Die CAD-Export-Adapter (OpenSCAD + build123d) sind gebaut. Die ehrlichen nächsten Schritte: (1) der γ/δ-Live-Beweis — `--mode spec` gegen lokale Ollama-Modelle (die Garantien gelten unabhängig davon); (2) weitere δ-Schichten mit echten Modellen (Toleranz/Passung deterministisch, FEM/CFD hinter Adaptern), jede unter demselben Beweis-Standard; (3) externe Discovery-Quellen produktionsreif machen. Siehe `docs/phases/PHASE_DELTA_RESULT.md` und `PHASE_GAMMA_RESULT.md`.
+**Bewusst offen (owner-gated, wartet auf den gemessenen Erstlauf):**
+- der Gold-Set-Lauf gegen Ollama (der Scorer steht bereit),
+- die Live-γ-Erstvalidierung (Idee → Spec gegen ein echtes Modell),
+- ob ein echtes Modell die `measurand`-Tags zuverlässig deklariert (der Vertrag ist gebaut und scripted bewiesen),
+- der Live-Verify→Refine-Loop und Verifizierer-Multi-Sampling.
 
-## Lizenz
+**Prinzipielle Grenzen (deklariert, nicht versteckt):** Die Physik-Validatoren sind lineare Ingenieursmodelle mit dokumentierten Annahmen — ein bestandener Check ist *notwendig, nicht hinreichend* für ein sicheres reales Produkt. GENESIS spezifiziert und prüft; bauen, messen und verantworten muss weiterhin ein Mensch — genau dafür existiert der Sign-off.
 
-Ziel: Apache-2.0 (Open Source).
+## 16 · Dokumentation
+
+| Dokument | Inhalt |
+|---|---|
+| `docs/VISION.md` | Warum es GENESIS gibt; Stand der Technik; Risiken |
+| `docs/ARCHITECTURE.md` | Datenfluss, State, Gesamtbild |
+| `docs/DATA_MODEL.md` | Ledger + Graph + DB-Schema, exakt |
+| `docs/PIPELINE.md` | Die Phasen und ihre Gates |
+| `docs/phases/PHASE_ALPHA…DELTA(.RESULT).md` | Max. Detail pro Phase; RESULT-Dateien sind ehrliche, historische Abnahme-Snapshots |
+| `docs/phases/PHASE_DELTA.md` (§1–§51) | Jede Validierungs-Schicht: was sie fängt, wogegen sie verifiziert ist, was ihre ehrliche Grenze ist, Quelle |
+| `docs/agents/*.md` | Pro Agent: Verantwortung, I/O, Werkzeuge, Fehlerzustände |
+| `CLAUDE.md` / `CONTRIBUTING.md` | Arbeitskonventionen; ein Commit = ein selbstkontrollierter Schritt |
+
+---
+
+*GENESIS behandelt seine eigene Dokumentation nach demselben Prinzip wie seine Outputs: Zahlen sind gemessen, nicht hochgerechnet; Grenzen sind deklariert, nicht versteckt; und was noch nicht bewiesen ist, steht unter „offen" — nicht unter „fertig".*
