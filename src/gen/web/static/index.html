@@ -3,147 +3,146 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GENESIS — Werkstatt für Träumer, Denker, Erfinder</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%238b7cf6' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%23f5b95f'/%3E%3C/svg%3E">
+<title>GENESIS — Atelier für Träumer, Denker, Erfinder</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%235646d6' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%23f59e3f'/%3E%3C/svg%3E">
 <style>
   :root{
-    --bg:#07070d; --panel:#0e0e18; --card:#12121e; --card2:#161624;
-    --border:rgba(186,178,255,.10); --border-hover:rgba(186,178,255,.22);
-    --text:#ece9f4; --muted:#9b97ad; --dim:#6a6680;
-    --violet:#8b7cf6; --teal:#5eead4; --spark:#f5b95f;
-    --ok:#34d399; --ok-bg:rgba(52,211,153,.10);
-    --warn:#fbbf24; --warn-bg:rgba(251,191,36,.10);
-    --bad:#f87171; --bad-bg:rgba(248,113,113,.10);
-    --info:#7dd3fc; --info-bg:rgba(125,211,252,.10);
+    --paper:#fbf8f1; --panel:#f4efe4; --card:#fffdf8; --ink:#23203a;
+    --muted:#5f5a75; --dim:#8b86a0;
+    --border:rgba(35,32,58,.10); --border-hover:rgba(35,32,58,.22);
+    --indigo:#5646d6; --indigo-deep:#4334c4; --spark:#f59e3f; --sky:#3ba6c9;
+    --ok:#0c7a52; --ok-bg:rgba(16,160,106,.12);
+    --warn:#92600a; --warn-bg:rgba(217,150,31,.14);
+    --bad:#b3303c; --bad-bg:rgba(214,69,80,.12);
+    --info:#1d6e8e; --info-bg:rgba(59,166,201,.13);
+    --focus:0 0 0 3px rgba(86,70,214,.4);
     --serif:"Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
     --mono:"Cascadia Mono", "Cascadia Code", Consolas, monospace;
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
-  body{margin:0;background:var(--bg);color:var(--text);
+  body{margin:0;background:var(--paper);color:var(--ink);
        font:15px/1.6 "Segoe UI",system-ui,sans-serif;overflow-x:hidden}
-  ::selection{background:rgba(139,124,246,.4)}
+  ::selection{background:rgba(86,70,214,.22)}
 
-  /* ----- Atmosphäre: Aurora + Sterne + Korn ----- */
+  /* ----- Atmosphäre: Skizzenpapier + Morgenlicht ----- */
   .sky{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
-  .aurora{position:absolute;inset:-20%;
+  .gridpaper{position:absolute;inset:0;opacity:.5;
+    background-image:
+      linear-gradient(rgba(86,70,214,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(86,70,214,.05) 1px, transparent 1px),
+      linear-gradient(rgba(86,70,214,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(86,70,214,.035) 1px, transparent 1px);
+    background-size:120px 120px,120px 120px,24px 24px,24px 24px}
+  .dawn{position:absolute;inset:-22%;
     background:
-      radial-gradient(45% 35% at 22% 8%, rgba(139,124,246,.20), transparent 70%),
-      radial-gradient(40% 30% at 80% 4%, rgba(94,234,212,.10), transparent 70%),
-      radial-gradient(30% 26% at 60% 30%, rgba(245,185,95,.06), transparent 70%);
-    animation:drift 26s ease-in-out infinite alternate}
+      radial-gradient(52% 38% at 18% 0%, rgba(245,158,63,.16), transparent 70%),
+      radial-gradient(46% 34% at 84% 2%, rgba(59,166,201,.13), transparent 70%),
+      radial-gradient(36% 30% at 55% 20%, rgba(86,70,214,.08), transparent 70%);
+    animation:drift 30s ease-in-out infinite alternate}
   @keyframes drift{from{transform:translate3d(-1.5%,-1%,0) scale(1)}
                    to{transform:translate3d(1.5%,2%,0) scale(1.05)}}
-  .stars, .stars::after{position:absolute;inset:0;content:"";
-    background-image:
-      radial-gradient(1px 1px at 12% 22%, rgba(255,255,255,.5), transparent),
-      radial-gradient(1px 1px at 34% 64%, rgba(255,255,255,.32), transparent),
-      radial-gradient(1.5px 1.5px at 56% 14%, rgba(255,255,255,.4), transparent),
-      radial-gradient(1px 1px at 71% 47%, rgba(255,255,255,.28), transparent),
-      radial-gradient(1px 1px at 88% 21%, rgba(255,255,255,.45), transparent),
-      radial-gradient(1.5px 1.5px at 44% 84%, rgba(255,255,255,.25), transparent),
-      radial-gradient(1px 1px at 7% 76%, rgba(255,255,255,.3), transparent),
-      radial-gradient(1px 1px at 93% 69%, rgba(255,255,255,.35), transparent)}
-  .stars::after{transform:translate(31%, 53%) scale(1.3);opacity:.6}
-  .grain{position:absolute;inset:0;opacity:.05;
+  .grain{position:absolute;inset:0;opacity:.04;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.7'/%3E%3C/svg%3E")}
 
   .wrap{position:relative;z-index:1;max-width:880px;margin:0 auto;padding:24px 20px 90px}
   header{display:flex;align-items:center;gap:14px}
-  .logo{font-size:20px;font-weight:700;letter-spacing:.14em;cursor:pointer}
-  .logo b{background:linear-gradient(90deg,var(--violet),var(--teal));
+  .logo{font-size:20px;font-weight:700;letter-spacing:.14em;cursor:pointer;color:var(--ink)}
+  .logo b{background:linear-gradient(90deg,var(--indigo),var(--sky));
           -webkit-background-clip:text;background-clip:text;color:transparent}
   .pill{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;
     color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:5px 13px;
-    background:rgba(14,14,24,.7);backdrop-filter:blur(6px);white-space:nowrap}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 8px var(--warn);flex:none}
-  .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+    background:rgba(255,253,248,.8);backdrop-filter:blur(6px);white-space:nowrap}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 6px rgba(217,150,31,.6);flex:none}
+  .dot.on{background:var(--ok);box-shadow:0 0 6px rgba(16,160,106,.6)}
 
   .view{display:none}.view.active{display:block}
   @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
   .r1,.r2,.r3,.r4,.r5{opacity:0;animation:rise .7s cubic-bezier(.2,.7,.2,1) forwards}
   .r2{animation-delay:.12s}.r3{animation-delay:.24s}.r4{animation-delay:.38s}.r5{animation-delay:.52s}
 
-  /* ----- Start: der Traum ----- */
-  .eyebrow{margin:64px 0 0;text-align:center;font-size:13px;letter-spacing:.32em;
+  /* ----- Start: der Aufbruch ----- */
+  .eyebrow{margin:58px 0 0;text-align:center;font-size:13px;letter-spacing:.32em;
     text-transform:uppercase;color:var(--dim)}
-  .eyebrow .who{color:var(--spark);font-weight:600}
+  .eyebrow .who{color:var(--spark);font-weight:700}
   .hero{margin:14px 0 6px;text-align:center;font-family:var(--serif);
-    font-size:clamp(34px,6vw,52px);font-weight:600;line-height:1.15;letter-spacing:.01em}
-  .hero em{font-style:italic;background:linear-gradient(100deg,var(--violet) 10%,var(--teal) 55%,var(--spark) 95%);
+    font-size:clamp(36px,6.4vw,56px);font-weight:600;line-height:1.13;letter-spacing:.005em;
+    text-wrap:balance;color:var(--ink)}
+  .hero em{font-style:italic;background:linear-gradient(100deg,var(--indigo) 15%,var(--sky) 60%,var(--spark) 100%);
     -webkit-background-clip:text;background-clip:text;color:transparent}
-  .herosub{color:var(--muted);font-size:15px;text-align:center;max-width:600px;margin:14px auto 38px;line-height:1.7}
-  .herosub b{color:var(--text)}
+  .herosub{color:var(--muted);font-size:15.5px;text-align:center;max-width:620px;margin:16px auto 36px;line-height:1.7}
+  .herosub b{color:var(--ink)}
 
-  .askbox{background:linear-gradient(180deg,var(--card2),var(--card));
-    border:1px solid var(--border);border-radius:20px;padding:18px;
-    box-shadow:0 18px 60px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.04);
+  .askbox{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:18px;
+    box-shadow:0 24px 70px rgba(67,52,196,.10), 0 3px 14px rgba(35,32,58,.06);
     transition:border-color .25s, box-shadow .25s}
-  .askbox:focus-within{border-color:rgba(139,124,246,.55);
-    box-shadow:0 18px 60px rgba(0,0,0,.5), 0 0 0 4px rgba(139,124,246,.12)}
-  .asklabel{font-size:12.5px;font-weight:600;color:var(--spark);margin:0 2px 9px;letter-spacing:.06em}
-  textarea{width:100%;background:rgba(7,7,13,.6);color:var(--text);
+  .askbox:focus-within{border-color:rgba(86,70,214,.55);
+    box-shadow:0 24px 70px rgba(67,52,196,.14), 0 0 0 4px rgba(86,70,214,.10)}
+  .asklabel{font-size:12.5px;font-weight:700;color:var(--indigo);margin:0 2px 9px;letter-spacing:.06em}
+  textarea{width:100%;background:var(--paper);color:var(--ink);
     border:1px dashed var(--border-hover);border-radius:13px;min-height:100px;
     font:inherit;font-size:16px;resize:vertical;padding:13px 15px}
-  textarea:focus{outline:none;border:1px solid var(--violet)}
+  textarea:focus{outline:none;border:1px solid var(--indigo)}
   textarea::placeholder{color:var(--dim)}
   .askrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:11px}
   .mode{display:flex;gap:6px;flex-wrap:wrap}
-  .mode button{background:rgba(7,7,13,.5);border:1px solid var(--border);color:var(--muted);
-    padding:7px 13px;border-radius:999px;font-size:12.5px;cursor:pointer;font-weight:500;
-    transition:all .2s}
-  .mode button:hover{color:var(--text);border-color:var(--border-hover)}
-  .mode button.sel{color:var(--text);border-color:rgba(139,124,246,.6);
-    background:rgba(139,124,246,.14);box-shadow:0 0 14px rgba(139,124,246,.15)}
-  .go{margin-left:auto;background:linear-gradient(95deg,var(--violet),#6d5ce8 60%,#5a4bd6);
-    color:#fff;border:0;border-radius:13px;padding:12px 30px;font-size:15px;font-weight:700;
-    cursor:pointer;box-shadow:0 6px 26px rgba(139,124,246,.4);
-    animation:breathe 3.2s ease-in-out infinite;transition:transform .15s}
-  .go:hover{transform:translateY(-1px);filter:brightness(1.12)}
+  .mode button{background:var(--paper);border:1px solid var(--border);color:var(--muted);
+    padding:11px 15px;min-height:44px;border-radius:999px;font-size:12.5px;cursor:pointer;
+    font-weight:600;transition:color .2s,border-color .2s,background .2s,box-shadow .2s}
+  .mode button:hover{color:var(--ink);border-color:var(--border-hover)}
+  .mode button.sel{color:var(--indigo-deep);border-color:rgba(86,70,214,.55);
+    background:rgba(86,70,214,.08)}
+  .go{margin-left:auto;background:linear-gradient(95deg,var(--indigo),var(--indigo-deep));
+    color:#fff;border:0;border-radius:13px;padding:13px 30px;min-height:48px;font-size:15px;
+    font-weight:700;cursor:pointer;box-shadow:0 8px 26px rgba(86,70,214,.35);
+    animation:breathe 3.2s ease-in-out infinite;transition:transform .15s,filter .15s}
+  .go:hover{transform:translateY(-1px);filter:brightness(1.08)}
   .go:disabled{opacity:.5;cursor:wait;animation:none}
-  @keyframes breathe{0%,100%{box-shadow:0 6px 26px rgba(139,124,246,.35)}
-                     50%{box-shadow:0 6px 34px rgba(139,124,246,.6)}}
+  @keyframes breathe{0%,100%{box-shadow:0 8px 26px rgba(86,70,214,.30)}
+                     50%{box-shadow:0 8px 34px rgba(86,70,214,.5)}}
 
   .chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:26px 0 8px}
   .chips span{color:var(--dim);font-size:12.5px;align-self:center}
-  .chip{background:transparent;border:1px solid var(--border);color:var(--muted);
-    padding:7px 14px;border-radius:999px;font-size:12.5px;cursor:pointer;transition:all .2s}
-  .chip:hover{color:var(--text);border-color:rgba(245,185,95,.5);background:rgba(245,185,95,.06);
+  .chip{background:var(--card);border:1px solid var(--border);color:var(--muted);
+    padding:11px 16px;min-height:44px;border-radius:999px;font-size:12.5px;cursor:pointer;
+    transition:color .2s,border-color .2s,background .2s,transform .15s}
+  .chip:hover{color:var(--ink);border-color:rgba(245,158,63,.65);background:rgba(245,158,63,.08);
     transform:translateY(-1px)}
 
-  .promises{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:46px}
-  .promise{background:rgba(14,14,24,.6);border:1px solid var(--border);border-radius:15px;
-    padding:15px 17px;backdrop-filter:blur(4px)}
-  .promise .t{font-family:var(--serif);font-style:italic;font-size:16.5px;margin-bottom:5px}
+  .promises{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:44px}
+  .promise{background:var(--card);border:1px solid var(--border);border-radius:15px;
+    padding:15px 17px;box-shadow:0 2px 10px rgba(35,32,58,.04)}
+  .promise .t{font-family:var(--serif);font-style:italic;font-size:16.5px;margin-bottom:5px;color:var(--ink)}
   .promise .t .ico{font-style:normal;margin-right:7px}
   .promise p{margin:0;color:var(--muted);font-size:12.8px;line-height:1.55}
   .wiring{margin-top:38px;border:1px solid var(--border);border-radius:14px;
-    padding:13px 17px;font-size:12.3px;color:var(--dim);background:rgba(10,10,18,.5)}
+    padding:13px 17px;font-size:12.3px;color:var(--dim);background:rgba(244,239,228,.7)}
   .wiring b{color:var(--muted);font-weight:600}
-  .wiring .mono{color:var(--teal);font-family:var(--mono);font-size:11.5px}
+  .wiring .mono{color:var(--indigo-deep);font-family:var(--mono);font-size:11.5px}
 
   /* ----- gemeinsame Bausteine ----- */
   .card{background:var(--card);border:1px solid var(--border);border-radius:15px;
-        padding:18px 20px;margin-bottom:13px;transition:border-color .2s}
+        padding:18px 20px;margin-bottom:13px;box-shadow:0 2px 10px rgba(35,32,58,.04);
+        transition:border-color .2s}
   .card:hover{border-color:var(--border-hover)}
   .card h3{margin:0 0 6px;font-size:15.5px}
   .card .hint{color:var(--muted);font-size:13px;margin:0 0 12px}
   .badge{display:inline-block;padding:2.5px 10px;border-radius:999px;font-size:11.5px;
-         font-weight:600;letter-spacing:.03em;border:1px solid transparent;vertical-align:middle}
-  .b-ok{color:var(--ok);background:var(--ok-bg);border-color:rgba(52,211,153,.25)}
-  .b-warn{color:var(--warn);background:var(--warn-bg);border-color:rgba(251,191,36,.25)}
-  .b-bad{color:var(--bad);background:var(--bad-bg);border-color:rgba(248,113,113,.25)}
-  .b-info{color:var(--info);background:var(--info-bg);border-color:rgba(125,211,252,.25)}
-  .b-dim{color:var(--muted);background:rgba(255,255,255,.04);border-color:var(--border)}
-  .btn{background:#fff;color:#0a0a0c;border:0;border-radius:10px;padding:9px 18px;
-       font-size:13.5px;font-weight:600;cursor:pointer}
+         font-weight:700;letter-spacing:.03em;border:1px solid transparent;vertical-align:middle}
+  .b-ok{color:var(--ok);background:var(--ok-bg);border-color:rgba(16,160,106,.3)}
+  .b-warn{color:var(--warn);background:var(--warn-bg);border-color:rgba(217,150,31,.35)}
+  .b-bad{color:var(--bad);background:var(--bad-bg);border-color:rgba(214,69,80,.3)}
+  .b-info{color:var(--info);background:var(--info-bg);border-color:rgba(59,166,201,.35)}
+  .b-dim{color:var(--muted);background:rgba(35,32,58,.05);border-color:var(--border)}
+  .btn{background:var(--ink);color:var(--paper);border:0;border-radius:10px;padding:10px 18px;
+       min-height:44px;font-size:13.5px;font-weight:600;cursor:pointer}
   .btn:hover{opacity:.88}
   table{width:100%;border-collapse:collapse;font-size:13.5px}
-  th{color:var(--dim);text-align:left;font-weight:500;font-size:11.5px;letter-spacing:.06em;
+  th{color:var(--dim);text-align:left;font-weight:600;font-size:11.5px;letter-spacing:.06em;
      text-transform:uppercase;padding:6px 10px;border-bottom:1px solid var(--border)}
-  td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top}
+  td{padding:7px 10px;border-bottom:1px solid rgba(35,32,58,.05);vertical-align:top}
   tr:last-child td{border-bottom:0}
-  .gapbox{background:var(--warn-bg);border:1px solid rgba(251,191,36,.3);border-radius:11px;
+  .gapbox{background:var(--warn-bg);border:1px solid rgba(217,150,31,.4);border-radius:11px;
           padding:12px 16px;margin:10px 0;font-size:13.5px}
   .gapbox b{color:var(--warn)}
   .statement{padding:10px 13px;border-radius:10px;margin:6px 0;background:var(--panel);
@@ -152,60 +151,64 @@
   .statement .src{display:none;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);
                   color:var(--muted);font-size:12.5px}
   .statement.open .src{display:block}
-  .src a{color:var(--info);text-decoration:none;word-break:break-all}
+  .src a{color:var(--info);text-decoration:underline;word-break:break-all}
   .mono{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
-  input[type=text]{background:var(--panel);color:var(--text);border:1px solid var(--border);
+  input[type=text]{background:var(--card);color:var(--ink);border:1px solid var(--border-hover);
     border-radius:10px;padding:10px 13px;font:inherit}
-  input:focus{outline:none;border-color:var(--violet)}
+  input:focus{outline:none;border-color:var(--indigo)}
   .muted{color:var(--muted)} .small{font-size:12.5px}
   .sect{margin:18px 0 8px;font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim)}
 
   /* ----- Ergebnis ----- */
-  .back{background:transparent;border:1px solid var(--border);color:var(--muted);
-        border-radius:999px;padding:7px 16px;font-size:13px;cursor:pointer;margin:14px 0 18px}
-  .back:hover{color:var(--text);border-color:var(--border-hover)}
-  .verdict{display:flex;align-items:center;gap:16px;background:linear-gradient(180deg,var(--card2),var(--card));
-           border:1px solid var(--border);border-radius:18px;padding:20px 24px;margin-bottom:13px}
+  .back{background:var(--card);border:1px solid var(--border);color:var(--muted);
+        border-radius:999px;padding:9px 18px;min-height:44px;font-size:13px;cursor:pointer;margin:14px 0 18px}
+  .back:hover{color:var(--ink);border-color:var(--border-hover)}
+  .verdict{display:flex;align-items:center;gap:16px;background:var(--card);
+           border:1px solid var(--border);border-radius:18px;padding:20px 24px;margin-bottom:13px;
+           box-shadow:0 10px 36px rgba(67,52,196,.08)}
   .verdict .icon{font-size:34px;line-height:1}
   .verdict h2{margin:0;font-family:var(--serif);font-size:21px;font-weight:600}
   .verdict p{margin:4px 0 0;color:var(--muted);font-size:13.5px}
-  .verdict.v-ok{border-color:rgba(52,211,153,.4);animation:glowok 1.4s ease}
-  @keyframes glowok{0%{box-shadow:0 0 0 rgba(52,211,153,0)}40%{box-shadow:0 0 44px rgba(52,211,153,.3)}100%{box-shadow:none}}
+  .verdict.v-ok{border-color:rgba(16,160,106,.45);animation:glowok 1.4s ease}
+  @keyframes glowok{0%{box-shadow:0 0 0 rgba(16,160,106,0)}40%{box-shadow:0 0 44px rgba(16,160,106,.25)}100%{box-shadow:0 10px 36px rgba(67,52,196,.08)}}
   .glance{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:13px}
-  .gl{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:12px 15px}
-  .gl .n{font-family:var(--serif);font-size:23px;line-height:1.1}
+  .gl{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:12px 15px;
+      box-shadow:0 2px 8px rgba(35,32,58,.04)}
+  .gl .n{font-family:var(--serif);font-size:23px;line-height:1.1;color:var(--indigo-deep)}
   .gl .l{color:var(--dim);font-size:11.5px;letter-spacing:.04em;margin-top:3px}
 
   details.zone{background:var(--card);border:1px solid var(--border);border-radius:15px;
-    margin-bottom:13px;overflow:hidden;transition:border-color .2s}
+    margin-bottom:13px;overflow:hidden;box-shadow:0 2px 10px rgba(35,32,58,.04);
+    transition:border-color .2s}
   details.zone:hover{border-color:var(--border-hover)}
   details.zone>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:11px;
-    padding:15px 20px;font-size:15px;font-weight:600;user-select:none}
+    padding:15px 20px;min-height:44px;font-size:15px;font-weight:600;user-select:none}
   details.zone>summary::-webkit-details-marker{display:none}
   details.zone>summary .chev{margin-left:auto;color:var(--dim);transition:transform .25s;flex:none}
   details.zone[open]>summary .chev{transform:rotate(90deg)}
   details.zone .inner{padding:2px 20px 18px}
-  details.zone>summary:hover{background:rgba(255,255,255,.02)}
+  details.zone>summary:hover{background:rgba(35,32,58,.025)}
 
   .files{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
   .file{background:var(--panel);border:1px solid var(--border);border-radius:13px;
-        padding:13px 16px;cursor:pointer;font-size:13px;color:var(--text);text-align:left;
-        transition:all .2s}
+        padding:13px 16px;min-height:44px;cursor:pointer;font-size:13px;color:var(--ink);
+        text-align:left;transition:border-color .2s,transform .15s,box-shadow .2s}
   .file:hover{border-color:var(--spark);transform:translateY(-2px);
-    box-shadow:0 8px 22px rgba(245,185,95,.10)}
+    box-shadow:0 10px 24px rgba(245,158,63,.18)}
   .file .fn{font-weight:600} .file .fs{color:var(--dim);font-size:11.5px;margin-top:3px}
   .dlall{margin-top:12px}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--border-hover)}
 
-  /* ----- Arbeiten: das Observatorium dreht ----- */
+  /* ----- Arbeiten: die Idee nimmt Fahrt auf ----- */
   .working{text-align:center;padding:64px 0}
   .orbit{position:relative;width:96px;height:96px;margin:0 auto}
-  .orbit .ring{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(139,124,246,.35);
+  .orbit .ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(86,70,214,.4);
     animation:spin 3.6s linear infinite}
-  .orbit .ring.r-2{inset:14px;border-color:rgba(94,234,212,.3);animation-duration:2.4s;animation-direction:reverse}
+  .orbit .ring.r-2{inset:14px;border-color:rgba(59,166,201,.4);animation-duration:2.4s;animation-direction:reverse}
   .orbit .spark{position:absolute;top:-4px;left:50%;width:9px;height:9px;margin-left:-4.5px;
-    border-radius:50%;background:var(--spark);box-shadow:0 0 14px var(--spark)}
+    border-radius:50%;background:var(--spark);box-shadow:0 0 12px rgba(245,158,63,.8)}
   .orbit .core{position:absolute;inset:38px;border-radius:50%;
-    background:radial-gradient(circle,rgba(245,185,95,.9),rgba(139,124,246,.5));
+    background:radial-gradient(circle,rgba(245,158,63,.95),rgba(86,70,214,.55));
     animation:pulse 1.8s ease-in-out infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   @keyframes pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.25);opacity:1}}
@@ -215,11 +218,24 @@
   .steps div{padding:3px 0;animation:stepglow 4.5s ease-in-out infinite}
   .steps div:nth-child(2){animation-delay:1.5s}
   .steps div:nth-child(3){animation-delay:3s}
-  @keyframes stepglow{0%,100%{color:var(--dim)}30%{color:var(--text)}}
+  @keyframes stepglow{0%,100%{color:var(--dim)}30%{color:var(--ink)}}
+
+  /* Tastatur sichtbar: jeder fokussierbare Baustein bekommt einen klaren Ring */
+  button:focus-visible, .file:focus-visible, summary:focus-visible,
+  textarea:focus-visible, input:focus-visible, .statement:focus-visible{
+    outline:none;box-shadow:var(--focus)}
+
+  /* Wer weniger Bewegung will, bekommt Ruhe — Inhalt bleibt identisch */
+  @media (prefers-reduced-motion: reduce){
+    .dawn,.go,.orbit .ring,.orbit .core,.steps div{animation:none !important}
+    .r1,.r2,.r3,.r4,.r5{animation:none !important;opacity:1}
+    .chip:hover,.file:hover,.go:hover{transform:none}
+    html{scroll-behavior:auto}
+  }
 </style>
 </head>
 <body>
-<div class="sky"><div class="aurora"></div><div class="stars"></div><div class="grain"></div></div>
+<div class="sky"><div class="gridpaper"></div><div class="dawn"></div><div class="grain"></div></div>
 <div class="wrap">
   <header class="r1">
     <div class="logo" onclick="show('start')">GEN<b>ESIS</b></div>
@@ -231,27 +247,27 @@
     <p class="eyebrow r1">Für <span class="who" id="who">Träumer</span></p>
     <h1 class="hero r2">Du bringst die Idee.<br><em>GENESIS bringt den Beweis.</em></h1>
     <p class="herosub r3">Beschreibe, was du erschaffen willst — GENESIS recherchiert echte Quellen,
-      rechnet die Physik nach und legt dir einen <b>belegten Plan mit allen Dateien</b> hin.
-      Und wo etwas offen bleibt, sagt es dir das ehrlich ins Gesicht: keine Halluzination, kein Rätselraten.</p>
+      rechnet die Physik nach und legt dir einen <b>belegten Plan mit allen Dateien</b> aufs Skizzenpapier.
+      Und wo etwas offen bleibt, sagt es dir das ehrlich: keine Halluzination, kein Rätselraten.</p>
 
     <div class="askbox r4">
       <div class="asklabel">💡 Deine Idee — hier schreiben</div>
       <textarea id="idea" autofocus placeholder="Schreib einfach drauflos … z. B.: Eine Wandhalterung für meine 5-kg-Kamera, 3D-gedruckt"></textarea>
       <div class="askrow">
         <div class="mode" id="mode">
-          <button data-m="spec" class="sel">🛠 Bauplan erstellen</button>
-          <button data-m="report">🔎 Wissen mit Belegen</button>
-          <button data-m="solution">🌱 Lösungswege finden</button>
+          <button type="button" data-m="spec" class="sel">🛠 Bauplan erstellen</button>
+          <button type="button" data-m="report">🔎 Wissen mit Belegen</button>
+          <button type="button" data-m="solution">🌱 Lösungswege finden</button>
         </div>
-        <button class="go" id="goBtn" onclick="ask()">Erschaffen ✦</button>
+        <button type="button" class="go" id="goBtn" onclick="ask()">Erschaffen ✦</button>
       </div>
     </div>
 
     <div class="chips r5">
       <span>Oder lass dich inspirieren:</span>
-      <button class="chip" onclick="demo('spec')">✨ Demo-Bauplan ansehen</button>
-      <button class="chip" onclick="demo('capstone')">🏗 LED-Halter, komplett geprüft</button>
-      <button class="chip" onclick="demo('report')">📚 Demo-Recherche</button>
+      <button type="button" class="chip" onclick="demo('spec')">✨ Demo-Bauplan ansehen</button>
+      <button type="button" class="chip" onclick="demo('capstone')">🏗 LED-Halter, komplett geprüft</button>
+      <button type="button" class="chip" onclick="demo('report')">📚 Demo-Recherche</button>
     </div>
 
     <div class="promises r5">
@@ -271,7 +287,7 @@
 
   <!-- ============================== ERGEBNIS ============================== -->
   <div class="view" id="v-result">
-    <button class="back" onclick="show('start')">← Neue Idee</button>
+    <button type="button" class="back" onclick="show('start')">← Neue Idee</button>
     <div id="out"></div>
   </div>
 </div>
@@ -286,7 +302,7 @@ const get=async u=>{const r=await fetch(u);if(!r.ok)throw new Error((await r.jso
 function show(v){document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
   $("#v-"+v).classList.add("active");window.scrollTo({top:0});}
 
-// Wort-Rotator: für wen diese Werkstatt gebaut ist
+// Wort-Rotator: für wen dieses Atelier gebaut ist
 const WHO=["Träumer","Denker","Erfinder","Macherinnen","Tüftler","Visionäre"];let whoI=0;
 setInterval(()=>{whoI=(whoI+1)%WHO.length;const el=$("#who");
   el.style.opacity=0;setTimeout(()=>{el.textContent=WHO[whoI];el.style.opacity=1},300);},2600);
@@ -306,8 +322,8 @@ document.querySelectorAll("#mode button").forEach(b=>b.onclick=()=>{
   $("#wireNote").textContent=s.wiring_note;
 }catch(e){ $("#pillText").textContent="Server nicht erreichbar"; }})();
 
-const working=t=>`<div class="working">
-  <div class="orbit"><div class="ring"><div class="spark"></div></div><div class="ring r-2"></div><div class="core"></div></div>
+const working=t=>`<div class="working" role="status" aria-label="GENESIS arbeitet">
+  <div class="orbit" aria-hidden="true"><div class="ring"><div class="spark"></div></div><div class="ring r-2"></div><div class="core"></div></div>
   <div class="big">${esc(t)}</div>
   <p>Gute Antworten brauchen echte Arbeit — mit lokalem Modell kann das ein paar Minuten dauern. Was nacheinander passiert:</p>
   <div class="steps"><div>🔍 Quellen finden und wörtlich belegen</div>
@@ -433,7 +449,7 @@ function questionsCard(a){
     <p class="hint">Beantworte, was du weißt — deine Angaben werden als deklarierte Entscheidungen übernommen (nie als Fakt ausgegeben), dann wird neu geprüft.</p>`;
   h+=qs.map((q,i)=>`<div style="margin:10px 0"><div class="small" style="margin-bottom:5px">${esc(q.question)}</div>
     <input type="text" id="q${i}" data-m="${esc(q.measurand)}" placeholder="dein Wert (mit Einheit, z. B. 260 MPa)" style="width:280px"></div>`).join("");
-  h+=`<div style="margin-top:12px"><button class="btn" onclick="reAsk(${qs.length})">Antworten übernehmen &amp; neu starten</button></div></div>`;
+  h+=`<div style="margin-top:12px"><button type="button" class="btn" onclick="reAsk(${qs.length})">Antworten übernehmen &amp; neu starten</button></div></div>`;
   return h;
 }
 
@@ -478,10 +494,10 @@ function filesInner(){
   h+=FILES.map(([name,content],i)=>{
     const refused=String(content).startsWith("#")&&/Export|refused|unavailable/.test(String(content).slice(0,80));
     const kb=(new Blob([content]).size/1024).toFixed(1);
-    return `<button class="file" onclick="dl(${i})" ${refused?'style="opacity:.55"':""}>
+    return `<button type="button" class="file" onclick="dl(${i})" ${refused?'style="opacity:.55"':""}>
       <div class="fn">${refused?"⚠ ":"⬇ "}${esc(name)}</div>
       <div class="fs">${refused?"siehe Hinweis in der Datei":kb+" kB"}</div></button>`;}).join("");
-  h+=`</div><div class="dlall"><button class="btn ghost" style="background:transparent;color:var(--text);border:1px solid var(--border)" onclick="dlAll()">⬇ Alles herunterladen (${FILES.length} Dateien)</button></div>`;
+  h+=`</div><div class="dlall"><button type="button" class="btn ghost" onclick="dlAll()">⬇ Alles herunterladen (${FILES.length} Dateien)</button></div>`;
   return h;
 }
 
@@ -543,7 +559,7 @@ async function ask(extra){
       <p>${esc(data.message)}</p></div></div>
       <div class="card"><h3>Bis dahin: schau dir an, wie ein fertiges Ergebnis aussieht</h3>
       <p class="hint">Die Demos zeigen ohne KI den ganzen Weg — Belege, Physik, Dateien.</p>
-      <button class="btn" onclick="demo('capstone')">LED-Halter ansehen</button></div>`;return;}
+      <button type="button" class="btn" onclick="demo('capstone')">LED-Halter ansehen</button></div>`;return;}
     renderResult(data);
   }catch(e){$("#out").innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
 
