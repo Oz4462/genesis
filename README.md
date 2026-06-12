@@ -26,7 +26,7 @@ Die vollständige α-Pipeline (Anti-Halluzination), der β-Lösungsraum und die 
 
 ```
 $ python -m pytest tests/ -q
-774 passed
+783 passed
 ```
 
 Alle Tests laufen **ohne einen einzigen LLM-Token und ohne Netzwerk**. Das heißt: Die Garantie „kein Fakt ohne Quelle, keine widerlegte Aussage als Tatsache, Lücken werden als Lücken markiert, im Zweifel Abstention" ist **bewiesen** — und von einem unabhängigen, adversarialen Audit bestätigt (Details: `docs/phases/PHASE_ALPHA_RESULT.md`).
@@ -41,6 +41,7 @@ $ python -m gen --mode capstone                   # komplette Spec durch alle Ga
 $ python -m gen --mode capstone --format md       # komplettes Markdown-Bauhandbuch
 $ python -m gen --mode eval                        # Anti-Halluzinations-Garantie als Metrik (0 Leaks)
 $ python -m gen --mode assess                      # ehrliches Quality-Verdikt (Klärung + δ-Physik + Constraints + Grounding)
+$ python -m gen.web                                # lokale Web-UI auf http://127.0.0.1:8077 (Laien-Oberfläche)
 $ python -m gen --mode protocol                    # Bio-Domäne: Pflanzen-Protokoll (γ + Reproduzierbarkeit)
 $ python -m gen "Frage..."                   # Live-α: lokale Ollama-Modelle + Wikipedia
 $ python -m gen --mode spec "Idee..."        # Live-γ: Idee -> belegte Spezifikation
@@ -109,7 +110,7 @@ src/gen/
                                 δ/ε-Schichten: DFM, Toleranz, GUM/MC, SPICE-MNA, BREP, CODE-Gate
   config.py / runner.py / cli.py  Konfiguration, run(question)->Report, `python -m gen`
 sql/001_ledger.sql              Fakten-Ledger; Quellenzwang als DB-Constraint
-tests/                          774 Tests, inkl. Gate-Akzeptanz, δ-Physik-Engine (13 Validatoren + Gate + Auto-Select), Quality-Engine (Eval/Refine/Klärung/Ratifikation/Kalibrierung/Telemetrie/Pipeline) & 4 Frageklassen
+tests/                          783 Tests, inkl. Gate-Akzeptanz, δ-Physik-Engine (13 Validatoren + Gate + Auto-Select), Quality-Engine (Eval/Refine/Klärung/Ratifikation/Kalibrierung/Telemetrie/Pipeline) & 4 Frageklassen
 ```
 
 ## Die zentrale Idee in einer Datenstruktur
