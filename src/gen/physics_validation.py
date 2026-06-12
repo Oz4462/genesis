@@ -49,6 +49,11 @@ from .flight import (
 from .notch_fatigue import notch_fatigue_check
 from .plate_bending import plate_bending_check
 from .pressure_vessel import pressure_vessel_check
+from .security import (
+    birthday_bound_check,
+    gcm_invocation_budget_check,
+    key_security_check,
+)
 from .printability import (
     bridge_span_check,
     emboss_detail_check,
@@ -92,6 +97,10 @@ VALIDATORS = {
     "battery_endurance": battery_endurance_check,
     "current_budget": current_budget_check,
     "attitude_pd": attitude_pd_check,
+    # security — closed-form cryptographic sizing (NIST-anchored)
+    "birthday_bound": birthday_bound_check,
+    "key_security": key_security_check,
+    "gcm_invocation_budget": gcm_invocation_budget_check,
 }
 
 

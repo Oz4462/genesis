@@ -18,6 +18,7 @@ Offline, pure functions, no model calls.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 
@@ -96,3 +97,57 @@ def consistency_confidence(verdicts: list[bool]) -> float:
     n_true = sum(1 for v in verdicts if v)
     majority = max(n_true, len(verdicts) - n_true)
     return majority / len(verdicts)
+
+
+# --- split conformal prediction: the distribution-free guarantee --------------
+#
+# threshold_for_precision picks an operating point EMPIRICALLY; split conformal
+# adds the finite-sample GUARANTEE: under exchangeability of the calibration
+# scores with a new score, the conformal quantile covers the new score with
+# probability >= 1 - alpha — no distributional assumption, no asymptotics.
+# Source: Vovk et al., *Algorithmic Learning in a Random World*; Angelopoulos &
+# Bates, "A Gentle Introduction to Conformal Prediction" (arXiv 2107.07511);
+# mirrored in the local MathBrain vault (Konzepte/60-conformal-foundations.md).
+# Both functions return None instead of inventing a bound when the calibration
+# set is too small for the requested alpha — honest abstention, the same
+# discipline as threshold_for_precision.
+
+def conformal_quantile(scores: list[float], alpha: float) -> float | None:
+    """The split-conformal UPPER quantile of nonconformity scores.
+
+    q_hat = the ceil((n+1)·(1−alpha))-th smallest of the n calibration scores;
+    then P(score_new <= q_hat) >= 1 − alpha for an exchangeable new score (the
+    standard finite-sample coverage guarantee). Returns None when
+    ceil((n+1)(1−alpha)) > n — the calibration set cannot support this alpha
+    (the textbook case where the prediction set would be everything). Raises
+    ValueError on alpha outside (0, 1)."""
+    if not 0.0 < alpha < 1.0:
+        raise ValueError("alpha must be in (0, 1)")
+    n = len(scores)
+    if n == 0:
+        return None
+    k = math.ceil((n + 1) * (1.0 - alpha))
+    if k > n:
+        return None
+    return sorted(scores)[k - 1]
+
+
+def conformal_accept_threshold(
+    true_confidences: list[float], alpha: float
+) -> float | None:
+    """A confidence floor with a finite-sample guarantee on TRUE claims.
+
+    Calibrate on the confidences of claims KNOWN to be true: with
+    t = the floor(alpha·(n+1))-th smallest, an exchangeable new TRUE claim
+    clears the floor with probability >= 1 − alpha (the lower-tail conformal
+    bound) — i.e. the accept rule "confidence >= t" misses at most an alpha
+    fraction of genuinely true claims, guaranteed without any distribution
+    assumption. Returns None when floor(alpha·(n+1)) < 1 — too few calibration
+    points for this alpha. Raises ValueError on alpha outside (0, 1)."""
+    if not 0.0 < alpha < 1.0:
+        raise ValueError("alpha must be in (0, 1)")
+    n = len(true_confidences)
+    k = math.floor(alpha * (n + 1))
+    if k < 1:
+        return None
+    return sorted(true_confidences)[k - 1]

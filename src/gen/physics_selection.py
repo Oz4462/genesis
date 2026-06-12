@@ -197,6 +197,38 @@ RECIPES: list[CheckRecipe] = [
             "kd": ("control.attitude_kd", "N*m*s"),
         },
     ),
+    # ---- security: closed-form cryptographic sizing (NIST-anchored) ----
+    CheckRecipe(
+        name="nonce birthday bound", validator="birthday_bound",
+        trigger="crypto.nonce_bits",
+        inputs={
+            "space_bits": ("crypto.nonce_bits", "1"),
+            "n_uses": ("crypto.messages_per_key", "1"),
+        },
+    ),
+    CheckRecipe(
+        name="symmetric key strength", validator="key_security",
+        trigger="crypto.symmetric_key_bits",
+        inputs={"key_bits": ("crypto.symmetric_key_bits", "1")},
+        extra={"mechanism": "symmetric"},
+    ),
+    CheckRecipe(
+        name="RSA modulus strength", validator="key_security",
+        trigger="crypto.rsa_modulus_bits",
+        inputs={"key_bits": ("crypto.rsa_modulus_bits", "1")},
+        extra={"mechanism": "rsa"},
+    ),
+    CheckRecipe(
+        name="ECC key strength", validator="key_security",
+        trigger="crypto.ecc_key_bits",
+        inputs={"key_bits": ("crypto.ecc_key_bits", "1")},
+        extra={"mechanism": "ecc"},
+    ),
+    CheckRecipe(
+        name="GCM invocation budget", validator="gcm_invocation_budget",
+        trigger="crypto.gcm_invocations",
+        inputs={"n_invocations": ("crypto.gcm_invocations", "1")},
+    ),
 ]
 
 

@@ -16,7 +16,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+import pytest  # noqa: E402
+
 from gen.calibration import (  # noqa: E402
+    conformal_accept_threshold,
+    conformal_quantile,
     consistency_confidence,
     expected_calibration_error,
     precision_recall_at,
@@ -63,3 +67,39 @@ def test_is_deterministic():
     a = threshold_for_precision(_SCORED, 1.0)
     b = threshold_for_precision(_SCORED, 1.0)
     assert (a.threshold, a.precision, a.recall) == (b.threshold, b.precision, b.recall)
+
+
+# --- split conformal: the distribution-free finite-sample guarantee ------------
+
+def test_conformal_quantile_textbook_anchor():
+    # n=9 scores 1..9, alpha=0.1: k = ceil(10*0.9) = 9 -> the 9th smallest = 9
+    assert conformal_quantile([float(i) for i in range(1, 10)], 0.1) == 9.0
+    # n=9, alpha=0.5: k = ceil(10*0.5) = 5 -> the 5th smallest = 5
+    assert conformal_quantile([float(i) for i in range(1, 10)], 0.5) == 5.0
+
+
+def test_conformal_quantile_refuses_when_set_too_small():
+    # n=4, alpha=0.1: k = ceil(5*0.9) = 5 > 4 -> honest None, never an invented bound
+    assert conformal_quantile([1.0, 2.0, 3.0, 4.0], 0.1) is None
+    assert conformal_quantile([], 0.5) is None
+    with pytest.raises(ValueError):
+        conformal_quantile([1.0], 0.0)
+
+
+def test_conformal_quantile_guarantee_holds_empirically():
+    # exchangeable by construction: scores 1..100; the quantile must cover at
+    # least (1-alpha) of a same-distribution sequence (finite-sample property)
+    cal = [float(i) for i in range(1, 101)]
+    q = conformal_quantile(cal, 0.2)
+    covered = sum(1 for s in cal if s <= q) / len(cal)
+    assert covered >= 0.8
+
+
+def test_conformal_accept_threshold_lower_tail():
+    # true-claim confidences, n=5, alpha=0.25: k = floor(0.25*6) = 1 -> smallest
+    t = conformal_accept_threshold([0.5, 0.6, 0.7, 0.8, 0.9], 0.25)
+    assert t == 0.5                                       # miss at most 25 percent
+    # alpha=0.1 with n=5: k = floor(0.6) = 0 -> too few points, honest None
+    assert conformal_accept_threshold([0.5, 0.6, 0.7, 0.8, 0.9], 0.1) is None
+    with pytest.raises(ValueError):
+        conformal_accept_threshold([0.5], 1.0)
