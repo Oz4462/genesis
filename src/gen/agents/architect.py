@@ -75,7 +75,12 @@ _SYSTEM = (
     "lowercase tag naming what it measures (e.g. shaft.torque, shaft.diameter, "
     "material.shear_strength, fatigue.stress_amplitude, vessel.pressure, "
     "vibration.excitation_frequency, column.axial_load) — ONLY when the design "
-    "genuinely has that physics; never guess or force a tag. Return ONE JSON object: "
+    "genuinely has that physics; never guess or force a tag; (9) LANGUAGE: every "
+    "human-facing text — quantity 'name', step 'action' and 'check', decision "
+    "'title'/'choice'/'rationale', constraint 'reason', BOM item 'name', any "
+    "rationale — MUST be written in GERMAN (the reader is German-speaking); ids, "
+    "units, formulas, and measurand tags stay in English exactly as specified "
+    "above. Return ONE JSON object: "
     '{"approach_id":"...","quantities":[{"id","name","unit","origin",'
     '"value","grounding","formula","inputs","rationale","measurand"}],'
     '"components":[{"id","name","quantity_ids","geometry":{"kind","params",'

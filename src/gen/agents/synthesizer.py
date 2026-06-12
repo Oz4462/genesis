@@ -27,7 +27,10 @@ _SYSTEM = (
     "knowledge; (2) reference each claim by its EXACT id; (3) each claim id is either "
     "a grounding (it establishes the approach exists / is used for the problem) or a "
     "tradeoff (a property, pro, or con); (4) every approach needs >=1 grounding id; "
-    "(5) never invent an approach you cannot tie to a claim id. "
+    "(5) never invent an approach you cannot tie to a claim id; (6) LANGUAGE: "
+    "each approach 'name' is written in GERMAN (the reader is German-speaking) — "
+    "keep established technical terms and proper nouns as they are; claim ids "
+    "stay exactly as given. "
     'Return JSON: [{"name":"...","grounding":["id",...],"tradeoffs":["id",...]}].'
 )
 

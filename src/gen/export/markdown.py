@@ -23,10 +23,10 @@ from ..verification.geometry import GeometryError, geometry_length_unit, mass_of
 
 def _origin(q) -> str:
     if q.origin is ValueOrigin.GROUNDED:
-        return f"grounded in {', '.join(q.grounding)}"
+        return f"belegt durch {', '.join(q.grounding)}"
     if q.origin is ValueOrigin.DERIVED:
-        return f"derived = `{q.derivation.formula}`" if q.derivation else "derived"
-    return f"decision — {q.rationale}"
+        return f"berechnet = `{q.derivation.formula}`" if q.derivation else "berechnet"
+    return f"Entscheidung — {q.rationale}"
 
 
 def _geometry_md(node, depth: int) -> list[str]:
@@ -44,32 +44,33 @@ def specification_to_markdown(spec: Specification) -> str:
     md: list[str] = []
     a = md.append
 
-    a(f"# Build manual: {spec.idea}")
+    a(f"# Bauanleitung: {spec.idea}")
     a("")
-    a(f"- run: `{spec.run_id}`")
+    a(f"- Lauf: `{spec.run_id}`")
     if spec.approach_id:
-        a(f"- approach: `{spec.approach_id}`")
+        a(f"- Lösungsansatz: `{spec.approach_id}`")
     a("")
-    a("> Every value below is a verified claim or a declared/recomputed quantity. "
-      "Nothing is invented; honest gaps are listed as gaps.")
+    a("> Jeder Wert in diesem Dokument ist ein verifizierter Beleg oder eine "
+      "deklarierte/nachgerechnete Größe. Nichts ist erfunden; ehrliche Lücken "
+      "stehen als Lücken da.")
     a("")
 
     if spec.quantities:
-        a("## Quantities")
+        a("## Größen")
         a("")
-        a("| id | name | value | unit | provenance |")
-        a("|----|------|-------|------|------------|")
+        a("| id | Name | Wert | Einheit | Herkunft |")
+        a("|----|------|------|---------|----------|")
         for x in spec.quantities:
             a(f"| `{x.id}` | {x.name} | {x.value:g} | {x.unit} | {_origin(x)} |")
         a("")
 
     if spec.components:
-        a("## Components (parametric CSG geometry)")
+        a("## Bauteile (parametrische CSG-Geometrie)")
         a("")
         for comp in spec.components:
             a(f"### {comp.name} (`{comp.id}`)")
             if comp.material_density:
-                a(f"- material density: `{comp.material_density}`")
+                a(f"- Materialdichte: `{comp.material_density}`")
             if comp.geometry is not None:
                 a("")
                 md.extend(_geometry_md(comp.geometry, 0))
@@ -82,8 +83,8 @@ def specification_to_markdown(spec: Specification) -> str:
         def _bom_table(title, items):
             a(f"## {title}")
             a("")
-            a("| qty | item | role | source | unit price |")
-            a("|-----|------|------|--------|-----------|")
+            a("| Anzahl | Teil | Rolle | Bezug | Stückpreis |")
+            a("|--------|------|-------|-------|-----------|")
             for it in items:
                 src = "—"
                 price = "—"
@@ -95,61 +96,61 @@ def specification_to_markdown(spec: Specification) -> str:
                 a(f"| {it.count} | {it.name} | {it.role.value} | {src} | {price} |")
             a("")
 
-        _bom_table("Bill of materials (mechanical)", mech or [])
+        _bom_table("Stückliste (Mechanik)", mech or [])
         if elec:
-            _bom_table("Bill of materials (electronics)", elec)
-        a(f"**Estimated cost:** {format_cost(bom_cost(spec))}")
+            _bom_table("Stückliste (Elektronik)", elec)
+        a(f"**Geschätzte Kosten:** {format_cost(bom_cost(spec))}")
         a("")
 
     if spec.steps:
-        a("## Build steps")
+        a("## Bauschritte")
         a("")
         for s in sorted(spec.steps, key=lambda s: s.index):
             a(f"{s.index}. {s.action}")
             if s.tool:
-                a(f"   - tool: {s.tool}")
+                a(f"   - Werkzeug: {s.tool}")
             if s.uses:
-                a(f"   - uses: {', '.join(s.uses)}")
+                a(f"   - verwendet: {', '.join(s.uses)}")
             if s.torque_quantity_id and s.torque_quantity_id in q:
                 tq = q[s.torque_quantity_id]
-                a(f"   - torque: {tq.value:g} {tq.unit}")
-            a(f"   - check: {s.check}")
+                a(f"   - Anzugsmoment: {tq.value:g} {tq.unit}")
+            a(f"   - Prüfung: {s.check}")
         a("")
 
     if spec.constraints:
-        a("## Checked constraints")
+        a("## Geprüfte Anforderungen")
         a("")
         for k in spec.constraints:
             a(f"- `{k.left} {k.kind} {k.right}` — {k.reason}")
         a("")
 
     if spec.decisions:
-        a("## Decision sheet")
+        a("## Entscheidungsblatt")
         a("")
-        a("> Choices, not facts — ratify or change them.")
+        a("> Entscheidungen, keine Fakten — ratifizieren oder ändern.")
         a("")
         for d in spec.decisions:
             a(f"- **{d.title}:** {d.choice} — {d.rationale}")
         a("")
 
     if spec.site is not None:
-        a("## Site & environment")
+        a("## Ort & Umgebung")
         a("")
         if spec.site.available_space is not None:
             dims = [f"{q[qid].value:g} {q[qid].unit}" for qid in spec.site.available_space if qid in q]
             if dims:
-                a(f"- available space: {' × '.join(dims)}")
+                a(f"- verfügbarer Platz: {' × '.join(dims)}")
         for d in spec.site.requirements:
             a(f"- **{d.title}:** {d.choice} — {d.rationale}")
         a("")
 
     if spec.components:
-        a("## Geometric validation (δ — geometry only, no physics judgement)")
+        a("## Geometrische Validierung (δ — nur Geometrie, kein Physik-Urteil)")
         a("")
         state = _spec_state(spec)
         env = geometry_envelope(state)
         for cid, (ex, ey, ez) in env.items():
-            a(f"- `{cid}` envelope: {ex:g} × {ey:g} × {ez:g}")
+            a(f"- `{cid}` Hüllmaß: {ex:g} × {ey:g} × {ez:g}")
             comp = next((c for c in spec.components if c.id == cid), None)
             if comp is not None and comp.geometry is not None:
                 a(f"  - {_volume_md(comp, q)}")
@@ -157,30 +158,30 @@ def specification_to_markdown(spec: Specification) -> str:
                 if ml:
                     a(f"  - {ml}")
         result = gate_delta(state)
-        verdict = ("no provably broken geometry (PASS — necessary, not sufficient)"
+        verdict = ("keine beweisbar defekte Geometrie (PASS — notwendig, nicht hinreichend)"
                    if result.passed else f"FAIL: {[f.code for f in result.failures]}")
-        a(f"- status: {verdict}")
+        a(f"- Status: {verdict}")
         a("")
 
     warnings = completeness_warnings(spec)
     if warnings:
-        a("## Completeness warnings")
+        a("## Vollständigkeits-Warnungen")
         a("")
-        a("> The spec is sound but probably under-specified:")
+        a("> Die Spezifikation ist konsistent, aber vermutlich unterspezifiziert:")
         a("")
         for w in warnings:
             a(f"- {w}")
         a("")
 
     if spec.gaps:
-        a("## Gaps (explicitly NOT asserted)")
+        a("## Lücken (ausdrücklich NICHT behauptet)")
         a("")
         for gap in spec.gaps:
             a(f"- {gap}")
         a("")
 
     if spec.claim_ids_used:
-        a("## Sources (ledger claims this manual rests on)")
+        a("## Quellen (Ledger-Belege, auf denen diese Anleitung beruht)")
         a("")
         for cid in spec.claim_ids_used:
             a(f"- `{cid}`")
@@ -193,12 +194,12 @@ def _volume_md(comp, q) -> str:
     try:
         vol = volume_of(comp.geometry, q)
     except GeometryError:
-        return "volume: not computable"
+        return "Volumen: nicht berechenbar"
     unit = geometry_length_unit(comp.geometry, q)
     us = f" {unit}³" if unit else ""
     if vol.exact:
-        return f"volume: {vol.value:g}{us} (exact)"
-    return f"volume: ≤ {vol.value:g}{us} (upper bound — {vol.note})"
+        return f"Volumen: {vol.value:g}{us} (exakt)"
+    return f"Volumen: ≤ {vol.value:g}{us} (obere Schranke — {vol.note})"
 
 
 def _mass_md(comp, q) -> str | None:
@@ -206,9 +207,9 @@ def _mass_md(comp, q) -> str | None:
         return None
     m = mass_of(comp, q)
     if m.value is None:
-        return f"mass: not computable — {m.note}"
-    qualifier = "exact" if m.exact else f"upper bound — {m.note}"
-    return f"mass: {m.value:g} {m.unit} ({qualifier})"
+        return f"Masse: nicht berechenbar — {m.note}"
+    qualifier = "exakt" if m.exact else f"obere Schranke — {m.note}"
+    return f"Masse: {m.value:g} {m.unit} ({qualifier})"
 
 
 def _spec_state(spec: Specification):

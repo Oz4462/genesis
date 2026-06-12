@@ -160,7 +160,7 @@ def test_phase_alpha_behaviour_per_class(fix):
         assert any(subject in g for g in report.gaps), "trap should be surfaced as a gap"
     elif expected == "abstain":         # class C — A4
         assert report.statement_to_claim == {}, "nothing should be asserted"
-        assert "No claim could be independently verified" in report.body
+        assert "kein Beleg unabhängig verifiziert" in report.body
         assert any(subject in g for g in report.gaps)
     elif expected == "dissent":         # class D
         assert subject not in report.statement_to_claim, "contested claim must not be one-sided fact"

@@ -22,21 +22,23 @@ from gen.export.markdown import specification_to_markdown  # noqa: E402
 
 def test_markdown_has_all_sections():
     md = specification_to_markdown(capstone_spec())
-    assert md.startswith("# Build manual: A wall-mounted LED shelf bracket")
-    assert "## Quantities" in md
-    assert "| `q_load` | verified shelf load | 12 | kg | grounded in c_load |" in md
-    assert "## Bill of materials (mechanical)" in md
-    assert "## Bill of materials (electronics)" in md
+    # the deliverable document is GERMAN (owner directive 2026-06-12): every
+    # human-facing label/heading German, ids/units/values untouched
+    assert md.startswith("# Bauanleitung: A wall-mounted LED shelf bracket")
+    assert "## Größen" in md
+    assert "| `q_load` | verified shelf load | 12 | kg | belegt durch c_load |" in md
+    assert "## Stückliste (Mechanik)" in md
+    assert "## Stückliste (Elektronik)" in md
     assert "McMaster-Carr #91290A115" in md and "0.42 EUR" in md
-    assert "**Estimated cost:** 0.84 EUR (partial" in md
-    assert "## Build steps" in md and "torque: 2.5 N*m" in md and "tool: 4 mm hex key" in md
-    assert "## Checked constraints" in md
-    assert "## Decision sheet" in md
-    assert "## Site & environment" in md and "available space: 200 mm × 200 mm × 200 mm" in md
-    assert "## Geometric validation" in md
-    assert "volume: 57409.1 mm³ (exact)" in md
-    assert "mass: 71.1873 g (exact)" in md
-    assert "## Sources" in md and "- `c_price`" in md
+    assert "**Geschätzte Kosten:** 0.84 EUR (partial" in md
+    assert "## Bauschritte" in md and "Anzugsmoment: 2.5 N*m" in md and "Werkzeug: 4 mm hex key" in md
+    assert "## Geprüfte Anforderungen" in md
+    assert "## Entscheidungsblatt" in md
+    assert "## Ort & Umgebung" in md and "verfügbarer Platz: 200 mm × 200 mm × 200 mm" in md
+    assert "## Geometrische Validierung" in md
+    assert "Volumen: 57409.1 mm³ (exakt)" in md
+    assert "Masse: 71.1873 g (exakt)" in md
+    assert "## Quellen" in md and "- `c_price`" in md
 
 
 def test_markdown_is_deterministic():
@@ -47,5 +49,5 @@ def test_markdown_is_deterministic():
 
 def test_quantities_table_header_present():
     md = specification_to_markdown(capstone_spec())
-    assert "| id | name | value | unit | provenance |" in md
-    assert "|----|------|-------|------|------------|" in md
+    assert "| id | Name | Wert | Einheit | Herkunft |" in md
+    assert "|----|------|------|---------|----------|" in md

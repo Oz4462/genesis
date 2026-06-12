@@ -119,13 +119,13 @@ class Conductor:
             if c.id in verified_ids:
                 continue
             gaps.append(
-                f"{c.text} — status: {c.status.value}, confidence {c.confidence:.2f}"
+                f"{c.text} — Status: {c.status.value}, Konfidenz {c.confidence:.2f}"
             )
 
         body = (
             "\n".join(body_lines)
             if body_lines
-            else "No claim could be independently verified for this question."
+            else "Für diese Frage konnte kein Beleg unabhängig verifiziert werden."
         )
         return Report(
             run_id=state.question.run_id,

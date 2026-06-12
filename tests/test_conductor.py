@@ -116,7 +116,7 @@ def test_unsupported_claim_is_gap_not_fact():
     st = run(conductor.run(_state()))
 
     assert st.report.statement_to_claim == {}          # nothing asserted as fact
-    assert "No claim could be independently verified" in st.report.body
+    assert "kein Beleg unabhängig verifiziert" in st.report.body
     assert any(CLAIM_TEXT in g and "unsupported" in g for g in st.report.gaps)
     assert gate_alpha(st).passed                         # honest emptiness still passes
 

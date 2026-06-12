@@ -1917,6 +1917,65 @@ Modul `flight.py`; Tests `test_flight.py` (12) + Selektion/Gate-Wiring in
 
 ---
 
+## 55. ε-Krypto — geschlossene Kryptographie-Dimensionierung (`security.py`)
+
+**Was sie fängt** (erste Umsetzung aus dem MathBrain-Inventar,
+`docs/research/MATHBRAIN_INVENTORY.md`): zu kleiner Nonce-Raum für das
+Nachrichtenvolumen, Schlüssel unter der geforderten Sicherheitsstärke, mehr
+GCM-Aufrufe pro Schlüssel als der Standard erlaubt. Drei Validatoren im
+Registry-Muster: **`birthday_bound`** (p ≈ q²/2^(n+1), Default-Schranke = die
+NIST-2⁻³²-IV-Kollisionsgrenze; Hand-Anker 16/2048 exakt; q=2³² auf 96 Bit =
+genau halbe Schranke, SF 2), **`key_security`** (SP 800-57 Tabelle 2:
+AES-128 ≡ RSA-3072 ≡ ECC-P-256 kommt als identische 128-Bit-Stärke heraus;
+RSA-2048 = 112 fällt ehrlich gegen den 128-Default und besteht gegen
+deklarierte 112; unbekannter Mechanismus wirft — nie geratene Stärke),
+**`gcm_invocation_budget`** (SP 800-38D §8.3: ≤ 2³² Aufrufe bei Zufalls-IV,
+inklusiv am Limit). **Registry 24→27, Recipes 17→22** (Trigger crypto.nonce_bits,
+crypto.symmetric/rsa/ecc_key_bits, crypto.gcm_invocations). **Ehrliche Grenze:**
+Parameter-Dimensionierung, kein Protokollbeweis, kein Implementierungs-Audit,
+PQ außen vor. Quellen: NIST SP 800-57 Pt.1 R5 / SP 800-38D; Birthday-Bound
+Standard (Katz–Lindell; MathBrain `Formeln/crypto-birthday-bound.md`).
+
+---
+
+## 56. Conformal Prediction — die verteilungsfreie Garantie (`calibration.py`)
+
+`threshold_for_precision` wählt den Arbeitspunkt EMPIRISCH; Split-Conformal
+ergänzt die **finite-sample-Garantie ohne Verteilungsannahme**:
+`conformal_quantile(scores, α)` = ⌈(n+1)(1−α)⌉-kleinster Score mit
+P(neu ≤ q̂) ≥ 1−α unter Austauschbarkeit (Lehrbuch-Anker: n=9, α=0,1 → 9.;
+α=0,5 → 5.) und `conformal_accept_threshold(true_confidences, α)` =
+⌊α(n+1)⌋-kleinste Konfidenz wahrer Claims — die Accept-Regel verpasst
+garantiert höchstens einen α-Anteil wirklich wahrer Claims. Beide geben
+**ehrlich None**, wenn das Kalibrierset für das α zu klein ist (⌈(n+1)(1−α)⌉>n
+bzw. ⌊α(n+1)⌋<1) — nie eine erfundene Schranke. Quellen: Vovk et al.,
+*Algorithmic Learning in a Random World*; Angelopoulos & Bates (arXiv
+2107.07511); MathBrain `Konzepte/60-conformal-foundations.md`. Anwendung im
+Live-Pfad: Gold-Set liefert (Konfidenz, wahr)-Paare → garantierte
+Accept-Schwelle statt nur gemessener.
+
+---
+
+## 57. Deutsche Ergebnisse — die Sprach-Verträge (Owner-Direktive 2026-06-12)
+
+Alles, was der Mensch liest, ist DEUTSCH; alles Beweis-/Code-Artige bleibt
+unangetastet: (a) **Scholar-Vertrag**: Claim-`text` auf Deutsch (der α-Report
+IST wörtlich die Claim-Texte — `conductor.py` mapping), das `quote`-Feld
+bleibt ZEICHENGENAU in der Originalsprache (die Wortlaut-Beweisschicht C-4/A1
+prüft Werte im Zitat — sprachneutral); deutsche Fragment-Starter ergänzen den
+Vollständigkeits-Wächter (kleingeschrieben = Fragment, „Die Bibliothek …"
+besteht). (b) **Architect-Vertrag** Regel 9: Namen, Schritte, Prüfungen,
+Entscheidungen, Begründungen, Lücken, BOM-Namen deutsch; ids/units/Formeln/
+measurands englisch. (c) **Synthesizer**: Ansatz-Namen deutsch. (d)
+**Markdown-Bauanleitung** komplett deutsch (Überschriften, Tabellen, Herkunft
+„belegt durch/berechnet/Entscheidung", δ-Verdikt). **Ehrlich offen:** die
+DEMO-Claim-Welt (capstone/drive_shaft) bleibt vorerst englisch — ihre
+Übersetzung muss Quelle↔Zitat↔C-4 konsistent halten und bekommt einen eigenen
+verifizierten Pass; ob die LIVE-Modelle den Sprachvertrag zuverlässig erfüllen,
+misst der Gold-Set-Lauf.
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).

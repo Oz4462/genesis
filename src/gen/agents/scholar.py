@@ -25,13 +25,16 @@ _SYSTEM = (
     "(2) each claim's 'text' must be ONE complete, self-contained statement that "
     "stands on its own and is independently checkable — a full grammatical "
     "sentence with a clear subject. NEVER a sentence fragment, a dangling clause, "
-    "a list item, or a phrase starting with 'and'/'or'/'use of'/'an'. If a fact "
-    "needs context from the rest of the sentence to make sense, include that "
-    "context in the text. (3) for each claim include a quote COPIED "
-    "CHARACTER-FOR-CHARACTER from the source as one contiguous span — findable "
-    "with Ctrl+F. Do NOT paraphrase, reorder, abbreviate, or reconstruct it; if "
-    "you cannot copy an exact span, omit the claim. (4) if the source has nothing "
-    'relevant, return an empty array. Return JSON: [{"text": "...", "quote": "..."}].'
+    "a list item, or a dangling phrase. If a fact needs context from the rest of "
+    "the sentence to make sense, include that context in the text. "
+    "(3) LANGUAGE: write each claim 'text' in GERMAN (the reader is "
+    "German-speaking) — keep technical terms, proper nouns, numbers, and units "
+    "exactly as the source states them. (4) for each claim include a quote "
+    "COPIED CHARACTER-FOR-CHARACTER from the source IN ITS ORIGINAL LANGUAGE as "
+    "one contiguous span — findable with Ctrl+F. Do NOT translate, paraphrase, "
+    "reorder, abbreviate, or reconstruct the quote; if you cannot copy an exact "
+    "span, omit the claim. (5) if the source has nothing relevant, return an "
+    'empty array. Return JSON: [{"text": "...", "quote": "..."}].'
 )
 
 # readable_text is re-exported (moved to tools.fetch as a neutral home shared with
@@ -46,10 +49,16 @@ def _normalize(s: str) -> str:
 # Lowercase function words that only ever continue a sentence — a claim text
 # starting with one is a fragment, not a standalone statement. Content words
 # (incl. lowercase proper nouns like 'build123d') are NOT here, so they pass.
+# German starters included since claim texts are written in German (a proper
+# German sentence starts capitalized, so lowercase matches stay fragments).
 _FRAGMENT_STARTERS = frozenset({
     "and", "or", "but", "nor", "yet", "so", "a", "an", "the", "of", "with",
     "for", "as", "by", "to", "in", "on", "at", "from", "because", "which",
     "that", "than", "then", "plus", "including", "use", "using", "uses",
+    "und", "oder", "aber", "sondern", "sowie", "mit", "für", "von", "zu",
+    "im", "am", "auf", "aus", "bei", "nach", "weil", "dass", "als", "dann",
+    "denn", "wobei", "welche", "welcher", "welches", "einschließlich",
+    "nutzt", "nutzen", "verwendet", "durch", "über", "unter", "zwischen",
 })
 
 
