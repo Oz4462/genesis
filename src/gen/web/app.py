@@ -237,8 +237,8 @@ def create_app() -> FastAPI:
             "engine": "GENESIS",
             "live_enabled": _live_enabled(),
             "models": {
-                "generator": os.environ.get("GENESIS_GENERATOR", "qwen2.5:14b"),
-                "verifier": os.environ.get("GENESIS_VERIFIER", "gemma4:latest"),
+                "generator": os.environ.get("GENESIS_GENERATOR", "qwen3.5:9b"),
+                "verifier": os.environ.get("GENESIS_VERIFIER", "gemma4:12b"),
             },
             "wiring_note": (
                 "Modelle werden über die Umgebungsvariablen GENESIS_GENERATOR und "
@@ -400,15 +400,15 @@ def create_app() -> FastAPI:
                     "Live-Läufe sind deaktiviert (Owner-Gate: kein Live-Run, bis die "
                     "Real-Use-Ready-Messung abgeschlossen ist). GENESIS erfindet keine "
                     "Antwort ohne echte Recherche — setze GENESIS_ALLOW_LIVE=1 und "
-                    "starte Ollama (qwen2.5:14b + gemma4), um den Live-Pfad zu öffnen."
+                    "starte Ollama (qwen3.5:9b + gemma4:12b), um den Live-Pfad zu öffnen."
                 ),
             })
         from ..cli import build_live
         from ..runner import run as run_alpha, run_solution, run_specification
 
         deps, cfg = build_live(
-            os.environ.get("GENESIS_GENERATOR", "qwen2.5:14b"),
-            os.environ.get("GENESIS_VERIFIER", "gemma4:latest"),
+            os.environ.get("GENESIS_GENERATOR", "qwen3.5:9b"),
+            os.environ.get("GENESIS_VERIFIER", "gemma4:12b"),
         )
         if body.mode == "spec":
             spec = await run_specification(body.question, deps, config=cfg)

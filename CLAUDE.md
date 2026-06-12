@@ -45,7 +45,9 @@ tests/                    Tests, inkl. Gate-Akzeptanztests
 
 ## Aktueller Fokus
 **Phase α + β + γ abgeschlossen + δ voll ausgebaut + Quality-Engine verdrahtet**
-(839 Tests offline mit vollen Deps / 796+16 skipped ohne; α/β live bewiesen).
+(840 Tests offline mit vollen Deps / 797+16 skipped ohne; α/β live bewiesen).
+Live-Default-Verdrahtung (2026-06-12): Generator `qwen3.5:9b` + Verifier
+`gemma4:12b` (beide lokal installiert; Fallback qwen2.5:14b + gemma4:latest).
 γ: Idee → vollständige Spezifikation hinter GATE γ (Wächter C-1..C-18 inkl.
 Cross-Claim-Konsistenz und GUM-Unsicherheit), 2 CAD-Exporte (OpenSCAD + build123d)
 + druckfertiges STL (OCCT-Kernel, Volumen-bewiesen).

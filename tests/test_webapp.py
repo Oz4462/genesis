@@ -82,6 +82,15 @@ def test_status_exposes_the_model_wiring(client):
     assert "GENESIS_ALLOW_LIVE" in s["wiring_note"]
 
 
+def test_default_wiring_is_the_chosen_live_pair(client, monkeypatch):
+    # the 2026-06-12 model decision, wired as the default: qwen3.5:9b generates,
+    # gemma4:12b verifies — different families, each fits the 11-GB GPU alone.
+    monkeypatch.delenv("GENESIS_GENERATOR", raising=False)
+    monkeypatch.delenv("GENESIS_VERIFIER", raising=False)
+    s = client.get("/api/status").json()
+    assert s["models"] == {"generator": "qwen3.5:9b", "verifier": "gemma4:12b"}
+
+
 def test_spec_demo_ships_files_and_printability(client):
     # the single result page carries everything: deliverable files inline (the
     # SAME render paths as the CLI, incl. the gated STL) plus the print verdict.

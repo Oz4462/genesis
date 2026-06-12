@@ -7,7 +7,7 @@
 > Open-Source-Infrastruktur, damit Menschen — privat wie Unternehmen — aus einer kleinen Idee etwas Vollständiges erschaffen können: mit Quellen statt Behauptungen, mit nachgerechneter Physik statt geratener Zahlen, und mit ehrlichen Lücken statt erfundener Antworten.
 
 ```
-839 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
+840 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
 ```
 
 ---
@@ -166,7 +166,7 @@ pip install -e .[full]      # alles inkl. Dev-Tools (pytest, ruff, httpx)
 Ohne die optionalen Pakete bleibt alles funktionsfähig — die betreffenden Features/Tests **skippen ehrlich**, statt zu raten.
 
 ```bash
-python -m pytest tests/ -q          # 839 passed (volle Deps) — ohne LLM-Token, ohne Netz
+python -m pytest tests/ -q          # 840 passed (volle Deps) — ohne LLM-Token, ohne Netz
 ```
 
 ## 8 · Nutzung: CLI
@@ -254,9 +254,11 @@ from gen.pressure_vessel import pressure_vessel_check
 Der Live-Pfad nutzt **lokales Ollama** (kein Cloud-Key) und ein keyloses Wikipedia-Backend:
 
 ```bash
-ollama pull qwen2.5:14b     # Generator (scout/scholar)
-ollama pull gemma4          # Verifizierer (skeptic) — MUSS eine andere Modellfamilie sein
+ollama pull qwen3.5:9b      # Generator (scout/scholar) — Default
+ollama pull gemma4:12b      # Verifizierer (skeptic) — MUSS eine andere Modellfamilie sein
 ```
+
+Die Modellwahl (verifiziert 2026-06-12 für 11-GB-GPUs): `qwen3.5:9b` (6,6 GB, 256K Kontext, Instruction-Following-Spitze der ≤14B-Klasse) + `gemma4:12b` (7,6 GB, 256K) — jedes passt **allein** mit Reserve in den VRAM, es ist nie mehr als ein Modell gleichzeitig geladen. Andere Modelle: `--generator`/`--verifier` (CLI) bzw. `GENESIS_GENERATOR`/`GENESIS_VERIFIER` (Web-UI).
 
 Gleiche Modellfamilie für Generator und Verifizierer? GENESIS **bricht ab, bevor irgendein Call passiert** — Cross-Model ist Pflicht, nicht Vorschlag. Mit `--checkpoint-dir runs` entsteht pro Lauf ein reproduzierbarer Audit-Checkpoint.
 
@@ -283,7 +285,7 @@ Der Scorer (`gen/goldset.py`) berechnet Fakten-Genauigkeit, **Abstention-Recall*
 - **Zwei unabhängige Methoden:** FEM gegen geschlossene Form, BREP gegen analytisches Volumen, MNA gegen Ohm — Übereinstimmung als Schutz gegen Fehler in einer von beiden.
 - **Tests mit Zähnen:** Jeder Wächter hat Negativtests (der manipulierte Fall **muss** scheitern). Das Eval-Harness aggregiert das zu Leaks = 0.
 - **Real-World-Verifikation:** Die Web-UI wurde nicht nur unit-getestet, sondern im echten Browser bedient (Playwright): Klärungs-Dialog Gelb→Grün, Sign-off-Verweigerung, Live-Ablehnungskarte.
-- **839 Tests** (volle Abhängigkeiten) / 796 + 16 skipped (Minimal-Umgebung) — alle ohne LLM-Token und ohne Netz; zusätzlich grün mit Deprecation-Warnings als Fehlern. Lint-Baseline: `ruff check src tests` = sauber.
+- **840 Tests** (volle Abhängigkeiten) / 797 + 16 skipped (Minimal-Umgebung) — alle ohne LLM-Token und ohne Netz; zusätzlich grün mit Deprecation-Warnings als Fehlern. Lint-Baseline: `ruff check src tests` = sauber.
 
 ## 14 · Projektstruktur
 
@@ -319,13 +321,13 @@ goldset/v1.json        das kuratierte Mess-Set für die Live-Läufe
 sql/001_ledger.sql     Quellenzwang als DB-Constraint
 docs/                  VISION, ARCHITECTURE, DATA_MODEL, PIPELINE, phases/ (α–δ inkl.
                        PHASE_DELTA.md §1–§52), research/, agents/
-tests/                 839 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-Engine,
+tests/                 840 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-Engine,
                        Web-API & 4 Frageklassen
 ```
 
 ## 15 · Status & ehrliche Grenzen
 
-**Fertig und bewiesen (offline):** die komplette α/β/γ/δ-Kette mit allen Gates, die Physik-Engine (20 Validatoren + FEM), die Druckbarkeits-Schicht (bis in CLI, Web-UI und den gegateten STL-Export verdrahtet), die Quality-Engine, CLI, Web-UI (Idee→Ergebnis-Flow für Laien), Packaging, Gold-Set-Vertrag — 839 Tests, deterministisch, reproduzierbar.
+**Fertig und bewiesen (offline):** die komplette α/β/γ/δ-Kette mit allen Gates, die Physik-Engine (20 Validatoren + FEM), die Druckbarkeits-Schicht (bis in CLI, Web-UI und den gegateten STL-Export verdrahtet), die Quality-Engine, CLI, Web-UI (Idee→Ergebnis-Flow für Laien), Packaging, Gold-Set-Vertrag — 840 Tests, deterministisch, reproduzierbar.
 
 **Live bewiesen:** α (Fakten-Report) und β gegen echte lokale Modelle, inklusive empirischer Bestätigung, dass der Wortlaut-Wächter echte Modell-Paraphrasen abfängt.
 

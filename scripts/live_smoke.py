@@ -42,8 +42,8 @@ async def main() -> int:
     question = sys.argv[1] if len(sys.argv) > 1 else (
         "What is a geometric modeling kernel in CAD software?"
     )
-    generator = sys.argv[2] if len(sys.argv) > 2 else "qwen2.5:14b"
-    verifier = sys.argv[3] if len(sys.argv) > 3 else "gemma4:latest"
+    generator = sys.argv[2] if len(sys.argv) > 2 else "qwen3.5:9b"
+    verifier = sys.argv[3] if len(sys.argv) > 3 else "gemma4:12b"
 
     deps, _ = build_live(generator, verifier)
     cfg = _capped_config(generator, verifier)

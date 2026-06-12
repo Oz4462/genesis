@@ -731,12 +731,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--checkpoint-dir", default=None, help="write a run checkpoint here")
     parser.add_argument(
-        "--generator", default="qwen2.5:14b",
-        help="Ollama model for scout/scholar (default: qwen2.5:14b)",
+        "--generator", default="qwen3.5:9b",
+        help="Ollama model for scout/scholar (default: qwen3.5:9b)",
     )
     parser.add_argument(
-        "--verifier", default="gemma4:latest",
-        help="Ollama model for skeptic — MUST be a different family (default: gemma4:latest)",
+        "--verifier", default="gemma4:12b",
+        help="Ollama model for skeptic — MUST be a different family (default: gemma4:12b)",
     )
     args = parser.parse_args(argv)
 
