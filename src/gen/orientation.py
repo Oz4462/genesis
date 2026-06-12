@@ -139,10 +139,11 @@ def _mesh(node: GeometryNode, quantities: dict[str, Quantity],
           build_dir: tuple[float, float, float], tolerance: float | None):
     """Tessellate and precompute per-triangle data in the build frame.
 
-    Returns ``(tris, up, eps)`` where each tri is a dict with vertex-coordinate
-    keys (exact tuples — adjacent OCCT face meshes share edge coordinates
-    exactly, proven by the watertight STL topology test), outward normal, area,
-    centroid height, min vertex height."""
+    Returns ``(tris, up, eps, tol)`` — `tol` is the chordal tolerance actually
+    used (needed by convergence probes). Each tri is a dict with
+    vertex-coordinate keys (exact tuples — adjacent OCCT face meshes share edge
+    coordinates exactly, proven by the watertight STL topology test), outward
+    normal, area, centroid height, min vertex height."""
     _require_cadquery()
     solid = csg_to_solid(node, quantities)
     bb = solid.BoundingBox()
@@ -171,7 +172,7 @@ def _mesh(node: GeometryNode, quantities: dict[str, Quantity],
             "min_h": min(h[i], h[j], h[k]),
             "max_h": max(h[i], h[j], h[k]),
         })
-    return tris, up, eps
+    return tris, up, eps, tol
 
 
 def first_layer_report(
@@ -185,48 +186,69 @@ def first_layer_report(
 
     Returns ``{"plate_contact", "contact_area", "footprint", "height",
     "sharp_base_edge", "elephant_foot_risk", "recommended_base_chamfer"}``:
-    `plate_contact` is False when NO flat face rests on the build plate (a
-    sphere/point contact — an adhesion failure before the print begins);
-    `footprint` is the (u, v) extent of the plate-contact region; a
-    `sharp_base_edge` (a vertical wall meeting the plate directly) plus contact
-    means `elephant_foot_risk` — the squashed first layers bulge outward and any
-    fit near the base jams — relieved by the recommended ~0.3 mm base chamfer.
-    Warping carries no verdict here (material-dependent, no defensible universal
-    threshold): footprint/contact/height are the evidence, the human judges.
-    Deterministic for a fixed tolerance."""
-    tris, up, eps = _mesh(node, quantities, build_dir, tolerance)
+    `plate_contact` is False when no REAL flat face rests on the build plate —
+    proven by a CONVERGENCE PROBE, not a guessed threshold: the contact area is
+    measured at the working tessellation and again at tolerance/16. A true flat
+    contact is tessellation-invariant (the areas agree); a line/point contact
+    (lying cylinder, sphere) only exists as a tessellation artifact whose area
+    shrinks ~∝ √tolerance, so it vanishes under refinement and is honestly
+    reported as no adhesion. `footprint` is the (u, v) extent of the contact
+    region; a `sharp_base_edge` (a vertical wall meeting the plate directly)
+    plus real contact means `elephant_foot_risk` — relieved by the recommended
+    ~0.3 mm base chamfer. Warping carries no verdict here (material-dependent,
+    no defensible universal threshold): footprint/contact/height are the
+    evidence, the human judges. Deterministic for a fixed tolerance."""
+    tris, up, eps, tol = _mesh(node, quantities, build_dir, tolerance)
     if not tris:
         raise ValueError("tessellation produced no triangles")
-    hmin = min(t["min_h"] for t in tris)
     hmax = max(t["max_h"] for t in tris)
+    hmin = min(t["min_h"] for t in tris)
     u_ax, v_ax = _basis(up)
 
-    contact_area = 0.0
-    contact_pts: list[tuple[float, float]] = []
+    def _contact(mesh_tris, band) -> tuple[float, list[tuple[float, float]]]:
+        h0 = min(t["min_h"] for t in mesh_tris)
+        area = 0.0
+        pts: list[tuple[float, float]] = []
+        for t in mesh_tris:
+            if t["max_h"] <= h0 + band:               # a flat face ON the plate
+                area += t["area"]
+                for p in t["keys"]:
+                    pts.append((
+                        p[0] * u_ax[0] + p[1] * u_ax[1] + p[2] * u_ax[2],
+                        p[0] * v_ax[0] + p[1] * v_ax[1] + p[2] * v_ax[2],
+                    ))
+        return area, pts
+
+    contact_area, contact_pts = _contact(tris, eps)
     sharp_base_edge = False
     for t in tris:
-        if t["max_h"] <= hmin + eps:                  # a flat face ON the plate
-            contact_area += t["area"]
-            for p in t["keys"]:
-                contact_pts.append((
-                    p[0] * u_ax[0] + p[1] * u_ax[1] + p[2] * u_ax[2],
-                    p[0] * v_ax[0] + p[1] * v_ax[1] + p[2] * v_ax[2],
-                ))
-        else:
+        if t["max_h"] > hmin + eps:
             n_up = t["normal"][0] * up[0] + t["normal"][1] * up[1] + t["normal"][2] * up[2]
             if abs(n_up) < math.sin(math.radians(5.0)) and t["min_h"] <= hmin + eps:
                 sharp_base_edge = True                # a vertical wall reaches the plate
+
+    # convergence probe: refine the tessellation AND the height band 16x. A real
+    # flat face sits exactly at the minimum height, so its area is invariant
+    # under both; a line/point contact only has band area ~ sqrt(band), which
+    # shrinks ~4x and is judged vanishing below half the working-mesh area.
+    refined_area = contact_area
+    if contact_area > 0.0:
+        fine_tris, _, _, _ = _mesh(node, quantities, build_dir, tol / 16.0)
+        refined_area, _ = _contact(fine_tris, eps / 16.0)
+    vanishing = contact_area > 0.0 and refined_area < 0.5 * contact_area
+    plate_contact = contact_area > 0.0 and not vanishing
 
     footprint = (0.0, 0.0)
     if contact_pts:
         us = [p[0] for p in contact_pts]
         vs = [p[1] for p in contact_pts]
         footprint = (max(us) - min(us), max(vs) - min(vs))
-    plate_contact = contact_area > 0.0
     elephant_foot_risk = plate_contact and sharp_base_edge
     return {
         "plate_contact": plate_contact,
         "contact_area": contact_area,
+        "contact_area_refined": refined_area,
+        "vanishing_contact": vanishing,
         "footprint": footprint,
         "height": hmax - hmin,
         "sharp_base_edge": sharp_base_edge,
@@ -263,7 +285,7 @@ def bridge_spans(
     Exact for axis-aligned geometry (the GENESIS CSG world); rotated bridge
     directions degrade to the conservative needs-support verdict, never to a
     false pass. Deterministic for a fixed tolerance."""
-    tris, up, eps = _mesh(node, quantities, build_dir, tolerance)
+    tris, up, eps, _ = _mesh(node, quantities, build_dir, tolerance)
     if not tris:
         raise ValueError("tessellation produced no triangles")
     hmin = min(t["min_h"] for t in tris)

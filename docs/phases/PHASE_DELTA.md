@@ -1825,6 +1825,53 @@ Processing* (Euler–Poincaré, Mesh-Volumen); Elephant-Foot-/Warping-Guides —
 
 ---
 
+## 53. Rotation im CSG-Vokabular — durch JEDE Schicht bewiesen
+
+**Was sie schließt:** Das Geometrie-Vokabular konnte nur achsenparallel bauen
+(„nicht mal Rotation") — liegende Zylinder, schräge Streben, gedrehte Bohrungen
+waren unausdrückbar. Jetzt: `rotate(axis_x, axis_y, axis_z, angle_deg)` —
+Rotation um eine beliebige Achse durch den Ursprung, Winkel in Grad (die von
+allen vier Backends geteilte Konvention).
+
+**Durch jede Schicht, mit Anker:** (1) **AABB** (`verification/geometry.py`):
+Rodrigues-Rotation der 8 Ecken der Kind-AABB, neu geboxt — **konservativ-sound**
+(nie zu klein; Test: AABB ⊇ kernel-exakte BBox des 45°-gedrehten Zylinders),
+exakt bei 90°-Vielfachen (10×20×30-Box → (20,10,30) maschinengenau); Volumen
+rotationsinvariant, Exaktheits-Flag bleibt. (2) **BREP** (`brep.py`):
+cadquery `Shape.rotate(start, end, deg)` (offizielle API) — gedrehter Zylinder
+liegt exakt entlang Y, Volumen π·r²·h maschinengenau invariant.
+(3) **OpenSCAD**: `rotate(a, v=[...])`; (4) **build123d**:
+`Shape.rotate(Axis((0,0,0), v), deg)` — beide gegen die offizielle Doku
+verifiziert, nie erraten. (5) **Primitiv-STL** (`export/stl.py`): Vertex-
+Rotation über die EINE geteilte Rodrigues-Quelle (`rotate_point`), Winding
+bleibt → Mesh wasserdicht (stl_integrity_check) mit exaktem Volumen.
+Null-Achse wirft in jeder Schicht GeometryError — nie geraten. GATE γ C-9
+validiert rotate generisch (Params exakt + genau 1 Kind); GATE δ läuft sauber.
+
+**Realer Fund des Beweis-Loops (Drift-Kontrolle):** Der liegende Zylinder
+meldete Bett-Kontakt — die Tessellation hat einen echten ~0,9-mm-Flachstreifen,
+und mit FESTEM Höhenband konvergiert die Bandfläche gegen eine Konstante (sie
+verschwindet nie). Ehrliche Lösung statt Schwellwert-Fummelei: **Konvergenz-
+Probe** in `first_layer_report` — Tessellation UND Band 16× verfeinert; eine
+echte Planfläche liegt exakt auf hmin (Fläche invariant), ein Linien-/Punkt-
+Kontakt skaliert ∝ √Band (Faktor ~4 kleiner) → `vanishing_contact` →
+ehrlich „keine Haftung". Die Arbeitsnetz-Bandfläche bleibt als Evidenz im
+Report. Zwei falsche eigene Test-Annahmen wurden dabei gefangen und korrigiert
+(binärer Kontakt; Fläche=0).
+
+**Ehrliche Grenze:** Rotation um Achsen durch den Ursprung (verschobene
+Drehachsen komponieren aus translate∘rotate∘translate); die AABB bleibt bei
+Nicht-90°-Winkeln bewusst konservativ. `bridge_spans` behandelt gedrehte
+Decken weiterhin konservativ (needs support), nie als False-Pass.
+
+**Quellen:** Rodrigues-Rotationsformel (Standard); cadquery-Doku
+`Shape.rotate`; build123d `docs/moving_objects.rst` `rotate(Axis, deg)`;
+OpenSCAD `rotate(a, v)`. Module: `core/state.py`, `verification/geometry.py`,
+`brep.py`, `export/{openscad,build123d,stl}.py`, `orientation.py`; Tests:
+`tests/test_rotate.py` (14), Konvergenz-Probe in `test_orientation.py`-Welt.
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).

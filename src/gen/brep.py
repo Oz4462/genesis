@@ -74,12 +74,23 @@ def csg_to_solid(node: GeometryNode, quantities: dict[str, Quantity]):
             # hemisphere (latitude 0..90), so the angles must be given explicitly.
             return Solid.makeSphere(r, Vector(0, 0, 0), Vector(0, 0, 1), -90, 90, 360)
 
-    if node.kind in GEOMETRY_TRANSFORMS:  # translate
+    if node.kind in GEOMETRY_TRANSFORMS:
         child = csg_to_solid(node.children[0], quantities)
-        x = _val(node.params["x"], quantities)
-        y = _val(node.params["y"], quantities)
-        z = _val(node.params["z"], quantities)
-        return child.translate(Vector(x, y, z))
+        if node.kind == "translate":
+            x = _val(node.params["x"], quantities)
+            y = _val(node.params["y"], quantities)
+            z = _val(node.params["z"], quantities)
+            return child.translate(Vector(x, y, z))
+        if node.kind == "rotate":
+            ax = _val(node.params["axis_x"], quantities)
+            ay = _val(node.params["axis_y"], quantities)
+            az = _val(node.params["axis_z"], quantities)
+            if (ax * ax + ay * ay + az * az) ** 0.5 < 1e-12:
+                raise GeometryError("rotate axis must be non-zero")
+            angle = _val(node.params["angle_deg"], quantities)
+            # cadquery Shape.rotate(axisStart, axisEnd, angleDegrees) — axis
+            # through the origin, the shared geometry convention.
+            return child.rotate(Vector(0, 0, 0), Vector(ax, ay, az), angle)
 
     if node.kind in GEOMETRY_OPERATIONS:
         solids = [csg_to_solid(c, quantities) for c in node.children]

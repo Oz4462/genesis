@@ -12,6 +12,10 @@ Conventions (PHASE_DELTA.md §1, consistent with build123d's centered primitives
   cylinder(radius,height):   axis along Z      -> [±r, ±r, ±h/2]
   sphere(radius):            centered          -> ±r per axis
   translate(x,y,z) child:    child's AABB shifted by (x,y,z)
+  rotate(axis,angle) child:  the 8 corners of the child's AABB rotated
+                (Rodrigues), then re-boxed — CONSERVATIVE (bounds the rotated
+                child because the child lies inside its AABB and rotation is
+                rigid); exact for 90°-multiples of axis-aligned children
   union:        envelope (min of mins, max of maxs) of children
   difference(A,…): subtracting can only shrink -> sound bound = AABB(A)
   intersection: overlap region (max of mins, min of maxs); inverted -> EMPTY
@@ -91,6 +95,36 @@ def _value(node: GeometryNode, param: str, quantities: dict[str, Quantity]) -> f
     return float(quantity.value)
 
 
+def rotate_point(
+    p: tuple[float, float, float],
+    axis: tuple[float, float, float],
+    angle_deg: float,
+) -> tuple[float, float, float]:
+    """Rotate a point about an axis through the origin (Rodrigues' formula).
+
+    ``v' = v·cosθ + (k×v)·sinθ + k·(k·v)·(1−cosθ)`` with k the normalized axis
+    — the standard closed form for rotation about an arbitrary axis. Angle in
+    DEGREES (the shared geometry convention). Raises GeometryError on a
+    zero-length axis: a rotation without a direction is undefined, never
+    guessed. Shared by the AABB layer and the primitive STL mesher so both
+    rotate identically."""
+    ax, ay, az = axis
+    n = math.sqrt(ax * ax + ay * ay + az * az)
+    if n < 1e-12:
+        raise GeometryError("rotate axis must be non-zero")
+    kx, ky, kz = ax / n, ay / n, az / n
+    th = math.radians(angle_deg)
+    c, s = math.cos(th), math.sin(th)
+    x, y, z = p
+    dot = kx * x + ky * y + kz * z
+    cx, cy, cz = ky * z - kz * y, kz * x - kx * z, kx * y - ky * x
+    return (
+        x * c + cx * s + kx * dot * (1.0 - c),
+        y * c + cy * s + ky * dot * (1.0 - c),
+        z * c + cz * s + kz * dot * (1.0 - c),
+    )
+
+
 def aabb_of(node: GeometryNode, quantities: dict[str, Quantity]) -> Aabb:
     """The axis-aligned bounding box of a CSG node (sound bound).
 
@@ -126,6 +160,33 @@ def aabb_of(node: GeometryNode, quantities: dict[str, Quantity]) -> Aabb:
             return Aabb(
                 c.min_x + dx, c.min_y + dy, c.min_z + dz,
                 c.max_x + dx, c.max_y + dy, c.max_z + dz,
+            )
+        if kind == "rotate":
+            if not node.children:
+                raise GeometryError("rotate has no child")
+            axis = (
+                _value(node, "axis_x", quantities),
+                _value(node, "axis_y", quantities),
+                _value(node, "axis_z", quantities),
+            )
+            angle = _value(node, "angle_deg", quantities)
+            c = aabb_of(node.children[0], quantities)
+            if c.empty:
+                return _EMPTY
+            # rotate the 8 corners of the child's AABB and re-box: conservative
+            # (the child lies inside its AABB; a rigid rotation keeps it inside
+            # the rotated box, which lies inside the new AABB) — never too small.
+            corners = [
+                rotate_point((x, y, z), axis, angle)
+                for x in (c.min_x, c.max_x)
+                for y in (c.min_y, c.max_y)
+                for z in (c.min_z, c.max_z)
+            ]
+            return Aabb(
+                min(p[0] for p in corners), min(p[1] for p in corners),
+                min(p[2] for p in corners),
+                max(p[0] for p in corners), max(p[1] for p in corners),
+                max(p[2] for p in corners),
             )
 
     if kind in GEOMETRY_OPERATIONS:
@@ -249,6 +310,16 @@ def volume_of(node: GeometryNode, quantities: dict[str, Quantity]) -> Volume:
             if not node.children:
                 raise GeometryError("translate has no child")
             return volume_of(node.children[0], quantities)  # translation preserves volume
+        if kind == "rotate":
+            if not node.children:
+                raise GeometryError("rotate has no child")
+            # validate the axis loudly even though volume is rotation-invariant
+            rotate_point((1.0, 0.0, 0.0), (
+                _value(node, "axis_x", quantities),
+                _value(node, "axis_y", quantities),
+                _value(node, "axis_z", quantities),
+            ), _value(node, "angle_deg", quantities))
+            return volume_of(node.children[0], quantities)  # rigid: volume preserved
 
     if kind in GEOMETRY_OPERATIONS:
         if not node.children:

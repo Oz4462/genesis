@@ -85,6 +85,18 @@ def _emit(node: GeometryNode, quantities: dict[str, Quantity], depth: int) -> li
                 lines.extend(_emit(child, quantities, depth + 1))
             lines.append(f"{pad}}}")
             return lines
+        if kind == "rotate":
+            ax, qax = _resolve(node, "axis_x", quantities)
+            ay, qay = _resolve(node, "axis_y", quantities)
+            az, qaz = _resolve(node, "axis_z", quantities)
+            a, qa = _resolve(node, "angle_deg", quantities)
+            # OpenSCAD rotate(a, v): angle in degrees about axis v through the
+            # origin — exactly the shared geometry convention.
+            lines = [f"{pad}rotate(a={a}, v=[{ax}, {ay}, {az}]) {{ // angle_deg={qa}, axis=({qax}, {qay}, {qaz})"]
+            for child in node.children:
+                lines.extend(_emit(child, quantities, depth + 1))
+            lines.append(f"{pad}}}")
+            return lines
 
     raise ExportError(f"unknown geometry kind {kind!r}")
 

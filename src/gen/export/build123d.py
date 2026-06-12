@@ -78,6 +78,15 @@ def _expr(node: GeometryNode, quantities: dict[str, Quantity], refs: dict[str, f
             z = _value(node, "z", quantities, refs)
             child = _child_expr(node.children[0], quantities, refs) if node.children else "None"
             return f"Pos({x}, {y}, {z}) * {child}"
+        if kind == "rotate":
+            ax = _value(node, "axis_x", quantities, refs)
+            ay = _value(node, "axis_y", quantities, refs)
+            az = _value(node, "axis_z", quantities, refs)
+            a = _value(node, "angle_deg", quantities, refs)
+            child = _child_expr(node.children[0], quantities, refs) if node.children else "None"
+            # build123d Shape.rotate(Axis, angle_in_degrees) — documented in
+            # docs/moving_objects.rst; axis through the origin.
+            return f"{child}.rotate(Axis((0, 0, 0), ({ax}, {ay}, {az})), {a})"
 
     raise ExportError(f"unknown geometry kind {kind!r}")
 

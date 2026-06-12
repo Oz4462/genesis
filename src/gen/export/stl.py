@@ -173,6 +173,19 @@ def _mesh(node: GeometryNode, quantities: dict[str, Quantity], segments: int, ri
         dz = _value(node, "z", quantities)
         child = _mesh(node.children[0], quantities, segments, rings)
         return [tuple((v[0] + dx, v[1] + dy, v[2] + dz) for v in tri) for tri in child]  # type: ignore[misc]
+    if kind in GEOMETRY_TRANSFORMS and kind == "rotate":
+        if not node.children:
+            raise ExportError("rotate has no child")
+        from ..verification.geometry import rotate_point  # single Rodrigues source
+
+        axis = (_value(node, "axis_x", quantities),
+                _value(node, "axis_y", quantities),
+                _value(node, "axis_z", quantities))
+        angle = _value(node, "angle_deg", quantities)
+        child = _mesh(node.children[0], quantities, segments, rings)
+        # rigid rotation of every vertex; winding is preserved, so the facet
+        # normals (recomputed from the triangle) stay outward.
+        return [tuple(rotate_point(v, axis, angle) for v in tri) for tri in child]  # type: ignore[misc]
     if kind in GEOMETRY_OPERATIONS:
         raise ExportError(
             f"STL export does not evaluate the CSG boolean {kind!r} — a correct "

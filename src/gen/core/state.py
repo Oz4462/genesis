@@ -305,6 +305,10 @@ GEOMETRY_PRIMITIVES: dict[str, tuple[str, ...]] = {
 GEOMETRY_OPERATIONS: frozenset[str] = frozenset({"union", "difference", "intersection"})
 GEOMETRY_TRANSFORMS: dict[str, tuple[str, ...]] = {
     "translate": ("x", "y", "z"),
+    # rotation about an arbitrary axis THROUGH THE ORIGIN, angle in DEGREES —
+    # the convention all backends share (OpenSCAD rotate(a, v); cadquery
+    # Shape.rotate; build123d Shape.rotate(Axis, deg); AABB layer Rodrigues).
+    "rotate": ("axis_x", "axis_y", "axis_z", "angle_deg"),
 }
 
 
