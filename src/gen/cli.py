@@ -641,6 +641,15 @@ def render_spec(spec: Specification, fmt: str) -> str:
     if fmt == "b123d":
         return specification_to_build123d(spec)
     if fmt == "stl":
+        # print-ready path first: evaluate the CSG (booleans included) on the OCCT
+        # kernel and tessellate — a directly sliceable mesh. Falls back to the
+        # primitive-only mesher when cadquery is absent, whose honest boolean
+        # refusal then still applies.
+        try:
+            from .export.brep_stl import specification_to_brep_stl
+            return specification_to_brep_stl(spec)
+        except GenesisError:
+            pass
         try:
             return specification_to_stl(spec)
         except GenesisError as exc:

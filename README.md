@@ -7,7 +7,7 @@
 > Open-Source-Infrastruktur, damit Menschen — privat wie Unternehmen — aus einer kleinen Idee etwas Vollständiges erschaffen können: mit Quellen statt Behauptungen, mit nachgerechneter Physik statt geratener Zahlen, und mit ehrlichen Lücken statt erfundener Antworten.
 
 ```
-794 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
+797 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
 ```
 
 ---
@@ -157,7 +157,7 @@ pip install -e .[full]      # alles inkl. Dev-Tools (pytest, ruff, httpx)
 Ohne die optionalen Pakete bleibt alles funktionsfähig — die betreffenden Features/Tests **skippen ehrlich**, statt zu raten.
 
 ```bash
-python -m pytest tests/ -q          # 794 passed (volle Deps) — ohne LLM-Token, ohne Netz
+python -m pytest tests/ -q          # 797 passed (volle Deps) — ohne LLM-Token, ohne Netz
 ```
 
 ## 8 · Nutzung: CLI
@@ -171,7 +171,7 @@ genesis --demo                        # α-Demo: verifizierter Fakten-Report
 genesis --demo --mode spec            # γ-Demo: Bauanleitung + Quality-Verdikt-Footer
 genesis --demo --mode spec --format scad    # Geometrie als OpenSCAD-Quelltext
 genesis --demo --mode spec --format b123d   # … als build123d-Python
-genesis --demo --mode spec --format stl     # … als STL-Mesh
+genesis --demo --mode spec --format stl     # … als druckfertiges STL (Booleans via OCCT-Kernel)
 genesis --mode assess                 # das ehrliche Quality-Verdikt über die Demo-Specs
 genesis --mode eval                   # die Anti-Halluzinations-Garantie als Metrik (Leaks = 0)
 genesis --mode protocol               # Bio-Domäne: reproduzierbares Pflanzen-Protokoll
@@ -272,7 +272,7 @@ Der Scorer (`gen/goldset.py`) berechnet Fakten-Genauigkeit, **Abstention-Recall*
 - **Zwei unabhängige Methoden:** FEM gegen geschlossene Form, BREP gegen analytisches Volumen, MNA gegen Ohm — Übereinstimmung als Schutz gegen Fehler in einer von beiden.
 - **Tests mit Zähnen:** Jeder Wächter hat Negativtests (der manipulierte Fall **muss** scheitern). Das Eval-Harness aggregiert das zu Leaks = 0.
 - **Real-World-Verifikation:** Die Web-UI wurde nicht nur unit-getestet, sondern im echten Browser bedient (Playwright): Klärungs-Dialog Gelb→Grün, Sign-off-Verweigerung, Live-Ablehnungskarte.
-- **794 Tests** (volle Abhängigkeiten) / 767 + 9 skipped (Minimal-Umgebung) — alle ohne LLM-Token und ohne Netz; zusätzlich grün mit Deprecation-Warnings als Fehlern. Lint-Baseline: `ruff check src tests` = sauber.
+- **797 Tests** (volle Abhängigkeiten) / 767 + 10 skipped (Minimal-Umgebung) — alle ohne LLM-Token und ohne Netz; zusätzlich grün mit Deprecation-Warnings als Fehlern. Lint-Baseline: `ruff check src tests` = sauber.
 
 ## 14 · Projektstruktur
 
@@ -307,7 +307,7 @@ goldset/v1.json        das kuratierte Mess-Set für die Live-Läufe
 sql/001_ledger.sql     Quellenzwang als DB-Constraint
 docs/                  VISION, ARCHITECTURE, DATA_MODEL, PIPELINE, phases/ (α–δ inkl.
                        PHASE_DELTA.md §1–§51), agents/
-tests/                 794 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-Engine,
+tests/                 797 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-Engine,
                        Web-API & 4 Frageklassen
 ```
 
