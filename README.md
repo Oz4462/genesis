@@ -32,6 +32,12 @@ $ python -m pytest tests/ -q
 Alle Tests laufen **ohne einen einzigen LLM-Token und ohne Netzwerk**. Das heißt: Die Garantie „kein Fakt ohne Quelle, keine widerlegte Aussage als Tatsache, Lücken werden als Lücken markiert, im Zweifel Abstention" ist **bewiesen** — und von einem unabhängigen, adversarialen Audit bestätigt (Details: `docs/phases/PHASE_ALPHA_RESULT.md`).
 
 ```
+$ pip install -e .                            # einmalig: Paket + `genesis`/`genesis-web`-Kommandos
+$ pip install -e .[web]                       # optional: lokale Web-UI (FastAPI/uvicorn)
+$ pip install -e .[full]                      # alles inkl. CAD-Kernel + Postgres + Dev-Tools
+```
+
+```
 $ python -m gen --demo                       # deterministischer α-Lauf, offline
 $ python -m gen --demo --mode spec           # deterministische γ-Bauanleitung, offline
 $ python -m gen --demo --mode spec --format scad  # CSG-Geometrie als OpenSCAD-Quelltext

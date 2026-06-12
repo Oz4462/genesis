@@ -720,11 +720,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.mode == "eval":
         # The anti-hallucination guarantee as a measured metric (deterministic,
-        # offline): does GATE γ pass every sound spec and fail every unsound one?
-        from .evaluation import anti_hallucination_cases, evaluate
+        # offline), across BOTH gates: GATE γ and the δ-physics gate must pass every
+        # sound case and fail every unsound one.
+        from .evaluation import all_cases, evaluate
         from .evaluation import format_report as format_eval_report
 
-        eval_report = evaluate(anti_hallucination_cases())
+        eval_report = evaluate(all_cases())
         print(format_eval_report(eval_report))
         return 0 if not eval_report.leaks and not eval_report.false_alarms else 3
 
