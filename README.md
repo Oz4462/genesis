@@ -7,7 +7,7 @@
 > Open-Source-Infrastruktur, damit Menschen — privat wie Unternehmen — aus einer kleinen Idee etwas Vollständiges erschaffen können: mit Quellen statt Behauptungen, mit nachgerechneter Physik statt geratener Zahlen, und mit ehrlichen Lücken statt erfundener Antworten.
 
 ```
-840 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
+868 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
 ```
 
 ---
@@ -99,9 +99,9 @@ Eine Phase endet erst, wenn ihr Gate besteht. Gates sind **reine, deterministisc
 
 ## 5 · Die Physik-Engine (Phase δ)
 
-Eine deterministische, LLM-freie Engineering-Validierungs-Engine (`docs/phases/PHASE_DELTA.md`, §1–§52). **Jeder Validator ist gegen geschlossene Formen verifiziert** — exakt, wo es beweisbar ist (Maschinengenauigkeit), sonst als ehrliche Konvergenz oder konservative Schranke mit deklarierter Grenze.
+Eine deterministische, LLM-freie Engineering-Validierungs-Engine (`docs/phases/PHASE_DELTA.md`, §1–§54). **Jeder Validator ist gegen geschlossene Formen verifiziert** — exakt, wo es beweisbar ist (Maschinengenauigkeit), sonst als ehrliche Konvergenz oder konservative Schranke mit deklarierter Grenze.
 
-**20 Validatoren hinter dem δ-Physik-Gate** (13 Physik + 7 Druckbarkeit):
+**24 Validatoren hinter dem δ-Physik-Gate** (13 Physik + 7 Druckbarkeit + 4 Flug):
 
 | Versagensmodus | Validator | Verifiziert gegen |
 |---|---|---|
@@ -125,6 +125,10 @@ Eine deterministische, LLM-freie Engineering-Validierungs-Engine (`docs/phases/P
 | Freie Wand zu dünn (FDM) | `unsupported_wall` | ≥ 1,0 mm (strenger als 0,8-Regel) |
 | Prägung zu fein (FDM) | `emboss_detail` | 0,9 mm Emboss / 0,5 mm Engrave |
 | Quer-Schicht-Last (FDM) | `layer_adhesion` | > 55 % Z-Festigkeitsverlust → 0,45 × Nennwert |
+| Hebt nicht ab (Drohne) | `rotor_hover` | Impulstheorie (Leishman), T·v_i ≡ T^1.5/√(2ρA) Identität, T/W ≥ 2 |
+| Flugzeit zu kurz | `battery_endurance` | Energiebudget, 80-%-LiPo-Regel, 24-min-Anker exakt |
+| ESC/Akku-Brownout | `current_budget` | I = P/V vs. ESC-Limit UND C·Ah (kleinere Marge) |
+| Lageregelung wackelt | `attitude_pd` | ζ = Kd/(2√(Kp·I)), Ogata-Band 0,4–0,8, ζ=0,7 exakt |
 
 **Druckbarkeit — die Fehler, die erst auf dem Druckbett sichtbar werden** (Research-Write-up: `docs/research/PRINT_DESIGN_FAILURES.md`): zusätzlich zu den 7 Quantity-Validatoren prüft `orientation.bridge_spans` Brücken geometrisch über das echte BREP (verankert-vs-frei klassifizierte Deckenränder; Taschendecke brückt über die kurze Seite, Cantilever bleibt unbridgebar), `orientation.first_layer_report` fängt Erste-Lage-Versagen (keine Bett-Kontaktfläche, Elephant-Foot-Risiko + 0,3-mm-Fasen-Empfehlung; Warping bekommt Evidenz statt erfundenem Schwellwert), und `mesh_integrity.stl_integrity_check` beweist die Slicebarkeit des exportierten STL exakt (wasserdicht + konsistent gewickelt über gerichtete Kanten, Euler–Poincaré χ = 2−2g — der Capstone-Halter kommt als Genus 1 heraus, das Loch topologisch bewiesen —, Divergenzsatz-Volumen > 0 gegen inside-out-Meshes). Alles in den Lauf-Pfad verdrahtet: `pipeline.assess_printability` liefert ein ehrliches Gesamt-Verdikt (Kernel fehlt / keine Geometrie = explizites Nicht-Urteil, nie ein stiller Pass), erreichbar als CLI `--mode print` und als Web-UI-Tab „Druckbarkeit"; der STL-Export emittiert das Mesh erst nach bestandenem Integritäts-Beweis.
 
@@ -166,7 +170,7 @@ pip install -e .[full]      # alles inkl. Dev-Tools (pytest, ruff, httpx)
 Ohne die optionalen Pakete bleibt alles funktionsfähig — die betreffenden Features/Tests **skippen ehrlich**, statt zu raten.
 
 ```bash
-python -m pytest tests/ -q          # 840 passed (volle Deps) — ohne LLM-Token, ohne Netz
+python -m pytest tests/ -q          # 868 passed (volle Deps) — ohne LLM-Token, ohne Netz
 ```
 
 ## 8 · Nutzung: CLI
@@ -285,7 +289,7 @@ Der Scorer (`gen/goldset.py`) berechnet Fakten-Genauigkeit, **Abstention-Recall*
 - **Zwei unabhängige Methoden:** FEM gegen geschlossene Form, BREP gegen analytisches Volumen, MNA gegen Ohm — Übereinstimmung als Schutz gegen Fehler in einer von beiden.
 - **Tests mit Zähnen:** Jeder Wächter hat Negativtests (der manipulierte Fall **muss** scheitern). Das Eval-Harness aggregiert das zu Leaks = 0.
 - **Real-World-Verifikation:** Die Web-UI wurde nicht nur unit-getestet, sondern im echten Browser bedient (Playwright): Klärungs-Dialog Gelb→Grün, Sign-off-Verweigerung, Live-Ablehnungskarte.
-- **840 Tests** (volle Abhängigkeiten) / 797 + 16 skipped (Minimal-Umgebung) — alle ohne LLM-Token und ohne Netz; zusätzlich grün mit Deprecation-Warnings als Fehlern. Lint-Baseline: `ruff check src tests` = sauber.
+- **868 Tests** (volle Abhängigkeiten) / 822 + 19 skipped (Minimal-Umgebung) — alle ohne LLM-Token und ohne Netz; zusätzlich grün mit Deprecation-Warnings als Fehlern. Lint-Baseline: `ruff check src tests` = sauber.
 
 ## 14 · Projektstruktur
 
@@ -302,8 +306,8 @@ src/gen/
                        FEM: Balken, 3-D-Tets (linear/quadratisch), Loch-Kt, Halter
   torsion.py buckling.py fatigue.py notch_fatigue.py fracture.py contact.py
   pressure_vessel.py creep.py plate_bending.py bolted_joint.py thermal.py
-  thermal_stress.py modal.py printability.py
-                       die 20 Validatoren (+ Modal-/Thermik-FEM dahinter)
+  thermal_stress.py modal.py printability.py flight.py
+                       die 24 Validatoren (+ Modal-/Thermik-FEM dahinter)
   mesh_integrity.py    STL-Slicebarkeits-Beweis (wasserdicht, Euler, Orientierung)
   physics_validation.py   GATE δ-Physik (Registry, nie ein stiller Pass)
   physics_selection.py    Auto-Select: measurand-Tags → Checks + Lücken
@@ -321,13 +325,13 @@ goldset/v1.json        das kuratierte Mess-Set für die Live-Läufe
 sql/001_ledger.sql     Quellenzwang als DB-Constraint
 docs/                  VISION, ARCHITECTURE, DATA_MODEL, PIPELINE, phases/ (α–δ inkl.
                        PHASE_DELTA.md §1–§52), research/, agents/
-tests/                 840 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-Engine,
+tests/                 868 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-Engine,
                        Web-API & 4 Frageklassen
 ```
 
 ## 15 · Status & ehrliche Grenzen
 
-**Fertig und bewiesen (offline):** die komplette α/β/γ/δ-Kette mit allen Gates, die Physik-Engine (20 Validatoren + FEM), die Druckbarkeits-Schicht (bis in CLI, Web-UI und den gegateten STL-Export verdrahtet), die Quality-Engine, CLI, Web-UI (Idee→Ergebnis-Flow für Laien), Packaging, Gold-Set-Vertrag — 840 Tests, deterministisch, reproduzierbar.
+**Fertig und bewiesen (offline):** die komplette α/β/γ/δ-Kette mit allen Gates, die Physik-Engine (24 Validatoren + FEM, inkl. Rotation im CSG-Vokabular und der Flug-Achsen), die Druckbarkeits-Schicht (bis in CLI, Web-UI und den gegateten STL-Export verdrahtet), die Quality-Engine, CLI, Web-UI (Idee→Ergebnis-Flow für Laien), Packaging, Gold-Set-Vertrag — 868 Tests, deterministisch, reproduzierbar.
 
 **Live bewiesen:** α (Fakten-Report) und β gegen echte lokale Modelle, inklusive empirischer Bestätigung, dass der Wortlaut-Wächter echte Modell-Paraphrasen abfängt.
 
@@ -348,7 +352,7 @@ tests/                 840 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-En
 | `docs/DATA_MODEL.md` | Ledger + Graph + DB-Schema, exakt |
 | `docs/PIPELINE.md` | Die Phasen und ihre Gates |
 | `docs/phases/PHASE_ALPHA…DELTA(.RESULT).md` | Max. Detail pro Phase; RESULT-Dateien sind ehrliche, historische Abnahme-Snapshots |
-| `docs/phases/PHASE_DELTA.md` (§1–§52) | Jede Validierungs-Schicht: was sie fängt, wogegen sie verifiziert ist, was ihre ehrliche Grenze ist, Quelle |
+| `docs/phases/PHASE_DELTA.md` (§1–§54) | Jede Validierungs-Schicht: was sie fängt, wogegen sie verifiziert ist, was ihre ehrliche Grenze ist, Quelle |
 | `docs/research/PRINT_DESIGN_FAILURES.md` | 16 Klassen von 3D-Druck-Designfehlern: gebaut vs. Evidenz vs. ehrliche Lücke, mit Quellen |
 | `docs/agents/*.md` | Pro Agent: Verantwortung, I/O, Werkzeuge, Fehlerzustände |
 | `CLAUDE.md` / `CONTRIBUTING.md` | Arbeitskonventionen; ein Commit = ein selbstkontrollierter Schritt |

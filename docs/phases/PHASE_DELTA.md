@@ -1872,6 +1872,51 @@ OpenSCAD `rotate(a, v)`. Module: `core/state.py`, `verification/geometry.py`,
 
 ---
 
+## 54. Flug-Achsen — woran ein Multirotor wirklich stirbt (`flight.py`)
+
+**Was sie fängt:** Die Struktur-Validatoren fangen den brechenden Rahmen — aber
+nicht die Drohne, die **nicht abheben** kann, nicht **lange genug fliegt**, ihr
+**ESC/Akku brownoutet** oder mit falschen Reglerverstärkungen **wackelt**. Vier
+geschlossene Formen (SI-Einheiten, Auto-Select konvertiert sauber):
+
+1. **`rotor_hover`** — Impulstheorie (actuator disk): v_i = √(T/(2ρA)),
+   P_ideal = T·v_i ≡ T^{3/2}/√(2ρA) — die zwei Formen sind eine **algebraische
+   Identität**, im Test maschinengenau gepinnt; reale Schwebeleistung
+   P = P_ideal/FM (Figure of Merit, Quellen-Spanne 0,5–0,7) und die
+   Standard-Auslegungsregel **T/W ≥ 2** (Schweben bei ~Halbgas).
+2. **`battery_endurance`** — Energiebudget: nutzbar = Kapazität × 0,8
+   (LiPo-Regel: nie unter 20 %), Flugzeit = E_nutzbar/P_hover.
+3. **`current_budget`** — der Brownout-Fänger: I = P/V muss ESC-Dauerstrom
+   UND Akku-Maximum I_max = C-Rating × Kapazität[Ah] räumen; safety_factor =
+   die KLEINERE der beiden Margen.
+4. **`attitude_pd`** — die Lageschleife als Standard-System 2. Ordnung:
+   ωn = √(Kp/I), ζ = Kd/(2√(Kp·I)); klassisches Auslegungsband 0,4 ≤ ζ ≤ 0,8.
+   Kd ≤ 0 (ungedämpft/negativ) **fällt ehrlich durch statt zu werfen** — eine
+   bewertbare schlechte Auslegung.
+
+**Verifizierte Anker:** v_i(10 N, 0,05 m²) = 9,035 m/s von Hand; 1-kg-Gerät:
+20 N erfüllt 2:1, 15 N fällt; 50 Wh × 0,8 / 100 W = exakt 24 min; 500 W/14,8 V
+= 33,78 A räumt 40-A-ESC, brownoutet 20C×1,3Ah (26 A); Kd = 2ζ√(KpI)
+reproduziert ζ = 0,7 exakt, ωn = 10 rad/s. Recipe-Einheiten bewiesen:
+g→kg, cm²→m², mAh→Ah. Registry **24 Validatoren**, **17 Recipes**
+(Trigger: rotor.disk_area, battery.capacity, battery.c_rating,
+control.attitude_kp).
+
+**Ehrliche Grenze:** Impulstheorie ist die IDEALE Untergrenze, real nur über
+FM; Schwebeflug, kein Vorwärtsflug/Böen/CFD. Flugzeit = Schwebe-Flugzeit
+(kein Peukert/Temperatur). Der PD-Check beweist die Dämpfung der
+**linearisierten** Schleife (starrer Körper, keine Motor-/ESC-Verzögerung) —
+Tuning am Gerät bleibt real. Bestanden = notwendig, nicht hinreichend.
+
+**Quellen:** Leishman, *Principles of Helicopter Aerodynamics* (Impulstheorie,
+FM); Tyto-Robotics-Designguide + Standard-Builder-Praxis (T/W 2:1, FM-Spanne);
+LiPo-Guides (Oscar Liang u. a.: 80-%-Regel, C-Rating-Konvention); Ogata,
+*Modern Control Engineering* (ζ-Band 0,4–0,8); ISA ρ = 1,225 kg/m³.
+Modul `flight.py`; Tests `test_flight.py` (12) + Selektion/Gate-Wiring in
+`test_physics_selection.py`.
+
+---
+
 ## 17. ε-Software — Korrektheit per AUSFÜHRUNG (`gate_code`)
 
 Jede andere Schicht **rechnet einen deklarierten Wert nach** (Formel, AABB, Netz).

@@ -45,18 +45,20 @@ tests/                    Tests, inkl. Gate-Akzeptanztests
 
 ## Aktueller Fokus
 **Phase α + β + γ abgeschlossen + δ voll ausgebaut + Quality-Engine verdrahtet**
-(840 Tests offline mit vollen Deps / 797+16 skipped ohne; α/β live bewiesen).
+(868 Tests offline mit vollen Deps / 822+19 skipped ohne; α/β live bewiesen).
 Live-Default-Verdrahtung (2026-06-12): Generator `qwen3.5:9b` + Verifier
 `gemma4:12b` (beide lokal installiert; Fallback qwen2.5:14b + gemma4:latest).
 γ: Idee → vollständige Spezifikation hinter GATE γ (Wächter C-1..C-18 inkl.
 Cross-Claim-Konsistenz und GUM-Unsicherheit), 2 CAD-Exporte (OpenSCAD + build123d)
 + druckfertiges STL (OCCT-Kernel, Volumen-bewiesen).
-δ: deterministische Physik-Engine (`docs/phases/PHASE_DELTA.md` §1–§52) — 20
+δ: deterministische Physik-Engine (`docs/phases/PHASE_DELTA.md` §1–§54) — 24
 Closed-Form-/FEM-Validatoren (Statik, Thermik, Modal, Knicken, Ermüdung, Bruch,
 Torsion, Kontakt, Druck, Kriechen, Platte, Schraube, Thermospannung + 7
-Druckbarkeits-Regeln: Brücke, FDM-Passung, Pin, Gewinde, freie Wand, Prägung,
-Quer-Schicht-Last) hinter GATE δ-Physik mit Auto-Select aus measurand-getaggten
-Quantities; jede Achse gegen geschlossene Formen/Research-Anker verifiziert.
+Druckbarkeits-Regeln + 4 Flug-Achsen: Rotor-Schwebe/Impulstheorie,
+Akku-Flugzeit, Strom-Budget ESC/C-Rating, PD-Lageregelungs-Dämpfung) hinter
+GATE δ-Physik mit Auto-Select aus measurand-getaggten Quantities; jede Achse
+gegen geschlossene Formen/Research-Anker verifiziert. CSG-Vokabular kann
+Rotation (beliebige Achse, alle Backends doku-verifiziert, §53).
 Druckbarkeit geometrisch: bridge_spans + first_layer_report (orientation.py),
 STL-Slicebarkeits-Beweis (mesh_integrity.py, Euler–Poincaré + Divergenzsatz);
 verdrahtet: pipeline.assess_printability → CLI `--mode print` + Web-UI-Tab

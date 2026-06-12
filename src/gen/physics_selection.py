@@ -157,6 +157,46 @@ RECIPES: list[CheckRecipe] = [
             "base_strength": ("material.uts", "MPa"),
         },
     ),
+    # ---- flight: the closed-form axes a multirotor lives or dies by ----
+    CheckRecipe(
+        name="rotor hover (momentum theory)", validator="rotor_hover",
+        trigger="rotor.disk_area",
+        inputs={
+            "mass": ("vehicle.mass", "kg"),
+            "rotor_disk_area": ("rotor.disk_area", "m^2"),
+            "n_rotors": ("rotor.count", "1"),
+            "max_total_thrust": ("rotor.max_total_thrust", "N"),
+        },
+    ),
+    CheckRecipe(
+        name="battery endurance", validator="battery_endurance",
+        trigger="battery.capacity",
+        inputs={
+            "capacity_wh": ("battery.capacity", "Wh"),
+            "hover_power_w": ("flight.hover_power", "W"),
+            "required_endurance_min": ("flight.required_endurance", "min"),
+        },
+    ),
+    CheckRecipe(
+        name="current budget (ESC + battery C)", validator="current_budget",
+        trigger="battery.c_rating",
+        inputs={
+            "power_w": ("flight.max_power", "W"),
+            "voltage_v": ("battery.voltage", "V"),
+            "esc_limit_a": ("esc.current_limit", "A"),
+            "battery_capacity_ah": ("battery.capacity_ah", "Ah"),
+            "battery_c_rating": ("battery.c_rating", "1"),
+        },
+    ),
+    CheckRecipe(
+        name="attitude PD damping", validator="attitude_pd",
+        trigger="control.attitude_kp",
+        inputs={
+            "inertia": ("vehicle.attitude_inertia", "kg*m^2"),
+            "kp": ("control.attitude_kp", "N*m"),
+            "kd": ("control.attitude_kd", "N*m*s"),
+        },
+    ),
 ]
 
 

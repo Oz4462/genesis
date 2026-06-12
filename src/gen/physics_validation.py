@@ -40,6 +40,12 @@ from .creep import creep_life_check
 from .fatigue import goodman_check
 from .fracture import fracture_check
 from .modal import resonance_check
+from .flight import (
+    attitude_pd_check,
+    battery_endurance_check,
+    current_budget_check,
+    rotor_hover_check,
+)
 from .notch_fatigue import notch_fatigue_check
 from .plate_bending import plate_bending_check
 from .pressure_vessel import pressure_vessel_check
@@ -81,6 +87,11 @@ VALIDATORS = {
     "unsupported_wall": unsupported_wall_check,
     "emboss_detail": emboss_detail_check,
     "layer_adhesion": layer_adhesion_check,
+    # flight — the closed-form axes a multirotor lives or dies by
+    "rotor_hover": rotor_hover_check,
+    "battery_endurance": battery_endurance_check,
+    "current_budget": current_budget_check,
+    "attitude_pd": attitude_pd_check,
 }
 
 

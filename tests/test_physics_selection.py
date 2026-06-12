@@ -15,6 +15,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+import pytest  # noqa: E402
+
 from gen.core.state import Quantity, Specification, ValueOrigin  # noqa: E402
 from gen.physics_selection import (  # noqa: E402
     evaluate_spec_physics,
@@ -133,6 +135,53 @@ def test_cross_layer_load_without_uts_is_a_gap():
     ]))
     assert checks == []
     assert len(gaps) == 1 and "material.uts" in gaps[0]
+
+
+def test_drone_quantities_select_the_flight_checks():
+    # a drone spec in declared units: the recipes convert soundly (g -> kg,
+    # cm^2 -> m^2, mAh -> Ah) and the full flight axis runs through the gate.
+    spec = _spec([
+        _q("m", 1200.0, "g", "vehicle.mass"),               # 1.2 kg
+        _q("A", 500.0, "cm^2", "rotor.disk_area"),          # 0.05 m^2
+        _q("n", 4.0, "1", "rotor.count"),
+        _q("T", 30.0, "N", "rotor.max_total_thrust"),
+        _q("cap", 50.0, "Wh", "battery.capacity"),
+        _q("ph", 100.0, "W", "flight.hover_power"),
+        _q("te", 20.0, "min", "flight.required_endurance"),
+        _q("pm", 500.0, "W", "flight.max_power"),
+        _q("u", 14.8, "V", "battery.voltage"),
+        _q("esc", 40.0, "A", "esc.current_limit"),
+        _q("cah", 1300.0, "mAh", "battery.capacity_ah"),    # 1.3 Ah
+        _q("c", 50.0, "1", "battery.c_rating"),
+        _q("ix", 0.02, "kg*m^2", "vehicle.attitude_inertia"),
+        _q("kp", 2.0, "N*m", "control.attitude_kp"),
+        _q("kd", 0.28, "N*m*s", "control.attitude_kd"),
+    ])
+    checks, gaps = select_physics_checks(spec)
+    assert gaps == []
+    assert {c.validator for c in checks} == {
+        "rotor_hover", "battery_endurance", "current_budget", "attitude_pd",
+    }
+    hover = next(c for c in checks if c.validator == "rotor_hover")
+    assert hover.inputs["mass"] == pytest.approx(1.2)              # g -> kg
+    assert hover.inputs["rotor_disk_area"] == pytest.approx(0.05)  # cm^2 -> m^2
+    budget = next(c for c in checks if c.validator == "current_budget")
+    assert budget.inputs["battery_capacity_ah"] == pytest.approx(1.3)  # mAh -> Ah
+    result = evaluate_spec_physics(spec)
+    assert result["gate"].passed and len(result["checks"]) == 4
+
+
+def test_underpowered_drone_fails_the_gate():
+    # 1.2 kg needs >= 23.5 N for the 2:1 rule; 15 N is a definite no-fly
+    spec = _spec([
+        _q("m", 1.2, "kg", "vehicle.mass"),
+        _q("A", 0.05, "m^2", "rotor.disk_area"),
+        _q("n", 4.0, "1", "rotor.count"),
+        _q("T", 15.0, "N", "rotor.max_total_thrust"),
+    ])
+    result = evaluate_spec_physics(spec)
+    assert not result["gate"].passed
+    assert result["gate"].failures[0].code == "PHYSICS_CHECK_FAILED"
 
 
 def test_a_delaminating_cross_layer_load_fails_the_gate():
