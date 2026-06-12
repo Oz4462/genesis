@@ -7,7 +7,6 @@ the full pipeline is exercised without network or API keys.
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 from pathlib import Path
 
@@ -15,7 +14,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from gen.cli import build_demo, build_live, main  # noqa: E402
 from gen.config import Config, config_hash, default_config  # noqa: E402
-from gen.core.state import ClaimStatus  # noqa: E402
 from gen.runner import load_checkpoint, make_run_id, run  # noqa: E402
 
 

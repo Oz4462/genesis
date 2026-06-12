@@ -101,7 +101,6 @@ def test_torque_dangling_reference_caught():
 
 def test_part_fits_available_space():
     # bracket 60x80x6 fits a 100x100x100 mm space
-    space = {"sx": 100.0, "sy": 100.0, "sz": 100.0}
     st = _bracket_state(space=("sx", "sy", "sz"))
     # add the space quantities
     st.specification.quantities += [_q("sx", 100.0), _q("sy", 100.0), _q("sz", 100.0)]

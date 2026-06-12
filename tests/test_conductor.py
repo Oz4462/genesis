@@ -19,7 +19,7 @@ from gen.agents.conductor import Conductor  # noqa: E402
 from gen.agents.scholar import Scholar  # noqa: E402
 from gen.agents.scout import Scout  # noqa: E402
 from gen.agents.skeptic import Skeptic  # noqa: E402
-from gen.core.state import ClaimStatus, Question, RunState, SourceCandidate  # noqa: E402
+from gen.core.state import Question, RunState, SourceCandidate  # noqa: E402
 from gen.ledger.store import InMemoryLedgerStore  # noqa: E402
 from gen.llm.base import ScriptedLLM  # noqa: E402
 from gen.tools.fetch import WebFetchTool  # noqa: E402

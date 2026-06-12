@@ -11,14 +11,12 @@ stop — it belongs in an adapter, not in core.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable, Sequence
 
 from .state import (
-    Question,
-    SubQuestion,
     SourceCandidate,
     Claim,
-    Report,
     RunState,
 )
 
@@ -120,8 +118,6 @@ class SearchBackend(Protocol):
 
 
 # --- Gate result -------------------------------------------------------------
-
-from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)

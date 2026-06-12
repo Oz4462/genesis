@@ -8,9 +8,13 @@ Ein Mensch liefert ein Problem oder eine Idee. GENESIS recherchiert, **verifizie
 
 ## Status
 
-**Phase α + β + γ abgeschlossen und beweisbar korrekt; δ erste Schicht (Geometrie-Validierung) erbracht — α/β auch live gegen echte Modelle bewiesen.**
+**Phase α + β + γ abgeschlossen und beweisbar korrekt; δ als vollständige deterministische Engineering-Validierungs-Engine ausgebaut; Quality-Engine (Eval, Refine-Loop, Klärung, Ratifikation, Kalibrierung, Telemetrie) verdrahtet — α/β auch live gegen echte Modelle bewiesen.**
 
 Die vollständige α-Pipeline (Anti-Halluzination), der β-Lösungsraum und die γ-Spezifikation sind gebaut und getestet: Fakten-Ledger (Quellenzwang), Tool-Adapter (ehrliches Fetch), die Agenten (`scout`, `scholar`, `skeptic`, `conductor`, `synthesizer`, `architect`), Cross-Model-Verifikation, die Gates α, β und γ und die End-to-End-Verdrahtung mit CLI (`--mode report|solution|spec`).
+
+**Phase δ (voll ausgebaut, `docs/phases/PHASE_DELTA.md` §1–§50):** eine deterministische, LLM-freie Physik-Validierungs-Engine — 3-D-FEM (lineare + quadratische Tets), Thermik (stationär + transient), Modalanalyse, Knicken, Ermüdung (inkl. Kerbe), Bruchmechanik, Torsion, Hertz-Kontakt, Druckbehälter, Kriechen, Plattenbiegung, Schraubenvorspannung, Thermospannung — **13 Validatoren** hinter einem ehrlichen **δ-Physik-Gate** (drei harte Fehlermodi, nie ein stiller Pass), mit **Auto-Select** aus measurand-getaggten Spec-Größen (einheiten-ehrlich, Lücken statt Drops). Jeder Validator ist gegen geschlossene Formen verifiziert (exakt wo beweisbar, sonst ehrliche Konvergenz/Schranke).
+
+**Quality-Engine (verdrahtet, `--mode assess` + Footer im spec-Output):** Multi-Gate-Eval-Harness (Leaks = 0 als gemessene Metrik), geschlossener Verify→Refine-Loop (ehrliches stuck/exhaust, nie Fake-Erfolg), proaktive Klärung (EVPI-priorisierte Rückfragen), OTel-förmige Telemetrie, Human-in-the-Loop-Ratifikation (kein Auto-Approval), Confidence-Kalibrierung, Geometrie-Verifikation (gebauter BREP ≈ analytisch), Constraint-Widerspruchs-Detektor, Grounding-Integrität — komponiert zu **einem ehrlichen Gesamt-Verdikt** (`pipeline.assess_specification`), das eine Lücke nie als Pass maskiert.
 
 **Neu (Phase γ):** Eine Idee wird zu einer **vollständigen, umsetzbaren Bauanleitung** — Größen mit deklarierter Herkunft, parametrische 3D-Geometrie (CSG), Stückliste, Schritte mit Prüfkriterien, numerisch geprüfte Constraints, Entscheidungsblatt. Die fünf γ-Halluzinationsklassen sind strukturell verhindert (PHASE_GAMMA.md §0): kein Wert ohne wörtlichen Beleg im VERIFIED-Claim, keine LLM-Arithmetik (Code rechnet, GATE γ rechnet unabhängig nach), keine Referenz ins Nichts, keine versteckte Entscheidung, kein Schritt ohne Check — und lieber ehrliche Abstention als eine teilweise/gedriftete Anleitung. Zusätzlich prüft GATE γ die **dimensionale Homogenität** jeder Rechnung (Einheiten als abelsche Gruppe, `verification/units.py`) — der Mars-Climate-Orbiter-Wächter: kg + mm oder eine als Länge deklarierte Fläche werden abgefangen. **Cross-Claim-Konsistenz (C-17):** zwei Größen mit demselben deklarierten `measurand` müssen übereinstimmen (gleiche Dimension, gleicher Wert nach Einheiten-Umrechnung) — ein deterministischer Wächter gegen Widerspruch zwischen zwei akzeptierten, belegten Fakten (z. B. „12 V" vs „24 V" für dieselbe Größe), ohne Sprachverständnis und ohne False Positive (eine Einheiten-Differenz wie 12 V vs 0,012 kV ist kein Konflikt). **Unsicherheits-Propagation (C-18):** ein DERIVED-Wert darf eine kombinierte Standardunsicherheit tragen, und GATE γ rechnet sie nach dem GUM-Fortpflanzungsgesetz (JCGM 100) unabhängig nach — „Code rechnet, Gate rechnet nach", jetzt auf die Unsicherheit angewandt. Im Capstone propagiert die deklarierte Last-Unsicherheit (12 ± 0,6 kg) bis zur Spitzenspannung (σ_peak = 22,1 ± 1,1 MPa, U₉₅ = ±2,2), und selbst der Worst-Case bleibt < 50 MPa.
 
@@ -87,9 +91,25 @@ src/gen/
   export/openscad.py            CSG-Geometrie -> OpenSCAD-Quelltext (deterministisch, traceable, zentriert)
   export/build123d.py           CSG-Geometrie -> build123d-Python (Algebra-Modus, OCCT)
   export/stl.py                 CSG-Primitive -> ASCII-STL-Mesh (Booleans ehrlich deferred)
+  fem.py / fem3d.py / fem3d_quadratic.py / plate_hole.py / bracket_fem.py
+                                δ-FEM: Balken, 3-D-Tets (linear+quadratisch), Loch-Kt, Halter
+  structural.py / torsion.py / buckling.py / fatigue.py / notch_fatigue.py / fracture.py /
+  contact.py / pressure_vessel.py / creep.py / plate_bending.py / bolted_joint.py /
+  thermal.py / thermal_stress.py / modal.py
+                                δ-Physik-Validatoren (Closed-Form, je gegen exakte Anker verifiziert)
+  physics_validation.py         GATE δ-Physik — Registry (13 Validatoren), nie ein stiller Pass
+  physics_selection.py          Auto-Select — measurand-getaggte Spec-Größen -> Checks + Lücken
+  pipeline.py                   Ein ehrliches Gesamt-Verdikt (assess_specification)
+  evaluation.py / refinement.py / clarification.py / ratification.py / calibration.py /
+  telemetry.py / geometry_verification.py / constraint_consistency.py / grounding_integrity.py
+                                Quality-Engine: Eval-Harness, Refine-Loop, Klärung, HITL-Sign-off,
+                                Kalibrierung, OTel-Trace, Geometrie-/Constraint-/Grounding-Checks
+  dfm.py / orientation.py / tolerance.py / uncertainty.py / montecarlo.py / circuit.py /
+  brep.py / software.py / costing.py / completeness.py
+                                δ/ε-Schichten: DFM, Toleranz, GUM/MC, SPICE-MNA, BREP, CODE-Gate
   config.py / runner.py / cli.py  Konfiguration, run(question)->Report, `python -m gen`
 sql/001_ledger.sql              Fakten-Ledger; Quellenzwang als DB-Constraint
-tests/                          703 Tests, inkl. Gate-Akzeptanz, δ-Statik/FEM/Thermik/Modal/Knicken/Ermüdung/Thermospannung/Torsion/Kontakt/Druck/Kriechen/Kerbe/Bruch/Platte/Schraube + δ-Physik-Gate + Auto-Select & 4 Frageklassen
+tests/                          771 Tests, inkl. Gate-Akzeptanz, δ-Physik-Engine (13 Validatoren + Gate + Auto-Select), Quality-Engine (Eval/Refine/Klärung/Ratifikation/Kalibrierung/Telemetrie/Pipeline) & 4 Frageklassen
 ```
 
 ## Die zentrale Idee in einer Datenstruktur

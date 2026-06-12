@@ -12,7 +12,7 @@ from typing import Sequence
 
 from ..core.errors import SearchBackendError
 from ..core.interfaces import SearchBackend
-from ..core.state import RunState, SourceCandidate, SubQuestion
+from ..core.state import RunState, SubQuestion
 from ..llm.base import LLMClient
 from ..llm.parsing import extract_json
 

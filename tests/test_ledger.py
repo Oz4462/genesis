@@ -185,6 +185,7 @@ def test_identical_inputs_yield_identical_snapshots():
 
     a = run(store_a.get_claims("r1"))
     b = run(store_b.get_claims("r1"))
-    key = lambda cs: [(c.id, c.text, c.status.value, c.confidence) for c in cs]
+    def key(cs):
+        return [(c.id, c.text, c.status.value, c.confidence) for c in cs]
     assert key(a) == key(b)
     assert [c.id for c in a] == ["c1", "c2", "c3"]

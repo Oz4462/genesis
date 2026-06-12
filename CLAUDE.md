@@ -44,11 +44,19 @@ tests/                    Tests, inkl. Gate-Akzeptanztests
 ```
 
 ## Aktueller Fokus
-**Phase α + β + γ abgeschlossen + δ erste Schicht** (311 Tests offline, α/β live bewiesen).
-γ: Idee → vollständige Spezifikation hinter GATE γ (6 Wächter: Wert-Wortlaut,
-Code-Arithmetik, Referenz, Entscheidung, Vollständigkeit, dimensionale Homogenität),
-Ausdrucks-Constraints + Plausibilität, 2 CAD-Exporte (OpenSCAD + build123d).
-δ: deterministische Geometrie-Validierung (GATE δ, AABB) — tote/leere Operationen,
-ohne erfundenes Physik-Urteil (`docs/phases/PHASE_DELTA.md`).
-Nächste ehrliche Schritte: γ/δ-Live-Beweis (`--mode spec` gegen Ollama, vom Owner
-zurückgestellt), weitere δ-Schichten mit echten Modellen (Toleranz/FEM hinter Adaptern).
+**Phase α + β + γ abgeschlossen + δ voll ausgebaut + Quality-Engine verdrahtet**
+(771 Tests offline mit vollen Deps / 744+9 skipped ohne; α/β live bewiesen).
+γ: Idee → vollständige Spezifikation hinter GATE γ (Wächter C-1..C-18 inkl.
+Cross-Claim-Konsistenz und GUM-Unsicherheit), 2 CAD-Exporte (OpenSCAD + build123d).
+δ: deterministische Physik-Engine (`docs/phases/PHASE_DELTA.md` §1–§50) — 13
+Closed-Form-/FEM-Validatoren (Statik, Thermik, Modal, Knicken, Ermüdung, Bruch,
+Torsion, Kontakt, Druck, Kriechen, Platte, Schraube, Thermospannung) hinter GATE
+δ-Physik mit Auto-Select aus measurand-getaggten Quantities; jede Achse gegen
+geschlossene Formen verifiziert.
+Quality-Engine: Eval-Harness (Leaks=0), Verify→Refine-Loop, proaktive Klärung,
+Telemetrie, HITL-Ratifikation, Kalibrierung, Geometrie-/Constraint-/Grounding-
+Integrität — komponiert zu einem ehrlichen Verdikt (`pipeline.assess_specification`,
+CLI `--mode assess` + Footer im spec-Output).
+Nächste ehrliche Schritte (Owner-gated, kein Live-Run bis „wirklich alles fertig"):
+measurand-Emission durch den live-Architect, Refine-Loop am live-Conductor,
+Gold-Set + kontrollierte gemessene Ollama-Läufe als Real-Use-Ready-Messung.

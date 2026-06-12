@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from gen.agents.scholar import Scholar, claim_id, readable_text  # noqa: E402
+from gen.agents.scholar import Scholar, readable_text  # noqa: E402
 from gen.core.state import (  # noqa: E402
     ClaimStatus,
     Question,
