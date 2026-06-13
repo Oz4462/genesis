@@ -18,8 +18,9 @@ web = ["fastapi>=0.110", "uvicorn>=0.29"]      # the local UI (python -m gen.web
 cad = ["cadquery>=2.4", "gmsh>=4.12"]          # exact BREP geometry + unstructured FEM meshes
 postgres = ["asyncpg>=0.29"]                   # persistent ledger (in-memory is the default)
 verify = ["trust-core>=0.1.0"]                 # conformal/FDR single-source + CCDD drift (gen.verification.trustcore_adapter / drift_monitor); core stays numpy-only
+smt = ["z3-solver>=4.13"]                       # global constraint feasibility (gen.verification.constraint_smt); closes the transitive-infeasibility gap
 dev = ["pytest>=8", "ruff>=0.4", "httpx>=0.27"]
-full = ["genesis-engine[web,cad,postgres,verify,dev]"]
+full = ["genesis-engine[web,cad,postgres,verify,smt,dev]"]
 
 [project.scripts]
 genesis = "gen.cli:main"
