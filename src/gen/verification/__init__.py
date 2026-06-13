@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+from .consensus import ConsensusVerdict, consensus_verdict
 from .cross_model import (
     Judgment,
     assert_different_families,
@@ -81,4 +82,6 @@ __all__ = [
     "status_disagreement",
     "assert_different_families",
     "model_family",
+    "consensus_verdict",
+    "ConsensusVerdict",
 ]
