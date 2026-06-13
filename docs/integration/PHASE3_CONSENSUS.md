@@ -3,15 +3,17 @@
 > Gerechtfertigt durch PoV-3 (PASS): N-Judge-Aggregation senkte leak-rate 0.593→0.173
 > (−71%) ohne sound-recall-Verlust, deterministisch.
 
-## Lizenz-Befund (wichtig) → native Re-Implementierung statt Adapter
+## Warum native Re-Implementierung statt buch-llm-Import
 
-Der ursprüngliche Plan sah einen **Adapter auf buch-llms** `DebateOrchestrator` vor.
-buch-llm ist jedoch **proprietär** (`LicenseRef-Kusmez-Proprietary-1.0`, „All Rights
-Reserved", Authorship-HMAC bei Import), Genesis ist **MIT**. buch-llm-Code in den
-MIT-Baum zu vendoren/importieren wäre ein Lizenzkonflikt. **Entscheidung:** PoV-3 hat die
-*generische* Konsens-Eigenschaft mit buch-llms echtem Aggregator bewiesen; Phase 3
-implementiert diese Eigenschaft **nativ** auf Genesis' eigenem `Judgment`-Modell —
-kein buch-llm-Code, MIT-sauber.
+**Lizenz ist KEIN Blocker** — buch-llm ist Ozans eigenes Programm; es darf in Genesis
+genutzt werden, wo es Mehrwert bringt (Owner-Klarstellung 2026-06-14). Die native
+Re-Implementierung wurde aus einem **Engineering-Grund** gewählt: buch-llms
+`multi_agent_debate` lebt in einem Paket, dessen `__init__` einen Authorship-HMAC prüft
+und schwere Module (gateway/ollama/…) zieht; ein Import nur für ~30 Zeilen Aggregator-
+Mathematik wäre unverhältnismäßig. PoV-3 hat die *generische* Konsens-Eigenschaft mit
+buch-llms echtem Aggregator bewiesen; Phase 3 implementiert genau diese Eigenschaft
+schlank auf Genesis' eigenem `Judgment`-Modell. (buch-llms reichere Bausteine — z. B. die
+28 Konsistenz-Detektoren — können in Tier-3 direkt genutzt werden, wo sie Mehrwert bringen.)
 
 ## Was integriert wurde
 

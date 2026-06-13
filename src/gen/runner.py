@@ -45,6 +45,9 @@ class Dependencies:
     verifier_llm: LLMClient    # skeptic (different family)
     ledger: LedgerStore
     judge_llm: LLMClient | None = None
+    # Phase 3 wiring: extra independent cross-model judges. With verifier + >=2 of
+    # (judge_llm, *extra_judges) the skeptic uses the N-judge consensus (PoV-3).
+    extra_judges: Sequence[LLMClient] = ()
 
 
 def make_run_id(question: str, cfg_hash: str, *, suffix: str | None = None) -> str:
@@ -90,6 +93,7 @@ async def run(
         deps.ledger,
         generator_model=pa.models.generator,
         second_judge=deps.judge_llm,
+        extra_judges=deps.extra_judges,
         min_sources_for_verified=pa.min_sources_for_verified,
     )
     conductor = Conductor(
@@ -147,6 +151,7 @@ async def run_solution(
         deps.ledger,
         generator_model=pa.models.generator,
         second_judge=deps.judge_llm,
+        extra_judges=deps.extra_judges,
         min_sources_for_verified=pa.min_sources_for_verified,
     )
     synthesizer = Synthesizer(
@@ -210,6 +215,7 @@ async def run_specification(
         deps.ledger,
         generator_model=pa.models.generator,
         second_judge=deps.judge_llm,
+        extra_judges=deps.extra_judges,
         min_sources_for_verified=pa.min_sources_for_verified,
     )
     synthesizer = Synthesizer(

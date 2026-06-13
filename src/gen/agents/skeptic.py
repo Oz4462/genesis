@@ -28,6 +28,7 @@ from ..core.state import ClaimStatus, RunState, SourceRef, SourceSupport
 from ..llm.base import LLMClient
 from ..llm.parsing import extract_json
 from ..tools.fetch import WebFetchTool, readable_text
+from ..verification.consensus import consensus_verdict
 from ..verification.cross_model import (
     Judgment,
     assert_different_families,
@@ -65,6 +66,7 @@ class Skeptic:
         *,
         generator_model: str = "",
         second_judge: LLMClient | None = None,
+        extra_judges: Sequence[LLMClient] = (),
         min_sources_for_verified: int = 2,
         per_query_limit: int = 5,
         max_verify_sources: int = 4,
@@ -75,6 +77,9 @@ class Skeptic:
         self._fetch = fetch
         self._verifier = verifier
         self._second = second_judge
+        # Phase 3 wiring: additional independent cross-model judges. With >= 3 total
+        # judges the conservative N-judge consensus replaces the 2-judge fold (PoV-3).
+        self._extra = list(extra_judges)
         self._ledger = ledger
         self._generator_model = generator_model
         self._min_sources = min_sources_for_verified
@@ -92,6 +97,8 @@ class Skeptic:
             assert_different_families(gen_model, self._verifier.model)
             if self._second is not None:
                 assert_different_families(gen_model, self._second.model)
+            for ex in self._extra:
+                assert_different_families(gen_model, ex.model)
 
             scholar_urls = {s.url_or_id for s in claim.sources}
             candidates = await self._independent_candidates(claim.text, scholar_urls, state)
@@ -124,14 +131,30 @@ class Skeptic:
                 ]
                 second_judgment = self._aggregate(second_verdicts, self._second.model)
 
-            final = verify_confidence(
-                generator_model=gen_model,
-                verifier=primary,
-                second_judge=second_judgment,
-            )
-
-            claim.status = final.status
-            claim.confidence = final.confidence
+            if self._extra:
+                # N-judge panel: each extra model judges the same evidence; the
+                # conservative weighted consensus decides (PoV-3). Cross-model is
+                # re-checked inside consensus_verdict.
+                judgments = [primary]
+                if second_judgment is not None:
+                    judgments.append(second_judgment)
+                for ex in self._extra:
+                    verdicts = [
+                        await self._judge(ex, claim.text, content, url)
+                        for url, content in evidence
+                    ]
+                    judgments.append(self._aggregate(verdicts, ex.model))
+                cv = consensus_verdict(generator_model=gen_model, judgments=judgments)
+                claim.status = cv.status
+                claim.confidence = cv.confidence
+            else:
+                final = verify_confidence(
+                    generator_model=gen_model,
+                    verifier=primary,
+                    second_judge=second_judgment,
+                )
+                claim.status = final.status
+                claim.confidence = final.confidence
             claim.verification = [
                 self._fetch_ref(v) for v in verifier_verdicts if v.relation != "irrelevant"
             ]
