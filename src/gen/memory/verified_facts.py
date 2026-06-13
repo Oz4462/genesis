@@ -38,11 +38,16 @@ from ._vendor.anamnesis_mem import (
 
 @dataclass(frozen=True)
 class RecalledFact:
-    """A prior verified claim returned by a recall, with its reuse score."""
+    """A prior verified claim returned by a recall, with its reuse score.
+
+    `sources` carries the ORIGINAL claim's provenance (source ids), so a reused fact
+    keeps "kein Fakt ohne Quelle" — it is verified-in-a-prior-run, not source-less.
+    """
 
     claim_id: str
     text: str
     score: float
+    sources: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -94,6 +99,7 @@ class VerifiedFactsLibrary:
                 capture_id=c.id,
                 text=c.text,
                 intent="verified_fact",
+                produces=tuple(s.url_or_id for s in c.sources),  # keep provenance
                 tags=(c.status.value,),
             )
             for c in claims
@@ -112,7 +118,12 @@ class VerifiedFactsLibrary:
         """Return prior verified facts within the calibrated reuse band, else abstain."""
         res = self._retriever.retrieve(query, alpha=alpha or self._alpha)
         accepted = tuple(
-            RecalledFact(claim_id=c.step.capture_id, text=c.step.text, score=c.score)
+            RecalledFact(
+                claim_id=c.step.capture_id,
+                text=c.step.text,
+                score=c.score,
+                sources=tuple(c.step.produces),  # original provenance preserved
+            )
             for c in res.accepted
         )
         return RecallResult(query=query, accepted=accepted, tau=res.bound.tau if res.bound else None)

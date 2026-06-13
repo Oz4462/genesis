@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from ..audit import AuditEnvelope, RunAuditRecord, audit_from_claims, sign_audit
 from ..config import Config, config_hash, default_config
 from ..core.state import Claim, Report
-from ..memory import VerifiedFactsLibrary
+from ..memory import RecalledFact, VerifiedFactsLibrary
 from ..runner import Dependencies, make_run_id, run
 
 
@@ -33,6 +33,7 @@ class AuditedRunResult:
     n_remembered: int
     audit: AuditEnvelope | None
     audit_record: RunAuditRecord | None
+    reused_facts: tuple[RecalledFact, ...] = ()
 
 
 async def audited_run(
@@ -43,6 +44,7 @@ async def audited_run(
     config: Config | None = None,
     run_id: str | None = None,
     library: VerifiedFactsLibrary | None = None,
+    recall: bool = False,
     keystore=None,
     audit_key_id: str | None = None,
 ) -> AuditedRunResult:
@@ -52,11 +54,21 @@ async def audited_run(
         created_at: ISO timestamp recorded in the audit (caller-supplied so the
             record stays reproducible — code never reads the clock).
         library: if given, VERIFIED claims are deposited for cross-run reuse.
+        recall: if True (and library given), the question is recalled against the
+            library FIRST; prior verified facts within the conformal band are returned
+            as ``reused_facts`` (each carrying its original provenance). This is the
+            cross-run prefilter — a provenance-preserving signal of what need not be
+            re-researched. It does not yet short-circuit the run itself (that would
+            collide with the per-run fetch-audit invariant; deferred).
         keystore / audit_key_id: if both given, a signed audit envelope is produced.
     """
     config = config or default_config()
     chash = config_hash(config)
     rid = run_id or make_run_id(question_text, chash)
+
+    reused: tuple[RecalledFact, ...] = ()
+    if recall and library is not None:
+        reused = library.recall(question_text).accepted
 
     report = await run(question_text, deps, config=config, run_id=rid)
     claims = await deps.ledger.get_claims(rid)
@@ -83,6 +95,7 @@ async def audited_run(
         n_remembered=n_remembered,
         audit=audit_env,
         audit_record=record,
+        reused_facts=reused,
     )
 
 

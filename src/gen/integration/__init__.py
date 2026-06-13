@@ -5,5 +5,6 @@ pipeline stays numpy-only. See audited_run.py."""
 from __future__ import annotations
 
 from .audited_run import AuditedRunResult, audited_run
+from .drift import detect_run_drift, embed_texts
 
-__all__ = ["AuditedRunResult", "audited_run"]
+__all__ = ["AuditedRunResult", "audited_run", "detect_run_drift", "embed_texts"]

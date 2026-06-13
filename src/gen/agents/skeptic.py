@@ -44,6 +44,12 @@ _SYSTEM = (
     '"confidence":0..1,"reason":"short"}.'
 )
 
+_QUERY_SYSTEM = (
+    "You generate search queries to find INDEPENDENT evidence that could confirm or "
+    "refute a CLAIM. Return ONLY a JSON array of 2-4 short keyword queries (no prose, "
+    "no questions). Prefer authoritative phrasings a source would actually use."
+)
+
 
 @dataclass(frozen=True)
 class _Verdict:
@@ -183,9 +189,24 @@ class Skeptic:
         return out
 
     async def _check_queries(self, claim_text: str) -> list[str]:
-        # Simple, deterministic reformulation: verify the claim text directly.
-        # (A model-driven reformulation can be added later; not required for α.)
-        return [claim_text]
+        # Model-driven reformulation for stronger INDEPENDENT retrieval: the verifier
+        # proposes a few keyword queries that could confirm or refute the claim. The
+        # verbatim claim is always kept as a baseline, and any failure falls back to
+        # it alone — never an empty query, never a fabricated one. (Recall tuning:
+        # verbatim claim text alone often misses corroborating sources.)
+        queries: list[str] = []
+        try:
+            resp = await self._verifier.complete(
+                system=_QUERY_SYSTEM, user=f"CLAIM:\n{claim_text}"
+            )
+            parsed = extract_json(resp.text, agent="skeptic")
+            if isinstance(parsed, list):
+                queries = [str(q).strip() for q in parsed if str(q).strip()][:4]
+        except Exception:  # noqa: BLE001 - reformulation is best-effort, never fatal
+            queries = []
+        if claim_text not in queries:
+            queries.append(claim_text)
+        return queries
 
     async def _judge(self, llm: LLMClient, claim_text: str, content: str, url: str) -> _Verdict:
         user = f"CLAIM:\n{claim_text}\n\nINDEPENDENT SOURCE TEXT:\n{content}"
