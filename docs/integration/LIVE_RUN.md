@@ -35,3 +35,19 @@ Das ist ein **erfolgreicher End-to-End-Beweis**, kein Fehler:
 Damit ist die Live-Lauffähigkeit der Integration bewiesen. Höherer verifizierter-Claim-Recall
 ist eine separate Tuning-/Backend-Frage (z. B. gezieltere Skeptic-Such-Queries, mehr Backends),
 nicht eine Frage der Verdrahtung.
+
+## Lauf #2 (nach Recall-Tuning, `_check_queries` model-driven) — ehrlicher Befund
+
+Gleiche Frage, gemessen: **claims=0** (0 verified/unsupported), audit_verifies=true, Body =
+ehrliche Abstention. **Diagnose:** Die Änderung betraf ausschließlich `skeptic._check_queries`,
+das LÄUFT NACH der Claim-Extraktion — sie kann nicht beeinflussen, ob scholar Claims extrahiert.
+claims=0 entstand **upstream** (scout/scholar gegen das Live-Web): identische Frage, anderer
+Lauf → andere Backend-Ergebnisse/gefetchter Content → das 9B-Extraktionsmodell sah anderen
+Input und extrahierte nichts. Das ist **Live-Web-Varianz**, keine Regression.
+
+**Schlussfolgerung (evidence-grounded):** Der Recall-Tuning-Wert ist **deterministisch bewiesen**
+(`tests/test_skeptic_query_reformulation.py`: reformulierte Query → VERIFIED, verbatim → UNSUPPORTED).
+Live konnte er nicht greifen, weil kein Claim bis zum Skeptic kam. Der echte Live-Flaschenhals für
+verifizierten Recall ist die **Discovery+Extraktions-Schicht** (Live-Web-Ranking + kleines
+Extraktionsmodell), nicht die Verdrahtung — der nächste Hebel wäre dort (größeres Extraktionsmodell,
+robustere Backends/Retries, deterministische Fixtures für A/B), bewusst getrennt von dieser Arbeit.
