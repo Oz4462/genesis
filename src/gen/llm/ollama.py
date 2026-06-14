@@ -78,12 +78,16 @@ class OllamaLLM:
         base_url: str = "http://localhost:11434",
         post: HttpPostJson | None = None,
         timeout: float = 300.0,
+        num_ctx: int = 8192,
     ) -> None:
         if not model.strip():
             # An empty id would defeat the cross-model audit (model_family raises
             # on it); fail at construction, not deep inside a run.
             raise ValueError("model id is empty; the cross-model audit needs a real id.")
+        if num_ctx < 512:
+            raise ValueError("num_ctx too small; the agents feed long source text.")
         self.model = model
+        self._num_ctx = num_ctx
         self._url = base_url.rstrip("/") + "/api/chat"
         self._post: HttpPostJson
         if post is not None:
@@ -102,7 +106,12 @@ class OllamaLLM:
                 {"role": "user", "content": user},
             ],
             "stream": False,
-            "options": {"temperature": 0},
+            # num_ctx is explicit: Ollama's small default (~2048) silently truncates
+            # the long SOURCE TEXT the scholar/skeptic feed, dropping the very value to
+            # be extracted/verified — an honest-looking empty result masking a config
+            # bug. A large window keeps the whole source in context. (temperature 0:
+            # greedy, deterministic — extraction/judging, not creative writing.)
+            "options": {"temperature": 0, "num_ctx": self._num_ctx},
         }
         try:
             resp = await self._post(self._url, payload)

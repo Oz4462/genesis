@@ -62,6 +62,16 @@ def test_complete_returns_text_and_model_and_posts_chat_payload():
         {"role": "user", "content": "user prompt"},
     ]
     assert payload["options"]["temperature"] == 0
+    # num_ctx is set explicitly so long source text is not silently truncated
+    assert payload["options"]["num_ctx"] >= 8192
+
+
+def test_num_ctx_is_configurable():
+    calls: list = []
+    llm = OllamaLLM("qwen2.5:14b", num_ctx=16384, post=post_returning(200, chat_body("x"), calls))
+    run(llm.complete(system="s", user="u"))
+    (_url, payload), = calls
+    assert payload["options"]["num_ctx"] == 16384
 
 
 def test_satisfies_llm_client_protocol():
