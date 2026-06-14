@@ -16,6 +16,7 @@ Pure, deterministic, LLM-free. Same inputs -> same verdict (reproducibility A5).
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 
 from .core.errors import UnitError
@@ -46,6 +47,13 @@ def evaluate_reality(
     into the predicted unit; REFUTED if outside; INCONCLUSIVE if the units are of different
     dimension or cannot be scaled (never silently compare incommensurable quantities).
     """
+    # Defense in depth (the constructors already guard these): never corroborate from an
+    # unretrieved (fabricated) reading or a non-finite number — return INCONCLUSIVE.
+    if not any(s.retrieved for s in measurement.sources):
+        return _inconclusive("measurement has no retrieved provenance")
+    if not (math.isfinite(measurement.value) and math.isfinite(experiment.predicted_value)):
+        return _inconclusive("non-finite measured or predicted value")
+
     try:
         pred_dim = parse_unit(experiment.predicted_unit)
         meas_dim = parse_unit(measurement.unit)

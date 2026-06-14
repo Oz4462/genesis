@@ -103,9 +103,23 @@ def test_gate_rejects_unknown_grounding():
     assert not res.passed and any(f.code == "GROUNDING_UNKNOWN_CLAIM" for f in res.failures)
 
 
-def test_gate_rejects_unretrieved_measurement():
-    res = gate_delta_plus(_exp(), _meas(9.81, retrieved=False), _claims())
-    assert not res.passed and any(f.code == "DEAD_MEASUREMENT_SOURCE" for f in res.failures)
+def test_measurement_requires_retrieved_provenance():
+    # adversarial-review finding: an unretrieved (fabricated) reading is impossible at
+    # construction — the corroboration-needs-evidence guarantee is structural, not late.
+    with pytest.raises(UnsourcedMeasurementError):
+        Measurement(id="m_bad", experiment_id="exp1", value=9.81, unit="m/s^2",
+                    sources=[SourceRef(url_or_id="lab://x", retrieved=False)])
+
+
+def test_nonfinite_values_rejected():
+    # adversarial-review finding: NaN must never become a (false) REFUTED verdict — it is
+    # rejected at construction (measurement value + predicted value/tolerance must be finite).
+    with pytest.raises(ValueError):
+        Measurement(id="m_nan", experiment_id="exp1", value=float("nan"), unit="m/s^2",
+                    sources=[SourceRef(url_or_id="lab://x", retrieved=True)])
+    with pytest.raises(ValueError):
+        FalsificationExperiment(id="e_nan", measurand="x", predicted_value=float("nan"),
+                                predicted_unit="m", tolerance=0.0, method="m", grounding=["c"])
 
 
 def test_gate_rejects_experiment_mismatch():

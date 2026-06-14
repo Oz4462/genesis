@@ -9,6 +9,7 @@ without provenance.
 from __future__ import annotations
 
 import enum
+import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -336,6 +337,8 @@ class FalsificationExperiment:
             raise UngroundedExperimentError(self.id, self.measurand)
         if not self.predicted_unit.strip():
             raise ValueError(f"experiment {self.id!r}: predicted_unit must be non-empty")
+        if not math.isfinite(self.predicted_value) or not math.isfinite(self.tolerance):
+            raise ValueError(f"experiment {self.id!r}: predicted_value and tolerance must be finite")
         if self.tolerance < 0:
             raise ValueError(f"experiment {self.id!r}: tolerance must be >= 0")
 
@@ -355,9 +358,14 @@ class Measurement:
     sources: list[SourceRef]
 
     def __post_init__(self) -> None:
-        if not self.sources:
+        # A measurement needs a REAL (actually-retrieved) reading and a finite value —
+        # an unretrieved source or a NaN/inf value is a fabricated number, structurally
+        # impossible (no corroboration from invented evidence; HORIZON §2B, CLAUDE.md §1).
+        if not self.sources or not any(s.retrieved for s in self.sources):
             from .errors import UnsourcedMeasurementError
             raise UnsourcedMeasurementError(self.id)
+        if not math.isfinite(self.value):
+            raise ValueError(f"measurement {self.id!r}: value must be finite")
 
 
 @dataclass(frozen=True)
