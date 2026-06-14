@@ -779,5 +779,7 @@ class RunState:
     approaches: list[Approach] = field(default_factory=list)
     solution_report: "SolutionReport | None" = None
     specification: "Specification | None" = None
+    spark: "Spark | None" = None          # Phase φ input (the workshop for the spark)
+    divergence: "Divergence | None" = None  # Phase φ output; forge owns this field
     refine_round: int = 0
     log: list[str] = field(default_factory=list)

@@ -19,13 +19,23 @@ from typing import Sequence
 
 from .agents.architect import Architect
 from .agents.conductor import Conductor
+from .agents.forge import Forge
 from .agents.scholar import Scholar
 from .agents.scout import Scout
 from .agents.skeptic import Skeptic
 from .agents.synthesizer import Synthesizer
 from .config import Config, config_hash, default_config
 from .core.interfaces import LedgerStore, SearchBackend
-from .core.state import Question, Report, RunState, SolutionReport, Specification
+from .core.state import (
+    Divergence,
+    Question,
+    Report,
+    RunState,
+    SolutionReport,
+    Spark,
+    Specification,
+)
+from .verification import gate_phi
 from .llm.base import LLMClient
 from .tools.fetch import WebFetchTool
 from .tools.http import HttpGet
@@ -173,6 +183,69 @@ async def run_solution(
         save_checkpoint(checkpoint_dir, state, chash)
     assert state.solution_report is not None  # conductor always assembles one
     return state.solution_report
+
+
+async def run_divergence(
+    spark_text: str,
+    deps: Dependencies,
+    *,
+    config: Config | None = None,
+    run_id: str | None = None,
+    checkpoint_dir: str | None = None,
+) -> Divergence:
+    """Execute one Phase φ run and return the grounded divergence (HORIZON.md).
+
+    The same cross-model α research as `run` (scout -> scholar -> skeptic) establishes
+    VERIFIED claims; then `forge` opens the spark into possibilities, each anchored to a
+    VERIFIED claim. The forge uses the generator family — opening is not verification,
+    and the anchors were already verified cross-model by the skeptic, so the cross-model
+    guarantee is preserved. The returned divergence is always a declared grounded sample.
+    """
+    config = config or default_config()
+    pa = config.phase_alpha
+    chash = config_hash(config)
+    rid = run_id or make_run_id(spark_text, chash, suffix=str(time.time_ns()))
+
+    state = RunState(question=Question(raw=spark_text, run_id=rid))
+    state.spark = Spark(id=f"{rid}:spark", raw=spark_text)
+    state.log.append(
+        f"runner: [phi] run_id={rid} config_hash={chash[:12]} "
+        f"generator={deps.generator_llm.model} verifier={deps.verifier_llm.model}"
+    )
+
+    fetch = WebFetchTool(deps.http_get, ledger=deps.ledger, run_id=rid)
+    scout = Scout(deps.backends, llm=deps.generator_llm)
+    scholar = Scholar(fetch, deps.generator_llm, deps.ledger)
+    skeptic = Skeptic(
+        deps.backends,
+        fetch,
+        deps.verifier_llm,
+        deps.ledger,
+        generator_model=pa.models.generator,
+        second_judge=deps.judge_llm,
+        extra_judges=deps.extra_judges,
+        min_sources_for_verified=pa.min_sources_for_verified,
+    )
+    forge = Forge(deps.generator_llm, confidence_threshold=pa.confidence_threshold)
+
+    await scout.run(state)
+    await scholar.run(state)
+    await skeptic.run(state)
+    await forge.run(state)
+
+    # GATE φ is the completion predicate (defense in depth — forge already drops every
+    # ungrounded possibility, the gate re-checks and records the verdict for audit, the
+    # same way run_solution/run_specification gate β/γ).
+    assert state.divergence is not None  # forge always assembles a (possibly empty) divergence
+    gate = gate_phi(state.divergence, state.claims, confidence_threshold=pa.confidence_threshold)
+    state.log.append(
+        f"runner: [phi] gate_phi passed={gate.passed} "
+        f"possibilities={len(state.divergence.possibilities)} failures={len(gate.failures)}"
+    )
+
+    if checkpoint_dir is not None:
+        save_checkpoint(checkpoint_dir, state, chash)
+    return state.divergence
 
 
 async def run_specification(

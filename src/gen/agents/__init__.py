@@ -11,9 +11,10 @@ from __future__ import annotations
 
 from .architect import Architect
 from .conductor import Conductor
+from .forge import Forge
 from .scholar import Scholar
 from .scout import Scout
 from .skeptic import Skeptic
 from .synthesizer import Synthesizer
 
-__all__ = ["Scout", "Scholar", "Skeptic", "Conductor", "Synthesizer", "Architect"]
+__all__ = ["Scout", "Scholar", "Skeptic", "Conductor", "Synthesizer", "Architect", "Forge"]
