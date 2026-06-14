@@ -28,6 +28,7 @@ from ..core.state import (
     Claim,
     ClaimStatus,
     Divergence,
+    FrontierMap,
     GeometryNode,
     Pin,
     PinType,
@@ -650,6 +651,108 @@ def gate_phi(
                 )
 
     return GateResult(gate="phi", passed=not failures, failures=failures)
+
+
+def gate_chi(
+    state: RunState,
+    frontier_map: FrontierMap,
+    *,
+    confidence_threshold: float = 0.7,
+) -> GateResult:
+    """GATE χ — the deterministic, LLM-free completion predicate for Phase χ.
+
+    χ is a pure synthesis of the proven phases — it may neither fabricate knowledge nor
+    invent a gap. The map is honest iff (HORIZON.md §2C):
+
+      CHI-1 KNOWN_UNVERIFIED     — every fact_id in a known region is VERIFIED and meets τ.
+      CHI-2 KNOWN_UNKNOWN_CLAIM  — every fact_id exists in the ledger.
+      CHI-3 FRONTIER_NOT_GROUNDED — every frontier edge's `grounded_in` matches a REAL gap
+                                    of the run (a surfaced gap from report/solution/spec, or
+                                    a REFUTED/UNSUPPORTED claim id/text). No invented gaps.
+
+    Abstention (empty known regions, edges all grounded) passes: an honest "we mapped the
+    open questions". Pure; no model calls; same input -> same result (A5).
+    """
+    claims_by_id = {c.id: c for c in state.claims}
+    failures: list[GateFailure] = []
+
+    for region in frontier_map.known_regions:
+        if not region.fact_ids:  # constructor guards; gate backstops
+            failures.append(
+                GateFailure(code="KNOWN_UNVERIFIED", detail=f"region {region.id!r} anchors no fact.")
+            )
+        for fid in region.fact_ids:
+            claim = claims_by_id.get(fid)
+            if claim is None:
+                failures.append(
+                    GateFailure(
+                        code="KNOWN_UNKNOWN_CLAIM",
+                        detail=f"region {region.id!r} references unknown claim {fid!r}.",
+                        claim_id=fid,
+                    )
+                )
+                continue
+            if claim.status is not ClaimStatus.VERIFIED:
+                failures.append(
+                    GateFailure(
+                        code="KNOWN_UNVERIFIED",
+                        detail=(
+                            f"region {region.id!r} claims fact {fid!r} but status is "
+                            f"{claim.status.value}, not VERIFIED."
+                        ),
+                        claim_id=fid,
+                    )
+                )
+            elif claim.confidence < confidence_threshold:
+                failures.append(
+                    GateFailure(
+                        code="KNOWN_UNVERIFIED",
+                        detail=(
+                            f"region {region.id!r} claims fact {fid!r} but confidence "
+                            f"{claim.confidence:.2f} < τ={confidence_threshold}."
+                        ),
+                        claim_id=fid,
+                    )
+                )
+
+    # CHI-3: the set of REAL gaps this run actually surfaced — an edge may ground only here.
+    # Empty/whitespace strings are never real gaps (an upstream empty gap must not become a
+    # valid anchor for a fabricated edge).
+    real_gaps: set[str] = set()
+
+    def _add_gap(value: str) -> None:
+        if value and value.strip():
+            real_gaps.add(value)
+
+    if state.report is not None:
+        for g in state.report.gaps:
+            _add_gap(g)
+    if state.solution_report is not None:
+        for g in state.solution_report.gaps:
+            _add_gap(g)
+    if state.specification is not None:
+        for g in state.specification.gaps:
+            _add_gap(g)
+    for claim in state.claims:
+        if claim.status in (ClaimStatus.REFUTED, ClaimStatus.UNSUPPORTED):
+            _add_gap(claim.id)
+            _add_gap(claim.text)
+
+    for edge in frontier_map.frontier_edges:
+        if edge.grounded_in not in real_gaps:
+            failures.append(
+                GateFailure(
+                    code="FRONTIER_NOT_GROUNDED",
+                    detail=(
+                        f"frontier edge {edge.id!r} ({edge.question!r}) grounds in "
+                        f"{edge.grounded_in!r}, which is not a real gap of this run "
+                        "(invented edge)."
+                    ),
+                    claim_id=edge.id,
+                )
+            )
+
+    return GateResult(gate="chi", passed=not failures, failures=failures)
 
 
 def gate_gamma(

@@ -224,6 +224,75 @@ class Divergence:
     grounded_sample: bool = True
 
 
+# --- Phase χ: the frontier map (HORIZON.md §2C) ------------------------------
+
+@dataclass(frozen=True)
+class KnownRegion:
+    """An island of certainty on the frontier map: a cluster of VERIFIED facts.
+
+    INVARIANT (enforced here AND re-checked by GATE χ): `fact_ids` is non-empty and
+    each references a VERIFIED claim. A region of 'known' territory without an anchor is
+    fabricated certainty — structurally impossible (UnknownRegionError).
+
+    `label` is a human-readable domain label (NOT a fact); the factual substance lives in
+    the referenced VERIFIED claims.
+    """
+
+    id: str
+    label: str
+    fact_ids: list[str]
+
+    def __post_init__(self) -> None:
+        if not self.fact_ids:
+            from .errors import UnknownRegionError
+            raise UnknownRegionError(self.id)
+
+
+@dataclass(frozen=True)
+class FrontierEdge:
+    """An honest edge of the unknown: an open question grounded in a REAL detected gap.
+
+    Never an invented question. `grounded_in` MUST reference a real gap of the run — a
+    surfaced gap from a gated phase (α/β/γ report.gaps) or a REFUTED/UNSUPPORTED claim.
+    GATE χ rejects any edge whose `grounded_in` does not match a real gap (no invented
+    neighbourhood of the unknown, the χ analogue of α's no-fact-without-source).
+
+    `question` is the open question (NOT a fact). `category` is a human label.
+    """
+
+    id: str
+    question: str
+    grounded_in: str
+    category: str = "open"
+
+    def __post_init__(self) -> None:
+        # An edge with no question or no real grounding reference is an invented edge —
+        # structurally impossible (empty/whitespace would otherwise slip past GATE χ when
+        # an upstream report carried an empty gap string).
+        if not self.question.strip() or not self.grounded_in.strip():
+            raise ValueError(
+                f"FrontierEdge {self.id!r} needs a non-empty question and grounded_in "
+                "(no invented edge; HORIZON.md §2C)."
+            )
+
+
+@dataclass
+class FrontierMap:
+    """Phase χ output: a deterministic, honest map of known territory + the open frontier.
+
+    Pure synthesis of the proven phases (α/β/γ) — no new research, no LLM facts. Empty
+    known_regions with non-empty frontier_edges is valid abstention ("we mapped the open
+    questions, found no verified foundation"). GATE χ re-checks every region and edge.
+    """
+
+    run_id: str
+    topic: str
+    known_regions: list[KnownRegion] = field(default_factory=list)
+    frontier_edges: list[FrontierEdge] = field(default_factory=list)
+    produced_by: str = ""
+    created_at: datetime = field(default_factory=_now)
+
+
 # --- Phase γ: specification building blocks ----------------------------------
 
 class ValueOrigin(enum.Enum):
@@ -781,5 +850,6 @@ class RunState:
     specification: "Specification | None" = None
     spark: "Spark | None" = None          # Phase φ input (the workshop for the spark)
     divergence: "Divergence | None" = None  # Phase φ output; forge owns this field
+    frontier_map: "FrontierMap | None" = None  # Phase χ output; cartographer owns this
     refine_round: int = 0
     log: list[str] = field(default_factory=list)

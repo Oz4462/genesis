@@ -62,6 +62,21 @@ class UngroundedPossibilityError(GenesisError):
         )
 
 
+class UnknownRegionError(GenesisError):
+    """Raised when a KnownRegion is constructed without anchoring to any fact.
+
+    The Phase χ pendant of the grounding guards: a 'known region' on the frontier map
+    claims established knowledge, so it must anchor at least one VERIFIED claim. A region
+    with no fact_ids is fabricated certainty — structurally impossible (HORIZON.md §2C).
+    """
+
+    def __init__(self, region_id: str) -> None:
+        super().__init__(
+            f"KnownRegion {region_id!r} anchors no fact. A region of 'known' "
+            "territory without >= 1 verified claim cannot exist in GENESIS (HORIZON.md §2C)."
+        )
+
+
 class UnsourcedSourcingError(GenesisError):
     """Raised when a BOM sourcing (supplier/part/price) has no grounding claim.
 
