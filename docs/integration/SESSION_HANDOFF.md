@@ -4,9 +4,9 @@
 > Quelle der Wahrheit für den Code: der git-Branch unten + die Phasen-Docs in `docs/integration/`.
 
 ## Git-Stand (kritisch)
-- Branch **`feat/app-integration-phase0-2`**, **13 Commits über `main`**, **ALLES LOKAL — KEIN PUSH** (Owner-Regel: Push erst auf expliziten Auftrag → `feedback_no_push_until_done`).
+- Branch **`feat/app-integration-phase0-2`**, **16 Commits über `main`**, **ALLES LOKAL — KEIN PUSH** (Owner-Regel: Push erst auf expliziten Auftrag → `feedback_no_push_until_done`).
 - Working tree sauber bis auf `docs/HORIZON.md` (Roadmap, wird mit diesem Handoff committet).
-- Volle Test-Suite zuletzt: **896 passed, 19 skipped, 0 Fehler**; `ruff` sauber. Baseline-Start der Session war ~881.
+- Volle Test-Suite zuletzt: **909 passed, 19 skipped, 0 Fehler**; `ruff` sauber. Baseline-Start der Session war ~881.
 
 ## Commit-Kette (neueste zuerst)
 ```
@@ -42,12 +42,13 @@ b3a33c6 feat(verif)  native N-judge consensus (Phase 3)
 **Pro-Phase-Doku:** `docs/integration/PHASE{1_TRUSTCORE,2_ANAMNESIS,3_CONSENSUS,4_AUDIT,_L_LIVE_WIRING,_L2_RECALL_DRIFT,_T3_ARXIV,_T3_SMT}.md`, `LIVE_RUN.md`, `EXTRACTION_BOTTLENECK.md`, `CATALOG.md`, `PROOF_OF_VALUE.md`. PoV-Berichte unter `runs/pov/` (gitignored).
 
 ## Offen / als Nächstes (HORIZON-Sequenz, je gate-first)
-1. **δ⁺ Realitäts-Beweis** — selbst-entworfenes Falsifikations-Experiment + echte Messung einlesen (Claim „berechnet"→„empirisch korroboriert"/„widerlegt").
-2. **δ⁺ Deckungs-Beweis** — undeklarierter Versagensmodus + Vollständigkeits-Zertifikat (baut auf SMT + N-Judge + `physics_selection`).
-3. **γ⁺ Inverses Design** — Ziel → validierte Pareto-Front (architect + δ-Engine als Fitness-Orakel).
-4. **ε Nähte** — verifizierte Kopplung mechanisch↔thermisch↔elektrisch↔Firmware↔Kosten.
-5. **ζ Bindegewebe** — geteiltes conformal-gegatetes Gedächtnis (ANAMNESIS + trust-core drift/CRC/FDR).
-6. **Ω** — Querfaden (Exoskelett + Nicht-Lügen), fortlaufend.
+1. **δ⁺ Deckungs-Beweis** — undeklarierter Versagensmodus + Vollständigkeits-Zertifikat (baut auf SMT + N-Judge + `physics_selection`).
+2. **γ⁺ Inverses Design** — Ziel → validierte Pareto-Front (architect + δ-Engine als Fitness-Orakel).
+3. **ε Nähte** — verifizierte Kopplung mechanisch↔thermisch↔elektrisch↔Firmware↔Kosten.
+4. **ζ Bindegewebe** — geteiltes conformal-gegatetes Gedächtnis (ANAMNESIS + trust-core drift/CRC/FDR).
+5. **Ω** — Querfaden (Exoskelett + Nicht-Lügen), fortlaufend.
+
+✓ **δ⁺ Realitäts-Beweis ERLEDIGT** (`reality.evaluate_reality` + `gate_delta_plus`, dimension-safe, adversarial-reviewed).
 
 ## Bekannter Flaschenhals (belegt, nicht Verdrahtung)
 Live verifizierter-Claim-Recall ist variabel — Ursache ist die **Extraktions-Robustheit** des 9B-Generators auf langen/verrauschten Quellen (num_ctx als Ursache WIDERLEGT, `EXTRACTION_BOTTLENECK.md`). Nächster Hebel dort: größeres Extraktionsmodell → Prompt-Härtung → Fine-Tune (3B QLoRA, GTX 1080 Ti Pascal). NICHT mehr Verdrahtung.
