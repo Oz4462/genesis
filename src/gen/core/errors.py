@@ -62,6 +62,36 @@ class UngroundedPossibilityError(GenesisError):
         )
 
 
+class UngroundedExperimentError(GenesisError):
+    """Raised when a FalsificationExperiment has no prediction to falsify.
+
+    The Phase δ⁺ pendant of the grounding guards: an experiment must reference the
+    computed/derived claim or quantity whose prediction it tests. An experiment with no
+    grounding tests nothing — structurally impossible (HORIZON.md §2B).
+    """
+
+    def __init__(self, experiment_id: str, measurand: str) -> None:
+        super().__init__(
+            f"FalsificationExperiment {experiment_id!r} ({measurand!r}) grounds in no "
+            "prediction. An experiment must test a computed claim/quantity (HORIZON.md §2B)."
+        )
+
+
+class UnsourcedMeasurementError(GenesisError):
+    """Raised when a Measurement is constructed without provenance.
+
+    A measurement is a factual claim about the world: where/how it was read. Without a
+    source it is a fabricated number — structurally impossible, the δ⁺ analogue of
+    UnsourcedClaimError (HORIZON.md §2B).
+    """
+
+    def __init__(self, measurement_id: str) -> None:
+        super().__init__(
+            f"Measurement {measurement_id!r} has no source. A measurement without "
+            "provenance cannot exist in GENESIS (HORIZON.md §2B)."
+        )
+
+
 class UnknownRegionError(GenesisError):
     """Raised when a KnownRegion is constructed without anchoring to any fact.
 

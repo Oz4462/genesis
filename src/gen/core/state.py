@@ -293,6 +293,83 @@ class FrontierMap:
     created_at: datetime = field(default_factory=_now)
 
 
+# --- Phase δ⁺: the reality proof (HORIZON.md §2B) ----------------------------
+
+class EmpiricalStatus(enum.Enum):
+    """Empirical lifecycle of a predicted quantity.
+
+    COMPUTED      predicted/derived; no real measurement yet (not corroborated).
+    CORROBORATED  a real measurement fell within the experiment's tolerance band.
+    REFUTED       a real measurement fell OUTSIDE tolerance — re-specify honestly.
+    INCONCLUSIVE  the measurement cannot be compared (unit mismatch / unparseable).
+    """
+
+    COMPUTED = "computed"
+    CORROBORATED = "corroborated"
+    REFUTED = "refuted"
+    INCONCLUSIVE = "inconclusive"
+
+
+@dataclass(frozen=True)
+class FalsificationExperiment:
+    """A self-designed experiment that tries to FALSIFY a computed prediction.
+
+    INVARIANT (constructor): grounds in >=1 claim/quantity (the prediction it tests),
+    a non-empty `predicted_unit`, and a non-negative `tolerance`. An experiment that
+    tests nothing is structurally impossible (UngroundedExperimentError, HORIZON §2B).
+
+    `tolerance` is the acceptance band as an ABSOLUTE value in `predicted_unit`.
+    `method` is the human-readable measurement procedure (NOT a fact).
+    """
+
+    id: str
+    measurand: str
+    predicted_value: float
+    predicted_unit: str
+    tolerance: float
+    method: str
+    grounding: list[str]
+
+    def __post_init__(self) -> None:
+        if not self.grounding:
+            from .errors import UngroundedExperimentError
+            raise UngroundedExperimentError(self.id, self.measurand)
+        if not self.predicted_unit.strip():
+            raise ValueError(f"experiment {self.id!r}: predicted_unit must be non-empty")
+        if self.tolerance < 0:
+            raise ValueError(f"experiment {self.id!r}: tolerance must be >= 0")
+
+
+@dataclass(frozen=True)
+class Measurement:
+    """A real, provenance-bearing reading taken for a FalsificationExperiment.
+
+    INVARIANT (constructor): `sources` is non-empty — a measurement is a factual claim
+    about the world and may not be a fabricated number (UnsourcedMeasurementError).
+    """
+
+    id: str
+    experiment_id: str
+    value: float
+    unit: str
+    sources: list[SourceRef]
+
+    def __post_init__(self) -> None:
+        if not self.sources:
+            from .errors import UnsourcedMeasurementError
+            raise UnsourcedMeasurementError(self.id)
+
+
+@dataclass(frozen=True)
+class EmpiricalVerdict:
+    """Deterministic outcome of comparing a Measurement to its experiment's prediction."""
+
+    status: EmpiricalStatus
+    residual: float          # |measured - predicted| in predicted_unit (nan if inconclusive)
+    within_tolerance: bool
+    detail: str = ""
+
+
 # --- Phase γ: specification building blocks ----------------------------------
 
 class ValueOrigin(enum.Enum):
