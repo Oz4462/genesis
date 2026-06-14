@@ -36,6 +36,7 @@ from .gates import (
     gate_beta,
     gate_delta,
     gate_gamma,
+    gate_phi,
     geometry_envelope,
     value_in_text,
 )
@@ -56,6 +57,7 @@ __all__ = [
     "gate_beta",
     "gate_gamma",
     "gate_delta",
+    "gate_phi",
     "geometry_envelope",
     "Aabb",
     "aabb_of",

@@ -16,6 +16,7 @@ the gate catches it rather than trusting upstream.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 
 from ..core.errors import FormulaError, GeometryError, UnitError
 from ..core.interfaces import GateResult, GateFailure
@@ -26,6 +27,7 @@ from ..core.state import (
     GEOMETRY_TRANSFORMS,
     Claim,
     ClaimStatus,
+    Divergence,
     GeometryNode,
     Pin,
     PinType,
@@ -559,6 +561,95 @@ def _check_sourcing(item, *, quantities, check_claim_ref, failures) -> None:
                     ),
                 )
             )
+
+
+def gate_phi(
+    divergence: Divergence,
+    claims: Sequence[Claim],
+    *,
+    confidence_threshold: float = 0.7,
+) -> GateResult:
+    """GATE φ — the deterministic, LLM-free completion predicate for Phase φ.
+
+    Divergence has no completeness gate (a possibility space cannot be proven whole),
+    so φ enforces the only honest guarantee instead (HORIZON.md §3/§5):
+
+      P-1 UNGROUNDED_POSSIBILITY    — every possibility has >= 1 grounding
+                                      (the constructor guards it; the gate backstops).
+      P-2 GROUNDING_UNKNOWN_CLAIM   — every grounding id exists in the ledger.
+      P-3 GROUNDING_NOT_VERIFIED    — every grounding claim is VERIFIED and meets τ
+                                      (no invented neighbourhood — same DNA as α/β).
+      P-4 NOT_GROUNDED_SAMPLE       — the divergence is honestly marked as a grounded
+                                      sample, never as the whole space.
+
+    Abstention (zero possibilities) passes: nothing invented is asserted. Pure; no
+    model calls; same-input -> same-result (reproducibility A5).
+    """
+    claims_by_id = {c.id: c for c in claims}
+    failures: list[GateFailure] = []
+
+    # P-4: the loud honesty disclaimer is non-negotiable — claiming completeness
+    # (grounded_sample False) is structurally rejected, even with zero possibilities.
+    if not divergence.grounded_sample:
+        failures.append(
+            GateFailure(
+                code="NOT_GROUNDED_SAMPLE",
+                detail=(
+                    "Divergence must be marked as a grounded sample, not the whole "
+                    "possibility space (HORIZON.md §3)."
+                ),
+            )
+        )
+
+    for poss in divergence.possibilities:
+        # P-1: structural grounding requirement (constructor guards; gate backstops).
+        if not poss.grounding:
+            failures.append(
+                GateFailure(
+                    code="UNGROUNDED_POSSIBILITY",
+                    detail=f"Possibility {poss.statement!r} has no grounding.",
+                    claim_id=poss.id,
+                )
+            )
+
+        for cid in poss.grounding:
+            claim = claims_by_id.get(cid)
+            if claim is None:
+                failures.append(
+                    GateFailure(
+                        code="GROUNDING_UNKNOWN_CLAIM",
+                        detail=f"Possibility {poss.statement!r} grounded in unknown claim {cid!r}.",
+                        claim_id=cid,
+                    )
+                )
+                continue
+            # P-3 — the heart of φ: an anchor must be VERIFIED and meet the threshold.
+            # A possibility anchored only in an unverified claim is an invented
+            # neighbourhood, and is rejected here.
+            if claim.status is not ClaimStatus.VERIFIED:
+                failures.append(
+                    GateFailure(
+                        code="GROUNDING_NOT_VERIFIED",
+                        detail=(
+                            f"Possibility {poss.statement!r} anchored in non-verified claim "
+                            f"({claim.status.value}): {claim.text!r}"
+                        ),
+                        claim_id=cid,
+                    )
+                )
+            elif claim.confidence < confidence_threshold:
+                failures.append(
+                    GateFailure(
+                        code="GROUNDING_NOT_VERIFIED",
+                        detail=(
+                            f"Possibility {poss.statement!r} anchored in under-confident claim "
+                            f"({claim.confidence:.2f} < τ={confidence_threshold}): {claim.text!r}"
+                        ),
+                        claim_id=cid,
+                    )
+                )
+
+    return GateResult(gate="phi", passed=not failures, failures=failures)
 
 
 def gate_gamma(

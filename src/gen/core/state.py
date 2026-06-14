@@ -152,6 +152,78 @@ class Approach:
             raise UngroundedApproachError(self.id, self.name)
 
 
+# --- Phase φ: the spark and grounded divergence (HORIZON.md) ------------------
+
+@dataclass(frozen=True)
+class Spark:
+    """A human's raw, undeveloped input — a problem hunch or idea seed, not a spec.
+
+    The entry point of Movement A ("the workshop for the spark"). A Spark asserts no
+    fact; it is the raw text Genesis will develop into grounded Possibilities. There
+    is no invariant: a spark is allowed to be vague — that is its nature.
+    """
+
+    id: str
+    raw: str
+    created_at: datetime = field(default_factory=_now)
+
+
+@dataclass
+class Possibility:
+    """One direction a Spark could take — a REAL possibility, never an invented one.
+
+    INVARIANT (enforced here AND re-checked by GATE φ): `grounding` is non-empty.
+    Divergence has no completeness gate (you cannot prove a possibility space is
+    whole), so the only honest guarantee is that every possibility is anchored to at
+    least one VERIFIED claim / real precedent in the ledger — the same DNA as α's
+    "no fact without a source". A possibility without grounding is structurally
+    impossible (UngroundedPossibilityError). See HORIZON.md §3/§5.
+
+    A Possibility asserts NO new fact: `statement` is a direction (e.g. "store heat in
+    a phase-change material"), the factual substance lives in the grounding claims.
+
+    `statement`   short human-readable direction (NOT a fact).
+    `mechanism`   short label of the real mechanism/precedent it leans on.
+    `grounding`   claim_ids of VERIFIED claims anchoring the mechanism. MUST be non-empty.
+    `produced_by` agent name (provenance of the structuring, not of any fact).
+    `model`       model family that produced the structuring (for auditing).
+    """
+
+    id: str
+    statement: str
+    mechanism: str
+    grounding: list[str]
+    produced_by: str = ""
+    model: str = ""
+    created_at: datetime = field(default_factory=_now)
+
+    def __post_init__(self) -> None:
+        # Fail fast: a possibility with no grounding must never be constructed.
+        if not self.grounding:
+            from .errors import UngroundedPossibilityError
+            raise UngroundedPossibilityError(self.id, self.statement)
+
+
+@dataclass
+class Divergence:
+    """The output of Phase φ: a Spark opened into grounded Possibilities.
+
+    INVARIANT (re-checked by GATE φ): `grounded_sample` MUST be True — Genesis always
+    says out loud "this is a grounded sample, not the whole space" (HORIZON.md §3).
+    Marking it False is the structural equivalent of claiming completeness, which is
+    unprovable; the gate rejects it. Zero possibilities is valid abstention (honest
+    "nothing groundable").
+
+    `spark`           the originating Spark.
+    `possibilities`   the grounded directions (each anchored; may be empty = abstain).
+    `grounded_sample` honest disclaimer flag; must be True to pass GATE φ.
+    """
+
+    spark: Spark
+    possibilities: list[Possibility] = field(default_factory=list)
+    grounded_sample: bool = True
+
+
 # --- Phase γ: specification building blocks ----------------------------------
 
 class ValueOrigin(enum.Enum):

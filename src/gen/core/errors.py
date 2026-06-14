@@ -43,6 +43,25 @@ class UngroundedApproachError(GenesisError):
         )
 
 
+class UngroundedPossibilityError(GenesisError):
+    """Raised when a Possibility is constructed without any grounding.
+
+    The Phase φ pendant of UnsourcedClaimError / UngroundedApproachError: a
+    *possibility* (a direction a spark could take) may only exist if it is anchored
+    to at least one real mechanism or precedent in the ledger — no invented
+    neighbourhood. Divergence has no completeness gate, so this anchoring (plus the
+    loud "grounded sample, not the whole space" disclaimer enforced by GATE φ) is the
+    only honest guarantee. See HORIZON.md §3/§5.
+    """
+
+    def __init__(self, possibility_id: str, statement: str) -> None:
+        super().__init__(
+            f"Possibility {possibility_id!r} ({statement!r}) has no grounding. "
+            "A possibility without an anchored mechanism/precedent cannot exist in "
+            "GENESIS (HORIZON.md §3)."
+        )
+
+
 class UnsourcedSourcingError(GenesisError):
     """Raised when a BOM sourcing (supplier/part/price) has no grounding claim.
 
