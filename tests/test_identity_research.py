@@ -128,7 +128,7 @@ def test_true_double_angle_survives_via_interval():
     assert art.status == "SURVIVED_NOVEL"
     assert art.falsify.refutation_mode is None
     c = art.falsify.counts
-    assert c.get("interval_inconclusive", 0) >= 1 or c.get("exact_zero", 0) >= 1
+    assert c.get("interval_ok", 0) >= 1 or c.get("exact_ok", 0) >= 1
     assert "finite-grid" in art.falsify.coverage_claim
 
 
@@ -145,7 +145,7 @@ def test_exact_rational_refutation_mode():
     art = assess_identity("er", "x**2", "x**2 + 1", _mR(x="real"))
     assert art.status == "REFUTED"
     assert art.falsify.refutation_mode == "exact"
-    assert art.falsify.counts.get("exact_nonzero", 0) >= 1
+    assert art.falsify.counts.get("exact_refute", 0) >= 1
 
 
 def test_manifest_hash_is_deterministic_and_order_independent():

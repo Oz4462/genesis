@@ -52,8 +52,8 @@ _DOMAIN_FRACTION: dict[str, float] = {"R": 1.0, "C": 1.0, "R+": 0.5, "Z": 0.4, "
 # real residual gap is measure-zero / non-analytic (floor, piecewise) cases.
 _REAL_ANCHORS = (
     sp.Integer(-3), sp.Integer(-2), sp.Rational(-3, 2), sp.Integer(-1), sp.Rational(-1, 2),
-    sp.Rational(-1, 4), sp.Rational(1, 4), sp.Rational(1, 2), sp.Integer(1), sp.Rational(3, 2),
-    sp.Integer(2), sp.Integer(3), sp.Integer(5), sp.sqrt(2), sp.pi, sp.E,
+    sp.Rational(-1, 4), sp.Integer(0), sp.Rational(1, 4), sp.Rational(1, 2), sp.Integer(1),
+    sp.Rational(3, 2), sp.Integer(2), sp.Integer(3), sp.Integer(5), sp.sqrt(2), sp.pi, sp.E,
 )
 _POS_ANCHORS = tuple(a for a in _REAL_ANCHORS if a.is_positive)
 _INT_ANCHORS = tuple(sp.Integer(i) for i in range(-6, 13))
@@ -487,50 +487,89 @@ def _iv_enclose(expr: sp.Expr, env: dict):
     raise _IvUnsupported(f"unsupported node {expr.func}")
 
 
+Relation = Literal["eq", "ge", "gt", "le", "lt"]
+_REL_SYM = {"eq": "=", "ge": ">=", "gt": ">", "le": "<=", "lt": "<"}
+
+
+def _exact_verdict(relation: Relation, d) -> str:
+    """'refute' | 'ok' | 'unknown' for an EXACT value d = lhs-rhs. The relation is the
+    CLAIM (d eq/ge/gt/le/lt 0); 'refute' means the claim is rigorously violated at d."""
+    if relation == "eq":
+        z = d.is_zero
+        return "ok" if z is True else ("refute" if z is False else "unknown")
+    if relation == "ge":
+        return "ok" if d.is_nonnegative else ("refute" if d.is_negative else "unknown")
+    if relation == "gt":
+        return "ok" if d.is_positive else ("refute" if d.is_nonpositive else "unknown")
+    if relation == "le":
+        return "ok" if d.is_nonpositive else ("refute" if d.is_positive else "unknown")
+    if relation == "lt":
+        return "ok" if d.is_negative else ("refute" if d.is_nonnegative else "unknown")
+    return "unknown"
+
+
+def _interval_verdict(relation: Relation, r) -> str:
+    """'refute' | 'ok' | 'unknown' for an interval enclosure [a,b] of d. An interval that
+    straddles the boundary is 'unknown' (never a false refutation — Grok-locked)."""
+    a_pos, a_nonneg = bool(r.a > 0), bool(r.a >= 0)
+    b_neg, b_nonpos = bool(r.b < 0), bool(r.b <= 0)
+    if relation == "eq":
+        return "refute" if (b_neg or a_pos) else "ok"
+    if relation == "ge":   # claim d>=0; fails if d<0
+        return "refute" if b_neg else ("ok" if a_nonneg else "unknown")
+    if relation == "gt":   # claim d>0; fails if d<=0
+        return "refute" if b_nonpos else ("ok" if a_pos else "unknown")
+    if relation == "le":   # claim d<=0; fails if d>0
+        return "refute" if a_pos else ("ok" if b_nonpos else "unknown")
+    if relation == "lt":   # claim d<0; fails if d>=0
+        return "refute" if a_nonneg else ("ok" if b_neg else "unknown")
+    return "unknown"
+
+
 def falsify(
     lhs: sp.Expr, rhs: sp.Expr, manifest: AssumptionManifest, syms: dict[str, sp.Symbol],
-    *, n_samples: int = 500, prec_dps: int = 30,
+    *, relation: Relation = "eq", n_samples: int = 500, prec_dps: int = 30,
 ) -> FalsificationReceipt:
-    """Search for a counterexample on a deterministic grid of EXACT sympy points.
-
-    Rigorous, no float tolerance: a rational/algebraic point is checked exactly
-    (``is_zero`` True/False); a transcendental point is enclosed with mpmath interval
-    arithmetic. A point that is rigorously nonzero (exact != 0, or an interval excluding 0)
-    REFUTES with a witness. SURVIVED means only 'no counterexample in this finite set',
-    never a proof of universality (impossibility is provable, possibility is not)."""
+    """Search for a counterexample to ``lhs <relation> rhs`` on a deterministic grid of
+    EXACT sympy points. Rigorous, no float tolerance: rational/algebraic points are checked
+    exactly; transcendental points are enclosed with mpmath interval arithmetic. A point
+    that rigorously VIOLATES the relation REFUTES with a witness; an interval straddling the
+    boundary is inconclusive, never a false refutation. SURVIVED means only 'no counterexample
+    in this finite set', never a proof of universality."""
     mpmath.iv.dps = prec_dps
     diff = lhs - rhs
     pts = _sample_points(manifest, syms, n_samples)
-    counts = {"exact_zero": 0, "exact_nonzero": 0, "interval_excludes_0": 0,
-              "interval_inconclusive": 0, "skipped_unsupported": 0}
+    counts = {"exact_ok": 0, "exact_refute": 0, "interval_ok": 0,
+              "interval_refute": 0, "interval_unknown": 0, "skipped_unsupported": 0}
     tested = 0
     for pt in pts:
         val = diff.subs({syms[n]: v for n, v in pt.items()})
         witness = {n: float(v) for n, v in pt.items()}
         # EXACT path (rational / algebraic)
         if val.is_number:
-            z = val.is_zero
-            if z is True:
-                counts["exact_zero"] += 1
-                tested += 1
-                continue
-            if z is False:
-                counts["exact_nonzero"] += 1
+            verdict = _exact_verdict(relation, val)
+            if verdict == "refute":
+                counts["exact_refute"] += 1
                 tested += 1
                 return FalsificationReceipt(tested, witness, False, "exact", prec_dps, str(val), counts)
+            if verdict == "ok":
+                counts["exact_ok"] += 1
+                tested += 1
+                continue
+            # unknown -> fall through to interval
         # INTERVAL path (transcendental / exact-undecided)
         try:
             env = {syms[n]: _iv_enclose(v, {}) for n, v in pt.items()}
             r = _iv_enclose(diff, env)
-            excludes0 = bool(r.b < 0) or bool(r.a > 0)
+            verdict = _interval_verdict(relation, r)
         except Exception:
             counts["skipped_unsupported"] += 1
             continue
         tested += 1
-        if excludes0:
-            counts["interval_excludes_0"] += 1
+        if verdict == "refute":
+            counts["interval_refute"] += 1
             return FalsificationReceipt(tested, witness, False, "interval", prec_dps, f"[{r.a}, {r.b}]", counts)
-        counts["interval_inconclusive"] += 1
+        counts["interval_ok" if verdict == "ok" else "interval_unknown"] += 1
     return FalsificationReceipt(tested, None, True, None, prec_dps, None, counts)
 
 
@@ -825,3 +864,70 @@ def run_identity_research(
                           n_samples=n_samples, prec_dps=prec_dps)
     key = persist_identity_artifact(art) if persist else None
     return art, key
+
+
+def assess_inequality(
+    claim_id: str, lhs: str, rhs: str, relation: Relation, manifest: AssumptionManifest,
+    *, novelty_index: Optional["NoveltyBackend"] = None, register: bool = True,
+    n_samples: int = 500, prec_dps: int = 30,
+) -> IdentityArtifact:
+    """Assess a conjectured INEQUALITY ``lhs <relation> rhs`` (relation in ge|gt|le|lt).
+
+    Same honest gate flow as identities, but there is no equality truth-fingerprint: a
+    point that rigorously violates the relation REFUTES with a witness; SURVIVED means only
+    'no counterexample on this finite grid' (never a proof). Interval straddling the boundary
+    is inconclusive, never a false refutation."""
+    if relation not in ("ge", "gt", "le", "lt"):
+        raise ValueError(f"assess_inequality relation must be ge|gt|le|lt, got {relation!r}")
+    syms = _make_symbols(manifest)
+    mh = manifest.manifest_hash()
+    rel = _REL_SYM[relation]
+    binders = " ".join(f"({n} : {('Int' if t == 'integer' else 'Real')})"
+                       for n, t in sorted(manifest.variables.items()))
+    lean = f"theorem genesis_inequality {binders} : ({lhs}) {rel} ({rhs}) := by admit"
+
+    try:
+        e_lhs = _parse(lhs, syms)
+        e_rhs = _parse(rhs, syms)
+    except Exception as exc:
+        claim = IdentityClaim(claim_id, lhs, rhs, manifest)
+        return IdentityArtifact(claim=claim, status="INCONCLUSIVE", promotion="PROPOSED->GATE-DATA(failed)",
+                                search=None, falsify=None, severity=0.0, proof_tier=0, lean_statement=lean,
+                                note=f"parse/manifest failure: {type(exc).__name__}: {exc}")
+
+    nkey = _sha(mh + "|ineq:" + relation + "|" + sp.srepr(e_lhs) + "|" + sp.srepr(e_rhs))
+    term_canon = _term_canon(e_lhs, e_rhs)
+    claim = IdentityClaim(claim_id, lhs, rhs, manifest, fingerprint=None,
+                          fp_tier="not_proven_equal", novelty_key=nkey)
+
+    fr = falsify(e_lhs, e_rhs, manifest, syms, relation=relation, n_samples=n_samples, prec_dps=prec_dps)
+    if not fr.passed:
+        return IdentityArtifact(claim=claim, status="REFUTED",
+                                promotion="PROPOSED->GATE-DATA->GATE-FALSIFICATION(refuted)",
+                                search=None, falsify=fr, severity=0.0, proof_tier=0, lean_statement=lean,
+                                note=f"counterexample found — '{lhs} {rel} {rhs}' is false in this manifest")
+    if fr.samples_tested == 0:
+        return IdentityArtifact(claim=claim, status="INCONCLUSIVE",
+                                promotion="PROPOSED->GATE-DATA->GATE-FALSIFICATION(no evaluable point)",
+                                search=None, falsify=fr, severity=0.0, proof_tier=0, lean_statement=lean,
+                                note="no evaluable sample point in domain under predicates")
+
+    proof_tier = 1  # survived a finite grid; inequalities get no universal proof here
+    index = novelty_index if novelty_index is not None else NoveltyIndex()
+    receipt = index.search(nkey, mh, "not_proven_equal", term_canon, f"{lhs} {rel} {rhs}")
+    sev = _severity(proof_tier, fr.samples_tested, manifest.domain_id, int(sp.count_ops(e_lhs - e_rhs)), refuted=False)
+    if register:
+        index.register(IndexedIdentity(novelty_key=nkey, truth_fp="", fp_tier="not_proven_equal",
+                                       manifest_hash=mh, claim_id=claim_id, lhs=lhs, rhs=rhs,
+                                       term_canon=term_canon, corpus_id=index.corpus_id))
+
+    if receipt.match_kind == "REDISCOVERED":
+        status: Status = "SURVIVED_KNOWN"
+    elif receipt.match_kind == "PRIOR_ART_UNCHECKED":
+        status = "SURVIVED_NOVELTY_UNCHECKED"
+    else:
+        status = "SURVIVED_NOVEL"
+    return IdentityArtifact(claim=claim, status=status,
+                            promotion=f"...->GATE-FALSIFICATION(survived {rel})->GATE-NOVELTY({receipt.match_kind})",
+                            search=receipt, falsify=fr, severity=sev, proof_tier=proof_tier, lean_statement=lean,
+                            note=f"no counterexample to '{lhs} {rel} {rhs}' on the finite grid; not a universal proof")
