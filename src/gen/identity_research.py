@@ -27,7 +27,7 @@ import itertools
 import json
 import math
 from dataclasses import dataclass, field
-from typing import Literal, Optional
+from typing import Callable, Literal, Optional, Protocol, runtime_checkable
 
 import mpmath
 import sympy as sp
@@ -35,7 +35,9 @@ import sympy as sp
 DomainId = Literal["R", "R+", "C", "Z", "N"]
 VarType = Literal["real", "positive", "integer", "complex"]
 FpTier = Literal["proved_equal", "structural", "not_proven_equal"]
-Status = Literal["REFUTED", "INCONCLUSIVE", "SURVIVED_KNOWN", "SURVIVED_NOVEL"]
+Status = Literal[
+    "REFUTED", "INCONCLUSIVE", "SURVIVED_KNOWN", "SURVIVED_NOVEL", "SURVIVED_NOVELTY_UNCHECKED"
+]
 
 # Rough fraction of the relevant universe a domain's sampling can cover — feeds severity
 # so an identity verified on all of R outranks one only checked on a sparse integer window.
@@ -86,7 +88,7 @@ class AssumptionManifest:
         return _sha(payload)
 
 
-MatchKind = Literal["REDISCOVERED", "NEAR_DUPLICATE", "NOVEL"]
+MatchKind = Literal["REDISCOVERED", "NEAR_DUPLICATE", "NOVEL", "PRIOR_ART_UNCHECKED"]
 
 
 @dataclass(frozen=True)
@@ -169,7 +171,7 @@ class NoveltyIndex:
         return len(sa & sb) / len(union) if union else 0.0
 
     def search(self, novelty_key: str, manifest_hash: str, fp_tier: FpTier,
-               term_canon: tuple[str, ...]) -> SearchReceipt:
+               term_canon: tuple[str, ...], query_text: str = "") -> SearchReceipt:
         bound = f"exact novelty_key in [{self.corpus_id}] (+structural Jaccard>={self.NEAR_DUP_JACCARD})"
         hit = self._by_key.get(novelty_key)
         if hit is not None:
@@ -191,6 +193,113 @@ class NoveltyIndex:
         if entry.novelty_key not in self._by_key:
             self._by_key[entry.novelty_key] = entry
             self._all.append(entry)
+        return entry.content_address()
+
+
+@runtime_checkable
+class NoveltyBackend(Protocol):
+    """Uniform prior-art interface — local index or online corpus, same SearchReceipt."""
+    corpus_id: str
+
+    def search(self, novelty_key: str, manifest_hash: str, fp_tier: FpTier,
+               term_canon: tuple[str, ...], query_text: str = "") -> SearchReceipt: ...
+
+    def register(self, entry: IndexedIdentity) -> str: ...
+
+
+def _text_jaccard(a: str, b: str) -> float:
+    def toks(s: str) -> set[str]:
+        for ch in "=()+-*/^,":
+            s = s.replace(ch, " ")
+        return {t for t in s.lower().split() if t}
+    ta, tb = toks(a), toks(b)
+    if not ta and not tb:
+        return 1.0
+    union = ta | tb
+    return len(ta & tb) / len(union) if union else 0.0
+
+
+def openalex_fetch(query_text: str, *, max_hits: int = 5, timeout: float = 8.0) -> list[str]:
+    """Real OpenAlex works search (no auth). Returns hit titles. Raises on ANY network
+    failure so the caller turns it into PRIOR_ART_UNCHECKED (never a false NOVEL)."""
+    import json as _json
+    import urllib.parse
+    import urllib.request
+
+    url = ("https://api.openalex.org/works?per-page=" + str(max_hits)
+           + "&search=" + urllib.parse.quote_plus(query_text))
+    req = urllib.request.Request(url, headers={"User-Agent": "genesis-research/0.1 (mailto:research@genesis.local)"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 (https, fixed host)
+        data = _json.loads(resp.read().decode("utf-8"))
+    return [(w.get("title") or "") for w in data.get("results", [])]
+
+
+class OnlineNoveltyBackend:
+    """Online prior-art via an injected ``fetch_fn(query_text, max_hits=...) -> [titles]``.
+
+    Honest contract (locked with co-architect): full-text search can NEVER prove
+    REDISCOVERED (exact statement identity) nor absolute novelty. A close text match is
+    at most NEAR_DUPLICATE (a flag); no match is NOVEL only WITHIN this corpus' bound;
+    any fetch failure is PRIOR_ART_UNCHECKED — never a false NOVEL.
+    """
+
+    NEAR_DUP_TEXT_JACCARD = 0.85
+
+    def __init__(self, fetch_fn: Callable[..., list[str]] = openalex_fetch, *,
+                 corpus_id: str = "openalex:title+abstract", max_hits: int = 5) -> None:
+        self.fetch_fn = fetch_fn
+        self.corpus_id = corpus_id
+        self.max_hits = max_hits
+
+    def search(self, novelty_key: str, manifest_hash: str, fp_tier: FpTier,
+               term_canon: tuple[str, ...], query_text: str = "") -> SearchReceipt:
+        bound = (f"sources=[{self.corpus_id}]; max_hits={self.max_hits}; text search => "
+                 "NEAR_DUPLICATE at best, never REDISCOVERED; hits==0 => no match WITHIN "
+                 "this bound (not absolute novelty)")
+        try:
+            hits = self.fetch_fn(query_text, max_hits=self.max_hits)
+        except Exception as exc:
+            return SearchReceipt(novelty_key, "PRIOR_ART_UNCHECKED", 0, 1.0, (),
+                                 bound + f" | FETCH FAILED ({type(exc).__name__}) — offline/timeout", None)
+        if not hits:
+            return SearchReceipt(novelty_key, "NOVEL", 0, 1.0, (self.corpus_id,), bound, None)
+        best = max((_text_jaccard(query_text, h) for h in hits), default=0.0)
+        if best >= self.NEAR_DUP_TEXT_JACCARD:
+            return SearchReceipt(novelty_key, "NEAR_DUPLICATE", 0, round(1.0 - best, 4),
+                                 (self.corpus_id,), bound, None)
+        return SearchReceipt(novelty_key, "NOVEL", 0, 1.0, (self.corpus_id,), bound, None)
+
+    def register(self, entry: IndexedIdentity) -> str:
+        return entry.content_address()  # read-only corpus — no-op write
+
+
+_MATCH_RANK = {"REDISCOVERED": 3, "NEAR_DUPLICATE": 2, "PRIOR_ART_UNCHECKED": 1, "NOVEL": 0}
+
+
+class ChainedNoveltyBackend:
+    """Consults several backends and returns the STRONGEST verdict
+    (REDISCOVERED > NEAR_DUPLICATE > PRIOR_ART_UNCHECKED > NOVEL), merging coverage.
+    PRIOR_ART_UNCHECKED outranks NOVEL: if an online corpus could not be checked we do
+    NOT claim novelty just because the local index was empty. register() -> first NoveltyIndex."""
+
+    def __init__(self, backends, corpus_id: str = "chained") -> None:
+        self.backends = list(backends)
+        self.corpus_id = corpus_id
+
+    def search(self, novelty_key: str, manifest_hash: str, fp_tier: FpTier,
+               term_canon: tuple[str, ...], query_text: str = "") -> SearchReceipt:
+        receipts = [b.search(novelty_key, manifest_hash, fp_tier, term_canon, query_text)
+                    for b in self.backends]
+        best = max(receipts, key=lambda r: _MATCH_RANK.get(r.match_kind, 0))
+        corpora = tuple(c for r in receipts for c in r.corpora_checked)
+        bound = " || ".join(r.coverage_bound for r in receipts)
+        return SearchReceipt(novelty_key, best.match_kind, best.hits, best.nearest_distance,
+                             corpora, bound, best.matched_claim_id)
+
+    def register(self, entry: IndexedIdentity) -> str:
+        for b in self.backends:
+            if isinstance(b, NoveltyIndex):
+                return b.register(entry)
         return entry.content_address()
 
 
@@ -493,9 +602,11 @@ def assess_identity(
     # proof tier: proved_equal+survived = 3; proved_equal only = 2; structural+survived = 1
     proof_tier = 3 if fp_tier == "proved_equal" else (1 if fp_tier == "structural" else 0)
 
-    # GATE-NOVELTY (coverage-bounded; decided on novelty_key, never the truth_fp)
+    # GATE-NOVELTY (coverage-bounded; decided on novelty_key, never the truth_fp).
+    # The backend may be the local index, an online corpus, or a chain of both.
     index = novelty_index if novelty_index is not None else NoveltyIndex()
-    receipt = index.search(nkey, mh, fp_tier, term_canon)
+    query_text = f"{lhs} = {rhs}"
+    receipt = index.search(nkey, mh, fp_tier, term_canon, query_text)
     raw_ops = int(sp.count_ops(e_lhs - e_rhs))
     sev = _severity(proof_tier, fr.samples_tested, manifest.domain_id, raw_ops, refuted=False)
 
@@ -511,6 +622,14 @@ def assess_identity(
             promotion="...->GATE-FALSIFICATION(survived)->GATE-NOVELTY(rediscovered)",
             search=receipt, falsify=fr, severity=sev, proof_tier=proof_tier, lean_statement=lean,
             note=f"rediscovered — same statement as prior art {receipt.matched_claim_id!r} (cite it)",
+        )
+    if receipt.match_kind == "PRIOR_ART_UNCHECKED":
+        return IdentityArtifact(
+            claim=claim, status="SURVIVED_NOVELTY_UNCHECKED",
+            promotion="...->GATE-FALSIFICATION(survived)->GATE-NOVELTY(prior-art unchecked)",
+            search=receipt, falsify=fr, severity=sev, proof_tier=proof_tier, lean_statement=lean,
+            note="survived falsification but prior-art could NOT be checked (offline/timeout) — "
+                 "novelty deliberately NOT claimed",
         )
     near = " (NEAR_DUPLICATE of prior art — flagged, still novel)" if receipt.match_kind == "NEAR_DUPLICATE" else ""
     return IdentityArtifact(
