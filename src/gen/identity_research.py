@@ -327,8 +327,61 @@ class IdentityArtifact:
     severity: float
     proof_tier: int
     lean_statement: str
+    proof: Optional["ProofCertificate"] = None
     note: str = ""
     quelle: str = "gen.identity_research.assess_identity (math-research branch, first stone)"
+
+
+ProofMethod = Literal["cas_simplify", "cas_equals", "grid_only", "none"]
+LeanStatus = Literal["admitted", "cas_certified"]
+
+
+@dataclass(frozen=True)
+class ProofCertificate:
+    """How an identity's truth was established. CAS-certified is NOT Lean-kernel-verified:
+    sympy simplify is a heuristic, not a proof calculus, so a CAS claim is only made inside
+    a safe fragment (no Integral/Sum/Limit/undefined-function/Float) AND only when the grid
+    also survived (defence-in-depth against a sympy false-zero). A grid refutation always
+    overrides CAS. The Lean statement stays `admit` until a real kernel checks it."""
+
+    method: ProofMethod
+    deductively_proved: bool
+    cas_check: str
+    lean_statement: str
+    lean_status: LeanStatus
+    notes: str = "SymPy CAS within a safe fragment — NOT machine-checked by a Lean kernel"
+
+
+_CAS_UNSAFE = (sp.Integral, sp.Sum, sp.Product, sp.Limit, sp.core.function.AppliedUndef)
+
+
+def prove_identity(e_lhs: sp.Expr, e_rhs: sp.Expr, *, grid_passed: bool, lean_statement: str) -> ProofCertificate:
+    """Conservative deductive check (distinct from the aggressive dedup fingerprint).
+
+    Whitelist-guarded: only attempts a CAS proof on a safe symbolic fragment, uses
+    rational arithmetic (no Float contamination) and NO force=True simplification. Grid
+    refutation has already been handled by the caller; ``grid_passed=False`` => no proof."""
+    if not grid_passed:
+        return ProofCertificate("none", False, "grid refuted/empty -> no proof", lean_statement, "admitted")
+    diff = sp.expand_trig(sp.expand(e_lhs - e_rhs))
+    if diff.has(*_CAS_UNSAFE) or diff.atoms(sp.Float):
+        return ProofCertificate("grid_only", False, "outside safe CAS fragment (integral/sum/float/undef)",
+                                lean_statement, "admitted")
+    try:
+        if sp.simplify(diff, rational=True) == 0:
+            return ProofCertificate("cas_simplify", True, "simplify(lhs-rhs, rational=True) == 0",
+                                    lean_statement, "cas_certified")
+    except Exception:
+        pass
+    try:
+        if e_lhs.equals(e_rhs) is True:
+            return ProofCertificate("cas_equals", True, ".equals() == True (weaker CAS path)",
+                                    lean_statement, "cas_certified",
+                                    notes="weaker CAS path (.equals heuristic) — NOT Lean-kernel-verified")
+    except Exception:
+        pass
+    return ProofCertificate("grid_only", False, "CAS did not establish equality (grid-survived only)",
+                            lean_statement, "admitted")
 
 
 def _make_symbols(manifest: AssumptionManifest) -> dict[str, sp.Symbol]:
@@ -639,8 +692,11 @@ def assess_identity(
             note="no evaluable sample point in domain under predicates",
         )
 
-    # proof tier: proved_equal+survived = 3; proved_equal only = 2; structural+survived = 1
-    proof_tier = 3 if fp_tier == "proved_equal" else (1 if fp_tier == "structural" else 0)
+    # GATE-PROOF (conservative CAS, distinct from the aggressive dedup fingerprint):
+    # cas_certified (deductively proved in a safe fragment AND grid-survived) => tier 3,
+    # otherwise grid-survived only => tier 1. CAS-certified is NOT Lean-kernel-verified.
+    cert = prove_identity(e_lhs, e_rhs, grid_passed=True, lean_statement=lean)
+    proof_tier = 3 if cert.deductively_proved else 1
 
     # GATE-NOVELTY (coverage-bounded; decided on novelty_key, never the truth_fp).
     # The backend may be the local index, an online corpus, or a chain of both.
@@ -659,24 +715,27 @@ def assess_identity(
     if receipt.match_kind == "REDISCOVERED":
         return IdentityArtifact(
             claim=claim, status="SURVIVED_KNOWN",
-            promotion="...->GATE-FALSIFICATION(survived)->GATE-NOVELTY(rediscovered)",
+            promotion="...->GATE-FALSIFICATION(survived)->GATE-PROOF->GATE-NOVELTY(rediscovered)",
             search=receipt, falsify=fr, severity=sev, proof_tier=proof_tier, lean_statement=lean,
+            proof=cert,
             note=f"rediscovered — same statement as prior art {receipt.matched_claim_id!r} (cite it)",
         )
     if receipt.match_kind == "PRIOR_ART_UNCHECKED":
         return IdentityArtifact(
             claim=claim, status="SURVIVED_NOVELTY_UNCHECKED",
-            promotion="...->GATE-FALSIFICATION(survived)->GATE-NOVELTY(prior-art unchecked)",
+            promotion="...->GATE-FALSIFICATION(survived)->GATE-PROOF->GATE-NOVELTY(prior-art unchecked)",
             search=receipt, falsify=fr, severity=sev, proof_tier=proof_tier, lean_statement=lean,
+            proof=cert,
             note="survived falsification but prior-art could NOT be checked (offline/timeout) — "
                  "novelty deliberately NOT claimed",
         )
     near = " (NEAR_DUPLICATE of prior art — flagged, still novel)" if receipt.match_kind == "NEAR_DUPLICATE" else ""
     return IdentityArtifact(
         claim=claim, status="SURVIVED_NOVEL",
-        promotion="...->GATE-FALSIFICATION(survived)->GATE-NOVELTY(novel)->NOVELTY_CLEARED",
+        promotion="...->GATE-FALSIFICATION(survived)->GATE-PROOF->GATE-NOVELTY(novel)->NOVELTY_CLEARED",
         search=receipt, falsify=fr, severity=sev, proof_tier=proof_tier, lean_statement=lean,
-        note=f"no exact prior art within coverage bound; Lean statement recorded, proof ADMITTED{near}",
+        proof=cert,
+        note=f"no exact prior art within coverage bound; proof={cert.lean_status}{near}",
     )
 
 
@@ -830,6 +889,9 @@ def _artifact_record(artifact: IdentityArtifact) -> dict:
         "match_kind": artifact.search.match_kind if artifact.search else None,
         "coverage_bound": artifact.search.coverage_bound if artifact.search else None,
         "lean_statement": artifact.lean_statement,
+        "proof_method": artifact.proof.method if artifact.proof else None,
+        "lean_status": artifact.proof.lean_status if artifact.proof else None,
+        "deductively_proved": artifact.proof.deductively_proved if artifact.proof else False,
         "refutation_mode": fr.refutation_mode if fr else None,
         "witness": fr.witness if fr else None,
         "samples_tested": fr.samples_tested if fr else 0,
