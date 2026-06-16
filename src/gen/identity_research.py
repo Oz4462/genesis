@@ -332,8 +332,8 @@ class IdentityArtifact:
     quelle: str = "gen.identity_research.assess_identity (math-research branch, first stone)"
 
 
-ProofMethod = Literal["cas_simplify", "cas_equals", "grid_only", "none"]
-LeanStatus = Literal["admitted", "cas_certified"]
+ProofMethod = Literal["z3_qfnra", "cas_simplify", "cas_equals", "grid_only", "none"]
+LeanStatus = Literal["admitted", "cas_certified", "z3_certified"]
 
 
 @dataclass(frozen=True)
@@ -355,14 +355,32 @@ class ProofCertificate:
 _CAS_UNSAFE = (sp.Integral, sp.Sum, sp.Product, sp.Limit, sp.core.function.AppliedUndef)
 
 
-def prove_identity(e_lhs: sp.Expr, e_rhs: sp.Expr, *, grid_passed: bool, lean_statement: str) -> ProofCertificate:
-    """Conservative deductive check (distinct from the aggressive dedup fingerprint).
+def prove_identity(e_lhs: sp.Expr, e_rhs: sp.Expr, manifest: Optional[AssumptionManifest] = None,
+                   *, grid_passed: bool, lean_statement: str, kernels=None) -> ProofCertificate:
+    """Deductive check. Order (Grok-locked): grid refutation (caller) > proof KERNEL (z3
+    QF_NRA — a real decision procedure for the polynomial/rational fragment, stronger than
+    CAS) > CAS simplify (heuristic, safe fragment) > admitted.
 
-    Whitelist-guarded: only attempts a CAS proof on a safe symbolic fragment, uses
-    rational arithmetic (no Float contamination) and NO force=True simplification. Grid
-    refutation has already been handled by the caller; ``grid_passed=False`` => no proof."""
+    ``manifest`` is needed for the z3 kernel (variable domains); when omitted the kernel
+    step is skipped and only the CAS path runs."""
     if not grid_passed:
         return ProofCertificate("none", False, "grid refuted/empty -> no proof", lean_statement, "admitted")
+
+    # 1) real proof kernels (rigorous decision procedure — stricter than CAS)
+    if manifest is not None:
+        from .proof_kernels import Z3IdentityKernel
+        for kernel in (kernels if kernels is not None else (Z3IdentityKernel(),)):
+            res = kernel.check(e_lhs, e_rhs, variables=manifest.variables,
+                               domain_id=manifest.domain_id, predicates=manifest.predicates)
+            if res.status == "proved":
+                status = "z3_certified" if res.kernel == "z3_qfnra" else "cas_certified"
+                return ProofCertificate(
+                    "z3_qfnra" if res.kernel == "z3_qfnra" else "cas_simplify", True,
+                    f"{res.kernel}: {res.detail}", lean_statement, status,
+                    notes=f"{res.kernel} decision procedure (rigorous) — still NOT a Lean-kernel proof",
+                )
+
+    # 2) CAS fallback (heuristic, whitelist-guarded)
     diff = sp.expand_trig(sp.expand(e_lhs - e_rhs))
     if diff.has(*_CAS_UNSAFE) or diff.atoms(sp.Float):
         return ProofCertificate("grid_only", False, "outside safe CAS fragment (integral/sum/float/undef)",
@@ -695,7 +713,7 @@ def assess_identity(
     # GATE-PROOF (conservative CAS, distinct from the aggressive dedup fingerprint):
     # cas_certified (deductively proved in a safe fragment AND grid-survived) => tier 3,
     # otherwise grid-survived only => tier 1. CAS-certified is NOT Lean-kernel-verified.
-    cert = prove_identity(e_lhs, e_rhs, grid_passed=True, lean_statement=lean)
+    cert = prove_identity(e_lhs, e_rhs, manifest, grid_passed=True, lean_statement=lean)
     proof_tier = 3 if cert.deductively_proved else 1
 
     # GATE-NOVELTY (coverage-bounded; decided on novelty_key, never the truth_fp).

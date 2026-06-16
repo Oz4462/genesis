@@ -24,6 +24,8 @@ from .ratification import RatificationItem, SignOff, is_ratified
 
 Stage = Literal["DISPROVED", "WELL_FORMED", "SUPPORTED", "HARDENED", "ESTABLISHED"]
 _SURVIVED = {"SURVIVED_NOVEL", "SURVIVED_KNOWN", "SURVIVED_NOVELTY_UNCHECKED"}
+# A rigorously certified proof (CAS heuristic OR the stronger z3 decision procedure).
+_CERTIFIED = {"cas_certified", "z3_certified"}
 _ORDER = {"DISPROVED": 0, "WELL_FORMED": 1, "SUPPORTED": 2, "HARDENED": 3, "ESTABLISHED": 4}
 
 
@@ -34,7 +36,7 @@ def autonomous_stage(art: IdentityArtifact) -> Stage:
     if art.status in ("INCONCLUSIVE", "SURVIVED_NOVELTY_UNCHECKED"):
         return "WELL_FORMED"
     if art.status in ("SURVIVED_NOVEL", "SURVIVED_KNOWN"):
-        if art.proof is not None and art.proof.lean_status == "cas_certified":
+        if art.proof is not None and art.proof.lean_status in _CERTIFIED:
             return "HARDENED"
         return "SUPPORTED"
     return "WELL_FORMED"
@@ -75,7 +77,7 @@ def promote_to_established(
     (the claim stays at its autonomous stage). CAS != Lean kernel, hence the human gate."""
     if art.status not in _SURVIVED:
         return None
-    if art.proof is None or art.proof.lean_status != "cas_certified":
+    if art.proof is None or art.proof.lean_status not in _CERTIFIED:
         return None
     if not is_ratified([_anchor_item(art)], signoff):
         return None
