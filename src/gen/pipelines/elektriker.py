@@ -33,6 +33,7 @@ wissensbasis, software (Embedded signals), fertigungs (PCB DFM) und reality flie
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -212,10 +213,19 @@ def map_to_elektriker_spec(
             deep.update(pieces)
             # merge provenance
             deep["quelle"] = (high_quelle + " | " + pieces.get("quelle", "")).strip(" |")
-        except Exception:
-            # never hide — fall back to high-level only (honest Lücke)
-            deep["schaltplan_text"] = "Deep synthesis unavailable in this environment (Lücke)."
-            deep["quelle"] = high_quelle + " + deep layer unavailable (Lücke)"
+        except Exception as exc:
+            # Honest Lücke: degrade to high-level only, but SURFACE the cause
+            # (Genesis principle: kein stiller Catch). The error is visible in the
+            # returned spec AND raised as a warning for the operator/telemetry.
+            cause = f"{type(exc).__name__}: {exc}"
+            deep["schaltplan_text"] = f"Deep synthesis failed — fell back to high-level only (Lücke). Ursache: {cause}"
+            deep["quelle"] = high_quelle + f" + deep layer failed: {cause} (Lücke)"
+            warnings.warn(
+                f"elektriker: deep electronics synthesis failed for "
+                f"'{concept.source_idea[:60]}' — falling back to high-level (Lücke). Ursache: {cause}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
     return ElektronikSpec(
         source_idea=concept.source_idea,
