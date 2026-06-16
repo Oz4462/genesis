@@ -19,9 +19,10 @@
 - Eine Datei = eine Verantwortung. Keine Sammeldateien, keine Gott-Module.
 - Reihenfolge strikt einhalten: erst Dinge, die OHNE LLM testbar sind, dann LLM-Anbindung.
 
-### 0.2 Selbstkontrolle nach JEDER Aufgabe (Pflicht-Ritual)
-Nach jeder einzelnen Aufgabe führe diese Checkliste aus und dokumentiere das
-Ergebnis in `docs/BUILD_LOG.md` (anlegen, falls nicht vorhanden):
+### 0.2 Selbstkontrolle nach JEDER Aufgabe (Pflicht-Ritual, erweitert auf Ultra-Workflow + 4 Linsen)
+Nach jeder einzelnen Aufgabe führe diese **erweiterte** Checkliste aus und dokumentiere das
+Ergebnis in `docs/BUILD_LOG.md` (anlegen, falls nicht vorhanden). Dies ist jetzt der
+**Ultra-Standard** (siehe `docs/4_LINSEN_PRINZIP.md` + autonome Aktivierung via genesis-ultra-workflow Skill).
 
 ```
 [ ] Erfüllt der Code das Ziel-Interface? (Typen geprüft)
@@ -33,8 +34,14 @@ Ergebnis in `docs/BUILD_LOG.md` (anlegen, falls nicht vorhanden):
 [ ] Ist das Verhalten bei Fehlern laut (Exception) statt still (Default)?
 [ ] Doku-Datei des Moduls/Agenten aktualisiert?
 [ ] BUILD_LOG.md Eintrag geschrieben (Aufgabe, Ergebnis, offene Punkte)?
+[ ] L1 (Wahrheits-Linse) bestanden + Beleg (Abgleich mit PLATFORM_PLAN.md)
+[ ] L2 (Drift-/Grounding-Linse) bestanden + Check gegen vorherigen Stand/Goldset
+[ ] L3 (Vollständigkeits-/Naht-Linse) bestanden + Seams + PLATFORM_PLAN-Outputs/Gates
+[ ] L4 (Realisierbarkeits-Linse) bestanden + Fidelity + Testbarkeit + Gate-Kompatibilität
 ```
 Wenn ein Punkt „nein" ist: **stoppen, beheben, erst dann weiter.**
+
+**Zusätzlich für Agenten/Subagenten (§0.3 erweitert):** Jeder Subagent, der Inhalte produziert, bekommt die Instruktion, nach seiner Sub-Aufgabe die volle erweiterte Selbstkontrolle (0.2 + 4 Linsen mit explizitem Abgleich zum aktuellen GENESIS_PLATFORM_PLAN-Abschnitt) als Selbst-Report mit Belegen zu liefern, bevor Control zurückgegeben wird. Kein Fake-Erfolg.
 
 ### 0.3 Halluzinationsprüfung bei Agenten UND Subagenten
 - Wenn du Subagenten startest: jeder Subagent, der faktische Inhalte produziert,

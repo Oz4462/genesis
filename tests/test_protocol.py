@@ -1,4 +1,4 @@
-"""GATE PROTOCOL — reproducibility-design check for the bio ε domain.
+"""GATE PROTOCOL — reproducibility-design check for general (non-bio) protocols, e.g. mechanical/energy storage systems.
 
 A wet-lab/field protocol that measures a quantitative outcome but has no control or
 too few replicates is the root of the reproducibility crisis. gate_protocol checks

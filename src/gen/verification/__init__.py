@@ -14,6 +14,10 @@
 
 from __future__ import annotations
 
+from ..coverage import gate_delta_plus_coverage
+from ..memory_fabric import gate_zeta
+from ..omega import gate_omega
+from ..seams import gate_epsilon
 from .consensus import ConsensusVerdict, consensus_verdict
 from .cross_model import (
     Judgment,
@@ -58,6 +62,10 @@ __all__ = [
     "gate_beta",
     "gate_gamma",
     "gate_delta",
+    "gate_delta_plus_coverage",
+    "gate_epsilon",
+    "gate_zeta",
+    "gate_omega",
     "gate_phi",
     "gate_chi",
     "geometry_envelope",

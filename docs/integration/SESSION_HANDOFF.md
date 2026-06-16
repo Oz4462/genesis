@@ -5,8 +5,8 @@
 
 ## Git-Stand (kritisch)
 - Branch **`feat/app-integration-phase0-2`**, **16 Commits über `main`**, **ALLES LOKAL — KEIN PUSH** (Owner-Regel: Push erst auf expliziten Auftrag → `feedback_no_push_until_done`).
-- Working tree sauber bis auf `docs/HORIZON.md` (Roadmap, wird mit diesem Handoff committet).
-- Volle Test-Suite zuletzt: **909 passed, 19 skipped, 0 Fehler**; `ruff` sauber. Baseline-Start der Session war ~881.
+- Working tree enthält den aktuellen δ⁺ Deckungs-Beweis + γ⁺ Inverses Design + ε Nähte + ζ Bindegewebe + Ω Querfaden (noch nicht committet).
+- Volle Test-Suite zuletzt: **950 passed, 19 skipped, 0 Fehler**; `ruff` sauber. Baseline-Start der Session war ~881.
 
 ## Commit-Kette (neueste zuerst)
 ```
@@ -38,17 +38,23 @@ b3a33c6 feat(verif)  native N-judge consensus (Phase 3)
 **HORIZON (neuer Bogen, `docs/HORIZON.md`):**
 - **Phase φ (Funke):** Gate (`gate_phi`) + Datenmodell (`Spark/Possibility/Divergence`) + **Modellschicht** (`agents/forge.Forge` + `runner.run_divergence`). Gate-first, adversarial-reviewed.
 - **Phase χ (Frontkarte):** `gate_chi` + Datenmodell (`KnownRegion/FrontierEdge/FrontierMap`) + deterministischer Builder (`gen.frontier.build_frontier_map`). Gate-first, adversarial-reviewed.
+- **δ⁺ Deckungs-Beweis:** Datenmodell (`FailureMode`/`CoverageCertificate`) + deterministischer Builder (`gen.coverage.build_coverage_certificate`) + Gate (`gate_delta_plus_coverage`). Deckt `physics_selection`-Failure-Modes, SMT-Constraint-Feasibility und consensus-akzeptierte N-Judge-Kandidaten als `reviewed_failure_modes`; untestbare Modi bleiben explizite Restlücken.
+- **γ⁺ Inverses Design:** Datenmodell (`InverseDesignGoal`/`DesignCandidate`/`ParetoFront`) + deterministischer Builder (`gen.inverse_design.build_pareto_front`) + Gate (`gate_gamma_plus`). Kandidaten müssen GATE γ bestehen, δ-Physics als Fitness-Orakel `physics_verified` liefern, Zielwerte werden aus Spec-Quantities recomputed, Front muss nondominiert und vollständig über den evaluierten Pool sein.
+- **ε Nähte:** Datenmodell (`DomainSeam`/`SeamCertificate`) + deterministischer Builder (`gen.seams.build_seam_certificate`) + Gate (`gate_epsilon`). Koppelt mechanisch↔thermisch↔elektrisch↔Firmware per unit-geprüften Seam-Relationen und Kosten via `bom_cost`-Rollup; fehlende erforderliche Domain-Paare und falsche Nahtwerte blockieren.
+- **ζ Bindegewebe:** Datenmodell (`MemoryDeposit`/`MemoryRecallLink`/`MemoryFabricCertificate`) + deterministischer Builder (`gen.memory_fabric.build_memory_fabric_certificate`) + Gate (`gate_zeta`). Deposits nur VERIFIED Claims mit Quellen; Recall nur mit τ, score≤τ, calibration-ready und Memory-Health OK; Drift-Alert blockiert.
+- **Ω Querfaden:** Completion-Packet (`GateReceipt`/`LearningNote`/`OmegaCertificate`) + deterministischer Builder (`gen.omega.build_omega_certificate`) + Gate (`gate_omega`). Jeder Phasenabschluss braucht Gate-Receipt, failed Receipts blockieren, Gaps/Decisions/Frontier-Edges werden als Lernnotizen sichtbar, Spec-Blocking-Items bleiben unter explizitem `SignOff`.
 
 **Pro-Phase-Doku:** `docs/integration/PHASE{1_TRUSTCORE,2_ANAMNESIS,3_CONSENSUS,4_AUDIT,_L_LIVE_WIRING,_L2_RECALL_DRIFT,_T3_ARXIV,_T3_SMT}.md`, `LIVE_RUN.md`, `EXTRACTION_BOTTLENECK.md`, `CATALOG.md`, `PROOF_OF_VALUE.md`. PoV-Berichte unter `runs/pov/` (gitignored).
 
-## Offen / als Nächstes (HORIZON-Sequenz, je gate-first)
-1. **δ⁺ Deckungs-Beweis** — undeklarierter Versagensmodus + Vollständigkeits-Zertifikat (baut auf SMT + N-Judge + `physics_selection`).
-2. **γ⁺ Inverses Design** — Ziel → validierte Pareto-Front (architect + δ-Engine als Fitness-Orakel).
-3. **ε Nähte** — verifizierte Kopplung mechanisch↔thermisch↔elektrisch↔Firmware↔Kosten.
-4. **ζ Bindegewebe** — geteiltes conformal-gegatetes Gedächtnis (ANAMNESIS + trust-core drift/CRC/FDR).
-5. **Ω** — Querfaden (Exoskelett + Nicht-Lügen), fortlaufend.
+## Offen / als Nächstes
+- HORIZON-Sequenz ist gate-first erledigt; nächster Owner-Auftrag: Review/Commit/Push oder nächste Phase.
 
 ✓ **δ⁺ Realitäts-Beweis ERLEDIGT** (`reality.evaluate_reality` + `gate_delta_plus`, dimension-safe, adversarial-reviewed).
+✓ **δ⁺ Deckungs-Beweis ERLEDIGT** (`coverage.build_coverage_certificate` + `gate_delta_plus_coverage`, selector-/SMT-/N-Judge-input-basiert, lokal getestet).
+✓ **γ⁺ Inverses Design ERLEDIGT** (`inverse_design.build_pareto_front` + `gate_gamma_plus`, lokal getestet).
+✓ **ε Nähte ERLEDIGT** (`seams.build_seam_certificate` + `gate_epsilon`, lokal getestet).
+✓ **ζ Bindegewebe ERLEDIGT** (`memory_fabric.build_memory_fabric_certificate` + `gate_zeta`, lokal getestet).
+✓ **Ω Querfaden ERLEDIGT** (`omega.build_omega_certificate` + `gate_omega`, lokal getestet).
 
 ## Bekannter Flaschenhals (belegt, nicht Verdrahtung)
 Live verifizierter-Claim-Recall ist variabel — Ursache ist die **Extraktions-Robustheit** des 9B-Generators auf langen/verrauschten Quellen (num_ctx als Ursache WIDERLEGT, `EXTRACTION_BOTTLENECK.md`). Nächster Hebel dort: größeres Extraktionsmodell → Prompt-Härtung → Fine-Tune (3B QLoRA, GTX 1080 Ti Pascal). NICHT mehr Verdrahtung.

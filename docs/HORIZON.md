@@ -25,8 +25,8 @@ nichts fertig werden.
 Genesis härtet heute eine **fertige** Idee:
 α (belegte Recherche) → β (verankerter Lösungsraum) → γ (Spezifikation, parametrisches
 CAD) → δ (deterministische Physik-/Geometrie-Validierung), plus die integrierte Schicht
-(trust-core, ANAMNESIS-Memory, N-Judge-Consensus, signierter Audit, arXiv, SMT). ~890
-Tests, offline, deterministisch.
+(trust-core, ANAMNESIS-Memory, N-Judge-Consensus, signierter Audit, arXiv, SMT).
+950 passed / 19 skipped, offline, deterministisch.
 
 Das ist die **mittlere** Hälfte des Wegs. HORIZONT ergänzt die erste und die dritte.
 
@@ -96,12 +96,12 @@ Jede Phase: was sie beweist · worauf sie aufbaut (bestehende Knochen) · Status
 |---|---|---|---|
 | **φ · Der Funke** | geerdete Divergenz: Funke → entwickelter, verankerter Gedanke; keine erfundene Möglichkeit | `clarification.py` (EVPI), Ledger, GATE-Muster aus α | zu beweisen — **erster Stein** |
 | **χ · Die Frontkarte** | belegte Karte des Bekannten + ehrliche Kante des Unbekannten | scout→scholar→skeptic, arXiv/Wikipedia, cross-model | zu beweisen |
-| **δ⁺ · Realitäts-Beweis** | selbst entworfenes Falsifikations-Experiment + Einlesen der echten Messung | δ-Engine, Ledger (Claim-Status), Audit-Receipts | zu beweisen |
-| **δ⁺ · Deckungs-Beweis** | undeklarierter Versagensmodus + Vollständigkeits-Zertifikat | SMT-Feasibility, N-Judge-Consensus, `physics_selection` | zu beweisen |
-| **γ⁺ · Inverses Design** | Ziel → validierte Pareto-Front statt einer Spec | architect, δ-Engine als Fitness-Orakel | zu beweisen |
-| **ε · Nähte** | verifizierte Kopplung mechanisch↔thermisch↔elektrisch↔Firmware↔Kosten | δ-Validatoren, FEM, Einheiten-Gruppe | zu beweisen |
-| **ζ · Bindegewebe** | geteiltes Gedächtnis: Frontkarte im Großen + Geister verbinden + Lernschleife (conformal garantiert) | ANAMNESIS, trust-core (drift/CRC/FDR), calibration | zu beweisen |
-| **Ω · Exoskelett + Wette** | jeder Output macht den Menschen klüger; Nicht-Lügen über alle Phasen | Web-UI, Ledger, cross-model, Entscheidungsblatt | Querfaden, fortlaufend |
+| **δ⁺ · Realitäts-Beweis** | selbst entworfenes Falsifikations-Experiment + Einlesen der echten Messung | δ-Engine, Ledger (Claim-Status), Audit-Receipts | ✓ bewiesen |
+| **δ⁺ · Deckungs-Beweis** | undeklarierter Versagensmodus + Vollständigkeits-Zertifikat | SMT-Feasibility, N-Judge-Consensus, `physics_selection` | ✓ bewiesen |
+| **γ⁺ · Inverses Design** | Ziel → validierte Pareto-Front statt einer Spec | architect, δ-Engine als Fitness-Orakel | ✓ bewiesen |
+| **ε · Nähte** | verifizierte Kopplung mechanisch↔thermisch↔elektrisch↔Firmware↔Kosten | δ-Validatoren, FEM, Einheiten-Gruppe | ✓ bewiesen |
+| **ζ · Bindegewebe** | geteiltes Gedächtnis: Frontkarte im Großen + Geister verbinden + Lernschleife (conformal garantiert) | ANAMNESIS, trust-core (drift/CRC/FDR), calibration | ✓ bewiesen |
+| **Ω · Exoskelett + Wette** | jeder Output macht den Menschen klüger; Nicht-Lügen über alle Phasen | Web-UI, Ledger, cross-model, Entscheidungsblatt | ✓ bewiesen — Querfaden fortlaufend |
 
 ## 5 · Der erste Stein: Phase φ, gate-first (so wie α geboren wurde)
 

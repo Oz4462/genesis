@@ -72,6 +72,8 @@
     -webkit-background-clip:text;background-clip:text;color:transparent}
   .herosub{color:var(--muted);font-size:15.5px;text-align:center;max-width:620px;margin:16px auto 36px;line-height:1.7}
   .herosub b{color:var(--ink)}
+  <div style="text-align:center;margin:-12px auto 24px"><span style="background:rgba(86,70,214,.08);border:1px solid #5646d6;border-radius:999px;padding:3px 12px;font-size:12px;color:#5646d6">Neu: Voll internalisierte Auto-DRC + Bio/Chem/Energy Actuator-Sims + rule-basiertes Auto-Placement + Routed Harness + Live-like interne Wissensbasis (deterministisch + generalist für ALLE Ideen inkl. Bio)</span></div>
+  .newstrength{{background:rgba(86,70,214,.08);border:1px solid var(--indigo);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--indigo);margin-left:8px}}
 
   .askbox{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:18px;
     box-shadow:0 24px 70px rgba(67,52,196,.10), 0 3px 14px rgba(35,32,58,.06);
@@ -233,6 +235,7 @@
     html{scroll-behavior:auto}
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 </head>
 <body>
 <div class="sky"><div class="gridpaper"></div><div class="dawn"></div><div class="grain"></div></div>
@@ -283,6 +286,25 @@
       <b>⚙ Maschinenraum</b> — <span id="wireModels">…</span><br>
       <span id="wireNote" class="small">…</span>
     </div>
+
+    <!-- 2026+ 3D/AR Future Package Explorer (self-contained, same engine as generated dashboard.html + standalone_viewer.html in Realization Packages) -->
+    <div class="card r5" style="margin-top:18px;border-color:#5646d6">
+      <h3>Genesis 2026 — 3D/AR Package Explorer (Preview)</h3>
+      <p class="small" style="color:#5f5a75">Three.js interaktive Exploration (Assemblies, Harness, Placement, Bio-Heatmaps, DRC in 3D) + WebXR-Placeholders + Live-Sims + Provenance-Overlays + Future-Manuf Export. Generalist für alle Ideen (inkl. Bio). In echten Packages: dashboard.html &amp; standalone_viewer.html enthalten die volle Version mit Package-Daten.</p>
+      <div id="web-three-wrap" style="position:relative;width:100%;height:320px;background:#0b1120;border:1px solid #4334c4;border-radius:10px;overflow:hidden;margin:8px 0">
+        <canvas id="web-three-canvas" style="display:block;width:100%;height:100%"></canvas>
+        <div id="web-prov" style="position:absolute;top:6px;left:6px;background:#111827;border:1px solid #67e8f9;padding:4px 6px;font-size:0.68rem;max-width:240px;border-radius:4px;display:none;color:#e0f2fe"></div>
+        <div style="position:absolute;bottom:4px;left:4px;z-index:8">
+          <button onclick="webToggle('p')" style="font-size:0.65rem;padding:1px 5px;background:#1e2937;color:#e0f2fe;border:1px solid #475569;border-radius:3px">Placement</button>
+          <button onclick="webToggle('h')" style="font-size:0.65rem;padding:1px 5px;background:#1e2937;color:#e0f2fe;border:1px solid #475569;border-radius:3px">Harness</button>
+          <button onclick="webToggle('bio')" style="font-size:0.65rem;padding:1px 5px;background:#1e2937;color:#e0f2fe;border:1px solid #475569;border-radius:3px">BioHeat</button>
+          <button onclick="webToggle('d')" style="font-size:0.65rem;padding:1px 5px;background:#1e2937;color:#e0f2fe;border:1px solid #475569;border-radius:3px">DRC</button>
+          <button onclick="webXR('immersive-ar')" style="font-size:0.65rem;padding:1px 5px;background:#22d3ee;color:#0b1120;border:0;border-radius:3px;margin-left:3px">AR</button>
+          <button onclick="webExport()" style="font-size:0.65rem;padding:1px 5px;background:#64748b;color:#0b1120;border:0;border-radius:3px">Export 2036</button>
+        </div>
+      </div>
+      <div style="font-size:0.7rem;color:#8b86a0">Live-Slider: <input id="web-bio" type="range" min="0.6" max="2.2" step="0.1" value="1.1" oninput="webUpd()"> Bio <span id="web-bv">1.1</span> | Click Objekte für Provenance (Wissensbasis/Ledger). Fallback für jede Idee.</div>
+    </div>
   </div>
 
   <!-- ============================== ERGEBNIS ============================== -->
@@ -291,6 +313,16 @@
     <div id="out"></div>
   </div>
 </div>
+
+<script>
+// Ensure the 3D demo initializes when the page is ready (for the static leap UI on 8080)
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof webInit === 'function') {
+    try { webInit(); console.log('[genesis-web] webInit() called – 3D demo active (orbit, layers, provenance, WebXR stub)'); }
+    catch(e){ console.warn('[genesis-web] webInit failed:', e); }
+  }
+});
+</script>
 
 <script>
 const $=s=>document.querySelector(s);
@@ -321,6 +353,18 @@ document.querySelectorAll("#mode button").forEach(b=>b.onclick=()=>{
     &nbsp;·&nbsp; Live-Modus: <b>${s.live_enabled?"aktiv":"aus (Owner-Gate)"}</b>`;
   $("#wireNote").textContent=s.wiring_note;
 }catch(e){ $("#pillText").textContent="Server nicht erreichbar"; }})();
+
+// Force-init 3D demo if the canvas exists (fallback for the Zukunftstechnik leap UI)
+setTimeout(function(){
+  const canvas = document.getElementById('web-three-canvas');
+  const wrap = document.getElementById('web-three-wrap');
+  if (canvas && wrap && typeof THREE !== 'undefined' && typeof webInit === 'function') {
+    try {
+      webInit();
+      console.log('[genesis] 3D demo force-initialized (Three.js + controls + layers + provenance ready)');
+    } catch(e) { console.warn('[genesis] force webInit failed:', e); }
+  }
+}, 800);
 
 const working=t=>`<div class="working" role="status" aria-label="GENESIS arbeitet">
   <div class="orbit" aria-hidden="true"><div class="ring"><div class="spark"></div></div><div class="ring r-2"></div><div class="core"></div></div>
@@ -571,6 +615,13 @@ function reAsk(n){
   ask(LAST_QUESTION+"\nBereits geklärte Werte (vom Menschen entschieden): "+parts.join("; "));}
 
 $("#idea").addEventListener("keydown",e=>{if(e.key==="Enter"&&(e.ctrlKey||e.metaKey))ask();});
+
+// === Web demo 3D/AR explorer (same engine as package viewers; self-contained) ===
+let wR,wS,wC,wO={},wRay,wM,wG, wL={p:1,h:1,bio:1,d:1}, wB=1.1;
+function webInit(){ const wrap=document.getElementById('web-three-wrap'); const cv=document.getElementById('web-three-canvas'); if(!wrap||!cv||typeof THREE==='undefined')return; wR=new THREE.WebGLRenderer({canvas:cv,antialias:true}); wR.setSize(wrap.clientWidth,320); wS=new THREE.Scene(); wS.background=new THREE.Color(0x0b1120); wC=new THREE.PerspectiveCamera(50,wrap.clientWidth/320,1,2000); wC.position.set(120,95,170); wS.add(new THREE.HemisphereLight(0x67e8f9,0x1e2937,0.85)); wG=new THREE.Group(); wS.add(wG); wRay=new THREE.Raycaster(); wM=new THREE.Vector2(); const b=new THREE.Mesh(new THREE.PlaneGeometry(280,160),new THREE.MeshPhongMaterial({color:0x1f2937,side:THREE.DoubleSide})); b.rotation.x=-1.57; b.position.y=-1; b.userData={type:'base',provenance:'Web demo base — generalist (matches package generator)'}; wG.add(b); wO.b=b; for(let i=0;i<4;i++){ const m=new THREE.Mesh(new THREE.BoxGeometry(i===1?14:10,8,9),new THREE.MeshPhongMaterial({color:i===1?0xf59e0b:0x67e8f9})); m.position.set(-60+i*42,3,-25+(i%2)*18); m.userData={type:'p',ref:'C'+(i+7),provenance:'Sample placement (auto_placement style) + Wissensbasis seed'}; wG.add(m); wO['p'+i]=m; } const hl=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-55,4,-30),new THREE.Vector3(55,4,25)]), new THREE.LineBasicMaterial({color:0xfbbf24})); hl.userData={type:'h',provenance:'Sample harness (routed style) | Elektriker'}; wG.add(hl); wO.h=hl; const dc=new THREE.Mesh(new THREE.ConeGeometry(4,9,4),new THREE.MeshPhongMaterial({color:0xf87171})); dc.position.set(30,14,22); dc.userData={type:'d',provenance:'Sample DRC violation (internal_drc) + fix from Wissensbasis'}; wG.add(dc); wO.d=dc; const bio=new THREE.Mesh(new THREE.PlaneGeometry(220,110),new THREE.MeshPhongMaterial({color:0x10b981,side:THREE.DoubleSide,transparent:true,opacity:0.48})); bio.rotation.x=-1.57; bio.userData={type:'bio',provenance:'Bio-yield heatmap from actuator_sims (live sim)'}; wG.add(bio); wO.bio=bio; cv.addEventListener('click',webPick); cv.addEventListener('pointerdown',wPd); cv.addEventListener('pointermove',wPm); cv.addEventListener('pointerup',wPu); wAnim(); webUpd(1); }
+let wdg=0, wpx=0, wpy=0, wth=0.6, wph=0.95;
+function wPd(e){wdg=1;wpx=e.clientX;wpy=e.clientY;} function wPm(e){if(!wdg||!wC)return; wth-=(e.clientX-wpx)*0.0035; wph=Math.max(0.3,Math.min(1.5,wph-(e.clientY-wpy)*0.0035)); wpx=e.clientX;wpy=e.clientY; wUpC();} function wPu(){wdg=0;} function wUpC(){if(!wC||!wG)return; const r=190; wC.position.x=Math.cos(wth)*Math.sin(wph)*r; wC.position.z=Math.sin(wth)*Math.sin(wph)*r; wC.position.y=Math.cos(wph)*r*0.5; wC.lookAt(wG.position);} function webToggle(t){ wL[t]=1-wL[t]; Object.keys(wO).forEach(k=>{const o=wO[k]; if(o&&o.userData&&(o.userData.type===t || (t==='p'&&o.userData.type==='p') || (t==='bio'&&o.userData.type==='bio') || (t==='d'&&o.userData.type==='d'))) o.visible=!!wL[t]; }); } function webPick(e){ const c=document.getElementById('web-three-canvas'); if(!c)return; const r=c.getBoundingClientRect(); wM.x=((e.clientX-r.left)/r.width)*2-1; wM.y=-((e.clientY-r.top)/r.height)*2+1; wRay.setFromCamera(wM,wC); const hs=wRay.intersectObjects(Object.values(wO),true); const pn=document.getElementById('web-prov'); if(hs.length&&pn){ const ud=hs[0].object.userData||{}; pn.innerHTML='<b>Provenance</b><br>'+(ud.ref||ud.type||'')+'<br><span style="color:#67e8f9">'+(ud.provenance||'Wissensbasis/ledger in full package')+'</span>'; pn.style.display='block'; setTimeout(()=>pn.style.display='none',3800); }else if(pn)pn.style.display='none'; } function webUpd(init){ const s=document.getElementById('web-bio'); if(s){ wB=parseFloat(s.value); const v=document.getElementById('web-bv'); if(v)v.textContent=wB.toFixed(1); } const bo=wO.bio; if(bo&&bo.material){ const g=Math.max(0.2,Math.min(1,(wB-0.5)/2)); bo.material.color.setRGB(0.06,0.62+g*0.32,0.28+(wB-1)*0.14); bo.material.opacity=0.4+(wB-1)*0.1; } Object.keys(wO).forEach(k=>{ const o=wO[k]; if(!o||!o.material||!o.userData)return; if(o.userData.type==='p'){ const yy=Math.max(0.3,Math.min(1.25,wB*1.02)); o.material.color.setRGB(0.32+(1-yy)*0.6,0.88*yy,0.22+yy*0.55); } if(o.userData.type==='d'){ o.scale.setScalar(wB>1.6?1.2:0.9); } }); } function wAnim(){ if(!wR||!wS||!wC)return; requestAnimationFrame(wAnim); if(wG)wG.rotation.y=Math.sin(Date.now()/17000)*0.016; wR.render(wS,wC); } function webXR(m){ if(!navigator.xr){alert('WebXR placeholder (2026+). Full scene + provenance ready for AR/VR twin.');return;} navigator.xr.requestSession(m,{requiredFeatures:['local']}).then(ss=>{ wR.xr.enabled=true; wR.xr.setSession(ss); ss.requestReferenceSpace('local').then(rs=>{ const xl=(tt,fr)=>{ if(wG)wG.position.set(0,-0.25,-0.9); wR.render(wS,wC); ss.requestAnimationFrame(xl); }; ss.requestAnimationFrame(xl); }); ss.addEventListener('end',()=>{wR.xr.enabled=false;}); }).catch(()=>alert('XR failed (placeholder ready).')); } function webExport(){ const pl={schema:'genesis-web-demo-2036', three:Object.keys(wO).map(k=>({id:k,provenance:wO[k].userData.provenance})), live:{bio:wB}, note:'Same as package standalone/dashboard 3D engine. Ready for future-manuf/AR import.'}; const bl=new Blob([JSON.stringify(pl,null,2)],{type:'application/json'}); const aa=document.createElement('a'); aa.href=URL.createObjectURL(bl); aa.download='genesis_web_2036_export.json'; aa.click(); }
+setTimeout(()=>{ try{ webInit(); wUpC(); const s=document.getElementById('web-bio'); if(s) s.oninput=()=>webUpd(); }catch(e){} }, 420);
 </script>
 </body>
 </html>

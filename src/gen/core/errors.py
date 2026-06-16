@@ -92,6 +92,34 @@ class UnsourcedMeasurementError(GenesisError):
         )
 
 
+class UngroundedFailureModeError(GenesisError):
+    """Raised when a declared failure mode has no detectable grounding.
+
+    The Phase delta+ coverage pendant of the grounding guards: a failure mode may be
+    declared only if it is anchored in an actual selector trigger, constraint, measured
+    gap, or externally reviewed candidate. Otherwise the coverage certificate could
+    invent a threat surface and then claim to have handled it.
+    """
+
+    def __init__(self, mode_id: str, label: str) -> None:
+        super().__init__(
+            f"FailureMode {mode_id!r} ({label!r}) has no grounding. A coverage "
+            "certificate may only cover failure modes anchored in the spec, selector, "
+            "SMT result, or reviewed evidence (HORIZON.md §2B)."
+        )
+
+
+class UncoveredFailureModeError(GenesisError):
+    """Raised when a coverage item has no proof of checking or honest residual risk."""
+
+    def __init__(self, mode_id: str) -> None:
+        super().__init__(
+            f"FailureMode {mode_id!r} has no coverage evidence. A delta+ coverage "
+            "certificate must say either 'checked' with evidence or 'untestable' with "
+            "an explicit residual risk (HORIZON.md §2B)."
+        )
+
+
 class UnknownRegionError(GenesisError):
     """Raised when a KnownRegion is constructed without anchoring to any fact.
 

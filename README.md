@@ -95,7 +95,7 @@ Eine Phase endet erst, wenn ihr Gate besteht. Gates sind **reine, deterministisc
 | **δ-Physik** | Engineering | `PHYSICS_CHECK_FAILED` (Marge nicht erfüllt), `PHYSICS_CHECK_ERROR` (unrechenbare Eingabe), `PHYSICS_UNKNOWN_VALIDATOR` — **nie ein stiller Pass** |
 | **ERC** | Elektrik | schwebende Netze, zwei Treiber auf einem Netz, ungetriebene Last |
 | **CODE** | Software | das Deliverable wird in einem isolierten Subprozess **ausgeführt**; rote Checks = FAIL |
-| **PROTOCOL** | Bio/Labor | Messung ohne Kontrollgruppe oder mit zu wenigen Replikaten |
+| **PROTOCOL** | Energie/Mechanik | Messung ohne Kontrollgruppe oder mit zu wenigen Replikaten |
 
 ## 5 · Die Physik-Engine (Phase δ)
 
@@ -192,7 +192,7 @@ genesis --demo --mode spec --format stl     # … als druckfertiges STL (Boolean
 genesis --mode assess                 # das ehrliche Quality-Verdikt über die Demo-Specs
 genesis --mode print                  # das Druckbarkeits-Verdikt (Mesh + Brücken + erste Lage)
 genesis --mode eval                   # die Anti-Halluzinations-Garantie als Metrik (Leaks = 0)
-genesis --mode protocol               # Bio-Domäne: reproduzierbares Pflanzen-Protokoll
+genesis --mode protocol               # Energie-Domäne: reproduzierbares Mechanik-Speicher-Protokoll (keine Biologie)
 genesis-web                           # lokale Web-UI auf http://127.0.0.1:8077
 ```
 

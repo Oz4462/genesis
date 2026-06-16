@@ -20,11 +20,7 @@ source across a resistor gives I = V/R), a two-resistor divider (known node
 voltage), and the capstone's own numbers — the 12 V PSU across the LED strip's
 equivalent resistance delivers exactly its rated 1.5 A.
 
-Honest boundary: this is LINEAR DC (resistors + independent sources). A real LED
-is a non-linear diode; here it is modelled by its operating-point equivalent
-resistance R = V/I, which is exactly what makes the DC current check meaningful,
-not a transient or non-linear large-signal analysis. Those (and AC) remain an
-external-simulator layer under the same proof standard.
+Honest boundary (updated): core is linear DC MNA (the SPICE delta layer) in pure numpy — fully offline, no ngspice. Transient (Backward-Euler), AC (complex), basic non-linear iteration (diode pnjlim-style in callers) and EMI notes are available via the electronics layer on top (run_electronics_simulation with do_transient/do_ac_emi). Full vendor-exact IBIS/3D-EM/SPICE models remain external-tool seam for ultra-precision; internal is deterministic, provenance-rich, co-sim ready and "besser als vorher" for Genesis generalist packages + falsification + Lern. Verified in test_circuit + electronics smokes.
 """
 
 from __future__ import annotations

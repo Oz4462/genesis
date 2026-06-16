@@ -19,6 +19,7 @@ Ein Mensch liefert ein Problem oder eine Idee; GENESIS recherchiert, verifiziert
 - **Jeder Agent** ist eine Klasse, die `Agent`-Protocol erfüllt (`core/interfaces.py`), mit: explizitem Input-Schema, Output-Schema, deklarierten Tools, deklarierten Fehlerzuständen.
 - **Keine stillen Defaults bei faktischen Dingen.** Lieber Exception als geratener Wert.
 - **Tests zuerst für Gates.** Ein Gate ohne Test existiert nicht.
+- **Ultra-Workflow + 4 Linsen (ab dieser Session):** Nach **jeder** Arbeitseinheit (auch klein) wird das `4_LINSEN_PRINZIP.md` (inkl. erweiterter Selbstkontrolle mit L1–L4) angewendet. Abgleich gegen den aktuellen Abschnitt in `docs/GENESIS_PLATFORM_PLAN.md` (der Backlog der noch zu bauenden Teile: Grenzverschiebungs-Module, Fach-Pipelines, Wissensbasis, CAD/CAE als Kern, Lernmaschine etc.). Der `genesis-ultra-workflow` Skill aktiviert sich autonom bei Genesis-Kontext + PLATFORM_PLAN-Keywords. Agenten/Subagenten injizieren die erweiterte Selbstkontrolle.
 
 ## Definition of Done (pro Aufgabe)
 - [ ] Interface erfüllt, Typen geprüft
@@ -26,6 +27,7 @@ Ein Mensch liefert ein Problem oder eine Idee; GENESIS recherchiert, verifiziert
 - [ ] Ledger-Einträge korrekt erzeugt (falls faktisch)
 - [ ] Gate-Bedingung im Code geprüft (falls Phasen-relevant)
 - [ ] Doku-Datei des Agenten/Moduls aktualisiert
+- [ ] 4 Linsen (L1 Wahrheits-, L2 Drift-, L3 Vollständigkeits-/Naht-, L4 Realisierbarkeits-Linse) angewendet + Abgleich mit GENESIS_PLATFORM_PLAN.md-Abschnitt + erweiterte Selbstkontrolle dokumentiert (BUILD_LOG)
 
 ## Verzeichnis
 ```

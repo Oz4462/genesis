@@ -429,6 +429,7 @@ def capstone_state() -> RunState:
 # values, safety-limit constraint via C-13, units via C-15) plus the bio-specific
 # reproducibility design gate (gate_protocol): a measured outcome with a control
 # group and enough replicates. Nothing invented; the safety limit is claim-backed.
+# (Biology kept per user correction: "doch Biologie kann drin bleiben")
 
 def protocol_claims() -> list[Claim]:
     return [

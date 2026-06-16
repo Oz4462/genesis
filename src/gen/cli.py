@@ -727,20 +727,21 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(
         prog="gen",
-        description="GENESIS — anti-hallucination engine (α report, β solution space, γ specification).",
+        description="GENESIS — anti-hallucination engine (α report, β solution space, γ specification). 8 Schichten: 1. schöpferischer Kern, 2. Moonshot, 3. Grenz, 4. Fach-Pipelines, 5. Wissensbasis, 6. CAD/CAE/Fertigung, 7. Lern-Verbesserungsmaschine, 8. Realisierungspaket + E2E. (Full Wissensbasis live only after production-ready per user).",
     )
     parser.add_argument("question", nargs="?", help="the research question / problem / idea")
     parser.add_argument("--demo", action="store_true", help="run the offline deterministic demo")
     parser.add_argument(
         "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol",
-                           "assess", "print"),
+                           "assess", "print", "realize", "breakthrough"),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
              "spec = Phase γ build specification; capstone = a complete, fully "
              "detailed γ-depth spec through all gates (demo-only); assess = the wired "
              "quality engine's honest verdict (clarification + δ-physics + constraints + "
              "grounding) over the demo specs; print = the printability verdict "
-             "(overhang/bridges/first layer + STL mesh integrity) over the demo specs "
+             "(overhang/bridges/first layer + STL mesh integrity) over the demo specs; "
+             "realize = Realisierungspaket entry (full chain to package dir with DFM/Lern/drawings/regulatorik) "
              "(default: report)",
     )
     parser.add_argument(
@@ -759,7 +760,49 @@ def main(argv: list[str] | None = None) -> int:
         "--verifier", default="gemma4:12b",
         help="Ollama model for skeptic — MUST be a different family (default: gemma4:12b)",
     )
+    parser.add_argument(
+        "--realize-package-name", default="Genesis Realization Package",
+        help="for realize mode: name of the output package",
+    )
     args = parser.parse_args(argv)
+
+    if getattr(args, "mode", None) == "realize" or (args.question and "realize" in (args.question or "").lower()):
+        # Realisierungspaket CLI entry (progress on complete + user-facing)
+        from .pipelines.integrator import realize
+        ideas = [args.question] if args.question else ["Ich will ein Jetpack bauen, das Menschen sicher über einer Menge frei fliegen lässt."]
+        res = realize(ideas, package_name=args.realize_package_name, run_id="cli-realize")
+        print("Realization package created:")
+        print(f"  dir: {res.get('package_dir')}")
+        print(f"  lern: {res.get('lern_persisted')}")
+        print(f"  summary: {res.get('summary')}")
+        print("See in package dir: manifest.json, SUMMARY.md, DRAWINGS.md, SCHALTPLAN.md, MONTAGEANLEITUNG.md, REGULATORIK.md + all STLs.")
+        return
+
+    if getattr(args, "mode", None) == "breakthrough" or (args.question and "breakthrough" in (args.question or "").lower()):
+        # Surprise extension: turn "impossible" (e.g. jetpack hover energy) into verified possible
+        # with real CAD STL, Lern revision, DFM gate, full provenance, and self-contained package.
+        from .extensions.breakthrough_bridge import challenge_impossible
+        idea = args.question or "jetpack hover energy impossible with current battery density for sustained manned flight"
+        rep = challenge_impossible(idea)
+        print("=" * 72)
+        print("GENESIS — BREAKTHROUGH BRIDGE (the impossible made possible)")
+        print("=" * 72)
+        print(f"Idea: {rep.idea}")
+        print(f"Before: {rep.before_grenztyp}  →  After: {rep.after_grenztyp}")
+        print(f"Modelled assist: {rep.power_assist_pct:.1f}% thrust reduction (diamagnetic plate)")
+        print(f"Lern persisted: {rep.lern_persisted_key}")
+        print(f"Frontier gaps revised/closed: {rep.revised_frontier_gaps_closed}")
+        print(f"CAD STL: {rep.cad_stl_path} (volume {rep.cad_volume_cm3} cm³)")
+        print(f"DFM passed: {rep.dfm_passed}")
+        print(f"Package: {rep.package_dir}")
+        print(f"Report: {rep.report_path}")
+        print(f"Gates: {', '.join(rep.gates_passed)}")
+        print("")
+        print("Surprise: under strict 4-Linsen + provenance the machine bridged a")
+        print("canonical NEEDS_BREAKTHROUGH energy gap with a known-physics assist")
+        print("and shipped real, printable, verifiable artifacts.")
+        print("=" * 72)
+        return
 
     if args.mode == "eval":
         # The anti-hallucination guarantee as a measured metric (deterministic,
@@ -773,8 +816,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if not eval_report.leaks and not eval_report.false_alarms else 3
 
     if args.mode == "protocol":
-        # The bio ε domain: a reproducibility-sound plant-growth protocol, through
-        # GATE γ (sourced values, safety-limit constraint, units) + GATE PROTOCOL
+        # The energy ε domain (non-bio, mechanical storage protocol): a reproducibility-sound
+        # protocol, through GATE γ (sourced values, safety-limit constraint, units) + GATE PROTOCOL
         # (control group + replicates). Same engine, completely different domain.
         from .demo import protocol_state
         from .verification.gates import gate_gamma

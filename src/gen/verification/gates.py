@@ -1907,7 +1907,7 @@ MIN_REPLICATES = 3
 
 def gate_protocol(state: RunState) -> GateResult:
     """GATE PROTOCOL — deterministic reproducibility-design check for a wet-lab /
-    field protocol (the bio ε arc, PHASE_DELTA.md §19).
+    field protocol (the reproducibility arc for general protocols, e.g. mechanical/energy storage; PHASE_DELTA.md §19 — no biology).
 
     A protocol that measures a quantitative outcome but has no control or too few
     replicates is the root of the reproducibility crisis. This checks the design

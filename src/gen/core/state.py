@@ -13,6 +13,82 @@ import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+# =============================================================================
+# Generalist Subsystem Abstraction (B item from gap analysis)
+# For clear interfaces across ANY idea domain (mech/elec/thermal/data/safety/software/bio/energy...).
+# Not electronics-specific. Used by LUMEN, integrator, wissensbasis for better modularity.
+# =============================================================================
+
+@dataclass
+class ModuleSpec:
+    """A general, reusable description of a subsystem/module in a larger system.
+    Ports/budgets are domain-agnostic (power, thermal, data, mechanical interface, safety level, software API).
+    Enables Subsystem-Abstraktion, multi-board reasoning, and inverse design across all ideas.
+    """
+    name: str
+    kind: str  # e.g. "power_distribution", "sensor_array", "control_unit", "structure", "energy_storage", "biological_reactor"
+    interfaces: dict[str, Any] = field(default_factory=dict)  # e.g. {"mech": "mounting_points", "elec": "48V_rail", "data": "CAN", "thermal": "heatsink", "safety": "S3", "software": "firmware_v1"}
+    power_budget_w: float = 0.0
+    thermal_budget_w: float = 0.0
+    mass_kg: float = 0.0
+    volume_cm3: float = 0.0
+    safety_level: str = "S0"
+    open_issues: list[str] = field(default_factory=list)
+    quelle: str = "generalist subsystem abstraction"
+
+
+# =============================================================================
+# Nano + Space-Colony Extensions (2036 10y leap, Genesis 2026 core)
+# Bio full, local, 4 Linsen provenance. For planetary engineering, closed-loop
+# habitats, molecular machines / self-assembling structures.
+# =============================================================================
+
+@dataclass
+class ColonyModule:
+    """Colony / habitat subsystem for space-colony and planetary engineering sims.
+    Extends generalist ModuleSpec for ECLSS bio-loops, radiation shielding,
+    micro-g countermeasures, self-assembling nano-hab components.
+    All fields carry explicit quelle for L1. Sim-ready (local numpy dispatch).
+    """
+    name: str
+    kind: str  # e.g. "eclss_algae_loop", "radiation_shield_regolith_pe", "microg_centrifuge", "self_assemble_nano_hab", "life_support_compartment", "planetary_isru_nano"
+    interfaces: dict[str, Any] = field(default_factory=dict)
+    power_budget_w: float = 0.0
+    thermal_budget_w: float = 0.0
+    mass_kg: float = 0.0
+    volume_cm3: float = 0.0
+    safety_level: str = "S0"
+    # Space-colony specifics (grounded in real concepts: MELiSSA/ACLS, regolith+PE/water shielding, micro-g countermeasures)
+    bio_yield_g_per_day: float = 0.0          # algae/biomass output for closed O2/food loop
+    o2_gen_rate_g_per_h: float = 0.0          # net O2 from bio-loop under given light/CO2
+    co2_scrub_rate_g_per_h: float = 0.0
+    shield_thickness_mm: float = 0.0
+    shield_material: str = ""                 # "regolith", "polyethylene", "water_wall", "regolith_pe_composite"
+    radiation_dose_reduction: float = 1.0     # factor <1 after shielding (primary GCR/SPE + secondaries)
+    microg_mitigation: str = ""               # "centrifuge_1g", "resistance_exercise", "pharma_loading", "none"
+    self_assemble_rate: float = 0.0           # proxy for nano self-assembly kinetics (steps/h or %/day)
+    open_issues: list[str] = field(default_factory=list)
+    quelle: str = "colony module 2036 leap (MELiSSA ESA + regolith/PE shielding NTRS + micro-g countermeasures + nano self-assemble)"
+    source: str = "Genesis Nano-Designer & Space-Colony Engineer integration"
+
+
+@dataclass(frozen=True)
+class NanoRecipe:
+    """Nano-scale design recipe for molecular machines and self-assembling structures.
+    Used in wissensbasis seeding, colony habitat assembly, planetary ISRU nano-factories.
+    Carries molecular_fidelity from bio_molecular MD/ODE dispatch (local numpy).
+    No facts without quelle (L1); assembly conditions are DECISION or GROUNDED.
+    """
+    id: str
+    name: str
+    kind: str  # "rotary_molecular_motor", "dna_origami_scaffold", "self_healing_nano_binder", "flagellar_pump_actuator", "quorum_nano_swarm", "isru_nano_factory"
+    specs: dict[str, Any]  # e.g. stall_torque_pN_nm, step_size, assembly_temp_C, yield_pct, binding_energy_kT
+    assembly_conditions: dict[str, Any] = field(default_factory=dict)  # pH, temp, ions, light, quorum signal
+    molecular_fidelity: Optional[dict[str, Any]] = None  # from bio_molecular.run_* (trajectory, period, force, 4_lenses)
+    footprint_nm: Optional[tuple[float, float, float]] = None
+    source: str = "representative_synthetic_bio_or_nano_2036_local"
+    quelle: str = "nano recipes 2036 leap (F1-ATPase/flagellar motors + DNA origami self-assembly literature + bio_molecular.numpy + 4_LINSEN)"
+
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
@@ -376,6 +452,85 @@ class EmpiricalVerdict:
     residual: float          # |measured - predicted| in predicted_unit (nan if inconclusive)
     within_tolerance: bool
     detail: str = ""
+
+
+# --- Phase delta+: coverage proof (HORIZON.md §2B) ---------------------------
+
+class CoverageStatus(enum.Enum):
+    """How a declared failure mode is handled by a coverage certificate.
+
+    CHECKED     Genesis ran a deterministic check or feasibility proof for the mode.
+    UNTESTABLE  Genesis could not run the check and states the residual gap explicitly.
+    """
+
+    CHECKED = "checked"
+    UNTESTABLE = "untestable"
+
+
+@dataclass(frozen=True)
+class FailureMode:
+    """One failure mode the delta+ coverage proof must account for.
+
+    INVARIANT (enforced here AND re-checked by the coverage gate): `grounding` is
+    non-empty. A failure mode can be declared only when it is anchored in something real:
+    a physics selector trigger, an SMT constraint set, a measured gap, or a reviewed
+    external candidate. Otherwise the certificate could invent its own threat surface.
+    """
+
+    id: str
+    label: str
+    source: str
+    grounding: list[str]
+
+    def __post_init__(self) -> None:
+        if not self.grounding:
+            from .errors import UngroundedFailureModeError
+            raise UngroundedFailureModeError(self.id, self.label)
+        if not self.id.strip() or not self.label.strip() or not self.source.strip():
+            raise ValueError("FailureMode needs non-empty id, label, and source")
+
+
+@dataclass(frozen=True)
+class FailureModeCoverage:
+    """How a certificate covers one declared FailureMode.
+
+    `evidence` is required for CHECKED modes (e.g. physics-check id, SMT feasibility
+    result). `residual_risk` is required for UNTESTABLE modes: the certificate must say
+    what remains unproved instead of hiding it.
+    """
+
+    mode_id: str
+    status: CoverageStatus
+    evidence: list[str] = field(default_factory=list)
+    residual_risk: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.mode_id.strip():
+            raise ValueError("FailureModeCoverage needs a non-empty mode_id")
+        if self.status is CoverageStatus.CHECKED and not self.evidence:
+            from .errors import UncoveredFailureModeError
+            raise UncoveredFailureModeError(self.mode_id)
+        if self.status is CoverageStatus.UNTESTABLE and not self.residual_risk.strip():
+            from .errors import UncoveredFailureModeError
+            raise UncoveredFailureModeError(self.mode_id)
+
+
+@dataclass
+class CoverageCertificate:
+    """Delta+ coverage proof: what was checked, and what honestly remains untestable.
+
+    GATE delta+ coverage re-derives the required failure modes from the spec's declared
+    measurands and constraints, then checks this certificate against them. `complete`
+    means "complete for the deterministic evidence Genesis can derive today" — it is
+    rejected if any indicated mode is missing.
+    """
+
+    spec_run_id: str
+    failure_modes: list[FailureMode] = field(default_factory=list)
+    coverage: list[FailureModeCoverage] = field(default_factory=list)
+    complete: bool = True
+    produced_by: str = ""
+    created_at: datetime = field(default_factory=_now)
 
 
 # --- Phase γ: specification building blocks ----------------------------------
@@ -850,6 +1005,216 @@ class Specification:
     model: str = ""
 
 
+# --- Phase gamma+: inverse design (HORIZON.md §2B) ---------------------------
+
+class ObjectiveDirection(enum.Enum):
+    """How an inverse-design objective is optimized.
+
+    Internally the Pareto gate converts every direction to a "lower is better" score:
+    minimize -> value, maximize -> -value, target -> |value - target|.
+    """
+
+    MINIMIZE = "minimize"
+    MAXIMIZE = "maximize"
+    TARGET = "target"
+
+
+@dataclass(frozen=True)
+class DesignObjective:
+    """One measurable goal for inverse design.
+
+    The objective references a Quantity by id; the gate reads the value from every
+    candidate Specification and converts it to `unit` before comparing candidates. The
+    objective never invents a score: all numbers come from candidate quantities that γ
+    already proves sound.
+    """
+
+    id: str
+    quantity_id: str
+    direction: ObjectiveDirection
+    unit: str
+    target: float | None = None
+
+    def __post_init__(self) -> None:
+        if not self.id.strip() or not self.quantity_id.strip() or not self.unit.strip():
+            raise ValueError("DesignObjective needs non-empty id, quantity_id, and unit")
+        if self.direction is ObjectiveDirection.TARGET:
+            if self.target is None or not math.isfinite(self.target):
+                raise ValueError("target objective needs a finite target")
+        elif self.target is not None:
+            raise ValueError("target is only valid for TARGET objectives")
+
+
+@dataclass(frozen=True)
+class InverseDesignGoal:
+    """The gamma+ input: a target expressed as measurable objectives."""
+
+    id: str
+    description: str
+    objectives: list[DesignObjective]
+
+    def __post_init__(self) -> None:
+        if not self.id.strip() or not self.description.strip():
+            raise ValueError("InverseDesignGoal needs non-empty id and description")
+        if not self.objectives:
+            raise ValueError("InverseDesignGoal needs at least one objective")
+        ids = [objective.id for objective in self.objectives]
+        if len(ids) != len(set(ids)):
+            raise ValueError("InverseDesignGoal objective ids must be unique")
+
+
+@dataclass
+class DesignCandidate:
+    """One candidate Specification evaluated for an inverse-design goal."""
+
+    id: str
+    specification: Specification
+    objective_values: dict[str, float] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not self.id.strip():
+            raise ValueError("DesignCandidate needs a non-empty id")
+
+
+@dataclass
+class ParetoFront:
+    """Gamma+ output: the nondominated validated candidates for a goal.
+
+    `evaluated_candidates` is the proof boundary: every valid evaluated candidate must
+    either be on the front or be dominated/equivalent to a front candidate. Empty front is
+    valid only as honest abstention with `gaps`.
+    """
+
+    goal: InverseDesignGoal
+    candidates: list[DesignCandidate] = field(default_factory=list)
+    evaluated_candidates: list[DesignCandidate] = field(default_factory=list)
+    gaps: list[str] = field(default_factory=list)
+    produced_by: str = ""
+    created_at: datetime = field(default_factory=_now)
+
+
+# --- Phase epsilon: verified seams across domains (HORIZON.md §2B) -----------
+
+class SeamDomain(enum.Enum):
+    """Engineering domains that may be explicitly coupled by an epsilon seam."""
+
+    MECHANICAL = "mechanical"
+    THERMAL = "thermal"
+    ELECTRICAL = "electrical"
+    FIRMWARE = "firmware"
+    COST = "cost"
+
+
+class SeamRelation(enum.Enum):
+    """A deterministic relation between two domain expressions."""
+
+    EQ = "eq"
+    LE = "le"
+    GE = "ge"
+    COST_ROLLUP = "cost_rollup"
+
+
+@dataclass(frozen=True)
+class DomainSeam:
+    """One explicit cross-domain coupling.
+
+    For EQ/LE/GE, `left_expr` and `right_expr` are formulas over Quantity ids. The
+    epsilon gate evaluates them in SI-scaled units and proves dimensional compatibility
+    plus the declared relation. For COST_ROLLUP, `left_expr` is the declared total-cost
+    Quantity id and `right_expr` is the currency subtotal to compare against `bom_cost`.
+    """
+
+    id: str
+    left_domain: SeamDomain
+    right_domain: SeamDomain
+    relation: SeamRelation
+    left_expr: str
+    right_expr: str
+    rationale: str
+
+    def __post_init__(self) -> None:
+        if not self.id.strip() or not self.left_expr.strip() or not self.right_expr.strip():
+            raise ValueError("DomainSeam needs non-empty id, left_expr, and right_expr")
+        if self.left_domain is self.right_domain:
+            raise ValueError("DomainSeam must connect two distinct domains")
+        if not self.rationale.strip():
+            raise ValueError("DomainSeam needs a rationale; hidden seams are not valid")
+
+
+@dataclass
+class SeamCertificate:
+    """Phase epsilon output: the declared, verified cross-domain seams for a spec."""
+
+    spec_run_id: str
+    seams: list[DomainSeam] = field(default_factory=list)
+    complete: bool = True
+    produced_by: str = ""
+    created_at: datetime = field(default_factory=_now)
+
+
+# --- Phase zeta: shared memory / connective tissue (HORIZON.md §2C) ----------
+
+class MemoryHealthStatus(enum.Enum):
+    """Whether the shared-memory layer is cleared for reuse in this run."""
+
+    OK = "ok"
+    NOT_ENOUGH_BASELINE = "not_enough_baseline"
+    DRIFT_ALERT = "drift_alert"
+
+
+@dataclass(frozen=True)
+class MemoryDeposit:
+    """One fact deposited from a run into the shared verified-facts memory."""
+
+    claim_id: str
+    sources: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not self.claim_id.strip():
+            raise ValueError("MemoryDeposit needs a non-empty claim_id")
+        if not self.sources:
+            raise ValueError("MemoryDeposit needs preserved source ids")
+
+
+@dataclass(frozen=True)
+class MemoryRecallLink:
+    """One prior fact reused by a run under a conformal threshold."""
+
+    query: str
+    claim_id: str
+    score: float
+    tau: float | None
+    sources: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not self.query.strip() or not self.claim_id.strip():
+            raise ValueError("MemoryRecallLink needs non-empty query and claim_id")
+        if not math.isfinite(self.score):
+            raise ValueError("MemoryRecallLink score must be finite")
+        if self.tau is not None and not math.isfinite(self.tau):
+            raise ValueError("MemoryRecallLink tau must be finite when present")
+        if not self.sources:
+            raise ValueError("MemoryRecallLink needs preserved source ids")
+
+
+@dataclass
+class MemoryFabricCertificate:
+    """Phase ζ output: deposits + conformal recall links + memory health.
+
+    The certificate is allowed to be empty. That is honest abstention. Accepted recalls,
+    however, must carry a calibrated threshold and pass it; deposits must refer only to
+    VERIFIED claims with source provenance. Drift alerts block reuse.
+    """
+
+    run_id: str
+    deposits: list[MemoryDeposit] = field(default_factory=list)
+    recalls: list[MemoryRecallLink] = field(default_factory=list)
+    calibration_ready: bool = False
+    health: MemoryHealthStatus = MemoryHealthStatus.NOT_ENOUGH_BASELINE
+    produced_by: str = ""
+    created_at: datetime = field(default_factory=_now)
+
+
 # --- Questions & report ------------------------------------------------------
 
 @dataclass(frozen=True)
@@ -936,5 +1301,8 @@ class RunState:
     spark: "Spark | None" = None          # Phase φ input (the workshop for the spark)
     divergence: "Divergence | None" = None  # Phase φ output; forge owns this field
     frontier_map: "FrontierMap | None" = None  # Phase χ output; cartographer owns this
+    pareto_front: "ParetoFront | None" = None  # Phase γ+ output; inverse design owns this
+    seam_certificate: "SeamCertificate | None" = None  # Phase ε output; seams own this
+    memory_fabric: "MemoryFabricCertificate | None" = None  # Phase ζ output
     refine_round: int = 0
     log: list[str] = field(default_factory=list)

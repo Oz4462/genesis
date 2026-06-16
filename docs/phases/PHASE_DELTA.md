@@ -2064,7 +2064,7 @@ Verteilungen).
 
 ---
 
-## 19. ε-Bio — Protokoll mit Reproduzierbarkeits-Design + Sicherheitsgrenzen
+## 19. ε — Protokoll mit Reproduzierbarkeits-Design + Sicherheitsgrenzen (Biologie explizit ausgeschlossen — zu gefährlich; stattdessen z.B. mechanische Energiespeicher-Protokolle)
 
 Die zweite ε-Domäne realisiert das **VISION-Beispiel** („wie lassen sich Pflanzen
 nachweislich gesünder wachsen?") — über die **gleiche γ-Maschinerie** wie der

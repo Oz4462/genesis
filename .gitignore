@@ -31,6 +31,8 @@ Thumbs.db
 
 # --- GENESIS Laufzeit-Artefakte ---
 runs/
+out/
+*.log
 *.checkpoint
 ledger_local.db
 robin_output/
