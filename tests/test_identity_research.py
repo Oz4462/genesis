@@ -122,6 +122,32 @@ def test_commutative_reordered_statement_is_rediscovered():
     assert r.claim.novelty_key == assess_identity("c3", "sin(x)**2 + cos(x)**2", "1", m).claim.novelty_key
 
 
+def test_true_double_angle_survives_via_interval():
+    """A true transcendental identity survives; the rigorous interval path is exercised."""
+    art = assess_identity("dbl", "sin(2*x)", "2*sin(x)*cos(x)", _mR(x="real"))
+    assert art.status == "SURVIVED_NOVEL"
+    assert art.falsify.refutation_mode is None
+    c = art.falsify.counts
+    assert c.get("interval_inconclusive", 0) >= 1 or c.get("exact_zero", 0) >= 1
+    assert "finite-grid" in art.falsify.coverage_claim
+
+
+def test_false_transcendental_refuted_rigorously():
+    """A false transcendental identity is refuted with a rigorous (non-float-tol) witness."""
+    art = assess_identity("ftr", "sin(2*x)", "sin(x)", _mR(x="real"))
+    assert art.status == "REFUTED"
+    assert art.falsify.refutation_mode in ("exact", "interval")
+    assert art.falsify.witness is not None and art.falsify.witness_residual is not None
+
+
+def test_exact_rational_refutation_mode():
+    """A false algebraic identity is refuted EXACTLY (no tolerance, rigorous nonzero)."""
+    art = assess_identity("er", "x**2", "x**2 + 1", _mR(x="real"))
+    assert art.status == "REFUTED"
+    assert art.falsify.refutation_mode == "exact"
+    assert art.falsify.counts.get("exact_nonzero", 0) >= 1
+
+
 def test_manifest_hash_is_deterministic_and_order_independent():
     a = AssumptionManifest(domain_id="R", variables={"x": "real", "y": "real"}, predicates=("x > 0", "y > 0"))
     b = AssumptionManifest(domain_id="R", variables={"y": "real", "x": "real"}, predicates=("y > 0", "x > 0"))

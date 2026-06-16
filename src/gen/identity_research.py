@@ -28,6 +28,7 @@ import math
 from dataclasses import dataclass, field
 from typing import Literal, Optional
 
+import mpmath
 import sympy as sp
 
 DomainId = Literal["R", "R+", "C", "Z", "N"]
@@ -39,11 +40,20 @@ Status = Literal["REFUTED", "INCONCLUSIVE", "SURVIVED_KNOWN", "SURVIVED_NOVEL"]
 # so an identity verified on all of R outranks one only checked on a sparse integer window.
 _DOMAIN_FRACTION: dict[str, float] = {"R": 1.0, "C": 1.0, "R+": 0.5, "Z": 0.4, "N": 0.25}
 
-# Deterministic sample anchors per domain (reproducibility — Kernprinzip 5; never random()).
-_REAL_ANCHORS = (-3.0, -2.0, -1.5, -1.0, -0.5, -0.25, 0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 7.5)
-_POS_ANCHORS = tuple(a for a in _REAL_ANCHORS if a > 0)
-_INT_ANCHORS = tuple(float(i) for i in range(-6, 13))
-_NAT_ANCHORS = tuple(float(i) for i in range(0, 19))
+# Deterministic sample anchors as EXACT sympy numbers (reproducibility — Kernprinzip 5;
+# never random()). Rational anchors are evaluated exactly; the irrational anchors
+# (sqrt2, pi, E) go through rigorous mpmath interval arithmetic. For ANALYTIC identities
+# on a connected set, agreement on all rationals implies agreement everywhere (rationals
+# are dense) — so the rational grid cannot miss an 'irrational-only' counterexample; the
+# real residual gap is measure-zero / non-analytic (floor, piecewise) cases.
+_REAL_ANCHORS = (
+    sp.Integer(-3), sp.Integer(-2), sp.Rational(-3, 2), sp.Integer(-1), sp.Rational(-1, 2),
+    sp.Rational(-1, 4), sp.Rational(1, 4), sp.Rational(1, 2), sp.Integer(1), sp.Rational(3, 2),
+    sp.Integer(2), sp.Integer(3), sp.Integer(5), sp.sqrt(2), sp.pi, sp.E,
+)
+_POS_ANCHORS = tuple(a for a in _REAL_ANCHORS if a.is_positive)
+_INT_ANCHORS = tuple(sp.Integer(i) for i in range(-6, 13))
+_NAT_ANCHORS = tuple(sp.Integer(i) for i in range(0, 19))
 
 
 def _sha(payload: str) -> str:
@@ -188,6 +198,12 @@ class FalsificationReceipt:
     samples_tested: int
     witness: Optional[dict[str, float]]
     passed: bool
+    refutation_mode: Optional[Literal["exact", "interval"]] = None
+    interval_prec_dps: int = 30
+    witness_residual: Optional[str] = None
+    counts: dict[str, int] = field(default_factory=dict)
+    sampling_note: str = "rational grid + irrational anchors (sqrt2, pi, e)"
+    coverage_claim: str = "finite-grid falsification only; SURVIVED != universal identity"
 
 
 @dataclass(frozen=True)
@@ -311,27 +327,100 @@ def _sample_points(manifest: AssumptionManifest, syms: dict[str, sp.Symbol], n_s
     return points
 
 
+class _IvUnsupported(Exception):
+    """A node the interval enclosure cannot rigorously handle — that point is skipped
+    (never silently treated as consistent or refuted)."""
+
+
+def _iv_enclose(expr: sp.Expr, env: dict):
+    """Rigorous mpmath interval enclosure of ``expr`` with symbols bound to interval
+    values in ``env``. Raises _IvUnsupported on any node it cannot bound rigorously."""
+    iv = mpmath.iv
+    if expr.is_Integer:
+        return iv.mpf(int(expr))
+    if expr.is_Rational:
+        return iv.mpf(int(expr.p)) / iv.mpf(int(expr.q))
+    if expr.is_Float:
+        return iv.mpf(str(expr))
+    if expr is sp.pi:
+        return iv.pi
+    if expr is sp.E:
+        return iv.e
+    if expr.is_Symbol:
+        if expr in env:
+            return env[expr]
+        raise _IvUnsupported(f"unbound symbol {expr}")
+    if expr.is_Add:
+        acc = iv.mpf(0)
+        for a in expr.args:
+            acc = acc + _iv_enclose(a, env)
+        return acc
+    if expr.is_Mul:
+        acc = iv.mpf(1)
+        for a in expr.args:
+            acc = acc * _iv_enclose(a, env)
+        return acc
+    if expr.is_Pow:
+        base = _iv_enclose(expr.base, env)
+        e = expr.exp
+        if e.is_Integer:
+            return base ** int(e)
+        if e == sp.Rational(1, 2):
+            return iv.sqrt(base)
+        if e == sp.Rational(-1, 2):
+            return iv.mpf(1) / iv.sqrt(base)
+        raise _IvUnsupported(f"non-integer/half power {e}")
+    fn = {sp.sin: iv.sin, sp.cos: iv.cos, sp.tan: iv.tan, sp.exp: iv.exp, sp.log: iv.log}.get(expr.func)
+    if fn is not None and len(expr.args) == 1:
+        return fn(_iv_enclose(expr.args[0], env))
+    raise _IvUnsupported(f"unsupported node {expr.func}")
+
+
 def falsify(
     lhs: sp.Expr, rhs: sp.Expr, manifest: AssumptionManifest, syms: dict[str, sp.Symbol],
-    *, n_samples: int = 500, tol: float = 1e-9,
+    *, n_samples: int = 500, prec_dps: int = 30,
 ) -> FalsificationReceipt:
-    """Search for a counterexample on a deterministic grid. A single point with
-    |lhs-rhs| > tol REFUTES the identity (impossibility is provable; possibility is not)."""
+    """Search for a counterexample on a deterministic grid of EXACT sympy points.
+
+    Rigorous, no float tolerance: a rational/algebraic point is checked exactly
+    (``is_zero`` True/False); a transcendental point is enclosed with mpmath interval
+    arithmetic. A point that is rigorously nonzero (exact != 0, or an interval excluding 0)
+    REFUTES with a witness. SURVIVED means only 'no counterexample in this finite set',
+    never a proof of universality (impossibility is provable, possibility is not)."""
+    mpmath.iv.dps = prec_dps
     diff = lhs - rhs
     pts = _sample_points(manifest, syms, n_samples)
+    counts = {"exact_zero": 0, "exact_nonzero": 0, "interval_excludes_0": 0,
+              "interval_inconclusive": 0, "skipped_unsupported": 0}
     tested = 0
     for pt in pts:
-        subs = {syms[n]: sp.nsimplify(v) if float(v).is_integer() else sp.Float(v) for n, v in pt.items()}
+        val = diff.subs({syms[n]: v for n, v in pt.items()})
+        witness = {n: float(v) for n, v in pt.items()}
+        # EXACT path (rational / algebraic)
+        if val.is_number:
+            z = val.is_zero
+            if z is True:
+                counts["exact_zero"] += 1
+                tested += 1
+                continue
+            if z is False:
+                counts["exact_nonzero"] += 1
+                tested += 1
+                return FalsificationReceipt(tested, witness, False, "exact", prec_dps, str(val), counts)
+        # INTERVAL path (transcendental / exact-undecided)
         try:
-            val = complex(diff.subs(subs).evalf())
+            env = {syms[n]: _iv_enclose(v, {}) for n, v in pt.items()}
+            r = _iv_enclose(diff, env)
+            excludes0 = bool(r.b < 0) or bool(r.a > 0)
         except Exception:
-            continue  # singular/undefined point — skip, do not count as a test
-        if not (math.isfinite(val.real) and math.isfinite(val.imag)):
+            counts["skipped_unsupported"] += 1
             continue
         tested += 1
-        if abs(val) > tol:
-            return FalsificationReceipt(samples_tested=tested, witness={k: float(v) for k, v in pt.items()}, passed=False)
-    return FalsificationReceipt(samples_tested=tested, witness=None, passed=True)
+        if excludes0:
+            counts["interval_excludes_0"] += 1
+            return FalsificationReceipt(tested, witness, False, "interval", prec_dps, f"[{r.a}, {r.b}]", counts)
+        counts["interval_inconclusive"] += 1
+    return FalsificationReceipt(tested, None, True, None, prec_dps, None, counts)
 
 
 def _severity(proof_tier: int, samples: int, domain_id: str, raw_diff_ops: int, refuted: bool) -> float:
@@ -354,7 +443,7 @@ def _lean_statement(lhs: str, rhs: str, manifest: AssumptionManifest) -> str:
 def assess_identity(
     claim_id: str, lhs: str, rhs: str, manifest: AssumptionManifest,
     *, novelty_index: Optional["NoveltyIndex"] = None, register: bool = True,
-    n_samples: int = 500, tol: float = 1e-9,
+    n_samples: int = 500, prec_dps: int = 30,
 ) -> IdentityArtifact:
     """Run the math-research gate sequence end-to-end:
     PROPOSED -> GATE-DATA (parse+manifest) -> GATE-FINGERPRINT -> GATE-FALSIFICATION
@@ -383,7 +472,7 @@ def assess_identity(
     claim = IdentityClaim(claim_id, lhs, rhs, manifest, fingerprint=fp, fp_tier=fp_tier, novelty_key=nkey)
 
     # GATE-FALSIFICATION
-    fr = falsify(e_lhs, e_rhs, manifest, syms, n_samples=n_samples, tol=tol)
+    fr = falsify(e_lhs, e_rhs, manifest, syms, n_samples=n_samples, prec_dps=prec_dps)
     if not fr.passed:
         return IdentityArtifact(
             claim=claim, status="REFUTED",
