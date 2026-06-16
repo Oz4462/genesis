@@ -85,13 +85,41 @@ def test_unparseable_is_inconclusive():
     assert art.status == "INCONCLUSIVE"
 
 
-def test_novelty_index_hit_marks_known():
+def test_novelty_index_rediscovery_across_runs():
+    from gen.identity_research import NoveltyIndex
     m = _mR(x="real")
-    first = assess_identity("k1", "sin(x)**2 + cos(x)**2", "1", m)
-    # feed the discovered fingerprint back as prior art -> next time it is KNOWN, not NOVEL
-    art = assess_identity("k2", "sin(x)**2 + cos(x)**2", "1", m, novelty_index={first.claim.fingerprint})
-    assert art.status == "SURVIVED_KNOWN"
-    assert art.search.hits == 1
+    idx = NoveltyIndex()
+    first = assess_identity("k1", "sin(x)**2 + cos(x)**2", "1", m, novelty_index=idx)
+    assert first.status == "SURVIVED_NOVEL"
+    second = assess_identity("k2", "sin(x)**2 + cos(x)**2", "1", m, novelty_index=idx)
+    assert second.status == "SURVIVED_KNOWN"
+    assert second.search.match_kind == "REDISCOVERED"
+    assert second.search.matched_claim_id == "k1"
+
+
+def test_distinct_true_identities_are_not_mutual_rediscoveries():
+    """The proved_equal |0 truth-collapse must NOT make every new true identity look
+    rediscovered — REDISCOVERED is decided on the structural novelty_key (locked w/ co-architect)."""
+    from gen.identity_research import NoveltyIndex
+    m = _mR(x="real")
+    idx = NoveltyIndex()
+    a = assess_identity("pyth", "sin(x)**2 + cos(x)**2", "1", m, novelty_index=idx)
+    b = assess_identity("binom", "(x+1)**2", "x**2 + 2*x + 1", m, novelty_index=idx)
+    assert a.status == "SURVIVED_NOVEL"
+    assert b.status == "SURVIVED_NOVEL"  # a DIFFERENT theorem, not a rediscovery of pyth
+    assert a.claim.novelty_key != b.claim.novelty_key
+    assert a.claim.fingerprint == b.claim.fingerprint  # both truth-collapse to |0 (by design)
+
+
+def test_commutative_reordered_statement_is_rediscovered():
+    """cos^2+sin^2 is the SAME statement as sin^2+cos^2 (commutative) -> rediscovered."""
+    from gen.identity_research import NoveltyIndex
+    m = _mR(x="real")
+    idx = NoveltyIndex()
+    assess_identity("c1", "sin(x)**2 + cos(x)**2", "1", m, novelty_index=idx)
+    r = assess_identity("c2", "cos(x)**2 + sin(x)**2", "1", m, novelty_index=idx)
+    assert r.status == "SURVIVED_KNOWN"
+    assert r.claim.novelty_key == assess_identity("c3", "sin(x)**2 + cos(x)**2", "1", m).claim.novelty_key
 
 
 def test_manifest_hash_is_deterministic_and_order_independent():

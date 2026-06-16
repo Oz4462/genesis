@@ -75,25 +75,112 @@ class AssumptionManifest:
         return _sha(payload)
 
 
+MatchKind = Literal["REDISCOVERED", "NEAR_DUPLICATE", "NOVEL"]
+
+
 @dataclass(frozen=True)
 class IdentityClaim:
     claim_id: str
     lhs: str
     rhs: str
     manifest: AssumptionManifest
-    fingerprint: Optional[str] = None
+    fingerprint: Optional[str] = None       # truth_fp: proves 'are lhs,rhs equal' (|0 collapse)
     fp_tier: Optional[FpTier] = None
+    novelty_key: Optional[str] = None        # statement identity (structural, NOT truth)
 
 
 @dataclass(frozen=True)
 class SearchReceipt:
     """Coverage-bounded prior-art result. ``hits==0`` means 'none found in this corpus
-    within this bound', never absolute novelty (PLAN B5 honesty)."""
+    within this bound', never absolute novelty (PLAN B5 honesty).
 
-    query_fp: str
+    REDISCOVERED is decided on the ``novelty_key`` (statement identity), never on the
+    truth-fingerprint — the latter collapses every true identity under a manifest to |0
+    and would falsely rediscover every new theorem (locked with co-architect)."""
+
+    query_novelty_key: str
+    match_kind: MatchKind
     hits: int
-    nearest_distance: float
+    nearest_distance: float                  # 0.0 = exact rediscovery, 1.0 = no proximity
+    corpora_checked: tuple[str, ...]
     coverage_bound: str
+    matched_claim_id: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class IndexedIdentity:
+    """One prior-art record. Stores BOTH keys: ``novelty_key`` (statement identity, used
+    for REDISCOVERED) and ``truth_fp`` (equality witness). ``term_canon`` is a JSON-friendly
+    sorted tuple of structural term reprs for the NEAR_DUPLICATE Jaccard check."""
+
+    novelty_key: str
+    truth_fp: str
+    fp_tier: FpTier
+    manifest_hash: str
+    claim_id: str
+    lhs: str
+    rhs: str
+    term_canon: tuple[str, ...]
+    corpus_id: str = "genesis-local-v1"
+
+    def content_address(self) -> str:
+        return _sha(json.dumps({
+            "novelty_key": self.novelty_key, "truth_fp": self.truth_fp,
+            "fp_tier": self.fp_tier, "manifest_hash": self.manifest_hash,
+            "lhs": self.lhs, "rhs": self.rhs, "corpus_id": self.corpus_id,
+        }, sort_keys=True))
+
+
+class NoveltyIndex:
+    """Local, persistable prior-art index keyed by ``novelty_key``. Pluggable: a live
+    arxiv/OEIS backend can later register under another ``corpus_id`` with the SAME
+    semantics. Match rule (conservative — no fuzzy merge, locked with co-architect):
+
+    1. REDISCOVERED  iff an entry shares the exact ``novelty_key`` (same statement+manifest).
+    2. NEAR_DUPLICATE iff a structural-tier entry under the same manifest has Jaccard term
+       overlap >= 0.85 but a different novelty_key — FLAG only, status stays NOVEL.
+    3. NOVEL otherwise (within the checked corpora's coverage bound).
+    """
+
+    NEAR_DUP_JACCARD = 0.85
+
+    def __init__(self, corpus_id: str = "genesis-local-v1") -> None:
+        self.corpus_id = corpus_id
+        self._by_key: dict[str, IndexedIdentity] = {}
+        self._all: list[IndexedIdentity] = []
+
+    @staticmethod
+    def _jaccard(a: tuple[str, ...], b: tuple[str, ...]) -> float:
+        sa, sb = set(a), set(b)
+        if not sa and not sb:
+            return 1.0
+        union = sa | sb
+        return len(sa & sb) / len(union) if union else 0.0
+
+    def search(self, novelty_key: str, manifest_hash: str, fp_tier: FpTier,
+               term_canon: tuple[str, ...]) -> SearchReceipt:
+        bound = f"exact novelty_key in [{self.corpus_id}] (+structural Jaccard>={self.NEAR_DUP_JACCARD})"
+        hit = self._by_key.get(novelty_key)
+        if hit is not None:
+            return SearchReceipt(novelty_key, "REDISCOVERED", 1, 0.0, (self.corpus_id,), bound, hit.claim_id)
+        if fp_tier == "structural":
+            best, best_j = None, 0.0
+            for e in self._all:
+                if e.manifest_hash == manifest_hash and e.fp_tier == "structural":
+                    j = self._jaccard(term_canon, e.term_canon)
+                    if j > best_j:
+                        best, best_j = e, j
+            if best is not None and best_j >= self.NEAR_DUP_JACCARD:
+                return SearchReceipt(novelty_key, "NEAR_DUPLICATE", 0, round(1.0 - best_j, 4),
+                                     (self.corpus_id,), bound, best.claim_id)
+        return SearchReceipt(novelty_key, "NOVEL", 0, 1.0, (self.corpus_id,), bound, None)
+
+    def register(self, entry: IndexedIdentity) -> str:
+        # first-writer-wins on novelty_key (the original discovery keeps priority)
+        if entry.novelty_key not in self._by_key:
+            self._by_key[entry.novelty_key] = entry
+            self._all.append(entry)
+        return entry.content_address()
 
 
 @dataclass(frozen=True)
@@ -162,6 +249,29 @@ def fingerprint(lhs: sp.Expr, rhs: sp.Expr, manifest_hash: str) -> tuple[FpTier,
         return "structural", _sha(manifest_hash + "|s|" + canon)
     except Exception:
         return "not_proven_equal", _sha(manifest_hash + "|raw|" + sp.srepr(lhs) + "|" + sp.srepr(rhs))
+
+
+def _statement_novelty_key(lhs: sp.Expr, rhs: sp.Expr, manifest_hash: str) -> str:
+    """Structural canonical key of the STATEMENT itself (NOT the truth-fingerprint).
+
+    Uses sympy's canonical srepr (commutative args are auto-ordered), WITHOUT simplify():
+    x+y==y+x -> same key (same statement); sin^2+cos^2==1 vs (x+1)^2==... -> different keys
+    (different theorems). False-split on non-expanded equivalents is consciously accepted
+    (conservative); a false merge would require literally identical structure (= same claim).
+    """
+    return _sha(manifest_hash + "|stmt|" + sp.srepr(lhs) + "=" + sp.srepr(rhs))
+
+
+def _term_canon(lhs: sp.Expr, rhs: sp.Expr) -> tuple[str, ...]:
+    """JSON-friendly sorted set of structural term reprs (for the NEAR_DUPLICATE Jaccard)."""
+    terms: set[str] = set()
+    for side in (lhs, rhs):
+        try:
+            for t in sp.Add.make_args(sp.expand(side)):
+                terms.add(sp.srepr(t))
+        except Exception:
+            terms.add(sp.srepr(side))
+    return tuple(sorted(terms))
 
 
 def _sample_points(manifest: AssumptionManifest, syms: dict[str, sp.Symbol], n_samples: int):
@@ -243,7 +353,8 @@ def _lean_statement(lhs: str, rhs: str, manifest: AssumptionManifest) -> str:
 
 def assess_identity(
     claim_id: str, lhs: str, rhs: str, manifest: AssumptionManifest,
-    *, novelty_index: Optional[set[str]] = None, n_samples: int = 500, tol: float = 1e-9,
+    *, novelty_index: Optional["NoveltyIndex"] = None, register: bool = True,
+    n_samples: int = 500, tol: float = 1e-9,
 ) -> IdentityArtifact:
     """Run the math-research gate sequence end-to-end:
     PROPOSED -> GATE-DATA (parse+manifest) -> GATE-FINGERPRINT -> GATE-FALSIFICATION
@@ -265,9 +376,11 @@ def assess_identity(
             note=f"parse/manifest failure: {type(exc).__name__}: {exc}",
         )
 
-    # GATE-FINGERPRINT
+    # GATE-FINGERPRINT (truth_fp = equality witness; novelty_key = statement identity)
     fp_tier, fp = fingerprint(e_lhs, e_rhs, mh)
-    claim = IdentityClaim(claim_id, lhs, rhs, manifest, fingerprint=fp, fp_tier=fp_tier)
+    nkey = _statement_novelty_key(e_lhs, e_rhs, mh)
+    term_canon = _term_canon(e_lhs, e_rhs)
+    claim = IdentityClaim(claim_id, lhs, rhs, manifest, fingerprint=fp, fp_tier=fp_tier, novelty_key=nkey)
 
     # GATE-FALSIFICATION
     fr = falsify(e_lhs, e_rhs, manifest, syms, n_samples=n_samples, tol=tol)
@@ -290,26 +403,29 @@ def assess_identity(
     # proof tier: proved_equal+survived = 3; proved_equal only = 2; structural+survived = 1
     proof_tier = 3 if fp_tier == "proved_equal" else (1 if fp_tier == "structural" else 0)
 
-    # GATE-NOVELTY (v1 stub: exact-fingerprint index lookup, coverage-bounded)
-    index = novelty_index or set()
-    hits = 1 if fp in index else 0
-    receipt = SearchReceipt(
-        query_fp=fp, hits=hits, nearest_distance=0.0 if hits else 1.0,
-        coverage_bound="v1-fixture-index (no live OEIS/OpenAlex)",
-    )
+    # GATE-NOVELTY (coverage-bounded; decided on novelty_key, never the truth_fp)
+    index = novelty_index if novelty_index is not None else NoveltyIndex()
+    receipt = index.search(nkey, mh, fp_tier, term_canon)
     raw_ops = int(sp.count_ops(e_lhs - e_rhs))
     sev = _severity(proof_tier, fr.samples_tested, manifest.domain_id, raw_ops, refuted=False)
 
-    if hits > 0:
+    if register:
+        index.register(IndexedIdentity(
+            novelty_key=nkey, truth_fp=fp, fp_tier=fp_tier, manifest_hash=mh,
+            claim_id=claim_id, lhs=lhs, rhs=rhs, term_canon=term_canon, corpus_id=index.corpus_id,
+        ))
+
+    if receipt.match_kind == "REDISCOVERED":
         return IdentityArtifact(
             claim=claim, status="SURVIVED_KNOWN",
-            promotion="...->GATE-FALSIFICATION(survived)->GATE-NOVELTY(known)",
+            promotion="...->GATE-FALSIFICATION(survived)->GATE-NOVELTY(rediscovered)",
             search=receipt, falsify=fr, severity=sev, proof_tier=proof_tier, lean_statement=lean,
-            note="rediscovered — matches prior art in the index (valid output, cite the source)",
+            note=f"rediscovered — same statement as prior art {receipt.matched_claim_id!r} (cite it)",
         )
+    near = " (NEAR_DUPLICATE of prior art — flagged, still novel)" if receipt.match_kind == "NEAR_DUPLICATE" else ""
     return IdentityArtifact(
         claim=claim, status="SURVIVED_NOVEL",
         promotion="...->GATE-FALSIFICATION(survived)->GATE-NOVELTY(novel)->NOVELTY_CLEARED",
         search=receipt, falsify=fr, severity=sev, proof_tier=proof_tier, lean_statement=lean,
-        note="no prior art found within coverage bound; Lean statement recorded, proof ADMITTED",
+        note=f"no exact prior art within coverage bound; Lean statement recorded, proof ADMITTED{near}",
     )
