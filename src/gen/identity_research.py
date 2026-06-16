@@ -26,6 +26,7 @@ import hashlib
 import itertools
 import json
 import math
+import re
 from dataclasses import dataclass, field
 from typing import Callable, Literal, Optional, Protocol, runtime_checkable
 
@@ -552,7 +553,7 @@ def _lean_statement(lhs: str, rhs: str, manifest: AssumptionManifest) -> str:
 
 def assess_identity(
     claim_id: str, lhs: str, rhs: str, manifest: AssumptionManifest,
-    *, novelty_index: Optional["NoveltyIndex"] = None, register: bool = True,
+    *, novelty_index: Optional["NoveltyBackend"] = None, register: bool = True,
     n_samples: int = 500, prec_dps: int = 30,
 ) -> IdentityArtifact:
     """Run the math-research gate sequence end-to-end:
@@ -770,3 +771,57 @@ def explore_family(
         refuted_count=refuted_count, survival_rate=survival_rate,
         family_verdict=verdict, universal_candidate=universal_candidate,
     )
+
+
+# =============================================================================
+# Pipeline seam (d-lite): persist research artifacts into the SHARED wissensbasis store
+# — the same store the integrator/pipeline read — so the math-research branch is reachable
+# from the rest of GENESIS, not an island. Full conductor/CLI/promotion wiring is d-full.
+# =============================================================================
+
+def _artifact_record(artifact: IdentityArtifact) -> dict:
+    c = artifact.claim
+    fr = artifact.falsify
+    return {
+        "type": "IdentityArtifact",
+        "claim_id": c.claim_id, "lhs": c.lhs, "rhs": c.rhs,
+        "status": artifact.status, "promotion": artifact.promotion,
+        "proof_tier": artifact.proof_tier, "severity": artifact.severity,
+        "truth_fp": c.fingerprint, "novelty_key": c.novelty_key, "fp_tier": c.fp_tier,
+        "match_kind": artifact.search.match_kind if artifact.search else None,
+        "coverage_bound": artifact.search.coverage_bound if artifact.search else None,
+        "lean_statement": artifact.lean_statement,
+        "refutation_mode": fr.refutation_mode if fr else None,
+        "witness": fr.witness if fr else None,
+        "samples_tested": fr.samples_tested if fr else 0,
+        "note": artifact.note, "quelle": artifact.quelle,
+    }
+
+
+def persist_identity_artifact(artifact: IdentityArtifact) -> str:
+    """Persist a research artifact into the shared wissensbasis store with provenance,
+    returning its store key. Makes the branch's output durable + visible to the rest of
+    GENESIS (the integrator/pipeline read the same store)."""
+    from .wissensbasis.store import save_fragment
+
+    # filesystem-safe key (the store writes <key>.json; ':' etc. are invalid on Windows)
+    raw = f"identity_{artifact.claim.claim_id}_{artifact.claim.fingerprint or 'na'}"
+    key = re.sub(r"[^A-Za-z0-9_.-]", "_", raw)
+    save_fragment(
+        _artifact_record(artifact), key=key, source="identity_research",
+        quelle=f"gen.identity_research ({artifact.status}; truth_fp={artifact.claim.fingerprint})",
+    )
+    return key
+
+
+def run_identity_research(
+    claim_id: str, lhs: str, rhs: str, manifest: AssumptionManifest, *,
+    novelty_index: Optional["NoveltyBackend"] = None, persist: bool = True,
+    n_samples: int = 300, prec_dps: int = 30,
+) -> tuple[IdentityArtifact, Optional[str]]:
+    """Pipeline entrypoint: assess an identity and (by default) persist the artifact into
+    the shared store. Returns (artifact, store_key | None)."""
+    art = assess_identity(claim_id, lhs, rhs, manifest, novelty_index=novelty_index,
+                          n_samples=n_samples, prec_dps=prec_dps)
+    key = persist_identity_artifact(art) if persist else None
+    return art, key
