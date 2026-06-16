@@ -23,6 +23,7 @@ OEIS/OpenAlex, integrals/limits/series, full real-z3, ESTABLISHED promotion.
 from __future__ import annotations
 
 import hashlib
+import itertools
 import json
 import math
 from dataclasses import dataclass, field
@@ -517,4 +518,136 @@ def assess_identity(
         promotion="...->GATE-FALSIFICATION(survived)->GATE-NOVELTY(novel)->NOVELTY_CLEARED",
         search=receipt, falsify=fr, severity=sev, proof_tier=proof_tier, lean_statement=lean,
         note=f"no exact prior art within coverage bound; Lean statement recorded, proof ADMITTED{near}",
+    )
+
+
+# =============================================================================
+# Conjecture generator + auto-disproof (the research act): a parametrized family is
+# instantiated over a FINITE structural-parameter grid; each instance is assessed and
+# triaged. A family NEVER earns a 'proved' verdict — only finite-grid statistics plus a
+# 'universal_candidate' flag meaning 'worth a real proof attempt', not a theorem
+# (over-claim is structurally impossible). Designed + locked with the co-architect.
+# =============================================================================
+
+FamilyVerdict = Literal[
+    "REFUTED_FAMILY", "PARTIALLY_REFUTED", "GRID_ALL_SURVIVED", "INCONCLUSIVE_DOMINANT"
+]
+
+_FAMILY_HONESTY = (
+    "Explored a FINITE structural-parameter grid; survivors are candidate identities "
+    "(ADMITTED, not proven universal), refuted are disproved instances. "
+    "universal_candidate=True means 'worth a real proof attempt', never 'theorem proved'."
+)
+
+
+@dataclass(frozen=True)
+class ConjectureTemplate:
+    """A parametrized identity family. ``lhs_template``/``rhs_template`` are expressions
+    over the manifest's free variables PLUS structural integer parameters in ``param_grid``
+    (e.g. x is the free var, k/n are structural). Each grid point yields one concrete
+    IdentityClaim. ``min_instances`` is the floor for a universal_candidate flag."""
+
+    family_id: str
+    lhs_template: str
+    rhs_template: str
+    param_grid: dict[str, tuple[int, ...]]
+    manifest: AssumptionManifest
+    min_instances: int = 8
+
+
+@dataclass(frozen=True)
+class FamilyReport:
+    family_id: str
+    lhs_template: str
+    rhs_template: str
+    grid_cardinality: int
+    instances: tuple[dict, ...]
+    refuted: tuple[str, ...]
+    surviving_known: tuple[str, ...]
+    surviving_novel: tuple[str, ...]
+    inconclusive: tuple[str, ...]
+    refuted_count: int
+    survival_rate: float
+    family_verdict: FamilyVerdict
+    universal_candidate: bool
+    honesty_epistemic: str = _FAMILY_HONESTY
+
+
+def _subst_template(template: str, params: dict[str, int]) -> str:
+    """Substitute structural integer parameters into a template, leaving the manifest's
+    free variables symbolic. Returns a re-parseable sympy string."""
+    expr = sp.sympify(template, rational=True)
+    expr = expr.subs({sp.Symbol(k): sp.Integer(v) for k, v in params.items()})
+    return str(expr)
+
+
+def explore_family(
+    template: ConjectureTemplate, *, novelty_index: Optional["NoveltyIndex"] = None,
+    n_samples: int = 300, prec_dps: int = 30,
+) -> FamilyReport:
+    """Instantiate every grid point, assess each through a SHARED NoveltyIndex, and triage.
+    The family verdict is finite-grid statistics only — never a proof."""
+    index = novelty_index if novelty_index is not None else NoveltyIndex()
+    names = sorted(template.param_grid)
+    grids = [template.param_grid[n] for n in names]
+    combos = list(itertools.product(*grids)) if names else [()]
+
+    instances: list[dict] = []
+    refuted: list[str] = []
+    surviving_known: list[str] = []
+    surviving_novel: list[str] = []
+    inconclusive: list[str] = []
+
+    for combo in combos:
+        pmap = dict(zip(names, combo))
+        cid = f"{template.family_id}[" + ",".join(f"{k}={v}" for k, v in pmap.items()) + "]"
+        try:
+            lhs = _subst_template(template.lhs_template, pmap)
+            rhs = _subst_template(template.rhs_template, pmap)
+        except Exception as exc:
+            inconclusive.append(cid)
+            instances.append({"params": pmap, "claim_id": cid, "status": "INCONCLUSIVE",
+                              "novelty_kind": None, "note": f"template error: {exc}"})
+            continue
+        art = assess_identity(cid, lhs, rhs, template.manifest, novelty_index=index,
+                              n_samples=n_samples, prec_dps=prec_dps)
+        instances.append({
+            "params": pmap, "claim_id": cid, "status": art.status,
+            "novelty_kind": art.search.match_kind if art.search else None,
+            "coverage_bound": art.search.coverage_bound if art.search else None,
+            "severity": art.severity,
+        })
+        if art.status == "REFUTED":
+            refuted.append(cid)
+        elif art.status == "SURVIVED_KNOWN":
+            surviving_known.append(cid)
+        elif art.status == "SURVIVED_NOVEL":
+            surviving_novel.append(cid)
+        else:
+            inconclusive.append(cid)
+
+    n = len(combos)
+    refuted_count = len(refuted)
+    survived = len(surviving_known) + len(surviving_novel)
+    inconclusive_count = len(inconclusive)
+    survival_rate = round(survived / n, 4) if n else 0.0
+
+    # total, deterministic verdict (refinement over the co-architect's draft: no gaps)
+    if n > 0 and refuted_count == n:
+        verdict: FamilyVerdict = "REFUTED_FAMILY"
+    elif refuted_count > 0:
+        verdict = "PARTIALLY_REFUTED"
+    elif n > 0 and inconclusive_count == 0:
+        verdict = "GRID_ALL_SURVIVED"
+    else:
+        verdict = "INCONCLUSIVE_DOMINANT"
+    universal_candidate = verdict == "GRID_ALL_SURVIVED" and n >= template.min_instances
+
+    return FamilyReport(
+        family_id=template.family_id, lhs_template=template.lhs_template,
+        rhs_template=template.rhs_template, grid_cardinality=n, instances=tuple(instances),
+        refuted=tuple(refuted), surviving_known=tuple(surviving_known),
+        surviving_novel=tuple(surviving_novel), inconclusive=tuple(inconclusive),
+        refuted_count=refuted_count, survival_rate=survival_rate,
+        family_verdict=verdict, universal_candidate=universal_candidate,
     )
