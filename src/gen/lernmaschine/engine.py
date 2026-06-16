@@ -95,11 +95,11 @@ def run_8_step_learning_cycle(
         # Baue echtes Fragment/Package für realistische Lücken (Naht)
         if build_full_mini_realization_package is not None:
             try:
-                pkg_dir = build_full_mini_realization_package([idee], package_name=package_name, run_id=run_id)
+                build_full_mini_realization_package([idee], package_name=package_name, run_id=run_id)
             except Exception:
-                pkg_dir = None
+                pass
         else:
-            pkg_dir = None
+            pass
         luecken = _jet_pack_canonical_luecken() if "jetpack" in idee.lower() else _generic_luecken(idee)
     else:
         idee = getattr(source, "source_idea", str(source)[:80])

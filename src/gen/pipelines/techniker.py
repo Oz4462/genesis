@@ -14,8 +14,7 @@ Naht: Outputs füttern Manufacturing-Check, Prüfstände und spätere Realisieru
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 from .architekt import SystemConcept
 from .ingenieur import IngenieurSpec

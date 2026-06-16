@@ -18,12 +18,11 @@ This demonstrates the power: the machine, under its own 4-Linsen + provenance di
 
 from __future__ import annotations
 
-import os
 import shutil
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # Core Genesis imports (deterministic, no LLM in the bridge core)
 from gen.lernmaschine.engine import (
@@ -34,12 +33,10 @@ from gen.lernmaschine.engine import (
 from gen.grenzverschiebung.development_front import (
     map_development_front,
     DevelopmentFrontMap,
-    Grenztyp,
 )
-from gen.cad.prototype_cad_builder import PrototypeSpec, build_prototype_cad
+from gen.cad.prototype_cad_builder import PrototypeSpec
 from gen.cad.manufacturing_check import check_manufacturing, ManufacturingCheck
 from gen.wissensbasis.store import (
-    FragmentStore,
     ProvenanceRecord,
     save_fragment,
     SourceConnectorRegistry,
@@ -179,7 +176,6 @@ _genesis_volume = round(assist_plate.part.volume / 1000, 2)
     real_stl = None
 
     try:
-        import build123d  # type: ignore
         g: dict[str, Any] = {}
         exec(code, g)
         live = g.get("assist_plate")

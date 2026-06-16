@@ -22,9 +22,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
-from ..core.state import Claim
-from ..physics_selection import select_physics_checks, CheckRecipe  # reuse existing selection
-from ..verification.units import parse_unit, unit_scale
 from ..cad.prototype_cad_builder import BuildArtifact
 
 # Quantum-inspired opt (numpy QAOA-style / tensor-grid) for inverse, bio, scheduling.
@@ -101,7 +98,6 @@ class SimulationRunner:
         loads = loads or {}
         material = material or {}
         cases: list[SimulationCase] = []
-        notes: list[str] = []
 
         # Smarter domain selection hint from physics_selection (concrete improvement)
         try:
@@ -250,9 +246,9 @@ class SimulationRunner:
 
         # Use existing fem logic where possible
         try:
-            from ..fem import beam_element_stiffness, rectangular_section_inertia
+            from ..fem import beam_element_stiffness
             # Simplified single-element approximation for the dominant load path
-            k = beam_element_stiffness(e_modulus, inertia, length)
+            beam_element_stiffness(e_modulus, inertia, length)
             # Very rough deflection prediction under end load (for illustration)
             deflection = (force * length**3) / (3 * e_modulus * inertia)
             stress = (force * length * 6) / (artifact.spec.bounding_box_hint_mm[1] * 8**2)  # approx
@@ -304,7 +300,7 @@ class SimulationRunner:
         area = (artifact.spec.bounding_box_hint_mm[1] * artifact.spec.bounding_box_hint_mm[2]) * 0.3  # effective cross section
 
         try:
-            from ..thermal import conductive_temperature_rise, peak_temperature
+            from ..thermal import conductive_temperature_rise
             # Prefer the conservative analytical for first version (honest bound)
             dt = conductive_temperature_rise(power, k, area, length)
             predicted = dt
@@ -352,10 +348,10 @@ class SimulationRunner:
         length = artifact.spec.bounding_box_hint_mm[0] * 0.9
         # Rough inertia from bounding box (real version would come from CAD section props)
         inertia = 8000.0  # mm^4 proxy for slender feature
-        area = artifact.spec.bounding_box_hint_mm[1] * 3.0  # rough
+        artifact.spec.bounding_box_hint_mm[1] * 3.0  # rough
 
         try:
-            from ..buckling import END_CONDITION_FACTORS, buckling_check
+            from ..buckling import END_CONDITION_FACTORS
             k_factor = END_CONDITION_FACTORS.get("pinned-pinned", 1.0)
             # Approximate critical load using the formula the module is built around
             p_cr = (3.1416 ** 2 * e_mod * inertia) / (k_factor * length) ** 2
@@ -371,7 +367,7 @@ class SimulationRunner:
 
         return SimulationCase(
             domain="buckling_euler",
-            description=f"Critical elastic buckling load for compression member (pinned-pinned conservative)",
+            description="Critical elastic buckling load for compression member (pinned-pinned conservative)",
             predicted_value=round(predicted, 1),
             predicted_unit=unit,
             tolerance=max(50.0, predicted * 0.15),
@@ -405,7 +401,7 @@ class SimulationRunner:
 
         try:
             from ..fatigue import endurance_limit, basquin_life
-            se = endurance_limit(uts)
+            endurance_limit(uts)
             # Very rough life estimate at given amplitude (Basquin inverse)
             # Assume typical exponents for demo
             n_f = basquin_life(amp, fatigue_strength_coeff=uts * 0.9, fatigue_strength_exponent=-0.085) if amp > 0 else 1e7
@@ -716,11 +712,11 @@ def co_sim_electronics_thermal(
     thermal loads into the mechanical simulation runner (multi-physics co-sim).
     This is one of the key "bahnbrechend" integrations the user requested.
     """
-    if electronics_to_thermal_loads is None:
+    if _elec_to_thermal is None:
         # Fallback if electronics not available
         return {"thermal_loads": {"default_power_w": 5.0}, "note": "electronics layer not wired"}
 
-    thermal_loads = electronics_to_thermal_loads(elec_sim)
+    thermal_loads = _elec_to_thermal(elec_sim)
     # If we have a base artifact, we can immediately run a thermal sim on it
     thermal_sim = None
     if base_artifact is not None and SimulationRunner is not None:

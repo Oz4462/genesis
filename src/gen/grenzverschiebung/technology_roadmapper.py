@@ -14,7 +14,7 @@ Später: Volle Verknüpfung mit technology_builder, breakthrough_watch, Wissensb
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

@@ -21,8 +21,7 @@ auditierten Build Package.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 from .architekt import SystemConcept, map_to_system_concept
 from .ingenieur import IngenieurSpec, map_to_ingenieur_spec
@@ -99,7 +98,8 @@ def build_realization_fragment(
     # Real mini package dir on disk (STL + REPORT) — first step toward auditiertes Realisierungspaket
     pkg_dir = None
     try:
-        import os, shutil
+        import os
+        import shutil
         from pathlib import Path
         pkg_root = Path("out") / "genesis_realization_fragments" / (run_id or "latest")
         pkg_root.mkdir(parents=True, exist_ok=True)
@@ -119,7 +119,7 @@ Printable: {mfg_check.printable}
 Issues: {mfg_check.issues}
 
 ## Offene Lücken
-{chr(10).join('- ' + l for l in open_luecken)}
+{chr(10).join('- ' + ln for ln in open_luecken)}
 """
         (pkg_root / "REPORT.md").write_text(report, encoding="utf-8")
 
@@ -138,7 +138,7 @@ Issues: {mfg_check.issues}
                 ingen_obj = locals().get("ingen") or globals().get("ingen") or None
                 if ingen_obj:
                     json.dump({
-                        "lastfaelle": [l.__dict__ for l in ingen_obj.lastfaelle],
+                        "lastfaelle": [lf.__dict__ for lf in ingen_obj.lastfaelle],
                         "material_hinweise": [m.__dict__ for m in ingen_obj.material_hinweise],
                         "toleranzen": [t.__dict__ for t in ingen_obj.toleranzen],
                         "failure_modes": [f.__dict__ for f in ingen_obj.failure_modes],
@@ -364,9 +364,6 @@ Real package dir: {pkg_root}
     manifest["regulatorik"] = "REGULATORIK.md"
     manifest["open_gaps"] = [item for f in fragments for item in getattr(f, "open_luecken", [])] + ["full live costs from Wissensbasis (stubbed for now per user)"]
 
-    # Wire Subsystem-Abstraktion (generalist, from LUMEN multi_domain if present)
-    if 'multi_domain_data' in locals() and multi_domain_data and multi_domain_data.get("subsystem_modules"):
-        manifest["subsystem_abstraction"] = [m.__dict__ for m in multi_domain_data["subsystem_modules"]]
     (pkg_root / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
     # Persist full package summary to existing Wissensbasis (light use, not full deepening)
@@ -398,7 +395,7 @@ Real package dir: {pkg_root}
         tdata = None
         if 'elec_pieces' in locals() and elec_pieces and elec_pieces.get('simulation_result'):
             tdata = getattr(elec_pieces['simulation_result'], 'transient_history', None) or (elec_pieces['simulation_result'].get('transient_history') if isinstance(elec_pieces.get('simulation_result'), dict) else None)
-        generate_standalone_viewer(ideas[0] if ideas else "general", multi_domain=multi_domain_data if 'multi_domain_data' in locals() else None, transient_data=tdata, elec_pieces=elec_pieces if 'elec_pieces' in locals() else None, output_path=str(pkg_root / "standalone_viewer.html"))
+        generate_standalone_viewer(ideas[0] if ideas else "general", multi_domain=None, transient_data=tdata, elec_pieces=elec_pieces if 'elec_pieces' in locals() else None, output_path=str(pkg_root / "standalone_viewer.html"))
     except Exception as e:
         print("Standalone viewer skipped:", e)
 
@@ -423,7 +420,6 @@ def _generate_visualization_dashboard(pkg_root, manifest, fragments, elec_pieces
 
     transient = getattr(sim, 'transient_history', None) or (sim.get('transient_history') if isinstance(sim, dict) else None) or {}
     emi = getattr(sim, 'emi_notes', None) or (sim.get('emi_notes') if isinstance(sim, dict) else None) or []
-    ac = getattr(sim, 'ac_results', None) or (sim.get('ac_results') if isinstance(sim, dict) else None) or {}
 
     # New internalized C data (auto-DRC, placement, harness, bio/actuators, wissensbasis recipes)
     drc = elec.get("internal_drc") or {}
@@ -466,14 +462,14 @@ canvas {{ background: #0f172a; border: 1px solid #475569; border-radius: 6px; wi
 pre {{ background: #0f172a; padding: 1rem; border-radius: 6px; overflow: auto; font-size: 0.85rem; }}
 a {{ color: #67e8f9; text-decoration: none; }} a:hover {{ text-decoration: underline; }}
 .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }}
-.note { font-size: 0.9rem; color: #94a3b8; font-style: italic; }
-#three-wrap { position: relative; width: 100%; height: 420px; background: #0f172a; border: 1px solid #475569; border-radius: 8px; overflow: hidden; }
-#three-canvas { display: block; width: 100%; height: 100%; }
-.three-ctrl { font-size: 0.72rem; padding: 3px 8px; margin: 2px; background: #1e2937; color: #e0f2fe; border: 1px solid #475569; border-radius: 4px; cursor: pointer; }
-.three-ctrl:hover { border-color: #67e8f9; }
-.provenance-panel { position: absolute; top: 8px; left: 8px; background: #0f172a; border: 1px solid #67e8f9; padding: 6px 8px; font-size: 0.7rem; max-width: 280px; border-radius: 6px; display: none; z-index: 10; color: #e0f2fe; }
-.xr-btn { background: #22d3ee; color: #0b1120; border: 0; padding: 4px 10px; border-radius: 4px; font-weight: 600; cursor: pointer; margin-left: 4px; }
-.exp-btn { background: #64748b; color: #0b1120; border: 0; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin: 1px; font-size: 0.7rem; }
+.note {{ font-size: 0.9rem; color: #94a3b8; font-style: italic; }}
+#three-wrap {{ position: relative; width: 100%; height: 420px; background: #0f172a; border: 1px solid #475569; border-radius: 8px; overflow: hidden; }}
+#three-canvas {{ display: block; width: 100%; height: 100%; }}
+.three-ctrl {{ font-size: 0.72rem; padding: 3px 8px; margin: 2px; background: #1e2937; color: #e0f2fe; border: 1px solid #475569; border-radius: 4px; cursor: pointer; }}
+.three-ctrl:hover {{ border-color: #67e8f9; }}
+.provenance-panel {{ position: absolute; top: 8px; left: 8px; background: #0f172a; border: 1px solid #67e8f9; padding: 6px 8px; font-size: 0.7rem; max-width: 280px; border-radius: 6px; display: none; z-index: 10; color: #e0f2fe; }}
+.xr-btn {{ background: #22d3ee; color: #0b1120; border: 0; padding: 4px 10px; border-radius: 4px; font-weight: 600; cursor: pointer; margin-left: 4px; }}
+.exp-btn {{ background: #64748b; color: #0b1120; border: 0; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin: 1px; font-size: 0.7rem; }}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 </head>
@@ -929,7 +925,7 @@ def generate_standalone_viewer(idea: str, multi_domain: dict | None = None, tran
     import json
     from pathlib import Path
     t_json = json.dumps(transient_data or {}, default=str)
-    d_json = json.dumps(multi_domain or {}, default=str, indent=2)
+    json.dumps(multi_domain or {}, default=str, indent=2)
     drc = (elec_pieces or {}).get("internal_drc") or {}
     placed = (elec_pieces or {}).get("auto_placement") or []
     routed = (elec_pieces or {}).get("routed_harness") or {}

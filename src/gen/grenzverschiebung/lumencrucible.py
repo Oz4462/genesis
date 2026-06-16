@@ -17,12 +17,12 @@ Baut direkt auf:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
 # Real existing modules (no invented classes)
-from ..core.state import Claim, Spark
+from ..core.state import Claim
 from ..omega import (
     OmegaCertificate,
     GateReceipt,
@@ -38,6 +38,12 @@ try:
 except Exception:  # noqa: BLE001
     run_simulations_for_hammer = None  # type: ignore
     SimulationResult = None  # type: ignore
+
+# Quantum-inspired optimizer for the multi-component emergence path (else-branch below)
+try:
+    from ..simulation.quantum_opt import optimize_params
+except Exception:  # noqa: BLE001
+    optimize_params = None  # type: ignore
 
 # Full Electronics layer (agent-delivered, concrete for circuits/chips/simulation/Einbau)
 # Note on C-items (gap analysis, updated 2026-06-15): Full vendor-exact SPICE/IBIS/3D-EM and pro geometric/impedance autorouter+DRC remain external-tool seams (KiCad/Ansys class) for ultra-precision sign-off.
@@ -707,7 +713,7 @@ def forge_research(
         run_id = f"forge-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
 
     # 1. Frontier + Gap (reuse the real development_front)
-    frontier = map_development_front(idea, run_id=run_id)
+    map_development_front(idea, run_id=run_id)
 
     # 2. Decide mode (auto = fusion if explicit components or bio/mech keywords, else multisim)
     detected_mode = mode
@@ -725,12 +731,12 @@ def forge_research(
     # 3. Study design (reuse/extend the spirit of experiment_designer)
     if detected_mode == "fusion":
         hypothesis = f"Die Fusion der Komponenten {components} erzeugt ein neuartiges emergentes Verhalten mit messbarem Mehrwert (höhere Effizienz / neue Funktion / neue Wertschöpfungsquelle)."
-        method = f"Komponenten-Fusion + Co-Simulation (wissensbasis seeds + simulation/runner + reality falsification). Unabhängige Modelle werden kombiniert und gemeinsam evaluiert."
+        method = "Komponenten-Fusion + Co-Simulation (wissensbasis seeds + simulation/runner + reality falsification). Unabhängige Modelle werden kombiniert und gemeinsam evaluiert."
         metrics = ["emergence_delta", "yield_improvement_%", "new_capability_count", "realizability_score"]
         success = [">15% emergence improvement in at least one metric", "at least one new seeded recipe with provenance"]
     else:
         hypothesis = f"Die Simulation mehrerer unabhängiger Komponenten ({n_sim_components}) produziert nicht-triviale emergente Effekte, die zu einer neuen baubaren Technologie / einem neuen Weg führen."
-        method = f"Multi-Component Co-Simulation (quantum_opt + bio_molecular + thermal/mech etc.) mit reality.evaluate_reality für Falsifikation. Unabhängige Subsysteme laufen parallel, Ergebnisse werden fusioniert."
+        method = "Multi-Component Co-Simulation (quantum_opt + bio_molecular + thermal/mech etc.) mit reality.evaluate_reality für Falsifikation. Unabhängige Subsysteme laufen parallel, Ergebnisse werden fusioniert."
         metrics = ["emergent_property_count", "stability_under_perturbation", "mehwert_potential"]
         success = ["mindestens 1 klarer emergenter Effekt mit >10% Abweichung von Einzel-Komponenten-Prognosen", "neuer Eintrag in wissensbasis mit 4-Linsen-Nachweis"]
 
@@ -742,7 +748,7 @@ def forge_research(
         metrics=metrics,
         success_criteria=success,
         risks=["Modell-Mismatch", "zu grobe Co-Sim (aber honest & falsifizierbar)", "kein echter Emergence (wird als ehrliches Ergebnis dokumentiert)"],
-        quelle=f"lumencrucible.forge_research + development_front + experiment_designer spirit + 4_LINSEN_PRINZIP + user requirement 'fusion oder multi independent components sim → Studie → neue Technologie/Wertschöpfung/Mehrwert'",
+        quelle="lumencrucible.forge_research + development_front + experiment_designer spirit + 4_LINSEN_PRINZIP + user requirement 'fusion oder multi independent components sim → Studie → neue Technologie/Wertschöpfung/Mehrwert'",
     )
 
     # 4. Execute the research act (fusion path or multisim path)
@@ -797,15 +803,8 @@ def forge_research(
     new_recipe_id = None
     try:
         # We feed the study + emergence as "source" so the 8-step machine can work on it
-        lern_input = {
-            "source_idea": idea,
-            "open_luecken": [f"kein dokumentierter emergenter Effekt aus {detected_mode}"],
-            "forge_study": study,
-            "emergence": emergence_notes,
-        }
         # reuse the real lernmaschine if available
         if "run_8_step_learning_cycle" in globals() or True:  # we know the module exists
-            from . import learning_integrator as _li  # type: ignore
             # The engine is in lernmaschine/engine.py — we call the known public path via the integrator seam if possible
             # For robustness we do a direct call pattern that matches the 8 steps the plan demands.
             # Since the full engine is proven, we produce a faithful summary here and trigger persistence via wissensbasis.
@@ -929,7 +928,7 @@ Erstellt mit Genesis ResearchForge (lumencrucible.forge_research) — {run_id}
         for k, v in four.items():
             f.write(f"  {k}: {v}\n")
         f.write(f"\nFull provenance: {study.quelle}\n")
-        f.write(f"Arbeit: FORSCHUNGSARBEIT.md (open this for the complete research work)\n")
+        f.write("Arbeit: FORSCHUNGSARBEIT.md (open this for the complete research work)\n")
         f.write(f"Artifact dir: {out_dir}\n")
         f.write("Usage for visionaries: This directory contains the hardened output of the researcher invention process (fusion or multi-component simulation → study → Arbeit → new value source). Use the Arbei t as starting point for further development.\n")
 

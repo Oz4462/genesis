@@ -15,7 +15,7 @@ Später: Volle Integration mit Wissensbasis + teststand_architect.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

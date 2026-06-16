@@ -14,7 +14,7 @@ Naht: Nimmt DFM-Report (from cad.advanced), prior CAD/Assembly real artifacts, W
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Any
 
 from .architekt import SystemConcept

@@ -14,7 +14,7 @@ Später: Volle Verknüpfung mit boundary_reviser, Wissensbasis, live Literatur- 
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

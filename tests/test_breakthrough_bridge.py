@@ -8,7 +8,6 @@ Lern revision, DFM gate, provenance, and 4-Linsen discipline (by construction).
 import os
 from pathlib import Path
 
-import pytest
 
 from gen.extensions.breakthrough_bridge import (
     BreakthroughReport,

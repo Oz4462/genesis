@@ -14,8 +14,7 @@ Naht: Nimmt vorherige Outputs, erzeugt Physik-Modell + Unsicherheitsbudget + Fal
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 from .architekt import SystemConcept
 from .ingenieur import IngenieurSpec

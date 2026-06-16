@@ -13,8 +13,7 @@ Später: Integration mit CAD-Builder (erzeugt PrototypeSpec aus den Baugruppen) 
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)

@@ -61,17 +61,14 @@ Starter: concrete for Jetpack (48 V main drive 1200 W, 12 V tether, 5 V control)
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
-import numpy as np  # via circuit; already a Genesis dep for δ-physics
 
 from .circuit import (
     GROUND,
     Resistor,
     VoltageSource,
-    CurrentSource,
     solve_dc,
-    solve_dc_nonlinear,
 )
 from .core.state import (
     BomDomain,
@@ -551,7 +548,7 @@ def run_electronics_simulation(
     # Compute dissipations (conservative)
     # Battery internal + path + load (load p is "useful", path is loss)
     p_path = (main_i ** 2) * 0.015
-    p_load = main_v * main_i * 0.96  # ~4 % system loss typical for ESC+motors
+    main_v * main_i * 0.96  # ~4 % system loss typical for ESC+motors
     p_dissip = {
         "bat48": p_path * 0.3,
         "fuse_main": p_path * 0.4,

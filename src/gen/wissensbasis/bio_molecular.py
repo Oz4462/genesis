@@ -17,9 +17,9 @@ All core uses pure numpy (core dep). Coarse-grain approximations chosen for loca
 from __future__ import annotations
 
 import numpy as np
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Optional, Sequence
+from typing import Any, Optional
 
 
 def _make_provenance(detail: str, run_id: Optional[str] = None) -> dict[str, Any]:

@@ -13,10 +13,9 @@ Naht: Nimmt SystemConcept, erzeugt mechanische Daten + explizite CAD-Requirement
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
-from .architekt import SystemConcept, AssemblyConcept
+from .architekt import SystemConcept
 
 
 @dataclass(frozen=True)

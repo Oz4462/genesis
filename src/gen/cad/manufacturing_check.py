@@ -20,9 +20,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import os
-from typing import Optional
 
-from .prototype_cad_builder import BuildArtifact, PrototypeSpec
+from .prototype_cad_builder import BuildArtifact
+from gen.dfm import (
+    FDM_MIN_WALL_MM,
+    FDM_MIN_HOLE_DIAMETER_MM,
+)
 
 
 @dataclass(frozen=True)
@@ -123,10 +126,6 @@ def check_manufacturing(
 # Jetpack example triggers concrete issues (thin walls, size, layer strength if load path noted).
 # Generic: honest gaps for unmodeled processes.
 
-from gen.dfm import (
-    FDM_MIN_WALL_MM,
-    FDM_MIN_HOLE_DIAMETER_MM,
-)
 # Printability rules documented in module (we implement the key numeric checks here for determinism;
 # full orientation/bridge logic would live in orientation.py but we reference the thresholds).
 

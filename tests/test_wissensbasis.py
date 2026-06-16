@@ -3,9 +3,7 @@
 Siehe GENESIS_PLATFORM_PLAN.md §3.5.
 """
 
-import os
 import tempfile
-from pathlib import Path
 from gen.pipelines.architekt import map_to_system_concept
 from gen.pipelines.ingenieur import map_to_ingenieur_spec
 from gen.pipelines.integrator import build_realization_fragment
@@ -21,7 +19,7 @@ def test_store_save_load_fragment_with_provenance():
 
     # Verwende temporäres Verzeichnis für Test
     with tempfile.TemporaryDirectory() as tmp:
-        store = FragmentStore(base_dir=tmp)
+        FragmentStore(base_dir=tmp)
         save_fragment(frag, key="jetpack_tether", source="test_integrator", quelle="GENESIS_TODO + Integrator")
         loaded = load_fragment("jetpack_tether")
         assert loaded is not None
@@ -62,8 +60,7 @@ def test_store_compatibility_with_specs():
 def test_wissensbasis_depth_query_registry_and_recipes():
     """Depth extensions: query_fragments, list_by_idea, SourceConnectorRegistry, Material/CADRecipe save + query."""
     from gen.wissensbasis.store import (
-        query_fragments, list_by_idea, save_material, save_cad_recipe,
-        get_registry, MaterialSpec, CADRecipe, FragmentStore, ProvenanceRecord,
+        query_fragments, list_by_idea, get_registry, MaterialSpec, CADRecipe, FragmentStore, ProvenanceRecord,
     )
     import tempfile
 
@@ -118,7 +115,7 @@ def test_wissensbasis_depth_query_registry_and_recipes():
 
     # query_by_connector on store (after seeding some with quelle)
     # (in this test scope, the previous saves in global may not be in local store, so tolerant)
-    by_conn = store.query_by_connector("local_out") if hasattr(store, "query_by_connector") else []
+    store.query_by_connector("local_out") if hasattr(store, "query_by_connector") else []
     # Note: query_by_connector is on registry in this impl; store integration is via provenance in query_fragments
     assert True  # structural test passes via fetch above; full index in follow-up stone
 
@@ -129,8 +126,7 @@ def test_bio_molecular_numpy_leap_and_store_integration():
     Includes negative case (invalid params -> graceful handled or sensible output).
     """
     from gen.wissensbasis.store import (
-        FragmentStore, ProvenanceRecord, ComponentRecipe, save_component_recipe,
-        internal_actuator_sim, seed_bio_molecular_components, query_bio_molecular_recipes,
+        FragmentStore, ProvenanceRecord, ComponentRecipe, internal_actuator_sim, seed_bio_molecular_components, query_bio_molecular_recipes,
     )
     import tempfile
 
@@ -176,7 +172,7 @@ def test_bio_molecular_numpy_leap_and_store_integration():
         for sid in seeded_ids:
             assert sid.startswith(("rotary_molecular", "repressilator", "quorum", "temporal_bio"))
 
-        bio_recs = query_bio_molecular_recipes(store=store)
+        query_bio_molecular_recipes(store=store)
         # May be 0 if seeds used global default; still exercise path and filter logic
         # Re-query via global convenience after seeds (seeds use default store)
         bio_recs_global = query_bio_molecular_recipes()

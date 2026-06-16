@@ -8,7 +8,6 @@ from gen.grenzverschiebung.boundary_reviser import RevisedFrontMap
 from gen.grenzverschiebung.safety_ladder import build_safety_ladder
 from gen.grenzverschiebung.learning_integrator import (
     apply_learning_cycle,
-    LearningDelta,
 )
 
 

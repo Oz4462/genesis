@@ -58,7 +58,7 @@ def optimize_params(
     state = np.ones(len(flat_coords), dtype=complex) / np.sqrt(len(flat_coords))
     for p in range(n_layers):
         gamma = np.linspace(0, np.pi, resolution)[p % resolution]
-        beta = np.linspace(0, np.pi/2, resolution)[p % resolution]
+        np.linspace(0, np.pi/2, resolution)[p % resolution]
         c_norm = (costs - costs.min()) / (costs.max() - costs.min() + 1e-12)
         phase = np.exp(-1j * gamma * c_norm)
         state = state * phase

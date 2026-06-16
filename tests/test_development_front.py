@@ -3,7 +3,6 @@
 Siehe GENESIS_PLATFORM_PLAN.md §3.3.
 """
 
-import pytest
 
 from gen.grenzverschiebung.development_front import (
     DevelopmentFrontMap,

@@ -5,10 +5,9 @@
 - Generic Fallback: ehrliche Lücken für beliebige Idee, keine Überclaims.
 """
 
-import os
 from pathlib import Path
 from gen.lernmaschine.engine import run_8_step_learning_cycle, LearningCycleResult
-from gen.wissensbasis.store import list_fragments, load_fragment
+from gen.wissensbasis.store import list_fragments
 
 
 def test_8step_jetpack_produces_delta_and_writes_to_store():
@@ -70,8 +69,6 @@ def test_e2e_full_chain_jetpack_with_lern_and_real_package():
     from gen.pipelines.integrator import build_full_mini_realization_package
     from gen.lernmaschine.engine import run_8_step_learning_cycle
     from gen.wissensbasis.store import list_fragments
-    from gen.cad.manufacturing_check import check_manufacturing
-    from gen.cad.prototype_cad_builder import BuildArtifact  # for type
 
     ideas = [
         "Ich will ein Jetpack bauen, das Menschen sicher über einer Menge frei fliegen lässt.",
@@ -116,14 +113,18 @@ def test_e2e_full_chain_jetpack_with_lern_and_real_package():
         from gen.pipelines.regulatorik import map_to_regulatorik_spec
         from gen.pipelines.wirtschaft import map_to_wirtschaft_spec
         from gen.grenzverschiebung.development_front import map_development_front
+        from gen.pipelines.architekt import map_to_system_concept
+        from gen.pipelines.ingenieur import map_to_ingenieur_spec
 
-        # Run additional pipelines for full chain
-        soft = map_to_software_spec(c, i, run_id="e2e-full-001")
-        regu = map_to_regulatorik_spec(c, i, run_id="e2e-full-001")
-        wirt = map_to_wirtschaft_spec(c, i, run_id="e2e-full-001")
+        # Run additional pipelines for full chain (derive concept + ingenieur from the last idea)
+        c = map_to_system_concept(idee, run_id="e2e-full-001")
+        i = map_to_ingenieur_spec(c, run_id="e2e-full-001")
+        map_to_software_spec(c, i, run_id="e2e-full-001")
+        map_to_regulatorik_spec(c, i, run_id="e2e-full-001")
+        map_to_wirtschaft_spec(c, i, run_id="e2e-full-001")
         # Lern apply on frontier
         front = map_development_front(idee, run_id="e2e-full-001")
-        front_rev = apply_learning_to_frontier(res, front)
+        apply_learning_to_frontier(res, front)
         # Package has the complete artifacts (from Realisierungspaket complete)
         assert (pkg_path / "SCHALTPLAN.md").exists()
         assert (pkg_path / "MONTAGEANLEITUNG.md").exists()

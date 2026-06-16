@@ -10,10 +10,8 @@ Prüft:
 - 4 Linsen / Provenance überall
 """
 
-import os
 from pathlib import Path
 
-import pytest
 
 from gen.grenzverschiebung.lumencrucible import LumenCrucible, process_dream, LumenHammer, forge_research
 

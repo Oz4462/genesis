@@ -14,7 +14,7 @@ Später: Volle Verknüpfung mit safety_ladder, learning_integrator, Wissensbasis
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from .development_front import ExperimentleiterSchritt

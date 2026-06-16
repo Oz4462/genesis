@@ -17,8 +17,8 @@ Grenzverschiebung: Recovery, Energy, Safety-Ladder S0-S2).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional
+import os
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
@@ -132,7 +132,6 @@ except Exception as e:
 
         # Wenn build123d zur Build-Zeit verfügbar ist: echtes Part bauen + realen Export durchführen
         try:
-            import build123d  # type: ignore
             g: dict = {}
             exec(code, g)
             live = g.get("anchor_plate")
@@ -140,8 +139,8 @@ except Exception as e:
                 live_part = live.part
                 volume = round(live_part.volume / 1000, 2)
                 real_stl_path = g.get("_genesis_stl_path")
-                if real_stl_path and os.path.exists(real_stl_path):
-                    exports["stl"] = real_stl_path  # type: ignore
+                if real_stl_path and not os.path.exists(real_stl_path):
+                    real_stl_path = None  # exported path not on disk → use fallback hint below
         except Exception:
             pass  # nur Code-Emission, kein Hard-Fail
 

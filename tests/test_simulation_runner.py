@@ -9,7 +9,6 @@ All outputs must carry provenance and be usable for reality.py falsification.
 
 from gen.simulation.runner import (
     SimulationRunner,
-    run_simulations_for_design,
     run_simulations_for_hammer,
     build_simulation_report,
 )
