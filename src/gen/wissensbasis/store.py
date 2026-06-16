@@ -126,12 +126,87 @@ def list_fragments() -> list[str]:
 
 # === Depth extensions (Wissensbasis §3.5 + TODO) ===
 
+
+class StoragePolicyViolation(Exception):
+    """Persisting content would violate a source's storage policy.
+
+    Fail-closed (GENESIS Kernprinzip 2): Genesis refuses to store full text or
+    snippets unless the source's SourcePolicy explicitly permits it
+    (PLAN A4/B2/B3: "Discovery ja, Vollspeicher nein" / "Volltext nur speichern,
+    wenn erlaubt/lizenziert").
+    """
+
+
+@dataclass(frozen=True)
+class SourcePolicy:
+    """License / cost / storage policy attached to a SourceConnector (PLAN A4/B3).
+
+    Decided BEFORE any fetch or store so Genesis never silently persists content
+    it is not allowed to keep. Defaults are fail-closed: full text is NOT stored
+    unless a license explicitly permits it. Short evidence snippets are allowed by
+    default (Evidence Extraction over data hoarding, PLAN B4) — set
+    ``store_snippets=False`` for sources where even excerpts may not be cached.
+    """
+    license: str = "unknown"            # "open-access" | "metadata-only" | "proprietary" | "unknown"
+    store_fulltext: bool = False        # fail-closed default
+    store_snippets: bool = True
+    ttl_days: int | None = None         # persistent-cache lifetime; None = do not cache persistently
+    cost_model: str = "free"            # "free" | "per_call" | "subscription"
+    rate_limit_per_min: int | None = None
+    quelle: str | None = None
+
+    def may_store(self, content_kind: str) -> bool:
+        """True iff persisting ``content_kind`` ('fulltext' | 'snippet') is allowed.
+
+        Any other kind is denied (fail-closed; no guessed default for facts).
+        """
+        if content_kind == "fulltext":
+            return self.store_fulltext
+        if content_kind == "snippet":
+            return self.store_snippets
+        return False
+
+
+# A missing policy is treated as deny-all (never store without an explicit decision).
+_DENY_ALL_POLICY = SourcePolicy(
+    license="unknown",
+    store_fulltext=False,
+    store_snippets=False,
+    quelle="default deny-all (no SourcePolicy declared)",
+)
+
+
+def assert_may_store(policy: Optional[SourcePolicy], content_kind: str) -> None:
+    """Fail-closed gate: raise StoragePolicyViolation unless ``policy`` permits
+    persisting ``content_kind`` ('fulltext' | 'snippet').
+
+    A missing policy (None) is deny-all, and any unknown content kind is denied
+    — there is no guessed default for facts (PLAN A4/B2/B3, GENESIS Kernprinzip 2).
+    """
+    effective = policy or _DENY_ALL_POLICY
+    if content_kind not in ("fulltext", "snippet"):
+        raise StoragePolicyViolation(
+            f"unknown content_kind {content_kind!r} — fail closed (no guessed storage default)"
+        )
+    if not effective.may_store(content_kind):
+        raise StoragePolicyViolation(
+            f"storing {content_kind!r} not permitted under license {effective.license!r} "
+            f"(store_fulltext={effective.store_fulltext}, store_snippets={effective.store_snippets})"
+        )
+
+
 @dataclass(frozen=True)
 class SourceConnector:
-    """Registrierter Connector für externe Quellen (arxiv, web, local, etc.)."""
+    """Registrierter Connector für externe Quellen (arxiv, web, local, etc.).
+
+    ``policy`` (optional) carries the license/cost/storage rules checked by
+    ``assert_may_store`` before any fetched content is persisted. A connector
+    without a policy is treated as deny-all by the storage gate.
+    """
     name: str
     kind: str  # e.g. "arxiv", "web", "local_file", "material_db"
     endpoint_hint: str | None = None
+    policy: "SourcePolicy | None" = None
     quelle: str | None = None
 
 
@@ -239,15 +314,29 @@ class SourceConnectorRegistry:
 
 # Globale Registry (kann in späteren Steinen mit echten Connectors gefüllt werden)
 _default_registry = SourceConnectorRegistry()
+
+# Storage policies (PLAN A4/B3): external sources by license; internal = own Genesis
+# output and is fully storable. arXiv is open-access (perpetual non-exclusive license),
+# so abstracts/papers may be cached; a future proprietary patent/datasheet source would
+# get license="metadata-only" + store_fulltext=False.
+_INTERNAL_POLICY = SourcePolicy(
+    license="internal", store_fulltext=True, store_snippets=True,
+    quelle="Genesis-internal data (own output) — fully storable",
+)
+_ARXIV_POLICY = SourcePolicy(
+    license="open-access", store_fulltext=True, store_snippets=True, ttl_days=90,
+    quelle="arXiv open-access (perpetual, non-exclusive distribution license)",
+)
+
 # Seed mit bekannten (für Naht und Demos)
-_default_registry.register(SourceConnector("arxiv", "arxiv", "https://arxiv.org", quelle="GENESIS_PLATFORM_PLAN.md §3.5 + tools/arxiv_backend"))
-_default_registry.register(SourceConnector("local_out", "local_file", "out/", quelle="Realization packages + wissensbasis JSONs"))
-_default_registry.register(SourceConnector("materials", "material_db", "internal", quelle="GENESIS_PLATFORM_PLAN.md §3.5 + MaterialSpec"))
-_default_registry.register(SourceConnector("components", "component_db", "internal", quelle="Wissensbasis-Seeding for real electronic + mechanical components (bahnbrechend stone)"))
+_default_registry.register(SourceConnector("arxiv", "arxiv", "https://arxiv.org", policy=_ARXIV_POLICY, quelle="GENESIS_PLATFORM_PLAN.md §3.5 + tools/arxiv_backend"))
+_default_registry.register(SourceConnector("local_out", "local_file", "out/", policy=_INTERNAL_POLICY, quelle="Realization packages + wissensbasis JSONs"))
+_default_registry.register(SourceConnector("materials", "material_db", "internal", policy=_INTERNAL_POLICY, quelle="GENESIS_PLATFORM_PLAN.md §3.5 + MaterialSpec"))
+_default_registry.register(SourceConnector("components", "component_db", "internal", policy=_INTERNAL_POLICY, quelle="Wissensbasis-Seeding for real electronic + mechanical components (bahnbrechend stone)"))
 # Internal "live-like" connectors (C-item internalized: no net dep for core "discovery"; richer + always available + composable = besser als vorher)
-_default_registry.register(SourceConnector("synthetic_subsystem", "synthetic", "internal", quelle="Internal live-like composer for general + bio + energy + distributed ideas (C internalized)"))
-_default_registry.register(SourceConnector("bio_energy", "bio_actuator", "internal", quelle="Full internal bio/chem/energy actuator models + recipes (bio now fully in per user)"))
-_default_registry.register(SourceConnector("physics_recipe", "physics", "internal", quelle="Internal deterministic physics/actuator sim hints for any domain"))
+_default_registry.register(SourceConnector("synthetic_subsystem", "synthetic", "internal", policy=_INTERNAL_POLICY, quelle="Internal live-like composer for general + bio + energy + distributed ideas (C internalized)"))
+_default_registry.register(SourceConnector("bio_energy", "bio_actuator", "internal", policy=_INTERNAL_POLICY, quelle="Full internal bio/chem/energy actuator models + recipes (bio now fully in per user)"))
+_default_registry.register(SourceConnector("physics_recipe", "physics", "internal", policy=_INTERNAL_POLICY, quelle="Internal deterministic physics/actuator sim hints for any domain"))
 
 # === Component Seeding for Wissensbasis (Chosen bahnbrechender Punkt: Wissensbasis-Seeding für echte elektronische Components + Full Library + Closed-Loop Feedback + Pipeline Hardening) ===
 
@@ -439,7 +528,7 @@ def suggest_inverse_design_components(requirements: dict[str, Any], kind: str | 
         if ok:
             matched.append(r)
     return matched[:5]  # top N for LUMEN / integrator use in co-design
-_default_registry.register(SourceConnector("suppliers", "supplier", "internal", quelle="GENESIS_PLATFORM_PLAN.md §3.5 + cost model"))
+_default_registry.register(SourceConnector("suppliers", "supplier", "internal", policy=_INTERNAL_POLICY, quelle="GENESIS_PLATFORM_PLAN.md §3.5 + cost model"))
 
 
 # Material & CAD-Rezept Beispiele (strukturierte Speicherung per §3.5)
