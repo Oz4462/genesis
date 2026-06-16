@@ -152,6 +152,24 @@ class UnsourcedSourcingError(GenesisError):
         )
 
 
+class EvidenceIntegrityError(GenesisError):
+    """Raised when an EvidenceValue is constructed without source, unit, or validity range.
+
+    The Bauwelle-B4 pendant of UnsourcedClaimError for *quantitative* evidence: a
+    number extracted from a source is only a usable fact if it carries provenance,
+    a unit (use 'dimensionless' for ratios/counts), and a stated applicability
+    domain. A unitless or context-free number is the Mars-Climate-Orbiter failure
+    class — structurally impossible in GENESIS (CLAUDE.md §1; PLAN B4).
+    """
+
+    def __init__(self, claim_text: str, missing: str) -> None:
+        super().__init__(
+            f"EvidenceValue {claim_text!r} rejected: {missing}. A quantitative "
+            "evidence value without source, unit and validity range cannot exist "
+            "in GENESIS (PLAN B4 / Kernprinzip 1)."
+        )
+
+
 class UngroundedValueError(GenesisError):
     """Raised when a GROUNDED Quantity is constructed without any grounding claim.
 

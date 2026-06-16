@@ -34,6 +34,7 @@ from .store import (
     seed_bio_molecular_components,
     query_bio_molecular_recipes,
 )
+from .evidence import EvidenceValue, extract_evidence_value
 
 # Bio-molecular leap (numpy 2036 local fidelity) — re-export for generalist access
 try:
@@ -64,6 +65,8 @@ __all__ = [
     "SourcePolicy",
     "StoragePolicyViolation",
     "assert_may_store",
+    "EvidenceValue",
+    "extract_evidence_value",
     "MaterialSpec",
     "CADRecipe",
     "query_fragments",
