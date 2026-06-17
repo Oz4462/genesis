@@ -183,10 +183,17 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
     real geprüft; Dual-Threshold Industrie-Obergrenze 25mm-Issue vs. Shop-Cap 12.7mm-Gap; Form/Feature/Bridging/
     Kerf als Gaps). `dfm.py`-Laser-Konstanten + `laser_sheet_gaps()`. Grok 2 Runden + Bestätigung (0 STILL/0 NEW),
     SendCutSend-Dicke selbst verifiziert. 3 neue Tests (inkl. no-silent-band), volle Suite 1211 grün. BUILD_LOG dok.
-  - [ ] Stein 3 PCB-DFM (Trace/Via/Clearance gegen Fertiger-Regeln; Naht zu `electronics.py`).
+  - [x] **Stein 3 PCB-DFM (2026-06-18)**: ehrlichster Stein — ein PCB ist ein 2D-Kupfer-Layout, der `BuildArtifact`
+    ein Solid OHNE Kupfer-Geometrie → ALLE Fertiger-Regeln Gaps, `printable=False` (nie zertifizierbar). Erfundene
+    `trace_min_mm:0.2`/`via_min:0.3` + rückwärtige Namens-Logik raus. `dfm.py`: gequellte JLCPCB/IPC-2221-Konstanten +
+    echtes `ipc2221_trace_width_mm()` (gg. Standardwert getestet) + `pcb_dfm_gaps()`; Referenz-Caps NESTED + `evaluated:False`.
+    Grok 3 Runden (6+3+1 Lücken, je gg. JLCPCB selbst verifiziert), 2 neue Tests, volle Suite 1213 grün. BUILD_LOG dok.
   - [ ] Stein 4 echtes Kostenmodell (statt `cost_stub`/`cost_model_stub` — Material+Zeit+Prozess, gequellt).
   - [ ] Stein 5 G-Code real (statt `pipelines/fertigungs.py`-Text-Stub).
   - [ ] Stein 6 KiCad-Adapter real (statt `generate_kicad_schematic_stub`, `electronics.py:824`).
+  - Nebenfund (Stein 3): `electronics.py:run_internal_drc` nutzt unbelegte Magic-Numbers (`trace_a_per_mm2=12.0`
+    Harness-Draht-Stromdichte ≠ PCB-Trace, `min_clearance_mm=0.8`, `max_power_density=2.5`, hardcodierte Board-Fläche
+    150cm²) — tiefe Elektronik-DRC, bewusst nicht in Stein 3 angefasst → Review-Schritt 7-9 (electronics/circuit).
   - Nebenfund: FDM-`hole_hint=3.0` ist ein Fake-Input (separater kleiner Fix).
 - Review-Kampagne **Schritt 7-9 offen** (Reihenfolge oben): physics_validation + 27 Validatoren + fem*/modal/dfm/
   orientation/mesh_integrity/brep/circuit → export/+costing+completeness+software → pipelines/+integration/+grenzverschiebung/.

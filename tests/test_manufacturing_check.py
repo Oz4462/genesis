@@ -268,3 +268,59 @@ def test_laser_thickness_band_is_an_equipment_gap_not_a_pass():
     assert not any("job-shop" in g for g in laser2.gaps)
     assert "kerf" not in laser2.details                    # old bare 'kerf' key gone
     assert "kerf_mm_typical" in laser2.details and "source" in laser2.details
+
+
+# === PCB-DFM honesty stone (Teil 2, Stein 3, sourced rules) ===
+# A PCB is a 2D copper layout (traces/vias/nets), NOT a mechanical solid. The CAD
+# artifact carries no copper geometry, so NO PCB fab rule is evaluable from it —
+# all are declared as gaps with sourced fab-capability references; never a silent
+# pass. Sources: JLCPCB capabilities + IPC-2221 trace formula.
+
+def test_pcb_is_all_gaps_on_a_mechanical_solid_not_a_vacuous_pass():
+    """A mechanical CAD artifact carries no copper geometry, so NO PCB rule is
+    evaluable — all gaps, never printable=True. The old invented trace/via numbers
+    and the name-based vacuous pass are gone; sourced fab references remain."""
+    from gen.cad.manufacturing_check import check_advanced_dfm
+    from gen.dfm import PCB_MIN_TRACE_MM
+
+    # a generic part (no electronics name) used to get PCB printable=True (vacuous)
+    rep = check_advanced_dfm(_artifact("Generic Bracket", (40, 30, 10), 3.0))
+    pcb = next(p for p in rep.processes if p.process == "PCB")
+    assert pcb.printable is False          # not certifiable from a solid -> honest
+    assert pcb.issues == [] and pcb.gaps   # all gaps, no fabricated blocker
+    text = " ".join(pcb.gaps).lower()
+    assert "trace" in text and "via" in text
+    assert "trace_min_mm" not in pcb.details                     # old invented key gone
+    assert "via_min" not in pcb.details                          # old invented key gone
+    assert "source" in pcb.details
+    # the reference caps must NOT read as evaluated results: flagged + nested + tier named
+    assert pcb.details.get("evaluated") is False
+    assert "capability_tier" in pcb.details
+    caps = pcb.details["reference_capabilities"]                 # nested away from any board value
+    assert isinstance(caps, dict)
+    assert caps["min_trace_mm"] == PCB_MIN_TRACE_MM              # sourced reference
+    # an umbrella gap states the WHOLE PCB DRC is un-evaluable (not just the listed rules)
+    assert any("entire" in g.lower() or "no copper layout" in g.lower() for g in pcb.gaps)
+    # conductor spacing and copper-to-edge are DISTINCT rules, not conflated
+    spacing_gap = next(g for g in pcb.gaps if "conductor spacing" in g.lower())
+    edge_gap = next(g for g in pcb.gaps if "copper-to-edge" in g.lower())
+    assert spacing_gap is not edge_gap
+    assert "0.127" in spacing_gap and "0.127" not in edge_gap   # 0.127 is spacing, not edge
+
+
+def test_ipc2221_trace_width_matches_the_standard_and_fails_loud():
+    """The IPC-2221 trace-width primitive must match the published value (a 1A trace
+    at 10C rise on 1oz external copper needs ~0.30mm / 12mil), make internal layers
+    wider than external, grow with current, and fail loud on non-positive inputs."""
+    import pytest
+    from gen.dfm import ipc2221_trace_width_mm
+
+    w = ipc2221_trace_width_mm(1.0, 10.0, 1.0, external=True)
+    assert 0.27 < w < 0.33                                  # ~0.30mm, the IPC-2221 value
+    # internal layers run hotter -> need a wider trace than external for the same I
+    assert ipc2221_trace_width_mm(1.0, external=False) > ipc2221_trace_width_mm(1.0, external=True)
+    # more current -> wider trace
+    assert ipc2221_trace_width_mm(10.0) > ipc2221_trace_width_mm(1.0)
+    for bad in [(0.0, 10.0, 1.0), (1.0, 0.0, 1.0), (1.0, 10.0, 0.0)]:
+        with pytest.raises(ValueError):
+            ipc2221_trace_width_mm(*bad)

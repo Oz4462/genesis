@@ -40,6 +40,17 @@ from gen.dfm import (
     LASER_KERF_MAX_MM,
     LASER_DFM_SOURCE,
     laser_sheet_gaps,
+    PCB_MIN_TRACE_MM,
+    PCB_MIN_SPACING_MM,
+    PCB_MIN_VIA_DRILL_MM,
+    PCB_RECOMMENDED_VIA_DRILL_MM,
+    PCB_MIN_ANNULAR_RING_MM,
+    PCB_MIN_COPPER_TO_EDGE_MM,
+    PCB_MAX_VIA_ASPECT_RATIO,
+    PCB_CAPABILITY_TIER,
+    PCB_DFM_SOURCE,
+    ipc2221_trace_width_mm,
+    pcb_dfm_gaps,
 )
 
 
@@ -331,19 +342,40 @@ def check_advanced_dfm(
         cost_hint=None,  # no laser cost model yet — separate stone (DOC_CODE_DRIFT §8)
     ))
 
-    # PCB stub (electronics path from Elektriker)
-    pcb_issues = []
-    # If the part name hints at electronics (from Elektriker Naht)
-    if "tether" in name.lower() or "electronic" in name.lower() or "control" in name.lower():
-        pcb_issues.append("PCB: requires separate board; this is mechanical mount — check mounting holes for M2.5+")
-    pcb_printable = len(pcb_issues) == 0
+    # PCB — a 2D COPPER layout, NOT a mechanical solid (dfm.py). The mechanical CAD
+    # artifact carries no copper geometry (traces/vias/nets), so NO PCB fab rule is
+    # evaluable from it: a real PCB DRC needs a routed layout (Gerber/KiCad) — the
+    # electronics-layer seam (electronics.py netlist/DRC). All rules are declared as
+    # gaps with sourced fab-capability references; never a silent/name-based pass.
+    pcb_gaps = pcb_dfm_gaps()
     processes.append(ProcessDFM(
         process="PCB",
-        printable=pcb_printable,
-        issues=pcb_issues,
-        details={"trace_min_mm": 0.2, "via_min": 0.3},
-        cost_hint="See Elektriker BOM for board cost",
-        qa_hints=["ERC/DRC", "impedance if high speed"],
+        printable=False,  # a PCB cannot be certified from a mechanical solid
+        issues=[],
+        gaps=pcb_gaps,
+        details={
+            # nothing here is measured from this artifact — these are reference fab
+            # capabilities, nested so a flat scan cannot misread them as board values.
+            "evaluated": False,
+            "capability_tier": PCB_CAPABILITY_TIER,
+            "reference_capabilities": {
+                "min_trace_mm": PCB_MIN_TRACE_MM,
+                "min_spacing_mm": PCB_MIN_SPACING_MM,
+                "min_copper_to_edge_mm": PCB_MIN_COPPER_TO_EDGE_MM,
+                "min_via_drill_mm": PCB_MIN_VIA_DRILL_MM,
+                "recommended_via_drill_mm": PCB_RECOMMENDED_VIA_DRILL_MM,
+                "min_annular_ring_mm": PCB_MIN_ANNULAR_RING_MM,
+                "max_via_aspect_ratio": PCB_MAX_VIA_ASPECT_RATIO,
+                # a concrete IPC-2221 reference point (computed, sourced) — a guide,
+                # NOT this artifact's value (the spec carries no net currents).
+                "ipc2221_trace_1A_10C_1oz_mm": round(
+                    ipc2221_trace_width_mm(1.0, 10.0, 1.0, external=True), 3),
+            },
+            "note": "PCB DFM needs a routed layout (Gerber/KiCad); board path is electronics.py",
+            "source": PCB_DFM_SOURCE,
+        },
+        cost_hint=None,  # no PCB cost model yet — separate stone (DOC_CODE_DRIFT §8)
+        qa_hints=["ERC/DRC on the real netlist", "impedance control if high-speed"],
     ))
 
     overall = any(p.printable for p in processes)  # conservative: if any process viable
