@@ -84,7 +84,12 @@ class Scout:
         try:
             resp = await self._llm.complete(system=system, user=focus)
             value = extract_json(resp.text, agent="scout")
-            extra = [str(q).strip() for q in value if str(q).strip()]  # type: ignore[union-attr]
+            if not isinstance(value, list):
+                # An object reply would iterate its KEYS ('queries', ...) as bogus
+                # queries; only a JSON array is a query list. Keep focus alone —
+                # same array-shape discipline as scholar._extract / skeptic._check_queries.
+                return queries
+            extra = [str(q).strip() for q in value if str(q).strip()]
         except Exception:  # noqa: BLE001 - query gen is best-effort, never fatal
             return queries
         for q in extra[: self._max_queries]:

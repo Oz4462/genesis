@@ -68,6 +68,22 @@ def test_extracts_claim_with_real_quote():
     assert run(ledger.get_claims("r1"))[0].id == c.id
 
 
+def test_quote_matches_across_unicode_nfkc_forms():
+    # The source uses a compatibility ligature ('fi'); the model copies the plain
+    # ASCII form. NFKC folding lets the verbatim guard match what is visually
+    # identical — without it the real quote would be dropped as "hallucinated".
+    url = "https://docs.example/uni"
+    content = "The library performs ﬁnite element analysis on the part."
+    fetch = WebFetchTool(http_serving({url: content}))
+    llm = ScriptedLLM(
+        "claude-opus-4-8",
+        json.dumps([{"text": "Die Bibliothek fuehrt eine Finite-Elemente-Analyse durch.",
+                     "quote": "finite element analysis"}]),  # plain ASCII 'fi'
+    )
+    st = run(Scholar(fetch, llm, InMemoryLedgerStore()).run(_state([url])))
+    assert len(st.claims) == 1  # NFKC-folded match, not dropped as hallucinated
+
+
 def test_drops_claim_with_hallucinated_quote():
     url = "https://docs.example/page"
     content = "This page is about apples and oranges. Nothing about kernels."

@@ -100,6 +100,16 @@ def test_llm_parse_failure_falls_back_to_focus_text():
     assert b.queries == ["fallback focus"]
 
 
+def test_llm_object_reply_does_not_become_dict_key_queries():
+    # An object reply (not the requested array) must not have its KEYS iterated as
+    # bogus queries ('queries', ...); only the focus query is kept.
+    b = FakeBackend("b", ["https://a"])
+    llm = ScriptedLLM("gpt-4o", '{"queries": ["q1", "q2"]}')
+    scout = Scout([b], llm=llm)
+    run(scout.run(_state(raw="real focus")))
+    assert b.queries == ["real focus"]  # no "queries"/"q1" key-garbage
+
+
 def test_scout_produces_no_claims():
     b = FakeBackend("b", ["https://a"])
     st = run(Scout([b]).run(_state()))

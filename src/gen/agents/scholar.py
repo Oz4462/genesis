@@ -3,14 +3,15 @@
 Reads the *actually fetched* text of each candidate and extracts atomic Claims
 that answer the question. The decisive anti-hallucination guard lives here and is
 CODE, not trust: every claim's supporting quote must appear verbatim in the
-fetched source (whitespace-normalized). If it does not, the model invented it and
-the claim is dropped. Claims from sources that could not be fetched are never
-created.
+fetched source (Unicode-NFKC-, case- and whitespace-normalized). If it does not,
+the model invented it and the claim is dropped. Claims from sources that could not
+be fetched are never created.
 """
 
 from __future__ import annotations
 
 import hashlib
+import unicodedata
 
 from ..core.errors import LLMOutputError
 from ..core.interfaces import LedgerStore
@@ -43,7 +44,12 @@ __all__ = ["Scholar", "claim_id", "readable_text"]
 
 
 def _normalize(s: str) -> str:
-    return " ".join(s.split()).lower()
+    # NFKC + case + whitespace fold so the quote guard matches the source the way
+    # Ctrl+F would, robust to Unicode form differences (curly vs straight quotes,
+    # ligatures, full-width digits) that are visually identical but byte-different
+    # — neither over-dropping a real quote nor (per the existing min length) easing
+    # a fabricated one through.
+    return " ".join(unicodedata.normalize("NFKC", s).split()).lower()
 
 
 # Lowercase function words that only ever continue a sentence — a claim text
