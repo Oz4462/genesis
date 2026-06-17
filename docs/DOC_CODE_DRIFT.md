@@ -97,7 +97,47 @@ Gold-Set-Lauf). Diese sind dokumentiert-und-bewusst-offen, kein Drift.
 
 ---
 
-## 6 · Methode & Grenzen dieses Audits (ehrlich)
+## 6 · CAD- und Math/Physik-Erweiterungen — real vs. Stub/unfertig
+
+Auf Nachfrage („full CAD + Math/Physik-Erweiterungen, die auch"): beide Schichten existieren und sind
+breit getestet — aber die *Vollständigkeits*-Claims der Build-Logs stehen teils auf bewusst gelabelten
+Stubs. Keine dieser Stub-Stellen ist ein *stiller* Fehler (sie sind im Code als `stub` markiert); die
+Drift liegt allein darin, dass die Build-Logs sie als „abgeschlossen" zusammenfassen.
+
+### Math/Physik — solider, getesteter Kern; „Excellent"-Upgrade unvollständig
+- **Real + getestet (~30 Testdateien):** die 27 Validatoren + FEM — `torsion`, `buckling`, `fatigue`,
+  `notch_fatigue`, `fracture`, `contact`, `creep`, `pressure_vessel`, `plate_bending`, `bolted_joint`,
+  `thermal`, `thermal_stress`, `modal`, `fem`/`fem3d`/`fem3d_quadratic`/`bracket_fem`, `montecarlo`,
+  `uncertainty`, `tolerance`, `circuit` — je eigene Testdatei, gegen geschlossene Formen (README §5).
+- **Ehrliche Grenze (vorbildlich):** `fracture.py:140` wirft `NotImplementedError` für nicht
+  unterstützte Fälle, statt einen falschen Wert zu liefern — deklarierte Lücke, kein stiller Fehler.
+- **Unfertig:** die „Geo/Math/Physik von *Gut* auf *Excellent*"-Härtung (GENESIS_TODO Z.40/60) ist
+  **nicht abgeschlossen** — der dedizierte Agent endete an `max_tokens` (nach 47 Tool-Calls), kompensiert
+  durch partielle manuelle Härtungen. Kern solide; das „Excellent"-Niveau ist teil-erreicht, nicht fertig.
+
+### CAD — Geometrie/Export real + getestet; Fertigungs-/Fab-Breite ist Stub
+- **Real + getestet:** `cad/prototype_cad_builder.py` (build123d), `cad/assembly.py`, `brep.py`
+  (OpenCASCADE), `export/` (OpenSCAD · build123d · STL · BREP-STL · Markdown), `mesh_integrity.py`,
+  `orientation.py`, `dfm.py`, `tolerance.py` — je Testdatei.
+- **Bewusst Stub / unfertig (im Code als `stub` gelabelt):**
+  - `cad/manufacturing_check.py`: nur **FDM** voll; **CNC / Laser / PCB sind Stubs** (`# CNC stub`,
+    `# Laser/sheet stub`, `# PCB stub`); **Kostenmodell ist Stub** (hartkodiert `cost_stub = "Est.
+    8-25 EUR …"`, `cost_model_stub`, `qa_plan_stub`).
+  - `pipelines/fertigungs.py`: **G-Code-Erzeugung ist ein Text-Stub** (`gcode stub`).
+  - `electronics.py:824` **`generate_kicad_schematic_stub`** — die „KiCad"-Ausgabe ist ein minimaler
+    S-Expression-Stub (≤ 8 Komponenten), **kein** echter KiCad-Adapter (deckt §1-KiCad-Overclaim);
+    `route_harness` hat ebenfalls einen Stub-Pfad.
+  - `lernmaschine/engine.py:62`: „Kostenmodell / Stückliste mit realen Preisen fehlt (nur Stub)".
+  - `extensions/breakthrough_bridge.py`: Wissensbasis-arXiv-Connector ist Stub (deckt die deferred
+    Live-Connectors, §2/§5).
+
+**Ehrliche Summe:** „full CAD" = Geometrie-/Export-/BREP-Pipeline ist echt und getestet; die
+*Fertigungs-Breite* (CNC/Laser/PCB), Kosten, G-Code und KiCad sind angefangene Stubs. „Math/Physik-
+Erweiterung" = der Validator-/FEM-Kern ist echt und getestet; das „Excellent"-Upgrade ist teil-fertig.
+
+---
+
+## 7 · Methode & Grenzen dieses Audits (ehrlich)
 
 - **Geprüft:** Existenz (Datei/Symbol via `grep`/`find`) + Test-Präsenz (Testdatei vorhanden,
   Suite grün).
@@ -108,7 +148,7 @@ Gold-Set-Lauf). Diese sind dokumentiert-und-bewusst-offen, kein Drift.
 
 ---
 
-## 7 · Empfohlene Folge-Schritte (klein, je verifizierbar — auf „go")
+## 8 · Empfohlene Folge-Schritte (klein, je verifizierbar — auf „go")
 
 1. `HORIZON.md` §4: φ/χ-Status → ✓ (Belege s. §3) + Test-Count auf 1185/9.
 2. `GENESIS_TODO.md`: die zwei Overclaims korrigieren (SourceConnectorRegistry = nicht gebaut;
@@ -117,3 +157,6 @@ Gold-Set-Lauf). Diese sind dokumentiert-und-bewusst-offen, kein Drift.
    den Status dieses Drift-Dokuments ersetzen, statt sie weiter divergieren zu lassen.
 4. Optional: die genuin ungebauten Plattform-Kappen (§2) entweder bauen oder explizit als
    „nicht geplant" markieren, damit sie nicht als stille Schuld weiterlaufen.
+5. Die CAD-Fertigungs-Stubs (CNC/Laser/PCB/Kosten/G-Code/KiCad, §6) und das unfertige
+   „Excellent"-Math/Physik-Upgrade entweder fertig bauen oder in den Build-Logs als
+   „Stub/teilfertig" statt „abgeschlossen" kennzeichnen.
