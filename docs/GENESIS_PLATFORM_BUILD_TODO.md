@@ -5,6 +5,12 @@
 **Ziel:** Aus der Vision eine konkrete Baufolge machen: was gebaut werden soll, was wir
 dafür benötigen, wie wir es benötigen und wie wir es am besten angehen.
 
+> ⚠️ **STALE — nicht als Status-Quelle nutzen (2026-06-17).** Diese Datei hat **46× `[ ]` und 0× `[x]`** —
+> die Checkboxen wurden nie gepflegt. Ein großer Teil der „offenen" Items ist längst gebaut (z. B. Teststand
+> Architect, Experiment Designer, Bench Test Runner, DevelopmentFrontMap, CapabilityGap, MilestoneLadder,
+> Simulation-Runner, FEM, Prototype-CAD/Manufacturing). Die autoritative, **code-verifizierte** Trennung
+> *gebaut vs. genuin ungebaut* steht in `docs/DOC_CODE_DRIFT.md` §2.
+
 ---
 
 ## 0 · Nicht verhandelbare Regeln

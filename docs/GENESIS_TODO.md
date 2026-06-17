@@ -3,6 +3,8 @@
 **Stand:** 2026-06-15 (autonom via Ultra-Workflow + 4-Linsen-Rituale)
 **Prinzip:** Nacheinander (Finish-or-Fail: ein aktives Modul/Stein pro Durchgang). Nach jedem großen Stein: 4 Linsen + erweiterte Selbstkontrolle + BUILD_LOG + Memory-Update. Autonom weiter ohne Rückfrage (User: "nach dem bericht kannst du immer weiter autonom weiter bauen du brauchst kein ok von mir").
 
+> ⚠️ **Status-Hinweis (2026-06-17):** Diese Datei ist ein autonomes Build-Log und an einzelnen Stellen stale bzw. überoptimistisch (Test-Counts, „KiCad-Export"). Die autoritative, **code-verifizierte** Reconciliation — was wirklich gebaut ist vs. nur geplant — steht in `docs/DOC_CODE_DRIFT.md`.
+
 **Gesamtvision (kurz aus PLAN.md):**
 - Erfindungsmaschine mit Wahrheitszwang (Gates, Claims, Provenance, Omega, Ratifikation).
 - Grenzverschiebung (12 Module) → Fach-Pipelines → CAD/CAE/Fertigung-Kern → Wissensbasis → volle 8-Schritt-Lernmaschine.
@@ -22,7 +24,7 @@
 - **BreakthroughBridge (extensions/)**: "The impossible becoming possible". Jetpack-Energie-Gap (NEEDS_BREAKTHROUGH) → diamagnetische Assist-Platte (real build123d STL ~48.5 cm³, 5-15% Thrust-Reduktion, DFM-Pass, Lern-Revision des Frontiers zu POSSIBLE_BUT_UNSAFE_DIRECTLY). Vollständiges Package mit BREAKTHROUGH_REPORT.md (Physik-Formel + Quellen + 4 Linsen), CLI `--mode breakthrough`, 2 Tests grün.
 - **LUMENCRUCIBLE Ω v1 (grenzverschiebung/)**: Rekursive HORIZON-Extension (IgnitionCrack + Self-Ascent). Roher Traum → erster baubarer Hammer. **Neu verdrahtet mit Electronics Layer (agent-delivered)**: Bei power/circuits/electronics/drohne/roboter/board im Traum wird die volle Elektronik-Schicht (netlist, Components mit Footprint/thermal, PowerTree, HarnessSpec, PlacementHints für CAD, simulation via circuit MNA, falsification experiments) aufgerufen. Hammer + Return-Dict werden mit "electronics" pieces + falsif angereichert. Zusätzlich Co-Sim Seam: Electronics power dissipation → simulation/runner thermal loads (echtes multi-physics für Drohne/Roboter). Alle 4 Linsen + Ritual. 2 Tests + Integration verifiziert.
 
-**Tests (relevant):** 4 passed (test_breakthrough_bridge + test_lumencrucible) + breite Suite ~950+ passed. Alle mit `py -m pytest`.
+**Tests (relevant):** 4 passed (test_breakthrough_bridge + test_lumencrucible) + breite Suite **1185 passed / 9 skipped** (Stand 2026-06-17). Alle mit `py -m pytest`.
 
 **Daten / Dokumentation:**
 - BUILD_LOG.md: Volle Rituale für jeden Stein (Scope, 4 Linsen detailliert mit [x], erweiterte Selbstkontrolle, Ultra-Bericht, Memory-Update).
@@ -64,7 +66,7 @@ Weitere wirklich wichtige / bahnbrechende Punkte (meine Sicht für echte Erfindu
 - Verification: 11+ passed (prior) + stone smoke (imports/calls/LUMEN multi/seeded/inverse/regulatorik + integrator elec packages) exit 0; reale out/ artifacts; no regression.
 
 **Nächster (autonom, per Ultra):** Pick from the list above (e.g. Multi-Physics Closed-Loop or Wissensbasis seeding for elec components) Finish-or-Fail with ritual. **Dieser Stein (Wissensbasis-Seeding + Closed-Loop + alle Pipelines max + Vorschläge) abgeschlossen mit Ritual.** 
-**Nächster Stein abgeschlossen:** Elektronik-Simulation (Transient/EMI/Spice-ähnlich) + KiCad-Export/PCB-Layout + umfassende Gap-Analyse (General-Purpose für ALLE Ideen). User go for live Wissensbasis when ready. Nächste Prioritäten (z.B. live connectors, viewer, weitere verteilte Systeme) nach Bedarf.
+**Nächster Stein abgeschlossen:** Elektronik-Simulation (Transient/EMI/Spice-ähnlich) + internes regelbasiertes PCB-Place/Route/DRC (KEIN echter KiCad-Adapter/-Export — KiCad/Ansys bleiben bewusste externe Nähte, s. `grenzverschiebung/lumencrucible.py` Z.50 + `docs/DOC_CODE_DRIFT.md`) + umfassende Gap-Analyse (General-Purpose für ALLE Ideen). User go for live Wissensbasis when ready. Nächste Prioritäten (z.B. live connectors, viewer, weitere verteilte Systeme) nach Bedarf.
 
 **Wichtiger Hinweis (General-Purpose):** Genesis spezialisiert sich nicht auf Elektronik, Drohnen oder eine Richtung. Es ist die große, ganze, anti-halluzinatorische Erfindungsmaschine für *jede* Idee (Mechanik, Biologie, Software, Energie, Chemie, soziale/gesellschaftliche Systeme etc.). Elektronik ist nur ein (jetzt massiv gestärkter) Seam im universellen Flow (LUMEN → Pipelines → Sim/Co-Sim → Package → Wissensbasis-Seeding → Lern → Reality). Alle Erweiterungen halten diese Invariante.
 

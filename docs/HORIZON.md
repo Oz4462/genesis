@@ -8,6 +8,10 @@
 > einer Idee** macht. Gleiche Regel wie immer: jede Fähigkeit ist an einen Beweis
 > gekoppelt — bestehend (✓) oder „zu beweisen". Große Vision, harter Bau, niemals lügen.
 
+> **Stand-Abgleich 2026-06-17:** φ und χ sind inzwischen **gebaut, gegated und getestet** (s. §4 —
+> die alte „zu beweisen"-Markierung war stale). Der vollständige Doc↔Code-Abgleich (was gebaut ist,
+> was nur geplant) steht in `docs/DOC_CODE_DRIFT.md`.
+
 ---
 
 ## 0 · Das eine Gesetz (zuerst, weil es alles andere rettet)
@@ -26,7 +30,7 @@ Genesis härtet heute eine **fertige** Idee:
 α (belegte Recherche) → β (verankerter Lösungsraum) → γ (Spezifikation, parametrisches
 CAD) → δ (deterministische Physik-/Geometrie-Validierung), plus die integrierte Schicht
 (trust-core, ANAMNESIS-Memory, N-Judge-Consensus, signierter Audit, arXiv, SMT).
-950 passed / 19 skipped, offline, deterministisch.
+1185 passed / 9 skipped, offline, deterministisch.
 
 Das ist die **mittlere** Hälfte des Wegs. HORIZONT ergänzt die erste und die dritte.
 
@@ -94,8 +98,8 @@ Jede Phase: was sie beweist · worauf sie aufbaut (bestehende Knochen) · Status
 
 | Phase | Beweist | Baut auf | Status |
 |---|---|---|---|
-| **φ · Der Funke** | geerdete Divergenz: Funke → entwickelter, verankerter Gedanke; keine erfundene Möglichkeit | `clarification.py` (EVPI), Ledger, GATE-Muster aus α | zu beweisen — **erster Stein** |
-| **χ · Die Frontkarte** | belegte Karte des Bekannten + ehrliche Kante des Unbekannten | scout→scholar→skeptic, arXiv/Wikipedia, cross-model | zu beweisen |
+| **φ · Der Funke** | geerdete Divergenz: Funke → entwickelter, verankerter Gedanke; keine erfundene Möglichkeit | `clarification.py` (EVPI), Ledger, GATE-Muster aus α | ✓ bewiesen (`agents/forge.py` + `gate_phi`, `tests/test_phase_phi.py`) |
+| **χ · Die Frontkarte** | belegte Karte des Bekannten + ehrliche Kante des Unbekannten | scout→scholar→skeptic, arXiv/Wikipedia, cross-model | ✓ bewiesen (`gate_chi`, `tests/test_phase_chi.py`) |
 | **δ⁺ · Realitäts-Beweis** | selbst entworfenes Falsifikations-Experiment + Einlesen der echten Messung | δ-Engine, Ledger (Claim-Status), Audit-Receipts | ✓ bewiesen |
 | **δ⁺ · Deckungs-Beweis** | undeklarierter Versagensmodus + Vollständigkeits-Zertifikat | SMT-Feasibility, N-Judge-Consensus, `physics_selection` | ✓ bewiesen |
 | **γ⁺ · Inverses Design** | Ziel → validierte Pareto-Front statt einer Spec | architect, δ-Engine als Fitness-Orakel | ✓ bewiesen |
@@ -104,6 +108,10 @@ Jede Phase: was sie beweist · worauf sie aufbaut (bestehende Knochen) · Status
 | **Ω · Exoskelett + Wette** | jeder Output macht den Menschen klüger; Nicht-Lügen über alle Phasen | Web-UI, Ledger, cross-model, Entscheidungsblatt | ✓ bewiesen — Querfaden fortlaufend |
 
 ## 5 · Der erste Stein: Phase φ, gate-first (so wie α geboren wurde)
+
+> **Gebaut (2026):** Dieser „erste Stein" steht — `Spark`/`Possibility` im Datenmodell, `gate_phi`
+> (rein, deterministisch) und die modellgeformte Schicht `agents/forge.py`, mit Negativtest
+> (erfundene Möglichkeit ohne Anker scheitert). Der folgende Text ist die ursprüngliche Bau-Begründung.
 
 Wie immer: erst das Datenmodell + das deterministische Gate (ohne LLM testbar), dann die
 modellgeformte Schicht.
