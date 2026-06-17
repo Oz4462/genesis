@@ -36,7 +36,10 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
   · units.py Dead-Code-Cleanup + consensus.py REFUTED-confidence-Doc (83d5b5a)
   · cross_model.py / drift_monitor.py / trustcore_adapter.py / geometry.py: CLEAN (kein Fix)
   · Grok-Cross-Review: nachgeholt (war Klassifizierer-Outage). Suite 1134/9, ruff clean.
-- ledger/ — NEXT (store.py, postgres.py)
+- ledger/ — DONE: store.py CLEAN (atomare add_claims/batch-before-mutate, Quellenzwang Layer 2, Determinismus,
+  non-independence-View); postgres.py CLEAN (spiegelt InMemory + sql/001_ledger.sql, lazy asyncpg, 3-Layer-Trigger)
+  — NICHT eval-bar (keine DB in der Sandbox → review-only, keine spekulativen Änderungen). Micro-Nits low → kein Fix.
+- llm/ + tools/ — NEXT (llm/base+ollama+factory+ClaudeCLI/GrokCLI im Adapter-Feature mitgeprüft; tools/ offen)
 - FEATURE DONE: Abo-OAuth LLM-Adapter — ClaudeCLI + GrokCLI (shellen `claude -p`/`grok -p`, keylos, Max-Abos),
   make_llm-Factory (family-routed) im cli.py-Live-Wiring, config-Default claude-opus-4-8 / grok-composer-2.5-fast.
   LIVE PONG-verifiziert (beide), 11 Offline-Tests, ruff clean, Suite 1132 grün, kein Import-Zyklus.
@@ -46,7 +49,10 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
   gen/domains|grenzverschiebung auslagern — breite Imports betroffen, eigener PLAN nötig.
 - D2: _now()-Wall-Clock-Timestamps brechen bit-identische Checkpoint-Replays (Prinzip 5) — run-start-Timestamp
   injizieren (breiter Refactor über alle created_at-Felder).
-- D3: Quantity value/uncertainty isfinite-Guard — vor Fix prüfen, ob ein DERIVED-Pfad legitim inf erzeugt.
+- D3: RESOLVED — Quantity value/uncertainty isfinite-Guard. value: `math.isfinite` fail-loud im __post_init__;
+  uncertainty: `not math.isfinite` vor dem `<0`-Test (inf/nan passierten beide `<0.0`=False). Schließt das
+  non-finite-Wurzelthema, das beide Vendoren an 4 Gate-Eingängen (geometry/consensus/derivation/units) sahen.
+  Eval-arbitriert: kein Gate-Test baut ein non-finite Quantity → kein gate-deferral. Suite 1134/9, ruff clean.
 - D4: core/interfaces.py Protocol-Tightening (Claude+Grok): Tool typed Result statt object/**kwargs; Agent-Protocol-
   Member (input/output_schema, tools, failure_modes) vs Docstring angleichen; GateResult.failures tuple statt list
   (mit verification/gates.py zusammen); SearchBackend/LedgerStore typed failure surface. Architektur, owner-level.

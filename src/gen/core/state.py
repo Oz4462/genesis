@@ -619,6 +619,11 @@ class Quantity:
 
         if isinstance(self.value, bool) or not isinstance(self.value, (int, float)):
             raise InvalidDerivationError(self.id, "value must be numeric (int|float)")
+        if not math.isfinite(self.value):
+            # Root guard for the non-finite theme both reviewers surfaced (geometry/consensus/
+            # derivation/units): a quantity carrying inf/nan would silently poison AABB, volume,
+            # mass, tolerance and dimensional checks downstream. No silent bad value (PHASE_GAMMA §0).
+            raise InvalidDerivationError(self.id, "value must be finite (not inf/nan)")
 
         if self.measurand is not None and not self.measurand.strip():
             raise InvalidDerivationError(
@@ -628,10 +633,15 @@ class Quantity:
         if self.uncertainty is not None and (
             isinstance(self.uncertainty, bool)
             or not isinstance(self.uncertainty, (int, float))
+            or not math.isfinite(self.uncertainty)
             or self.uncertainty < 0.0
         ):
+            # math.isfinite before the <0 test: inf/nan both pass `< 0.0` (both
+            # comparisons are False), so without this an infinitely/NaN-uncertain
+            # quantity would silently poison GUM uncertainty propagation (C-18). The
+            # `or` short-circuits past isfinite only once it is a real int|float.
             raise InvalidDerivationError(
-                self.id, "uncertainty, if set, must be a non-negative number"
+                self.id, "uncertainty, if set, must be a finite non-negative number"
             )
 
         if self.origin is ValueOrigin.GROUNDED:
