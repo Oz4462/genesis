@@ -1,7 +1,7 @@
 # WORK QUEUE — GENESIS
 
 > Voller Kontext: `docs/integration/SESSION_HANDOFF.md`. Branch `feat/app-integration-phase0-2`
-> (71 ahead of main, lokal, KEIN Push). Suite: 1191 passed / 9 skipped. Ollama gestoppt.
+> (76 ahead of main, lokal, KEIN Push). Suite: 1204 passed / 9 skipped. Ollama gestoppt.
 
 ## Active — DEEP REVIEW CAMPAIGN (Claude+Grok · sorgfältig · eval-gated · kein Push)
 Tiefendurchlauf jedes Moduls Zeile für Zeile, **immer mit Grok** (research → 1 Rebuttal → der Eval
@@ -79,7 +79,7 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
     rule). +3 tests. Suite 1185/9, ruff clean at every commit.
 - agents/ PAKET conductor+synthesizer+forge+architect KOMPLETT → agents/ Verzeichnis vollständig reviewt
   (scout/scholar/skeptic done earlier; conductor/synthesizer/forge/architect this session).
-- pipeline.py + Quality-Engine (Schritt 6) — IN ARBEIT (Claude×Grok, eval-gated, commit/Modul, kein Push):
+- pipeline.py + Quality-Engine (Schritt 6) — KOMPLETT 11/11 (Claude×Grok, eval-gated, commit/Modul, kein Push):
   · pipeline.py `13e1cde` FIXED: `physics_ok` braucht jetzt `physics_checked` (vakuöser 0-Check-Pass war ok) +
     neuer `grounding_failed`-Status (corroboration wurde im `overall` ignoriert → `physics_verified` trotz
     zirkulärer Korroboration). Beide Grok-high.
@@ -95,7 +95,20 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
   · geometry_verification.py — REVIEWED, deferred (D15): exakte Cross-Checks solide (Hemisphären-Guard grün), ABER
     NICHT in pipeline verdrahtet (nur self-tested; README §6 impliziert Komposition) + non-exact-Looseness + Rotation-
     AABB-False-Negative (isclose statt Containment) + ungeguardete Kernel-Calls. Alle unerreicht (nicht im Prod-Pfad).
-  · NEXT (4 Module): ratification, calibration, telemetry, goldset.
+  · ratification.py `101653f` FIXED: namespaced+unique refs (Cross-Kind/Duplikat-Bypass), named-approver
+    erforderlich (anonyme/leere Approval ≠ done — alignt omega SIGNOFF_WITHOUT_APPROVER), frozenset-Coercion.
+  · calibration.py `6c9748f` FIXED: ECE-Bin-Index-Clamp (c<0 → Negativindex → Top-Bin) + target_precision-Validierung.
+    **Conformal-Math von beiden Reviewern als korrekt bestätigt** (kein Off-by-one).
+  · telemetry.py `8bf749f` FIXED: reservierte Attribut-Keys in span gedroppt (TypeError-in-finally maskierte Body-Exc) +
+    to_otel kind authoritative.
+  · goldset.py `d19f449` FIXED: fail-loud Loader (alle 3 Kinds, leere Tokens, Typ-Validierung) + Scorer (empty-Guard,
+    text-bearing-abstention = Halluzination).
+  · >>> Schritt 6 KOMPLETT: 11/11 reviewt — 8 fixed, 2 CLEAN (grounding_integrity, constraint_consistency),
+    1 deferred (geometry_verification). Roter Faden: die Quality-Engine, die gegen „Pass maskiert Lücke" baut,
+    hatte denselben Fehler mehrfach in sich (vakuöse Pässe, ignorierte Achsen, Detektions-Lücken). <<<
+- D16 (Schritt-6-Tail deferred): goldset G3 (fact-Token-Match case-sensitive Substring → „4" matcht „14"; deferred
+  Live-Pfad, Fixture-Review nötig) + G9/G10 (File/JSON→ValueError, extra outcome keys). telemetry G5-G8, calibration
+  vakuöse Skalare, ratification G7/G8 — alle low/defensiv, in den Commit-Messages dokumentiert.
 - D14 (Schritt-6 deferred, Claude×Grok, alle med/low): pipeline G3 (printability verwirft gefundene Blocker bei
   GeometryError — enger als gedacht, braucht Blocker-Geometrie-Fixture → Printability-Slice) + G4 (physics_failed
   vor physics_incomplete reordern — NICHT erreichbar: gaps↔questions 1:1 gekoppelt, needs_clarification feuert zuerst).
