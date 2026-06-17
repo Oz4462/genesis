@@ -55,6 +55,7 @@ def test_a_vacuous_pass_is_surfaced_not_called_verified():
     a = assess_specification(capstone_spec(), claims=capstone_claims())
     assert a.overall == "no_physics_indicated"
     assert not a.physics_checked                     # nothing actually ran
+    assert not a.physics_ok                          # a gate that passes over ZERO checks is vacuous — not ok
 
 
 def test_over_stressed_shaft_fails():
@@ -82,3 +83,21 @@ def test_is_deterministic():
     a = assess_specification(drive_shaft_spec())
     b = assess_specification(drive_shaft_spec())
     assert a.overall == b.overall and a.physics_ok == b.physics_ok
+
+
+def test_circular_corroboration_is_not_called_verified():
+    # SEAM 3: a physics-clean spec whose CLAIMS are only circularly corroborated (the
+    # verification source re-cites the original source) must NOT read "physics_verified" —
+    # the facts underneath are not independently corroborated. Before the fix, _overall_status
+    # ignored corroboration and the verdict was wrongly "physics_verified".
+    from gen.core.state import Claim, ClaimStatus, SourceRef, SourceSupport
+    circular = [Claim(
+        id="c1", text="x",
+        sources=[SourceRef(url_or_id="A", retrieved=True, support=SourceSupport.SUPPORTS)],
+        status=ClaimStatus.VERIFIED, confidence=0.9,
+        verification=[SourceRef(url_or_id="A", retrieved=True, support=SourceSupport.SUPPORTS)],
+    )]
+    a = assess_specification(drive_shaft_spec(), claims=circular)
+    assert a.corroboration is not None and not a.corroboration.ok
+    assert a.physics_ok                               # the PHYSICS is clean...
+    assert a.overall == "grounding_failed"            # ...but the grounding failure overrides the headline

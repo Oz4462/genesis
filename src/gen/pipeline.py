@@ -14,6 +14,8 @@ physics selection + gate, constraint consistency, and (optionally) grounding int
 
   • needs_clarification     — an indicated physics is missing an input (ask first).
   • inconsistent_constraints— the requirements structurally contradict each other.
+  • grounding_failed         — the claims are not independently corroborated (circular
+                              self-corroboration) — the facts underneath cannot be trusted.
   • physics_incomplete      — a physics check was indicated but could not be evaluated
                               (a gap) — NOT a pass.
   • physics_failed          — a check ran and did not clear its margin.
@@ -69,9 +71,10 @@ class Assessment:
 
     @property
     def physics_ok(self) -> bool:
-        """Physics is ok only if the gate passed AND every indicated check ran — a gap
-        makes this False, never a silent pass."""
-        return self.physics_gate.passed and self.physics_complete
+        """Physics is ok only if at least one indicated check actually RAN, the gate
+        passed, AND every indicated check ran — a gap OR a vacuous no-check spec makes
+        this False, never a silent pass (a gate that passes over zero checks is vacuous)."""
+        return self.physics_checked and self.physics_gate.passed and self.physics_complete
 
     @property
     def constraints_consistent(self) -> bool:
@@ -79,13 +82,15 @@ class Assessment:
 
 
 def _overall_status(
-    questions, gaps, gate: GateResult, contradictions, n_checks: int
+    questions, gaps, gate: GateResult, contradictions, n_checks: int, corroboration
 ) -> str:
     """The single honest status, in priority order (what must be resolved first)."""
     if questions:
         return "needs_clarification"
     if contradictions:
         return "inconsistent_constraints"
+    if corroboration is not None and not corroboration.ok:
+        return "grounding_failed"            # claims not independently corroborated (circular)
     if gaps:
         return "physics_incomplete"          # indicated but unrunnable — not a pass
     if not gate.passed:
@@ -124,7 +129,7 @@ def assess_specification(
             trace.record("grounding", "grounding", status="ok" if corroboration.ok else "error",
                          circular=len(corroboration.circular))
 
-    overall = _overall_status(questions, gaps, gate, contradictions, len(checks))
+    overall = _overall_status(questions, gaps, gate, contradictions, len(checks), corroboration)
     return Assessment(
         clarification_questions=questions,
         physics_checks=checks,
