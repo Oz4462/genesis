@@ -82,7 +82,19 @@ class Config:
         a_models = Models(**{**asdict(Models()), **(pa.get("models") or {})})
         a_fields = {**asdict(PhaseAlphaConfig()), **{k: v for k, v in pa.items() if k != "models"}}
         a_fields["models"] = a_models
-        a_fields["search_backends"] = tuple(a_fields.get("search_backends") or ())
+        sb = a_fields.get("search_backends")
+        if isinstance(sb, str):
+            sb = (sb,)  # a single backend name is a 1-tuple, never exploded into characters
+        elif sb is None:
+            sb = ()
+        elif isinstance(sb, (list, tuple)):
+            sb = tuple(sb)
+        else:
+            raise TypeError(
+                "phase_alpha.search_backends must be a string or list of strings, "
+                f"got {type(sb).__name__}"
+            )
+        a_fields["search_backends"] = sb
 
         pb = data.get("phase_beta", {})
         b_models = Models(**{**asdict(Models()), **(pb.get("models") or {})})

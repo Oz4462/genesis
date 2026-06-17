@@ -28,7 +28,10 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
   message-accuracy), eval grün 1121/9. Ergonomie/Architektur-Findings → D5.
 - core/__init__.py — DONE: leerer Package-Marker, trivial clean.
 - >>> core/ PAKET KOMPLETT reviewt (interfaces clean · state fixed · errors fixed · __init__ clean) <<<
-- gen/config.py — NEXT (top-level; core/ hat KEIN config.py — README-Verzeichnis war hier ungenau)
+- gen/config.py — DONE: reviewed (Claude+Grok), fixed (#2 search_backends str-Koersion → fail-loud statt Zeichen-Tuple),
+  eval grün 1121/9. Grok-Irrtum „Config nicht hashable" widerlegt (frozen ⇒ hashbar). Cross-Model-Frage → cross_model.py.
+- verification/ — NEXT: gates.py zuerst; cross_model.py PRIORITÄR: Familien- vs Exact-String-Vergleich prüfen
+  (Grok-Gap: gpt-4o vs gpt-4o-mini wären gleiche Familie, andere Strings). Dann derivation/units/geometry.
 
 Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, Claude×Grok-Einigkeit):
 - D1: ModuleSpec/ColonyModule/NanoRecipe (Space-Colony/Nano-„2036-Leap"-Typen) aus dem Kern nach
@@ -42,6 +45,12 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
 - D5: core/errors.py Ergonomie (Claude+Grok): bare Errors (NoIndependentSourceError/RefineBudgetExceeded) Kontext-__init__;
   Intermediate-Base ProvenanceError/GenesisPolicyError (soft-vs-hard-Catchability); Konstruktor-Args auf self speichern;
   Rename RefineBudgetExceeded→…Error (Import-Blast). Ergonomie/Architektur, owner-level.
+- D6: gen/config.py Hardening (Claude+Grok): Top-Level-Typo-Keys laut ablehnen; Range-Validierung (confidence∈[0,1],
+  rounds≥0) — Achtung Gate-Test-Konstruktion; YAML-Schema = from_dict-Pfad teilen; Float-Repr-Repro. Blast-Radius.
+- README-SYNC (Owner-Hinweis): README ist stale — viele Erweiterungen fehlen (HORIZON φ–Ω, research/ProofKernel,
+  LUMENCRUCIBLE, App-Integration, Cloud-Model-Defaults, 1121 statt 881 Tests). Eigene README-Update-Aufgabe.
+- OWNER-Q1: Cloud-Model-Defaults (claude-opus-4-8/gpt-4o) vs lokal-first (qwen3.5:9b/gemma4:12b) — gewollte Erweiterung
+  oder auf lokal zurück? Cross-Model-Invariante in beiden Fällen erfüllt.
 
 ## Next
 - (Kampagne läuft; nach core/ → verification/ usw. gemäß Reihenfolge oben)
