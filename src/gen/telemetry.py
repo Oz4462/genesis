@@ -72,8 +72,12 @@ class RunTrace:
             raise
         finally:
             duration = (self.clock() - start) * 1000.0
-            self.record(name, kind, status=rec["status"], duration_ms=duration,
-                        **{**attributes, **rec["attributes"]})
+            merged = {**attributes, **rec["attributes"]}
+            # a reserved attribute name would collide with record()'s own kwargs and raise
+            # TypeError here in the finally, MASKING any exception the body raised — drop them.
+            for reserved in ("status", "duration_ms", "name", "kind"):
+                merged.pop(reserved, None)
+            self.record(name, kind, status=rec["status"], duration_ms=duration, **merged)
 
     def record_gate(self, name: str, result: GateResult, *, duration_ms: float = 0.0) -> TraceEvent:
         """Record a gate verdict as an event: status "error" when it did NOT pass, with the
@@ -102,7 +106,7 @@ class RunTrace:
         return [
             {
                 "name": e.name,
-                "attributes": {"genesis.kind": e.kind, **e.attributes},
+                "attributes": {**e.attributes, "genesis.kind": e.kind},   # real kind is authoritative
                 "status": "OK" if e.status == "ok" else "ERROR",
                 "duration_ms": e.duration_ms,
             }
