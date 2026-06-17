@@ -164,8 +164,8 @@ class EvidenceIntegrityError(GenesisError):
 
     def __init__(self, claim_text: str, missing: str) -> None:
         super().__init__(
-            f"EvidenceValue {claim_text!r} rejected: {missing}. A quantitative "
-            "evidence value without source, unit and validity range cannot exist "
+            f"EvidenceValue {claim_text!r} rejected ({missing}). A quantitative "
+            "evidence value requires source, unit and validity range to exist "
             "in GENESIS (PLAN B4 / Kernprinzip 1)."
         )
 
@@ -181,9 +181,9 @@ class UngroundedValueError(GenesisError):
 
     def __init__(self, quantity_id: str, name: str) -> None:
         super().__init__(
-            f"Quantity {quantity_id!r} ({name!r}) is GROUNDED but has no grounding "
-            "claim. A sourced value without provenance cannot exist in GENESIS "
-            "(PHASE_GAMMA.md §3.1)."
+            f"Quantity {quantity_id!r} ({name!r}) has origin=GROUNDED but references "
+            "no grounding claim. A sourced value without provenance cannot exist in "
+            "GENESIS (PHASE_GAMMA.md §3.1)."
         )
 
 

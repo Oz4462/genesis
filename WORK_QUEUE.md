@@ -24,7 +24,9 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
   adversariale Gate-Tests). Erster echter End-to-End-CRAFT-Zyklus bewiesen.
 - core/interfaces.py — DONE: reviewed (Claude+Grok), Quelle CLEAN (kein Bug). Protocol-Tightening-Findings → D4.
   Grok-„mojibake" war Artefakt meiner Dispatch-Pipeline (Get-Content ohne -Encoding UTF8, PS5.1) → Pipeline gefixt.
-- core/errors.py — NEXT
+- core/errors.py — DONE: reviewed (Claude+Grok), fixed (E1 EvidenceIntegrityError + E2 UngroundedValueError
+  message-accuracy), eval grün 1121/9. Ergonomie/Architektur-Findings → D5.
+- core/config.py — NEXT
 
 Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, Claude×Grok-Einigkeit):
 - D1: ModuleSpec/ColonyModule/NanoRecipe (Space-Colony/Nano-„2036-Leap"-Typen) aus dem Kern nach
@@ -35,6 +37,9 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
 - D4: core/interfaces.py Protocol-Tightening (Claude+Grok): Tool typed Result statt object/**kwargs; Agent-Protocol-
   Member (input/output_schema, tools, failure_modes) vs Docstring angleichen; GateResult.failures tuple statt list
   (mit verification/gates.py zusammen); SearchBackend/LedgerStore typed failure surface. Architektur, owner-level.
+- D5: core/errors.py Ergonomie (Claude+Grok): bare Errors (NoIndependentSourceError/RefineBudgetExceeded) Kontext-__init__;
+  Intermediate-Base ProvenanceError/GenesisPolicyError (soft-vs-hard-Catchability); Konstruktor-Args auf self speichern;
+  Rename RefineBudgetExceeded→…Error (Import-Blast). Ergonomie/Architektur, owner-level.
 
 ## Next
 - (Kampagne läuft; nach core/ → verification/ usw. gemäß Reihenfolge oben)
