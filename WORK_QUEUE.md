@@ -1,7 +1,7 @@
 # WORK QUEUE — GENESIS
 
 > Voller Kontext: `docs/integration/SESSION_HANDOFF.md`. Branch `feat/app-integration-phase0-2`
-> (60 ahead of main, lokal, KEIN Push). Suite: 1185 passed / 9 skipped. Ollama gestoppt.
+> (69 ahead of main, lokal, KEIN Push). Suite: 1189 passed / 9 skipped. Ollama gestoppt.
 
 ## Active — DEEP REVIEW CAMPAIGN (Claude+Grok · sorgfältig · eval-gated · kein Push)
 Tiefendurchlauf jedes Moduls Zeile für Zeile, **immer mit Grok** (research → 1 Rebuttal → der Eval
@@ -79,6 +79,21 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
     rule). +3 tests. Suite 1185/9, ruff clean at every commit.
 - agents/ PAKET conductor+synthesizer+forge+architect KOMPLETT → agents/ Verzeichnis vollständig reviewt
   (scout/scholar/skeptic done earlier; conductor/synthesizer/forge/architect this session).
+- pipeline.py + Quality-Engine (Schritt 6) — IN ARBEIT (Claude×Grok, eval-gated, commit/Modul, kein Push):
+  · pipeline.py `13e1cde` FIXED: `physics_ok` braucht jetzt `physics_checked` (vakuöser 0-Check-Pass war ok) +
+    neuer `grounding_failed`-Status (corroboration wurde im `overall` ignoriert → `physics_verified` trotz
+    zirkulärer Korroboration). Beide Grok-high.
+  · evaluation.py `a5c916b` FIXED: Physics-Verdikt zählt Gaps als non-pass (gleicher Mask wie pipeline) +
+    vakuöse `leak_rate`/`false_alarm_rate` → None statt 0.0 + ehrliche Coverage-Doku (5/18 C-Codes = Subset) + Scope.
+  · refinement.py `d7d1878` FIXED: Oszillations-/Zyklus-Erkennung (seen-Set statt nur letzter Signatur) +
+    kollisionsfreie `(code,claim_id,detail)`-Signatur + domänen-neutrale PHYSICS_CHECK_FAILED-Direktive.
+  · NEXT (8 Module): clarification, ratification, calibration, telemetry, grounding_integrity,
+    constraint_consistency, geometry_verification, goldset.
+- D14 (Schritt-6 deferred, Claude×Grok, alle med/low): pipeline G3 (printability verwirft gefundene Blocker bei
+  GeometryError — enger als gedacht, braucht Blocker-Geometrie-Fixture → Printability-Slice) + G4 (physics_failed
+  vor physics_incomplete reordern — NICHT erreichbar: gaps↔questions 1:1 gekoppelt, needs_clarification feuert zuerst).
+  refinement G5 (converged vertraut result.passed ohne `not failures` — defensiv gg. malformed GateResult).
+  evaluation: per-gate leak-breakdown + jeder unsound-Case soll für seinen GELABELTEN C-Code scheitern.
 - D11: Audit-Log-Lücken (Grok, low, A5): scout._queries + skeptic._judge schlucken LLM/Parse-Fehler ohne log
   (best-effort, kein Fabrication-Risiko, aber schwer reproduzierbar) — state.log threaden. Auch: skeptic.claim.verification
   nur aus Primary-Verifier → bei extra_judges/Panel fehlen Second/Extra-Quellen in der Audit-Spur (Union dedup-by-URL).
