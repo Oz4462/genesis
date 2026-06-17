@@ -4,12 +4,14 @@ Siehe GENESIS_PLATFORM_PLAN.md 4.7, 3.6, 8.4.
 """
 
 import os
+import pytest
 from gen.cad.prototype_cad_builder import PrototypeSpec, build_prototype_cad
 from gen.cad.manufacturing_check import check_manufacturing
 
 
 def test_good_jetpack_spec_produces_mostly_printable_check():
     """Guter Jetpack-Spec + realer STL → printable oder nur milde Issues."""
+    pytest.importorskip("build123d", reason="the real jetpack STL export needs the optional build123d package (gen.cad.prototype_cad_builder); honest-skip per README §7")
     spec = PrototypeSpec(
         name="Jetpack Tether Anchor Plate",
         description="Sichere Tether/Recovery Platte (2mm Wand)",
@@ -32,6 +34,7 @@ def test_good_jetpack_spec_produces_mostly_printable_check():
 
 def test_bad_spec_produces_issues():
     """Zu dünne Wand + riesige Bounding Box (Jetpack-Named um reichen Pfad zu triggern) → klare Issues, nicht printable."""
+    pytest.importorskip("build123d", reason="thin-wall DFM detection needs the real geometry from the optional build123d package (gen.cad.prototype_cad_builder); honest-skip per README §7")
     # Name triggert den reichen Jetpack-Branch im Builder (der echte Export macht)
     spec = PrototypeSpec(
         name="Jetpack Impossible Huge Thin Part",
@@ -51,6 +54,7 @@ def test_bad_spec_produces_issues():
 
 def test_advanced_dfm_jetpack_produces_multi_process_report_with_real_stl():
     """Advanced DFM first stone: Jetpack spec + real STL → AdvancedDFMReport with FDM (dfm+printability rules) + CNC/Laser/PCB + issues + cost/qa stubs."""
+    pytest.importorskip("build123d", reason="the real jetpack STL + advanced DFM path needs the optional build123d package (gen.cad.prototype_cad_builder); honest-skip per README §7")
     from gen.cad.manufacturing_check import check_advanced_dfm, AdvancedDFMReport, ProcessDFM
 
     spec = PrototypeSpec(

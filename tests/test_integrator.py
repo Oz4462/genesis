@@ -4,6 +4,7 @@ Siehe GENESIS_PLATFORM_PLAN.md §1 + §3.6 + §4.1/4.2.
 """
 
 import os
+import pytest
 from pathlib import Path
 from gen.pipelines.architekt import map_to_system_concept
 from gen.pipelines.ingenieur import map_to_ingenieur_spec
@@ -12,6 +13,7 @@ from gen.pipelines.integrator import build_realization_fragment, build_full_mini
 
 def test_jetpack_chain_produces_real_package_with_stl_report_and_specs():
     """Jetpack-Idee → Architekt + Ingenieur → Integrator → reales mini Realisierungspaket mit STL + REPORT + 2 JSONs."""
+    pytest.importorskip("build123d", reason="the real >1KB tether_anchor.stl in the package needs the optional build123d package (gen.cad.prototype_cad_builder); honest-skip per README §7")
     idee = "Ich will ein Jetpack bauen, das Menschen sicher über einer Menge frei fliegen lässt."
     concept = map_to_system_concept(idee, run_id="int-test-001")
     ingen = map_to_ingenieur_spec(concept, run_id="int-test-001")
