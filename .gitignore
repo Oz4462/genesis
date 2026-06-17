@@ -41,3 +41,4 @@ robin_output/
 .claude/
 # MCP-Tool-Schema/-Cache-Dumps (asya-state/pinecone/project-state) — Session-Artefakt, kein Source
 mcps/
+.no-recap
