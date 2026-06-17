@@ -65,7 +65,7 @@ class ColonyModule:
     co2_scrub_rate_g_per_h: float = 0.0
     shield_thickness_mm: float = 0.0
     shield_material: str = ""                 # "regolith", "polyethylene", "water_wall", "regolith_pe_composite"
-    radiation_dose_reduction: float = 1.0     # factor <1 after shielding (primary GCR/SPE + secondaries)
+    radiation_dose_reduction: float = 1.0     # 1.0 = unshielded; factor <1 after shielding (primary GCR/SPE + secondaries)
     microg_mitigation: str = ""               # "centrifuge_1g", "resistance_exercise", "pharma_loading", "none"
     self_assemble_rate: float = 0.0           # proxy for nano self-assembly kinetics (steps/h or %/day)
     open_issues: list[str] = field(default_factory=list)
@@ -158,9 +158,9 @@ class SourceCandidate:
 class Claim:
     """A single atomic, independently checkable factual statement.
 
-    INVARIANT (enforced in LedgerStore and DB): `sources` is non-empty at the
-    moment a Claim is persisted by `scholar`. There is no such thing as a
-    sourceless fact in GENESIS.
+    INVARIANT (enforced in __post_init__, LedgerStore, and DB): `sources` is
+    non-empty. A sourceless fact cannot even be constructed (fail-fast below),
+    let alone persisted — there is no such thing as a sourceless fact in GENESIS.
 
     `text`            one atomic assertion, no compound 'and'/'because' chains.
     `sources`         provenance from the agent that produced the claim.
@@ -443,6 +443,10 @@ class Measurement:
             raise UnsourcedMeasurementError(self.id)
         if not math.isfinite(self.value):
             raise ValueError(f"measurement {self.id!r}: value must be finite")
+        if not self.unit.strip():
+            # Mirror FalsificationExperiment.predicted_unit: a unitless measurement cannot
+            # be compared to its experiment's prediction (would silently read INCONCLUSIVE).
+            raise ValueError(f"measurement {self.id!r}: unit must be non-empty")
 
 
 @dataclass(frozen=True)

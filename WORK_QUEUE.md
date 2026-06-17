@@ -3,11 +3,36 @@
 > Voller Kontext: `docs/integration/SESSION_HANDOFF.md`. Branch `feat/app-integration-phase0-2`
 > (16 ahead of main, lokal, KEIN Push). Suite: 1121 passed / 9 skipped. Ollama gestoppt.
 
-## Active
-- (leer — warten auf Owner-„go" für die nächste große Aufgabe; Regel: Bericht → go)
+## Active — DEEP REVIEW CAMPAIGN (Claude+Grok · sorgfältig · eval-gated · kein Push)
+Tiefendurchlauf jedes Moduls Zeile für Zeile, **immer mit Grok** (research → 1 Rebuttal → der Eval
+entscheidet, PROTOCOL #6), **4-Linsen pro Modul** (L1 Wahrheit · L2 Drift · L3 Naht · L4 Realisierbarkeit),
+**Commit pro Modul** (kein Push). Sorgfältig, nicht max-Tempo. Rückgrat zuerst → dann alles (162 Module).
+
+Reihenfolge (Rückgrat → alles):
+1. core/ (state ← AKTIV, interfaces, errors, config)
+2. verification/ (gates, cross_model, derivation, units, geometry)
+3. ledger/ (store, postgres)  ·  4. llm/ + tools/
+5. agents/ (scout, scholar, skeptic, conductor, synthesizer, architect)
+6. pipeline.py + Quality-Engine (evaluation, refinement, clarification, ratification, calibration,
+   telemetry, grounding/constraint/geometry-integrity, goldset)
+7. physics_validation + 27 Validatoren + fem*/modal/dfm/orientation/mesh_integrity/brep/circuit
+8. export/ + costing + completeness + software  ·  9. pipelines/ + integration/ + grenzverschiebung/
+   + research + memory + web/
+Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
+- core/state.py — DONE: reviewed (Claude+Grok, 19 Grok-Findings), fixed (Measurement.unit-Guard + 2× doc-truth),
+  eval grün 1121/9. Gros der Findings = intentionales Gate-Deferral (defended; permissive Konstruktoren für
+  adversariale Gate-Tests). Erster echter End-to-End-CRAFT-Zyklus bewiesen.
+- core/interfaces.py — NEXT
+
+Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, Claude×Grok-Einigkeit):
+- D1: ModuleSpec/ColonyModule/NanoRecipe (Space-Colony/Nano-„2036-Leap"-Typen) aus dem Kern nach
+  gen/domains|grenzverschiebung auslagern — breite Imports betroffen, eigener PLAN nötig.
+- D2: _now()-Wall-Clock-Timestamps brechen bit-identische Checkpoint-Replays (Prinzip 5) — run-start-Timestamp
+  injizieren (breiter Refactor über alle created_at-Felder).
+- D3: Quantity value/uncertainty isfinite-Guard — vor Fix prüfen, ob ein DERIVED-Pfad legitim inf erzeugt.
 
 ## Next
-- (leer — HORIZON-Sequenz erledigt; nächster Owner-Auftrag: Review/Commit/Push oder nächste Phase)
+- (Kampagne läuft; nach core/ → verification/ usw. gemäß Reihenfolge oben)
 
 ## Owner-gated / blockiert
 - Branch mergen/pushen (braucht Owner-Auftrag).
