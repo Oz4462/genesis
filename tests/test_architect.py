@@ -315,3 +315,47 @@ def test_untagged_proposals_behave_exactly_as_before():
     state = _state()
     run(_architect_for(_proposal()).run(state))
     assert all(q.measurand is None for q in state.specification.quantities)
+
+
+# --- malformed-shape robustness: never crash, always abstain ---------------------
+
+def test_non_list_quantities_field_abstains_instead_of_crashing():
+    # A non-iterable 'quantities' (here an int) must not crash _assemble: before the
+    # _as_list guard, `proposal.get("quantities") or []` kept the 5 and `for item in 5`
+    # raised TypeError out of run() instead of producing an honest abstention.
+    state = _state()
+    run(_architect_for(_proposal(quantities=5)).run(state))   # must not raise
+    assert state.specification is not None
+    assert state.specification.quantities == []
+    assert state.specification.gaps      # an explicit gap, not a partial spec
+
+
+def test_non_list_structure_field_does_not_crash():
+    # The comprehension sites (steps/bom/components/constraints/decisions) get the same
+    # guard: a non-iterable 'steps' previously raised TypeError inside enumerate().
+    state = _state()
+    run(_architect_for(_proposal(steps=7)).run(state))        # must not raise
+    assert state.specification is not None                    # abstains, never crashes
+
+
+def test_geometry_nesting_is_depth_capped():
+    # _parse_geometry recurses once per nesting level (pure Python), so a deep
+    # adversarial tree would exhaust the recursion stack before the C json parser
+    # does. The depth cap drops the over-deep subtree and logs it, keeping the
+    # architect's (and the downstream gate's) recursion bounded.
+    arch = _architect_for("{}")
+    logs: list[str] = []
+    deep = {"kind": "box", "params": {}}
+    node = deep
+    for _ in range(70):                       # 70 > _MAX_GEOMETRY_DEPTH (64)
+        child = {"kind": "box", "params": {}}
+        node["children"] = [child]
+        node = child
+    parsed = arch._parse_geometry(deep, logs.append)
+    depth = 0
+    cur = parsed
+    while cur is not None and cur.children:
+        depth += 1
+        cur = cur.children[0]
+    assert depth <= 64
+    assert any("geometry nesting exceeds" in m for m in logs)

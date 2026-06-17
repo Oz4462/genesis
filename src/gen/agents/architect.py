@@ -58,6 +58,12 @@ _ID_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 # non-inferred link the physics auto-selection and GATE γ C-17 operate on.
 _MEASURAND_RE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$")
 
+# Geometry is a CSG tree; real designs nest a handful of levels. This hard cap stops
+# an adversarial or buggy deep tree from exhausting the Python recursion stack in
+# _parse_geometry (pure-Python recursion hits the wall before the C json parser does)
+# and in the downstream gate — the subtree beyond it is dropped and logged.
+_MAX_GEOMETRY_DEPTH = 64
+
 _SYSTEM = (
     "You structure VERIFIED factual claims and one GROUNDED solution approach into "
     "a complete build SPECIFICATION for the IDEA. Rules: (1) use ONLY the given "
@@ -95,6 +101,14 @@ def _as_str_list(value: object) -> list[str]:
     if not isinstance(value, list):
         return []
     return [str(x).strip() for x in value if str(x).strip()]
+
+
+def _as_list(value: object) -> list:
+    """A JSON array, or [] for anything else. Guards every ``proposal.get(field)``
+    iteration: a non-list (object/number/bool) would otherwise iterate keys/chars or
+    raise TypeError, crashing _assemble instead of letting the gate self-check
+    abstain on the resulting empty structure."""
+    return value if isinstance(value, list) else []
 
 
 def _as_number(value: object) -> float | None:
@@ -240,7 +254,10 @@ class Architect:
             f"{ap.id}: {ap.name} (grounding: {', '.join(ap.grounding)})"
             for ap in anchors
         )
-        claim_lines = "\n".join(f"{cid}: {c.text}" for cid, c in verified.items())
+        # Sort by claim id so the prompt is byte-identical for the same verified set,
+        # independent of state.claims insertion order (reproducibility — CLAUDE.md §5,
+        # same discipline as forge._open / synthesizer._cluster).
+        claim_lines = "\n".join(f"{cid}: {c.text}" for cid, c in sorted(verified.items()))
         user = (
             f"IDEA:\n{idea}\n\nGROUNDED APPROACHES:\n{approach_lines}\n\n"
             f"VERIFIED CLAIMS:\n{claim_lines}"
@@ -276,7 +293,7 @@ class Architect:
         derived_pending: dict[str, tuple[str, str, Derivation, str | None]] = {}
         seen_ids: set[str] = set()
 
-        for item in proposal.get("quantities") or []:
+        for item in _as_list(proposal.get("quantities")):
             if not isinstance(item, dict):
                 continue
             qid = str(item.get("id") or "").strip()
@@ -389,27 +406,27 @@ class Architect:
         # --- structure: parsed as data; GATE γ self-check judges soundness -------
         components = [
             comp for comp in (
-                self._parse_component(item, log) for item in proposal.get("components") or []
+                self._parse_component(item, log) for item in _as_list(proposal.get("components"))
             ) if comp is not None
         ]
         bom = [
             item for item in (
-                self._parse_bom_item(raw, verified, log) for raw in proposal.get("bom") or []
+                self._parse_bom_item(raw, verified, log) for raw in _as_list(proposal.get("bom"))
             ) if item is not None
         ]
         steps = [
             step for step in (
-                self._parse_step(raw, i, log) for i, raw in enumerate(proposal.get("steps") or [])
+                self._parse_step(raw, i, log) for i, raw in enumerate(_as_list(proposal.get("steps")))
             ) if step is not None
         ]
         constraints = [
             con for con in (
-                self._parse_constraint(raw, log) for raw in proposal.get("constraints") or []
+                self._parse_constraint(raw, log) for raw in _as_list(proposal.get("constraints"))
             ) if con is not None
         ]
         decisions = [
             dec for dec in (
-                self._parse_decision(raw, verified, log) for raw in proposal.get("decisions") or []
+                self._parse_decision(raw, verified, log) for raw in _as_list(proposal.get("decisions"))
             ) if dec is not None
         ]
         site = self._parse_site(proposal.get("site"), verified, log)
@@ -456,7 +473,7 @@ class Architect:
             )
         requirements = [
             dec for dec in (
-                self._parse_decision(r, verified, log) for r in raw.get("requirements") or []
+                self._parse_decision(r, verified, log) for r in _as_list(raw.get("requirements"))
             ) if dec is not None
         ]
         if available_space is None and not requirements:
@@ -465,11 +482,14 @@ class Architect:
 
     # --- structural parsers (tolerant on shape, never on meaning) ----------------
 
-    def _parse_geometry(self, raw: object, log) -> GeometryNode | None:
+    def _parse_geometry(self, raw: object, log, depth: int = 0) -> GeometryNode | None:
         if raw is None:
             return None
         if not isinstance(raw, dict):
             log("architect: geometry node is not an object -> dropped")
+            return None
+        if depth > _MAX_GEOMETRY_DEPTH:
+            log(f"architect: geometry nesting exceeds {_MAX_GEOMETRY_DEPTH} -> subtree dropped")
             return None
         params_raw = raw.get("params")
         params = (
@@ -479,7 +499,7 @@ class Architect:
         )
         children = [
             child for child in (
-                self._parse_geometry(c, log) for c in raw.get("children") or []
+                self._parse_geometry(c, log, depth + 1) for c in _as_list(raw.get("children"))
             ) if child is not None
         ]
         return GeometryNode(kind=str(raw.get("kind") or "").strip(), params=params, children=children)
