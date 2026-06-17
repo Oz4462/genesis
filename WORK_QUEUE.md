@@ -26,7 +26,9 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
   Grok-„mojibake" war Artefakt meiner Dispatch-Pipeline (Get-Content ohne -Encoding UTF8, PS5.1) → Pipeline gefixt.
 - core/errors.py — DONE: reviewed (Claude+Grok), fixed (E1 EvidenceIntegrityError + E2 UngroundedValueError
   message-accuracy), eval grün 1121/9. Ergonomie/Architektur-Findings → D5.
-- core/config.py — NEXT
+- core/__init__.py — DONE: leerer Package-Marker, trivial clean.
+- >>> core/ PAKET KOMPLETT reviewt (interfaces clean · state fixed · errors fixed · __init__ clean) <<<
+- gen/config.py — NEXT (top-level; core/ hat KEIN config.py — README-Verzeichnis war hier ungenau)
 
 Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, Claude×Grok-Einigkeit):
 - D1: ModuleSpec/ColonyModule/NanoRecipe (Space-Colony/Nano-„2036-Leap"-Typen) aus dem Kern nach
