@@ -356,10 +356,12 @@ def value_in_text(value: float, text: str) -> bool:
 
     Digit-boundary-guarded so 5 never matches inside 15 or 0.5 inside 10.5 —
     a sloppy substring match would let fabricated values borrow digits from
-    unrelated numbers in the source.
+    unrelated numbers in the source. The boundary also rejects a leading '-', so a
+    positive value never matches a negative number (a +3 claim cannot be "verified"
+    against a source that only states -3) — the sign is part of the value (C-4).
     """
     for cand in _value_render_candidates(value):
-        pattern = r"(?<![\d.])" + re.escape(cand) + r"(?![\d.])"
+        pattern = r"(?<![\d.\-])" + re.escape(cand) + r"(?![\d.])"
         if re.search(pattern, text):
             return True
     return False

@@ -256,6 +256,11 @@ def test_value_must_not_borrow_digits_from_other_numbers():
     assert value_in_text(12.0, "The shelf must carry a load of 12 kg.")
     assert not value_in_text(0.5, "The board is 10.5 mm thick.")
     assert value_in_text(2.5, "Wall thickness of 2.5 mm is specified.")
+    # Sign-aware (C-4): a positive value must NOT borrow the digits of a negative
+    # number, and a negative value matches its signed form.
+    assert not value_in_text(3.0, "offset is -3 mm")
+    assert value_in_text(-3.0, "offset is -3 mm")
+    assert not value_in_text(3.0, "the gap is -3.0 mm")
 
 
 def test_dead_citation_on_referenced_claim_fails():
