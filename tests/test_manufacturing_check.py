@@ -201,3 +201,70 @@ def test_cnc_material_ambiguity_gap_only_where_material_changes_the_verdict():
     cnc2 = next(p for p in sub.processes if p.process == "CNC")
     assert cnc2.issues                                      # metal blocker present
     assert not any("passes metal" in g for g in cnc2.gaps)
+
+
+# === Laser/sheet-DFM honesty stone (Teil 2, Stein 2, sourced rules) ===
+# Laser is a 2D SHEET process: it cuts a flat constant-thickness profile. From the
+# bounding box only the sheet thickness (smallest extent) is evaluable; the in-plane
+# form, feature sizes vs thickness, bridging and kerf need the 2D geometry the spec
+# does not carry — declared as gaps, never a silent printable=True. Sources:
+# SendCutSend / Xometry / Wurth laser & sheet DFM.
+
+def test_laser_declares_sheet_form_rules_as_gaps_not_passes():
+    """Tracer: from the bounding box only the sheet thickness is evaluable; the
+    in-plane form, feature sizes, bridging and kerf are not — declared as gaps,
+    never a silent printable=True (necessary, not sufficient)."""
+    from gen.cad.manufacturing_check import check_advanced_dfm
+
+    # 120x80x6 plate: thin axis 6mm (<= aluminum max 12) -> no thickness blocker
+    report = check_advanced_dfm(_artifact("Laser Plate", (120, 80, 6), 2.0))
+    laser = next(p for p in report.processes if p.process == "Laser")
+    assert laser.issues == []          # 6mm is laser-cuttable -> no blocker
+    assert laser.gaps                  # but form/feature rules un-evaluable
+    assert laser.printable is False    # so not certifiable -> honest
+    text = " ".join(laser.gaps).lower()
+    assert "form" in text or "profile" in text or "outline" in text
+    assert "feature" in text or "hole" in text
+    assert "source" in laser.details   # provenance, not invented
+
+
+def test_laser_too_thick_part_is_a_sourced_blocker():
+    """A sheet thickness beyond the laser max (even for steel) is a real blocker
+    that names the sourced limit and the waterjet/plasma alternative."""
+    from gen.cad.manufacturing_check import check_advanced_dfm
+    from gen.dfm import LASER_MAX_THICKNESS_STEEL_MM
+
+    rep = check_advanced_dfm(_artifact("Laser Thick Block", (200, 150, 30), 4.0))
+    laser = next(p for p in rep.processes if p.process == "Laser")
+    assert laser.issues                                    # blocker, not just a gap
+    assert any(f"{LASER_MAX_THICKNESS_STEEL_MM:g}" in i for i in laser.issues)
+    assert any("waterjet" in i.lower() or "plasma" in i.lower() for i in laser.issues)
+    assert laser.printable is False
+
+
+def test_laser_thickness_band_is_an_equipment_gap_not_a_pass():
+    """A thickness above a typical online job-shop cap but below the industrial laser
+    bound is an equipment gap (not a silent pass) — laser max is equipment/material
+    specific, not one universal number. A thin sheet has no such gap. Details carry
+    sourced provenance, not the old invented kerf-only dict."""
+    from gen.cad.manufacturing_check import check_advanced_dfm
+    from gen.dfm import LASER_TYPICAL_SHOP_MAX_MM
+
+    # 18mm: > aluminum cap (12), <= industrial steel bound (25) -> equipment gap, no issue
+    band = check_advanced_dfm(_artifact("Laser Ferrous Only", (300, 200, 18), 5.0))
+    laser = next(p for p in band.processes if p.process == "Laser")
+    assert laser.issues == []
+    assert any("job-shop" in g and f"{LASER_TYPICAL_SHOP_MAX_MM:g}" in g for g in laser.gaps)
+
+    # 12.5mm: above the aluminum cap (12) but below the shop cap (12.7) — this band
+    # must NOT fall through silently; it gets the equipment gap (no-silent-band).
+    edge = check_advanced_dfm(_artifact("Laser Edge Band", (200, 120, 12.5), 4.0))
+    laser_edge = next(p for p in edge.processes if p.process == "Laser")
+    assert any("conservative laser cap" in g or "equipment" in g for g in laser_edge.gaps)
+
+    # 3mm thin sheet: under every cap -> no equipment gap
+    thin = check_advanced_dfm(_artifact("Laser Thin Sheet", (100, 60, 3), 2.0))
+    laser2 = next(p for p in thin.processes if p.process == "Laser")
+    assert not any("job-shop" in g for g in laser2.gaps)
+    assert "kerf" not in laser2.details                    # old bare 'kerf' key gone
+    assert "kerf_mm_typical" in laser2.details and "source" in laser2.details

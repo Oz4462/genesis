@@ -179,7 +179,10 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
     Toleranz), erfundene Zahlen (`min_feature_mm`/`typical_tol`) raus, Vacuous-Pass raus (Gaps statt stillem
     `printable=True`). `dfm.py`-Konstanten + `cnc_geometric_gaps()` + `ProcessDFM.gaps`/`AdvancedDFMReport.total_gaps`.
     Grok-Cross-Model 2 Runden + Konvergenz (0 STILL/0 NEW). 4 neue Tests, volle Suite 1208 grün. BUILD_LOG dokumentiert.
-  - [ ] Stein 2 Laser/Sheet-DFM (Kerf/Min-Feature/Material-Dicke gegen Quellen, gleiche Gap-Disziplin).
+  - [x] **Stein 2 Laser/Sheet-DFM (2026-06-17)**: quellenlosen Laser-Stub → echte Sheet-Regeln (Dicke=min(bbox)
+    real geprüft; Dual-Threshold Industrie-Obergrenze 25mm-Issue vs. Shop-Cap 12.7mm-Gap; Form/Feature/Bridging/
+    Kerf als Gaps). `dfm.py`-Laser-Konstanten + `laser_sheet_gaps()`. Grok 2 Runden + Bestätigung (0 STILL/0 NEW),
+    SendCutSend-Dicke selbst verifiziert. 3 neue Tests (inkl. no-silent-band), volle Suite 1211 grün. BUILD_LOG dok.
   - [ ] Stein 3 PCB-DFM (Trace/Via/Clearance gegen Fertiger-Regeln; Naht zu `electronics.py`).
   - [ ] Stein 4 echtes Kostenmodell (statt `cost_stub`/`cost_model_stub` — Material+Zeit+Prozess, gequellt).
   - [ ] Stein 5 G-Code real (statt `pipelines/fertigungs.py`-Text-Stub).

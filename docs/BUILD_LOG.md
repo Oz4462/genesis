@@ -7359,3 +7359,27 @@ Bereit f�r n�chste grosse Idee oder weitere Nachverfolgung.
 **4 Linsen:** L1 (jede Zahl gequellt, Provenance in `details.source`); L2 (kein Drift — bestehende FDM/Laser/PCB unberührt, beide Consumer als tolerant geprüft); L3 (Naht zu integrator-manifest); L4 (TDD RED→GREEN, Cross-Model-verifiziert).
 
 **Rest-Risiko:** Laser/PCB noch Stubs; Kostenmodell weiter `cost_stub` (nächster Stein); FDM-`hole_hint=3.0` bleibt Fake (separater Fix). CNC ist ehrlich "nie zertifizierbar aus bbox+Wand allein" — gewollt, Gaps benennen exakt die fehlende Geometrie.
+
+
+---
+
+## Laser/Sheet-DFM Stein (Teil 2, Stein 2) — 2026-06-17
+
+**Scope:** Den Laser-Pfad in `cad/manufacturing_check.py` vom quellenlosen Stub (`details={"kerf":"0.1-0.3mm typical"}`, `laser_printable = len(issues)==0`) zu echten, belegten Sheet-DFM-Regeln gehärtet — gleiche Gap-Disziplin wie der CNC-Stein.
+
+**Kerneinsicht:** Laser ist ein 2D-Blech-Prozess. Aus den Spec-Größen ist nur die Blechdicke = min(bbox) prüfbar; 2D-Form/Feature/Bridging/Kerf brauchen Geometrie, die die Spec nicht trägt → Gaps. Max-Schnittdicke ist equipment-abhängig (kein Festwert) → Dual-Anchor wie bei der CNC-Envelope.
+
+**Gebaut**
+- src/gen/dfm.py: Laser-Konstanten (Industrie-Fiber-Obergrenze Stahl 25/Edelstahl 15/Alu 12mm; typischer Shop-Cap 12.7mm SendCutSend 0.5in; Min-Feature-Floor 0.5×/empfohlen 1×; Bridging 1–1.5×; Kerf 0.1–1.0mm) + `laser_sheet_gaps()` + `LASER_DFM_SOURCE`.
+- src/gen/cad/manufacturing_check.py: ehrlicher Laser-Block — Dicke=min(bbox) real geprüft, Dual-Threshold (>25mm Issue→Waterjet/Plasma; >12mm Equipment-Gap, gated auf niedrigsten Materialcap → kein stilles Band), 4 Form/Feature-Gaps; `printable` nur ohne Blocker UND ohne Gap.
+- tests/test_manufacturing_check.py: 3 neue Laser-Tests (Form-Gaps statt Pass; gequellter Zu-dick-Blocker; Equipment-Band inkl. zuvor-stiller (12,12.7]-Band).
+
+**Research:** SendCutSend (Laser-Guidelines, Min/Max-Charts — Baustahl & 5052-Alu 0.5in=12.7mm verifiziert), Xometry Laser Rules, Wurth Plasma/Laser/Waterjet, TechniWaterjet (2026-06-17).
+
+**Cross-Model (Grok, Kernprinzip #3):** 2 adversariale Runden + finale Bestätigung. Grok fing 9+2 echte Lücken — größte: Max-Dicke 25mm war Industrie-Fiber, nicht typischer Shop (SendCutSend 12.7mm) → Dual-Anchor; Min-Loch-Regel invertiert (Floor 0.5× SendCutSend / empfohlen 1× Xometry); stilles (12,12.7]-Band → Gate auf niedrigsten Materialcap. Alle korrigiert + evidence-grounded re-verifiziert (SendCutSend 0.5in selbst nachgeschlagen). Konvergenz: 0 STILL / 0 NEW.
+
+**Checks:** ruff sauber; `test_manufacturing_check.py` 8 passed/3 skipped; volle Suite **1211 passed / 9 skipped**.
+
+**4 Linsen:** L1 (jede Zahl gequellt + dual-attribuiert Industrie vs. Shop, Provenance in `details.source`); L2 (kein Drift — FDM/CNC/PCB unberührt); L3 (Naht zu integrator-manifest via `total_gaps`/`ProcessDFM.gaps` aus Stein 1); L4 (TDD RED→GREEN, Cross-Model + Runtime-verifiziert, kein stilles Band).
+
+**Rest-Risiko:** PCB noch Stub (Stein 3); Kostenmodell `cost_stub` (Stein 4); G-Code/KiCad (Stein 5/6). „Ist es überhaupt ein Blechteil?" bleibt ehrlich ein Form-Gap (bbox kann 2D-Profil nicht bestätigen) — gewollt.

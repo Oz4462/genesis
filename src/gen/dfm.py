@@ -113,3 +113,72 @@ def cnc_geometric_gaps() -> list[str]:
         f"≤ {CNC_HOLE_DEPTH_DIAMETER_MAX:.0f}:1 max) not evaluable — spec carries no "
         f"hole geometry",
     ]
+
+
+# === Laser / sheet cutting DFM reference data ===
+# Laser cutting is a 2D SHEET process: it cuts a flat profile from constant-
+# thickness stock. The governing quantity is the sheet thickness (the part's
+# smallest extent). Only thickness-vs-max is evaluable from the spec; the in-
+# plane form (is it a flat cuttable profile at all?), feature/hole sizes vs
+# thickness, bridging and kerf need the 2D geometry the spec does NOT carry and
+# are declared as gaps, never silently passed (necessary, not sufficient).
+#
+# Max cuttable thickness is EQUIPMENT- and material-specific, not one universal
+# number: a typical online job-shop caps lower than a high-power industrial fiber,
+# so a single hard threshold would be dishonest (the same lesson as the CNC
+# envelope). Two anchors are used: the industrial high-power fiber upper bound
+# (beyond it -> waterjet/plasma, a determinate blocker) and the typical online-
+# shop cap (above it -> an equipment gap, not a pass).
+#
+# Sources (laser / sheet, verified 2026-06-17):
+#   * Industrial high-power fiber upper bound: mild steel ~25 mm, stainless ~15 mm,
+#     aluminum ~12 mm; beyond -> waterjet / plasma. Refs: Wurth plasma/laser/
+#     waterjet; Xometry "Laser Cutting Rules"; TechniWaterjet.
+#   * Typical online job-shop cap: mild steel & 5052 aluminum 0.500 in = 12.7 mm
+#     (±0.005 in). Ref: SendCutSend material min/max.
+#   * Min hole / interior feature: floor ~0.5x thickness (the pierce diameter),
+#     recommended >= 1x thickness. Refs: SendCutSend small-geometry; Xometry.
+#   * Bridging / web between features >= 1x-1.5x thickness. Ref: SendCutSend
+#     cut-feature relationships.
+#   * Kerf 0.1-1.0 mm, material/power/speed dependent. Ref: SendCutSend; Xometry.
+
+#: Industrial high-power fiber laser upper bound, mild steel [mm] — beyond this
+#: NO laser cuts (waterjet/plasma territory). Most generous laser case.
+LASER_MAX_THICKNESS_STEEL_MM = 25.0
+#: Industrial high-power fiber upper bound, stainless steel [mm].
+LASER_MAX_THICKNESS_STAINLESS_MM = 15.0
+#: Industrial high-power fiber upper bound, aluminum [mm].
+LASER_MAX_THICKNESS_ALUMINUM_MM = 12.0
+#: Typical online job-shop laser cap [mm] (SendCutSend mild steel & 5052 = 0.5 in).
+LASER_TYPICAL_SHOP_MAX_MM = 12.7
+#: Absolute floor for a hole/interior feature as a multiple of thickness (pierce).
+LASER_MIN_FEATURE_FLOOR_RATIO = 0.5
+#: Recommended minimum hole/feature as a multiple of thickness.
+LASER_MIN_FEATURE_RECOMMENDED_RATIO = 1.0
+#: Bridging / web between features as a multiple of thickness (min..max).
+LASER_BRIDGE_MIN_RATIO = 1.0
+LASER_BRIDGE_MAX_RATIO = 1.5
+#: Typical kerf width range [mm] (material / power / speed dependent — not fixed).
+LASER_KERF_MIN_MM = 0.1
+LASER_KERF_MAX_MM = 1.0
+
+#: Provenance string for the laser/sheet reference data above.
+LASER_DFM_SOURCE = "SendCutSend / Xometry / Wurth laser & sheet DFM (2026-06-17)"
+
+
+def laser_sheet_gaps(thickness_mm: float) -> list[str]:
+    """Laser/sheet DFM rules that need the 2D profile + feature geometry the spec
+    does NOT carry. Declared as gaps so the verdict is honestly provisional."""
+    return [
+        f"Laser: in-plane form not verifiable — stock thickness taken as the bounding-"
+        f"box minimum (~{thickness_mm:g}mm, the plate thickness, may differ from "
+        f"min_wall); laser needs a flat 2D-cuttable profile, which the bounding box "
+        f"cannot confirm a solid/3D part would fail ({LASER_DFM_SOURCE})",
+        f"Laser: min hole/feature (floor ~{LASER_MIN_FEATURE_FLOOR_RATIO:g}× thickness, "
+        f"recommended ≥ {LASER_MIN_FEATURE_RECOMMENDED_RATIO:g}× ~{thickness_mm:g}mm) "
+        f"not evaluable — spec carries no feature geometry",
+        f"Laser: bridging/web ≥ {LASER_BRIDGE_MIN_RATIO:g}–{LASER_BRIDGE_MAX_RATIO:g}× "
+        f"thickness not evaluable — spec carries no feature spacing",
+        f"Laser: kerf {LASER_KERF_MIN_MM}–{LASER_KERF_MAX_MM}mm is material/power "
+        f"dependent, not a fixed value — confirm against the cutter",
+    ]

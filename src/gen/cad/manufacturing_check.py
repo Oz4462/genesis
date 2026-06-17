@@ -32,6 +32,14 @@ from gen.dfm import (
     CNC_MAX_MILL_DEPTH_MM,
     CNC_DFM_SOURCE,
     cnc_geometric_gaps,
+    LASER_MAX_THICKNESS_STEEL_MM,
+    LASER_MAX_THICKNESS_STAINLESS_MM,
+    LASER_MAX_THICKNESS_ALUMINUM_MM,
+    LASER_TYPICAL_SHOP_MAX_MM,
+    LASER_KERF_MIN_MM,
+    LASER_KERF_MAX_MM,
+    LASER_DFM_SOURCE,
+    laser_sheet_gaps,
 )
 
 
@@ -276,17 +284,51 @@ def check_advanced_dfm(
         qa_hints=["CMM on toleranced dims", "Surface-finish (Ra) check"],
     ))
 
-    # Laser / sheet stub
-    laser_issues = []
-    if vol > 10 and wall > 3:
-        laser_issues.append("Laser: thick material — consider waterjet or plasma instead of laser")
-    laser_printable = len(laser_issues) == 0
+    # Laser / sheet cutting — a 2D process on constant-thickness stock (dfm.py).
+    # The governing quantity is the sheet thickness = the part's smallest extent.
+    # Only thickness-vs-max is evaluable; the in-plane form, feature sizes vs
+    # thickness, bridging and kerf need the 2D geometry the spec does not carry
+    # and are declared as gaps, never silently passed (necessary, not sufficient).
+    laser_issues: list[str] = []
+    laser_gaps: list[str] = []
+    thickness = min(artifact.spec.bounding_box_hint_mm)
+    if thickness <= 0:
+        laser_gaps.append("Laser: degenerate thickness — sheet thickness not evaluable")
+    elif thickness > LASER_MAX_THICKNESS_STEEL_MM:
+        # beyond the high-power-fiber upper bound -> no laser cuts it (determinate)
+        laser_issues.append(
+            f"Laser: sheet thickness ~{thickness:g}mm exceeds the laser upper bound "
+            f"~{LASER_MAX_THICKNESS_STEEL_MM:g}mm (high-power fiber, mild steel) — "
+            f"use waterjet/plasma ({LASER_DFM_SOURCE})")
+    elif thickness > LASER_MAX_THICKNESS_ALUMINUM_MM:
+        # above the most conservative material cap but below the industrial bound:
+        # whether it cuts depends on equipment class and material — a gap, not a pass.
+        # (Gate on the LOWEST cap so no thickness band is silently OK.)
+        laser_gaps.append(
+            f"Laser: thickness ~{thickness:g}mm exceeds the most conservative laser cap "
+            f"(aluminum ~{LASER_MAX_THICKNESS_ALUMINUM_MM:g}mm; typical online job-shop "
+            f"~{LASER_TYPICAL_SHOP_MAX_MM:g}mm, SendCutSend 0.5in) — cuttable higher is "
+            f"material and equipment specific (steel ≤ {LASER_MAX_THICKNESS_STEEL_MM:g}, "
+            f"stainless ≤ {LASER_MAX_THICKNESS_STAINLESS_MM:g}mm); confirm equipment or "
+            f"use waterjet/plasma")
+    laser_gaps += laser_sheet_gaps(thickness if thickness > 0 else 0.0)
+    # honest verdict: printable only if NO blocker AND NO un-evaluable rule remains
+    laser_printable = not laser_issues and not laser_gaps
     processes.append(ProcessDFM(
         process="Laser",
         printable=laser_printable,
         issues=laser_issues,
-        details={"kerf": "0.1-0.3mm typical"},
-        cost_hint="Fast for sheet; nesting savings for >10 pcs",
+        gaps=laser_gaps,
+        details={
+            "sheet_thickness_mm": round(thickness, 3),
+            "shop_max_thickness_mm": LASER_TYPICAL_SHOP_MAX_MM,
+            "industrial_max_steel_mm": LASER_MAX_THICKNESS_STEEL_MM,
+            "industrial_max_stainless_mm": LASER_MAX_THICKNESS_STAINLESS_MM,
+            "industrial_max_aluminum_mm": LASER_MAX_THICKNESS_ALUMINUM_MM,
+            "kerf_mm_typical": f"{LASER_KERF_MIN_MM}-{LASER_KERF_MAX_MM}",
+            "source": LASER_DFM_SOURCE,
+        },
+        cost_hint=None,  # no laser cost model yet — separate stone (DOC_CODE_DRIFT §8)
     ))
 
     # PCB stub (electronics path from Elektriker)
