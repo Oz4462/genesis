@@ -51,7 +51,22 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
   (max_bytes-Cap auf read() gegen untrusted-body-DoS, fail statt silent-truncate→A5); search.py FIXED (S2+Wikipedia:
   malformed Envelope [fehlender data/query-Key]→SearchBackendError vs. honest-empty→[]); +13 adversariale Tests.
   arxiv_backend.py CLEAN (ET-Parse raised auf bad XML; trusted Host). REBUTTED→D8/D9/D10 (s.u.). Suite 1166/9, ruff clean.
-- agents/ — NEXT (scout, scholar, skeptic, conductor, synthesizer, architect, forge) — Research-Backbone, höchste Hebel
+- agents/ scout+scholar+skeptic — DONE (Claude×Grok, eine Review-Pass, je isoliert+eval-gated gefixt):
+  · skeptic FIXED non-finite-Confidence (NaN durch _clamp01 → VERIFIED+NaN umgeht `confidence<τ`); Wurzel in parsing.py
+    (parse_constant lehnt NaN/Inf-Literale am untrusted Boundary ab, systemisch alle Agenten) + skeptic._clamp01 NaN→0.0.
+    Grok korrobierte den NaN-Fund unabhängig (high).
+  · scout FIXED array-shape-Guard (Objekt-Reply iterierte Dict-Keys als Müll-Queries); scholar FIXED NFKC-Quote-Fold
+    + Docstring-Korrektur (Guard war case+ws, Doc sagte nur ws).
+  · REBUTTED Grok scholar-high (text↔quote Token-Overlap): architektur-inkompatibel (text=GERMAN, quote=original-lang →
+    cross-lingual ≈0 → over-reject); Text-Treue ist Skeptics Job. REBUTTED skeptic _aggregate min-conf-refute (würde
+    REFUTED unsicherer machen — Asymmetrie ist gewollt). Suite 1176/9, ruff clean.
+- agents/ conductor+synthesizer+forge+architect — NEXT (Decompose/Generate/Synthesize)
+- D11: Audit-Log-Lücken (Grok, low, A5): scout._queries + skeptic._judge schlucken LLM/Parse-Fehler ohne log
+  (best-effort, kein Fabrication-Risiko, aber schwer reproduzierbar) — state.log threaden. Auch: skeptic.claim.verification
+  nur aus Primary-Verifier → bei extra_judges/Panel fehlen Second/Extra-Quellen in der Audit-Spur (Union dedup-by-URL).
+- D12 (→ ergänzt D7): inter-judge Familien-Dedup (verifier≠second≠extra) im Skeptic/consensus fehlt (nur vs. Generator
+  geprüft) — Grok korrobiert das frühere consensus-Finding. Auch: independence nur exakte-URL (Mirror/CDN-Dupes), Canonical/
+  content_hash-Dedup gegen Scholar-Quellen.
 - FEATURE DONE: Abo-OAuth LLM-Adapter — ClaudeCLI + GrokCLI (shellen `claude -p`/`grok -p`, keylos, Max-Abos),
   make_llm-Factory (family-routed) im cli.py-Live-Wiring, config-Default claude-opus-4-8 / grok-composer-2.5-fast.
   LIVE PONG-verifiziert (beide), 11 Offline-Tests, ruff clean, Suite 1132 grün, kein Import-Zyklus.
