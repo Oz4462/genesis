@@ -7336,3 +7336,26 @@ Dies war der erste vollst�ndige Live-Run nach dem gesamten 10y-Leap (swarms, qua
 **Ergebnis:** Alles im Hintergrund gestartet, nachverfolgt, dokumentiert. User: Browser �ffnen und Logs tailen f�r den Fortschritt der Drohne.
 
 Bereit f�r n�chste grosse Idee oder weitere Nachverfolgung.
+
+
+---
+
+## CNC-DFM Stein (Teil 2, Fertigungs-Stubs real) — 2026-06-17
+
+**Scope:** Den CNC-Pfad in `cad/manufacturing_check.py` vom quellenlosen Stub zu echten, belegten DFM-Regeln gehärtet (erster von mehreren Fertigungs-Steinen; Laser/PCB/Kostenmodell/G-Code/KiCad folgen).
+
+**Gebaut**
+- src/gen/dfm.py: gequellte CNC-Konstanten (Min-Wand Metall 0.8/Vendor-Min 0.5, Plastik 1.5; ISO 2768-1 m; Pocket 3:1/6:1; Bohrung 4:1/10:1; 3-Achs-Tiefe 50.8mm Protolabs) + `cnc_geometric_gaps()` Helper + `CNC_DFM_SOURCE`-Provenance.
+- src/gen/cad/manufacturing_check.py: `ProcessDFM.gaps` + `AdvancedDFMReport.total_gaps`; CNC-Block prüft Wand real, deklariert Geometrie/Envelope/Material/Toleranz als Gaps statt Vacuous-Pass; `printable` nur ohne Blocker UND ohne offene Gap.
+- src/gen/pipelines/integrator.py: Gaps im manifest.json sichtbar (L3-Naht).
+- tests/test_manufacturing_check.py: 4 neue CNC-Honesty-Tests (Gaps statt Pass; gequellter Wand-Blocker mit Provenance; Blocker-vs-Incomplete; Material-Band-Korrektheit).
+
+**Research:** Protolabs/Xometry/Fictiv/MakerStage/uneed CNC-DFM (2026-06-17); Protolabs Max-Extents (3-Achs-Tiefe 2in=50.8mm).
+
+**Cross-Model (Grok, Kernprinzip #3):** 2 adversariale Runden + Konvergenz. Grok fing 8+2 echte Lücken (Envelope-als-Blocker zu grob/per-Achse, Plastik-Material-Blindspot, "passes metal" unter 0.8mm falsch, Toleranz wirkte evaluiert). Alle korrigiert; #4 (sub-0.5mm bleibt Issue) mit DFM-Begründung rebuttet, Grok akzeptierte. Konvergenz: 0 STILL / 0 NEW.
+
+**Checks:** ruff sauber; `tests/test_manufacturing_check.py` 5 passed/3 skipped; volle Suite **1208 passed / 9 skipped**.
+
+**4 Linsen:** L1 (jede Zahl gequellt, Provenance in `details.source`); L2 (kein Drift — bestehende FDM/Laser/PCB unberührt, beide Consumer als tolerant geprüft); L3 (Naht zu integrator-manifest); L4 (TDD RED→GREEN, Cross-Model-verifiziert).
+
+**Rest-Risiko:** Laser/PCB noch Stubs; Kostenmodell weiter `cost_stub` (nächster Stein); FDM-`hole_hint=3.0` bleibt Fake (separater Fix). CNC ist ehrlich "nie zertifizierbar aus bbox+Wand allein" — gewollt, Gaps benennen exakt die fehlende Geometrie.

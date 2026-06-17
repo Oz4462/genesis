@@ -174,10 +174,17 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
   Auch low: limit-clamp (≤25) an Backend-Eingang; Content-Type text/* erzwingen statt lossy errors="replace"-Hash auf Binär.
 
 ## Next
-- **TEIL 2 (nächste Session): CAD-Fertigungs-Stubs real bauen** (Drift-Rec #5, `docs/DOC_CODE_DRIFT.md` §6/§8):
-  CNC/Laser/PCB-DFM-Regeln, Kostenmodell (statt hartkodiertem `cost_stub`), G-Code, KiCad-Adapter — je nach
-  Research→Production-Disziplin (Quellen, Domain-Regeln, TDD). Vorgeschlagener erster Stein: CNC-DFM
-  (min-Feature/Toleranz/Wandstärke gegen belegte Quellen) — kleinster, klarster Stub in `cad/manufacturing_check.py`.
+- **TEIL 2 läuft: CAD-Fertigungs-Stubs real bauen** (Drift-Rec #5, `docs/DOC_CODE_DRIFT.md` §6/§8):
+  - [x] **Stein 1 CNC-DFM (2026-06-17)**: quellenlosen CNC-Stub → echte belegte Regeln (Wand/Envelope/Material/
+    Toleranz), erfundene Zahlen (`min_feature_mm`/`typical_tol`) raus, Vacuous-Pass raus (Gaps statt stillem
+    `printable=True`). `dfm.py`-Konstanten + `cnc_geometric_gaps()` + `ProcessDFM.gaps`/`AdvancedDFMReport.total_gaps`.
+    Grok-Cross-Model 2 Runden + Konvergenz (0 STILL/0 NEW). 4 neue Tests, volle Suite 1208 grün. BUILD_LOG dokumentiert.
+  - [ ] Stein 2 Laser/Sheet-DFM (Kerf/Min-Feature/Material-Dicke gegen Quellen, gleiche Gap-Disziplin).
+  - [ ] Stein 3 PCB-DFM (Trace/Via/Clearance gegen Fertiger-Regeln; Naht zu `electronics.py`).
+  - [ ] Stein 4 echtes Kostenmodell (statt `cost_stub`/`cost_model_stub` — Material+Zeit+Prozess, gequellt).
+  - [ ] Stein 5 G-Code real (statt `pipelines/fertigungs.py`-Text-Stub).
+  - [ ] Stein 6 KiCad-Adapter real (statt `generate_kicad_schematic_stub`, `electronics.py:824`).
+  - Nebenfund: FDM-`hole_hint=3.0` ist ein Fake-Input (separater kleiner Fix).
 - Review-Kampagne **Schritt 7-9 offen** (Reihenfolge oben): physics_validation + 27 Validatoren + fem*/modal/dfm/
   orientation/mesh_integrity/brep/circuit → export/+costing+completeness+software → pipelines/+integration/+grenzverschiebung/.
 - Deferred Findings aus Schritt 6: D14 (pipeline/refinement), D15 (grounding/geometry — geometry_verification NICHT

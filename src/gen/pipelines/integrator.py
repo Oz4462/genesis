@@ -219,7 +219,7 @@ def build_full_mini_realization_package(ideas: list[str], package_name: str = "J
                 dfm_reports.append({
                     "name": dfm_r.artifact_name,
                     "overall_printable": dfm_r.overall_printable,
-                    "processes": [{"p": p.process, "printable": p.printable, "issues": p.issues} for p in dfm_r.processes],
+                    "processes": [{"p": p.process, "printable": p.printable, "issues": p.issues, "gaps": p.gaps} for p in dfm_r.processes],
                     "cost_hint": dfm_r.cost_model_stub,
                 })
     except Exception as e:

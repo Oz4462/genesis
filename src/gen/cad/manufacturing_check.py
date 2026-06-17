@@ -25,6 +25,13 @@ from .prototype_cad_builder import BuildArtifact
 from gen.dfm import (
     FDM_MIN_WALL_MM,
     FDM_MIN_HOLE_DIAMETER_MM,
+    CNC_MIN_WALL_METAL_MM,
+    CNC_MIN_WALL_METAL_FLOOR_MM,
+    CNC_MIN_WALL_PLASTIC_MM,
+    CNC_GENERAL_TOLERANCE_ISO2768,
+    CNC_MAX_MILL_DEPTH_MM,
+    CNC_DFM_SOURCE,
+    cnc_geometric_gaps,
 )
 
 
@@ -137,6 +144,11 @@ class ProcessDFM:
     details: dict[str, object]
     cost_hint: str | None = None  # stub
     qa_hints: list[str] = field(default_factory=list)
+    # Rules that could NOT be evaluated from the spec's quantities (geometry the
+    # CSG does not carry). Surfaced separately from `issues` so a consumer can
+    # tell a real blocker (issues) from an un-certifiable verdict (gaps). A
+    # process with open gaps is NOT printable=True — necessary, not sufficient.
+    gaps: list[str] = field(default_factory=list)
 
 @dataclass(frozen=True)
 class AdvancedDFMReport:
@@ -150,6 +162,9 @@ class AdvancedDFMReport:
     quelle: str | None = None
     cost_model_stub: str | None = None
     qa_plan_stub: list[str] = field(default_factory=list)
+    # Un-evaluable rules across all processes (e.g. CNC geometric rules needing
+    # geometry the spec does not carry). Surfaced so a partial verdict is honest.
+    total_gaps: list[str] = field(default_factory=list)
 
 
 def check_advanced_dfm(
@@ -202,20 +217,63 @@ def check_advanced_dfm(
         qa_hints=["Visual + caliper on critical dims", "Pull test sample for layer strength"],
     ))
 
-    # CNC stub (different rules: min feature, tolerance)
-    cnc_issues = []
-    if wall < 1.0:
-        cnc_issues.append("CNC: wall <1.0mm may require special tooling or EDM")
-    if artifact.spec.bounding_box_hint_mm[0] > 200:
-        cnc_issues.append("CNC: large part — fixturing/5-axis needed")
-    cnc_printable = len(cnc_issues) == 0
+    # CNC (subtractive milling) — sourced DFM rules (dfm.py). Only wall thickness
+    # is evaluable from the spec; the geometric rules (corner radius, pocket
+    # aspect, hole depth), the machine envelope (per-axis + material/machine-
+    # specific — Protolabs caps 3-axis depth at ~50.8mm/side, so a single
+    # bounding-box threshold would be dishonest), the unspecified material, and
+    # per-dimension tolerances are NOT evaluable here and are declared as gaps,
+    # never silently passed (necessary, not sufficient — same stance as FDM).
+    cnc_issues: list[str] = []
+    cnc_gaps: list[str] = []
+    if wall <= 0:
+        cnc_gaps.append("CNC: wall thickness not specified — min-wall rule not evaluable")
+    else:
+        if wall < CNC_MIN_WALL_METAL_FLOOR_MM:
+            cnc_issues.append(
+                f"CNC: wall {wall}mm below vendor minimum feature "
+                f"~{CNC_MIN_WALL_METAL_FLOOR_MM}mm — needs EDM or special tooling "
+                f"({CNC_DFM_SOURCE})")
+        elif wall < CNC_MIN_WALL_METAL_MM:
+            cnc_issues.append(
+                f"CNC: wall {wall}mm < {CNC_MIN_WALL_METAL_MM}mm recommended for metal "
+                f"(conservative advisory) ({CNC_DFM_SOURCE})")
+        # material is unspecified: the thresholds above use the most permissive
+        # material (metal). Only where a wall actually PASSES metal but would fail
+        # plastic does the material ambiguity change the verdict — declare it there
+        # (below 0.8mm the wall already fails metal, so 'passes metal' would be false).
+        elif wall < CNC_MIN_WALL_PLASTIC_MM:
+            cnc_gaps.append(
+                f"CNC: material unspecified — wall {wall}mm passes metal but a plastic "
+                f"part needs ≥ {CNC_MIN_WALL_PLASTIC_MM}mm; verdict assumes metal")
+    # envelope fit is per-axis + machine/material-specific — un-evaluable from the
+    # bounding box alone; surfaced as a gap stating the part's extents + depth cap.
+    bx, by, bz = artifact.spec.bounding_box_hint_mm
+    cnc_gaps.append(
+        f"CNC: machine envelope fit not evaluable — part {bx}×{by}×{bz}mm must be "
+        f"checked against the chosen mill's per-axis travel (3-axis depth cap "
+        f"~{CNC_MAX_MILL_DEPTH_MM}mm/side, Protolabs)")
+    # the spec carries no per-dimension tolerances; the default standard is an
+    # assumption, not an evaluated result.
+    cnc_gaps.append(
+        f"CNC: per-dimension tolerances not specified — {CNC_GENERAL_TOLERANCE_ISO2768} "
+        f"assumed as default, not evaluated")
+    cnc_gaps += cnc_geometric_gaps()
+    # honest verdict: printable only if NO blocker AND NO un-evaluable rule remains
+    cnc_printable = not cnc_issues and not cnc_gaps
     processes.append(ProcessDFM(
         process="CNC",
         printable=cnc_printable,
         issues=cnc_issues,
-        details={"min_feature_mm": 0.5, "typical_tol": "±0.05mm"},
-        cost_hint="Higher for small qty; material removal cost dominant",
-        qa_hints=["CMM on critical", "Surface finish check"],
+        gaps=cnc_gaps,
+        details={
+            "min_wall_metal_mm": CNC_MIN_WALL_METAL_MM,
+            "min_wall_plastic_mm": CNC_MIN_WALL_PLASTIC_MM,
+            "general_tolerance_assumed": CNC_GENERAL_TOLERANCE_ISO2768,
+            "source": CNC_DFM_SOURCE,
+        },
+        cost_hint=None,  # no CNC cost model yet — separate stone (DOC_CODE_DRIFT §8)
+        qa_hints=["CMM on toleranced dims", "Surface-finish (Ra) check"],
     ))
 
     # Laser / sheet stub
@@ -270,4 +328,5 @@ def check_advanced_dfm(
         quelle=quelle,
         cost_model_stub=cost_stub,
         qa_plan_stub=qa_stub,
+        total_gaps=[g for p in processes for g in p.gaps],
     )

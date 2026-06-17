@@ -45,3 +45,71 @@ def min_wall_formula(nozzle_id: str, perimeters_id: str) -> str:
     Length × dimensionless = length, so the result is a length (C-15); a
     constraint ``wall_thickness >= min_wall`` is the DFM check (C-13)."""
     return f"{nozzle_id} * {perimeters_id}"
+
+
+# === CNC machining (subtractive) DFM reference data ===
+# Subtractive milling has a DIFFERENT rule set than FDM: a tool must reach and
+# remove material, so thin walls chatter under cutting load, internal corners
+# cannot be sharper than the end-mill radius, and deep narrow features need
+# long fragile tools. As with FDM, only the rules expressible from the
+# quantities the spec carries (wall thickness, overall envelope) are evaluated;
+# the geometric rules that need cavity/pocket/hole geometry the CSG spec does
+# NOT carry are declared as gaps (see cnc_geometric_gaps) — never silently
+# passed. A passed CNC check is necessary, not sufficient.
+#
+# Sources (CNC milling, verified 2026-06-17):
+#   * Min wall — metal 0.8 mm recommended (0.5 mm vendor minimum feature, below
+#     which the wall flexes/breaks under tool load); plastic 1.5 mm recommended
+#     (thermal distortion). Refs: Protolabs "DFM for CNC"; Xometry CNC design
+#     tips; fsfab CNC wall-thickness guide.
+#   * General tolerance — ISO 2768-1 "m" (medium) is the default for linear/
+#     angular dims left unspecified on a CNC drawing. Ref: Fictiv ISO 2768.
+#   * Internal corner radius ≥ tool radius and ≥ 1/3 cavity depth — needs cavity
+#     geometry (gap). Refs: MakerStage; uneed CNC internal corner radius.
+#   * Pocket depth:width ≤ 3:1 with standard end mills (≤ 6:1 extended reach,
+#     added cost / worse finish) — needs pocket geometry (gap). Refs: MakerStage;
+#     Protolabs.
+#   * Hole depth:diameter ≤ 4:1 ideal (≤ 10:1 max) for chip evacuation — needs
+#     hole geometry (gap). Refs: Jiga CNC design guide; Manufyn.
+
+#: Recommended minimum machinable wall in metal [mm] (0.5 mm is the hard floor).
+CNC_MIN_WALL_METAL_MM = 0.8
+#: Hard floor below which a metal wall is unmachinable without EDM [mm].
+CNC_MIN_WALL_METAL_FLOOR_MM = 0.5
+#: Recommended minimum machinable wall in plastic [mm].
+#: Used to flag the material ambiguity when a wall passes metal but not plastic.
+CNC_MIN_WALL_PLASTIC_MM = 1.5
+#: Default general tolerance for unspecified CNC dimensions.
+CNC_GENERAL_TOLERANCE_ISO2768 = "ISO 2768-1 m (medium)"
+#: Reliable pocket depth-to-width ratio with standard end mills.
+CNC_POCKET_ASPECT_RATIO_STD = 3.0
+#: Pocket depth-to-width ratio reachable with extended-reach tooling (added cost).
+CNC_POCKET_ASPECT_RATIO_EXTENDED = 6.0
+#: Ideal hole depth-to-diameter ratio for chip evacuation.
+CNC_HOLE_DEPTH_DIAMETER_IDEAL = 4.0
+#: Practical maximum hole depth-to-diameter ratio (chip evacuation / accuracy).
+CNC_HOLE_DEPTH_DIAMETER_MAX = 10.0
+#: Max 3-axis milling DEPTH per side [mm] — Protolabs caps this at 2 in (50.8 mm).
+#: Envelope fit is per-axis and machine/material-specific, so it is NOT reducible
+#: to one bounding-box threshold; the check surfaces envelope fit as a gap, not a
+#: blocker. Ref: Protolabs "Maximum Milling & Turning Extents".
+CNC_MAX_MILL_DEPTH_MM = 50.8
+
+#: Provenance string for the CNC reference data above.
+CNC_DFM_SOURCE = "Protolabs / Xometry / Fictiv / MakerStage CNC DFM (2026-06-17)"
+
+
+def cnc_geometric_gaps() -> list[str]:
+    """The CNC DFM rules a real tool runs but that need cavity/pocket/hole
+    geometry the CSG spec does NOT carry. Declared as gaps so the verdict is
+    honestly provisional — never silently passed (necessary, not sufficient)."""
+    return [
+        f"CNC: internal corner radius (≥ end-mill radius and ≥ 1/3 cavity depth) "
+        f"not evaluable — spec carries no cavity geometry ({CNC_DFM_SOURCE})",
+        f"CNC: pocket depth:width ratio (≤ {CNC_POCKET_ASPECT_RATIO_STD:.0f}:1 standard, "
+        f"≤ {CNC_POCKET_ASPECT_RATIO_EXTENDED:.0f}:1 extended reach at added cost) not "
+        f"evaluable — spec carries no pocket geometry",
+        f"CNC: hole depth:diameter ratio (≤ {CNC_HOLE_DEPTH_DIAMETER_IDEAL:.0f}:1 ideal, "
+        f"≤ {CNC_HOLE_DEPTH_DIAMETER_MAX:.0f}:1 max) not evaluable — spec carries no "
+        f"hole geometry",
+    ]
