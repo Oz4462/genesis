@@ -97,8 +97,11 @@ class ClarifyingQuestion:
 
     `measurand`  the missing quantity tag the answer would supply.
     `question`   the human-readable prompt.
-    `unblocks`   the check names this answer would make runnable (sorted).
-    `priority`   EVPI proxy = how many checks the answer unblocks (higher = ask first).
+    `unblocks`   the checks this answer ALONE makes runnable — i.e. this measurand is their
+                 ONLY missing input (sorted). Empty if every such check still misses other
+                 inputs too: the answer is then necessary but not, by itself, sufficient.
+    `priority`   EVPI proxy = how many INDICATED checks NEED this measurand (whether or not
+                 this answer alone unblocks them); higher = ask first.
     """
 
     measurand: str
@@ -121,22 +124,26 @@ def clarifying_questions(spec: Specification, *, top_k: int | None = None) -> li
     all). A fully specified or physics-free spec yields an empty list. Deterministic.
     """
     present = {q.measurand for q in spec.quantities if q.measurand}
-    missing_to_checks: dict[str, set[str]] = defaultdict(set)
+    needed_by: dict[str, set[str]] = defaultdict(set)     # measurand -> indicated checks needing it
+    sole_unblock: dict[str, set[str]] = defaultdict(set)  # measurand -> checks it ALONE makes runnable
     for recipe in RECIPES:
         if recipe.trigger not in present:
             continue                              # this physics is not indicated — don't ask
-        for _arg, (measurand, _unit) in recipe.inputs.items():
-            if measurand not in present:
-                missing_to_checks[measurand].add(recipe.name)
+        missing = {measurand for _arg, (measurand, _unit) in recipe.inputs.items()
+                   if measurand not in present}
+        for measurand in missing:
+            needed_by[measurand].add(recipe.name)
+        if len(missing) == 1:                     # one answer away from runnable -> truly unblocks
+            sole_unblock[next(iter(missing))].add(recipe.name)
 
     questions = [
         ClarifyingQuestion(
             measurand=measurand,
             question=_question_for(measurand),
-            unblocks=tuple(sorted(checks)),
-            priority=len(checks),
+            unblocks=tuple(sorted(sole_unblock.get(measurand, set()))),
+            priority=len(checks),                 # EVPI proxy: how many indicated checks need it
         )
-        for measurand, checks in missing_to_checks.items()
+        for measurand, checks in needed_by.items()
     ]
     questions.sort(key=lambda q: (-q.priority, q.measurand))
     return questions if top_k is None else questions[:top_k]
@@ -173,10 +180,12 @@ def apply_answers(
     """
     present = {q.measurand for q in spec.quantities if q.measurand}
     new_quantities = list(spec.quantities)
-    for i, (measurand, (value, unit)) in enumerate(sorted(answers.items())):
+    for measurand, (value, unit) in sorted(answers.items()):
         if measurand in present:
             continue
-        qid = f"q_clarified_{i}_{measurand.replace('.', '_')}"
+        # measurand-stable id (not batch-index based) so the same answer yields the same id
+        # regardless of which other answers it arrived with (reproducibility — CLAUDE.md §5).
+        qid = f"q_clarified_{measurand.replace('.', '_')}"
         new_quantities.append(Quantity(
             id=qid, name=f"geklärt: {measurand}", value=float(value), unit=unit,
             origin=ValueOrigin.DECISION,

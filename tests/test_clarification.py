@@ -118,3 +118,28 @@ def test_answers_never_overwrite_an_existing_declaration():
     answered = apply_answers(spec, {"shaft.torque": (999.0, "N*m")})
     torque = [q for q in answered.quantities if q.measurand == "shaft.torque"]
     assert len(torque) == 1 and torque[0].value == 150.0         # original wins, no dup
+
+
+def test_unblocks_lists_only_checks_an_answer_alone_makes_runnable():
+    # When a check (torsion) is missing TWO inputs, answering ONE does NOT make it runnable.
+    # priority still counts it (EVPI: it is needed), but unblocks must not CLAIM it — that would
+    # overstate what the answer achieves. Before the fix, unblocks listed every contributing check.
+    spec = drive_shaft_spec()
+    spec.quantities = [q for q in spec.quantities
+                       if q.measurand not in ("material.shear_strength", "material.shear_modulus")]
+    by_m = {q.measurand: q for q in clarifying_questions(spec)}
+    q_ss = by_m["material.shear_strength"]
+    assert q_ss.priority >= 1                       # still counted as needed (EVPI proxy)
+    assert "shaft torsion" not in q_ss.unblocks     # but it does NOT alone make torsion runnable
+
+
+def test_clarified_qid_is_stable_across_answer_batches():
+    # G3: the generated quantity id must depend only on the measurand, not on the batch it
+    # arrived in (reproducibility — CLAUDE.md §5). Before the fix the id carried the batch index.
+    from gen.clarification import apply_answers
+    spec = Specification(run_id="r", idea="x", quantities=[])
+    solo = apply_answers(spec, {"shaft.torque": (150.0, "N*m")})
+    batch = apply_answers(spec, {"material.uts": (400.0, "MPa"), "shaft.torque": (150.0, "N*m")})
+    id_solo = next(q.id for q in solo.quantities if q.measurand == "shaft.torque")
+    id_batch = next(q.id for q in batch.quantities if q.measurand == "shaft.torque")
+    assert id_solo == id_batch
