@@ -100,6 +100,14 @@ def test_no_results_yields_empty_list_not_fabrication():
     assert run(be.search("nonexistent topic xyzzy", 5)) == []
 
 
+def test_error_envelope_without_query_raises_not_silent_empty():
+    # MediaWiki returns {"error": ...} (no "query") on failure; that must be loud,
+    # NOT a silent [] indistinguishable from an honest zero-result reply.
+    be = WikipediaBackend(http_returning(200, json.dumps({"error": {"code": "bad"}})))
+    with pytest.raises(SearchBackendError):
+        run(be.search("q", 5))
+
+
 def test_result_without_title_is_skipped_never_invented():
     body = json.dumps({"query": {"search": [{"pageid": 1}, {"title": "Real"}]}})
     be = WikipediaBackend(http_returning(200, body))

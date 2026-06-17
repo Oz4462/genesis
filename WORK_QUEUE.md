@@ -46,7 +46,12 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
   war ungetestet). Claude×Grok: Groks Scalar-Finding (high) korrobiert+gefixt; ollama SSRF/Redirect/DoS/empty-content
   REBUTTED für dieses File (base_url ist operator-Config, kein untrusted Input; Loopback-Allowlist bräche Remote-Ollama)
   → als Review-Ziele zu tools/fetch.py weitergetragen. Suite 1153/9, ruff clean.
-- tools/ — NEXT (http.py, fetch.py [untrusted-URL SSRF/Redirect/Size-Limit aus Grok-llm-Review hierher], search.py, arxiv_backend.py)
+- tools/ — DONE (Claude×Grok, 11 Grok-Findings reconciled): fetch.py FIXED (Scheme-Allowlist http/https vor dem
+  Fetch → file://|ftp://|data:// werden zu honest ok=False, transport-unabhängig, im Ledger); http.py FIXED
+  (max_bytes-Cap auf read() gegen untrusted-body-DoS, fail statt silent-truncate→A5); search.py FIXED (S2+Wikipedia:
+  malformed Envelope [fehlender data/query-Key]→SearchBackendError vs. honest-empty→[]); +13 adversariale Tests.
+  arxiv_backend.py CLEAN (ET-Parse raised auf bad XML; trusted Host). REBUTTED→D8/D9/D10 (s.u.). Suite 1166/9, ruff clean.
+- agents/ — NEXT (scout, scholar, skeptic, conductor, synthesizer, architect, forge) — Research-Backbone, höchste Hebel
 - FEATURE DONE: Abo-OAuth LLM-Adapter — ClaudeCLI + GrokCLI (shellen `claude -p`/`grok -p`, keylos, Max-Abos),
   make_llm-Factory (family-routed) im cli.py-Live-Wiring, config-Default claude-opus-4-8 / grok-composer-2.5-fast.
   LIVE PONG-verifiziert (beide), 11 Offline-Tests, ruff clean, Suite 1132 grün, kein Import-Zyklus.
@@ -77,6 +82,14 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
   meldet falschen Code 'DANGLING_PIN_REF' (eigener 'DUPLICATE_NET' nötig) + E-2 bei leerer BOM still übersprungen;
   geometry.py exact=True auf degenerierten Operanden (med) + 90°-float-Doc; consensus.py intra-panel Familien-Dedup
   + UNVERIFIED/NaN-loud; Doc-Nits (units leading-/ + min/max-Literal-Asymmetrie, drift_monitor scan-index, trustcore isinf).
+- D8: tools/ SSRF-Tiefe (Grok #1-IP/#2, deferred — Scheme-Allowlist bereits gefixt): IP-Pinning gegen loopback/RFC1918/
+  link-local (169.254.169.254) + per-Redirect-Hop-Revalidierung via custom urllib-Opener. Bewusst NICHT halb gebaut
+  (DNS-Auflösung/IPv6/DNS-Rebinding brauchen Design + evtl. config-Allow/Deny; halbe SSRF-Defense = falsche Sicherheit).
+- D9: tools/fetch.py final_url-Provenienz (Grok #7): bei Redirect kommt der content von resp.final_url, aber FetchResult.url
+  + Ledger führen die Original-Kandidaten-URL → Audit/Repro-Drift. Fix berührt FetchResult-Shape + Ledger + SourceRef.
+- D10: tools/arxiv_backend.py XXE/billion-laughs (Grok #9, low): ET.fromstring nicht gehärtet. Risiko niedrig (trusted Host
+  export.arxiv.org + https); defusedxml widerspricht minimal-deps-Philosophie. Revisit, falls untrusted-XML-Quelle dazukommt.
+  Auch low: limit-clamp (≤25) an Backend-Eingang; Content-Type text/* erzwingen statt lossy errors="replace"-Hash auf Binär.
 
 ## Next
 - (Kampagne läuft; nach core/ → verification/ usw. gemäß Reihenfolge oben)

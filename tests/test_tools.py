@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from gen.core.errors import FetchFailedError, SearchBackendError  # noqa: E402
 from gen.ledger.store import InMemoryLedgerStore  # noqa: E402
-from gen.tools.http import HttpResponse  # noqa: E402
+from gen.tools.http import HttpResponse, default_http_get  # noqa: E402
 from gen.tools.fetch import WebFetchTool, require_ok  # noqa: E402
 from gen.tools.search import SemanticScholarBackend, WebSearchBackend  # noqa: E402
 
@@ -181,3 +181,92 @@ def test_web_search_backend_http_error_raises():
     )
     with pytest.raises(SearchBackendError):
         run(backend.search("q", limit=5))
+
+
+# --- WebFetchTool: SSRF — a non-http(s) candidate URL is refused, not fetched --
+
+def http_spy():
+    """An http_get that records whether it was called (it must NOT be for a bad scheme)."""
+    calls: list[str] = []
+
+    async def _get(url: str) -> HttpResponse:
+        calls.append(url)
+        return HttpResponse(status=200, body="should never be reached", final_url=url)
+
+    return _get, calls
+
+
+@pytest.mark.parametrize(
+    "bad_url",
+    ["file:///etc/passwd", "ftp://internal/secret", "data:text/plain,hi", "gopher://x", "no-scheme"],
+)
+def test_fetch_rejects_non_http_scheme_without_touching_transport(bad_url):
+    get, calls = http_spy()
+    res = run(WebFetchTool(get)(url=bad_url))
+    assert res.ok is False
+    assert res.content is None
+    assert "unsupported URL scheme" in res.reason
+    assert calls == []  # the malicious URL never reached urllib's file:// handler
+    assert res.to_source_ref().retrieved is False  # gate will flag DEAD_CITATION
+
+
+@pytest.mark.parametrize("good_url", ["https://ok.example", "http://ok.example", "HTTPS://Caps.example"])
+def test_fetch_allows_http_and_https(good_url):
+    res = run(WebFetchTool(http_returning(200, "body"))(url=good_url))
+    assert res.ok is True and res.content == "body"
+
+
+# --- SemanticScholar / Wikipedia: malformed envelope is loud, honest-empty is [] --
+
+def test_semantic_scholar_missing_data_array_raises():
+    # a 200 without the documented 'data' array is an error envelope, not "no
+    # results" — must fail loud, never a silent empty list that masks an outage.
+    backend = SemanticScholarBackend(http_returning(200, json.dumps({"error": "rate limited"})))
+    with pytest.raises(SearchBackendError):
+        run(backend.search("q", limit=5))
+
+
+def test_semantic_scholar_empty_data_is_honest_no_results():
+    backend = SemanticScholarBackend(http_returning(200, json.dumps({"data": []})))
+    assert run(backend.search("q", limit=5)) == []
+
+
+# --- default_http_get: the production transport caps an untrusted response body --
+
+class _FakeUrlopen:
+    """Minimal urlopen stand-in: a context manager yielding a readable response."""
+
+    def __init__(self, payload: bytes, status: int = 200):
+        self._payload = payload
+        self.status = status
+
+    def read(self, n: int = -1) -> bytes:
+        return self._payload if n is None or n < 0 else self._payload[:n]
+
+    def geturl(self) -> str:
+        return "https://huge.example"
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def test_default_http_get_refuses_oversize_body(monkeypatch):
+    import urllib.request
+    # 11 bytes available, cap at 10 -> read(11) sees > cap -> raise (never truncate).
+    monkeypatch.setattr(
+        urllib.request, "urlopen", lambda req, timeout=None: _FakeUrlopen(b"x" * 11)
+    )
+    with pytest.raises(ValueError):
+        run(default_http_get("https://huge.example", max_bytes=10))
+
+
+def test_default_http_get_accepts_body_at_or_under_cap(monkeypatch):
+    import urllib.request
+    monkeypatch.setattr(
+        urllib.request, "urlopen", lambda req, timeout=None: _FakeUrlopen(b"hello")
+    )
+    res = run(default_http_get("https://ok.example", max_bytes=1000))
+    assert res.status == 200 and res.body == "hello"

@@ -43,6 +43,7 @@ async def default_http_get(
     timeout: float = 20.0,
     headers: Mapping[str, str] | None = None,
     max_retries: int = 2,
+    max_bytes: int = 5_000_000,
 ) -> HttpResponse:
     """Standard-library GET, run in a worker thread (used in real runs only).
 
@@ -51,6 +52,11 @@ async def default_http_get(
     Transport-level failures (DNS, connection, timeout) propagate as exceptions;
     the WebFetchTool catches them and reports ``ok=False`` — never a fabricated
     success.
+
+    The body read is capped at ``max_bytes``: the fetch target is attacker-
+    influenced, so an unbounded ``read()`` of a hostile multi-gigabyte response
+    would exhaust memory. An over-cap body raises (→ honest ``ok=False`` upstream)
+    rather than silently truncating, which would corrupt the content hash (A5).
 
     Polite throttle handling: on 429/503 it backs off (honoring ``Retry-After``
     when present) and retries up to ``max_retries`` times. If the throttle
@@ -64,13 +70,20 @@ async def default_http_get(
     if headers:
         hdrs.update(headers)
 
+    def _read_capped(reader) -> bytes:
+        # read one byte past the cap so an exactly-at-cap body is still accepted
+        # but anything larger is detected and refused (no silent truncation).
+        raw = reader.read(max_bytes + 1)
+        if len(raw) > max_bytes:
+            raise ValueError(f"response body exceeds {max_bytes} bytes")
+        return raw
+
     def _do() -> tuple[HttpResponse, str | None]:
         """Return (response, Retry-After header). Retry-After is None unless throttled."""
         req = urllib.request.Request(url, headers=hdrs)
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
-                raw = resp.read()
-                body = raw.decode("utf-8", errors="replace")
+                body = _read_capped(resp).decode("utf-8", errors="replace")
                 return HttpResponse(
                     status=getattr(resp, "status", 200) or 200,
                     body=body,
@@ -79,7 +92,7 @@ async def default_http_get(
         except urllib.error.HTTPError as exc:  # non-2xx -> keep the status code
             body = ""
             try:
-                body = exc.read().decode("utf-8", errors="replace")
+                body = _read_capped(exc).decode("utf-8", errors="replace")
             except Exception:  # noqa: BLE001 - body is best-effort only
                 pass
             retry_after = exc.headers.get("Retry-After") if exc.headers else None

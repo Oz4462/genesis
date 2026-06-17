@@ -91,8 +91,15 @@ class SemanticScholarBackend:
         except json.JSONDecodeError as exc:
             raise SearchBackendError(self.name, f"bad JSON: {exc}") from exc
 
+        papers = data.get("data")
+        if papers is None or not isinstance(papers, list):
+            # A 200 without the documented 'data' array is a malformed/error
+            # envelope, NOT an honest "no results" — fail loud rather than return
+            # a silent empty list that would mask an API outage as "nothing found"
+            # (the module contract: discovery raises, never silently empties).
+            raise SearchBackendError(self.name, "malformed response: missing 'data' array")
         out: list[SourceCandidate] = []
-        for paper in (data.get("data") or [])[:limit]:
+        for paper in papers[:limit]:
             url_or_id = _best_paper_id(paper)
             if not url_or_id:
                 continue  # no stable identifier -> skip, do not invent one
@@ -156,7 +163,15 @@ class WikipediaBackend:
         except json.JSONDecodeError as exc:
             raise SearchBackendError(self.name, f"bad JSON: {exc}") from exc
 
-        results = (((data.get("query") or {}).get("search")) or [])[:limit]
+        query_obj = data.get("query")
+        search_hits = query_obj.get("search") if isinstance(query_obj, dict) else None
+        if not isinstance(search_hits, list):
+            # Missing query.search is an error envelope (MediaWiki returns
+            # {"error": ...} without "query"); a real zero-result reply is
+            # {"query": {"search": []}}. Fail loud on the former, honest [] on the
+            # latter — never a silent empty list that hides an outage.
+            raise SearchBackendError(self.name, "malformed response: missing query.search list")
+        results = search_hits[:limit]
         out: list[SourceCandidate] = []
         for hit in results:
             title = hit.get("title")

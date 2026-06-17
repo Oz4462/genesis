@@ -12,10 +12,17 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from ..core.errors import FetchFailedError
 from ..core.state import SourceRef, SourceSupport
 from .http import HttpGet, content_hash
+
+# The fetch target is attacker-influenced (it comes from a search-API response or
+# an injected SERP parser), and a real transport (urllib) will happily open
+# file:// / ftp:// / data:// — a local-file read / SSRF vector. Only these two
+# schemes are ever fetchable; anything else is refused at the contract boundary.
+_ALLOWED_SCHEMES = ("http", "https")
 
 # Text fields carrying readable prose in common JSON API responses, in priority
 # order (a Wikipedia REST summary uses 'extract').
@@ -110,8 +117,20 @@ class WebFetchTool:
         """Fetch `url`. Never raises on a bad response; returns ok=False instead.
 
         Transport exceptions are caught and turned into ``ok=False`` so a network
-        problem can never masquerade as a fabricated success.
+        problem can never masquerade as a fabricated success. A non-http(s) URL is
+        refused here, before the transport, so a malicious candidate URL can never
+        reach urllib's file:// / ftp:// handlers — it becomes an honest, recorded
+        ok=False regardless of which ``http_get`` is injected.
         """
+        scheme = urlsplit(url).scheme.lower()
+        if scheme not in _ALLOWED_SCHEMES:
+            return await self._finish(
+                url,
+                ok=False,
+                content=None,
+                reason=f"unsupported URL scheme: {scheme or '(none)'}",
+                status=None,
+            )
         try:
             resp = await self._http_get(url)
         except Exception as exc:  # noqa: BLE001 - any transport failure => not ok
