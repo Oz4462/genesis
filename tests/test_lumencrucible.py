@@ -10,18 +10,17 @@ Prüft:
 - 4 Linsen / Provenance überall
 """
 
-from pathlib import Path
-
-
 from gen.grenzverschiebung.lumencrucible import LumenCrucible, process_dream, LumenHammer, forge_research
 
 
-def test_lumencrucible_jetpack_produces_hammer_omega_certificate_and_self_improvement():
-    """Kanonischer Jetpack-Traum → erster Hammer + Omega + realer Append."""
+def test_lumencrucible_jetpack_produces_hammer_omega_certificate_and_self_improvement(tmp_path):
+    """Kanonischer Jetpack-Traum → erster Hammer + Omega + realer Append (in isolierter Queue)."""
+    wq = tmp_path / "WORK_QUEUE.md"
     crucible = LumenCrucible()
     result = crucible.process_dream(
         "jetpack hover energy impossible with current battery for sustained manned flight over people",
         run_id="lumen-test-jet-001",
+        work_queue_path=str(wq),
     )
 
     # Hammer
@@ -50,14 +49,15 @@ def test_lumencrucible_jetpack_produces_hammer_omega_certificate_and_self_improv
     assert "LUMENCRUCIBLE" in improvement
     assert "WORK_QUEUE" in improvement or "Append" in improvement or "self_ascent" in improvement.lower()
 
-    # WORK_QUEUE.md wurde tatsächlich erweitert
-    wq = Path("WORK_QUEUE.md").read_text(encoding="utf-8")
-    assert "LUMENCRUCIBLE" in wq and "lumen-test-jet-001" in wq
+    # WORK_QUEUE.md wurde tatsächlich erweitert (isolierte Datei, nicht die echte Queue)
+    wq_text = wq.read_text(encoding="utf-8")
+    assert "LUMENCRUCIBLE" in wq_text and "lumen-test-jet-001" in wq_text
 
 
-def test_lumencrucible_generic_fallback_produces_valid_output_and_improvement():
+def test_lumencrucible_generic_fallback_produces_valid_output_and_improvement(tmp_path):
     """Generischer Traum → funktioniert trotzdem (ehrlicher Fallback) + Self-Improve."""
-    result = process_dream("sustained personal flight with portable energy beyond current limits", run_id="lumen-test-gen-002")
+    wq = tmp_path / "WORK_QUEUE.md"
+    result = process_dream("sustained personal flight with portable energy beyond current limits", run_id="lumen-test-gen-002", work_queue_path=str(wq))
 
     hammer = result["hammer"]
     assert isinstance(hammer, LumenHammer)
@@ -70,9 +70,26 @@ def test_lumencrucible_generic_fallback_produces_valid_output_and_improvement():
     assert cert.run_id == "lumen-test-gen-002"
     assert len(cert.learning_notes) > 0
 
-    # Auch hier muss ein realer Append passiert sein
-    wq = Path("WORK_QUEUE.md").read_text(encoding="utf-8")
-    assert "LUMENCRUCIBLE" in wq and "lumen-test-gen-002" in wq
+    # Auch hier muss ein realer Append passiert sein (isolierte Datei)
+    wq_text = wq.read_text(encoding="utf-8")
+    assert "LUMENCRUCIBLE" in wq_text and "lumen-test-gen-002" in wq_text
+
+
+def test_self_ascent_is_idempotent_does_not_flood_queue(tmp_path):
+    """Self-Ascent darf die Work-Queue nicht fluten: derselbe konkrete Vorschlag wird
+    genau EINMAL eingetragen, egal wie oft process_dream läuft (Dedup-Fix gegen den
+    historischen ~150-Zeilen-Bug)."""
+    wq = tmp_path / "WORK_QUEUE.md"
+    for i in range(5):
+        process_dream(
+            "jetpack hover energy impossible for sustained manned flight test",
+            run_id=f"dedup-run-{i}",
+            work_queue_path=str(wq),
+        )
+    text = wq.read_text(encoding="utf-8")
+    # Der konkrete Vorschlag erscheint genau einmal, nicht fünfmal.
+    assert text.count("dream_to_hammer_gate") == 1
+    assert "APPEND_FAILED" not in text
 
 
 def test_forge_research_fusion_produces_study_arbeit_and_seed():

@@ -17,6 +17,7 @@ Baut direkt auf:
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -85,6 +86,12 @@ class LumenHammer:
     quelle: str
 
 
+_SELF_ASCENT_SUGGESTION = (
+    "expose `process_dream` as first-class HORIZON entrypoint in conductor + "
+    "new small `dream_to_hammer_gate` in verification/gates.py"
+)
+
+
 @dataclass
 class LumenCrucible:
     """Rekursive Genesis-Extension: Traum → erster Hammer + Self-Ascent.
@@ -102,6 +109,7 @@ class LumenCrucible:
         *,
         run_id: str | None = None,
         context: dict[str, Any] | None = None,
+        work_queue_path: str = "WORK_QUEUE.md",
     ) -> dict[str, Any]:
         """Haupt-Einstieg. Respektiert HORIZON + bestehende Gates/Frontier/Omega/Claim.
 
@@ -257,7 +265,8 @@ class LumenCrucible:
         )
 
         # 5. Verifizierbarer Self-Ascent (Genesis verbessert sich selbst)
-        improvement_note = self._self_improve(run_id=run_id, dream=raw_dream, hammer=hammer)
+        improvement_note = self._self_improve(run_id=run_id, dream=raw_dream, hammer=hammer,
+                                               work_queue_path=work_queue_path)
 
         # 6. Claim (mit echter Quelle)
         claim = Claim(
@@ -389,24 +398,35 @@ class LumenCrucible:
             signoff=None,  # bewusst offen – passt zu HORIZON Ratifikation
         )
 
-    def _self_improve(self, *, run_id: str, dream: str, hammer: LumenHammer) -> str:
+    def _self_improve(self, *, run_id: str, dream: str, hammer: LumenHammer,
+                      work_queue_path: str = "WORK_QUEUE.md") -> str:
         """Realer, nachprüfbarer Self-Ascent.
 
-        Hängt einen datierten, mit Quelle versehenen Vorschlag an WORK_QUEUE.md an.
-        Dies ist keine Halluzination: der Append ist die Verbesserung.
+        Hängt einen datierten, mit Quelle versehenen Vorschlag an ``work_queue_path`` an
+        (Default: WORK_QUEUE.md). Dies ist keine Halluzination: der Append ist die Verbesserung.
+
+        Idempotent: derselbe konkrete Vorschlag (``_SELF_ASCENT_SUGGESTION``) wird **höchstens
+        einmal** eingetragen — sonst flutet jeder Lauf die menschliche Work-Queue mit identischen
+        Zeilen. ``work_queue_path`` ist konfigurierbar, damit Tests in eine isolierte Datei
+        schreiben statt in die echte WORK_QUEUE.md (das war die Quelle der historischen Flut).
         """
         ts = datetime.now(timezone.utc).isoformat()
         note = (
             f"- LUMENCRUCIBLE Ω v1 (run {run_id}, {ts}): "
-            f"Suggested concrete addition: expose `process_dream` as first-class HORIZON entrypoint "
-            f"in conductor + new small `dream_to_hammer_gate` in verification/gates.py. "
+            f"Suggested concrete addition: {_SELF_ASCENT_SUGGESTION}. "
             f"Example dream: '{dream[:60]}...'. Produced hammer '{hammer.experiment_name}'. "
             f"Evidence: this file + WORK_QUEUE append itself. Quelle: lumencrucible._self_improve + HORIZON.md §2A."
         )
 
-        wq_path = "WORK_QUEUE.md"
         try:
-            with open(wq_path, "a", encoding="utf-8") as f:
+            existing = ""
+            if os.path.exists(work_queue_path):
+                with open(work_queue_path, encoding="utf-8") as f:
+                    existing = f.read()
+            if _SELF_ASCENT_SUGGESTION in existing:
+                # Self-Ascent ist idempotent: der Vorschlag steht schon — nicht erneut anhängen.
+                return note + " [already recorded — idempotent self-ascent, no re-append]"
+            with open(work_queue_path, "a", encoding="utf-8") as f:
                 f.write("\n" + note + "\n")
         except Exception as exc:  # noqa: BLE001
             # Ehrliche Fehlermeldung statt stillem Versagen
