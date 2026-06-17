@@ -1,7 +1,7 @@
 # WORK QUEUE — GENESIS
 
 > Voller Kontext: `docs/integration/SESSION_HANDOFF.md`. Branch `feat/app-integration-phase0-2`
-> (16 ahead of main, lokal, KEIN Push). Suite: 1121 passed / 9 skipped. Ollama gestoppt.
+> (60 ahead of main, lokal, KEIN Push). Suite: 1185 passed / 9 skipped. Ollama gestoppt.
 
 ## Active — DEEP REVIEW CAMPAIGN (Claude+Grok · sorgfältig · eval-gated · kein Push)
 Tiefendurchlauf jedes Moduls Zeile für Zeile, **immer mit Grok** (research → 1 Rebuttal → der Eval
@@ -60,13 +60,40 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
   · REBUTTED Grok scholar-high (text↔quote Token-Overlap): architektur-inkompatibel (text=GERMAN, quote=original-lang →
     cross-lingual ≈0 → over-reject); Text-Treue ist Skeptics Job. REBUTTED skeptic _aggregate min-conf-refute (würde
     REFUTED unsicherer machen — Asymmetrie ist gewollt). Suite 1176/9, ruff clean.
-- agents/ conductor+synthesizer+forge+architect — NEXT (Decompose/Generate/Synthesize)
+- agents/ conductor+synthesizer+forge+architect — DONE (Claude×Grok, eval-gated, commit per module, no push):
+  · conductor `1f62c5c` FIXED `_decompose` array-shape + count guard — an LLM JSON-OBJECT reply iterated its dict
+    KEYS as bogus sub-questions (extract_json enforces object/array root); +`_MAX_SUB_QUESTIONS=10` DoS cap. Same
+    boundary bug already fixed in scout/scholar; Grok-corroborated high+low. +2 boundary tests.
+  · synthesizer `4ee3e0b` FIXED crash-proof `name = str(...)` coercion (non-string name → `123.strip()` →
+    AttributeError OUTSIDE the LLMOutputError handler → crashed the β run instead of abstaining; Grok high) +
+    `sorted(verified.items())` byte-stable prompt (Principle 5) + dup-approach drop log (forge parity). +2 tests.
+  · forge `0e12df0` FIXED crash-proof statement/mechanism `str(...)` coercion (same boundary crash at TWO fields;
+    Grok high). forge already had the sorted prompt + dup-log. +1 test.
+  · architect `7609994` FIXED `_as_list()` on all 8 `proposal.get(field)` iteration sites (non-iterable field →
+    TypeError out of `_assemble`, which runs outside the LLMOutputError handler → crash; Grok high) +
+    `_parse_geometry` depth cap 64 (pure-Python recursion hits the stack wall before the C json parser; Grok high) +
+    `sorted(verified.items())` prompt. REBUTTED G4 (transport errors MUST fail-loud, not abstain — abstaining would
+    mask infra failure as honest abstention) + G5 (derived `Quantity()` is pre-validated unreachable-to-raise:
+    evaluate_formula fail-loud on non-finite, `_dimensionally_sound` pre-checks units, measurand regex-checked,
+    DERIVED+derivation consistent by construction → a try/except there guards an untestable path → no-defensive-layer
+    rule). +3 tests. Suite 1185/9, ruff clean at every commit.
+- agents/ PAKET conductor+synthesizer+forge+architect KOMPLETT → agents/ Verzeichnis vollständig reviewt
+  (scout/scholar/skeptic done earlier; conductor/synthesizer/forge/architect this session).
 - D11: Audit-Log-Lücken (Grok, low, A5): scout._queries + skeptic._judge schlucken LLM/Parse-Fehler ohne log
   (best-effort, kein Fabrication-Risiko, aber schwer reproduzierbar) — state.log threaden. Auch: skeptic.claim.verification
   nur aus Primary-Verifier → bei extra_judges/Panel fehlen Second/Extra-Quellen in der Audit-Spur (Union dedup-by-URL).
 - D12 (→ ergänzt D7): inter-judge Familien-Dedup (verifier≠second≠extra) im Skeptic/consensus fehlt (nur vs. Generator
   geprüft) — Grok korrobiert das frühere consensus-Finding. Auch: independence nur exakte-URL (Mirror/CDN-Dupes), Canonical/
   content_hash-Dedup gegen Scholar-Quellen.
+- D13 (cross-cutting synthesizer+forge, Claude×Grok-einig, aus dem agents-Review deferred — bewusst NICHT piecemeal
+  gefixt, um Schwester-Divergenz zu vermeiden): (a) `approach_id`/`possibility_id` hashen nur (name/statement, sorted
+  grounding) und ignorieren das Sekundärfeld (tradeoffs/mechanism) → zwei Zeilen, die sich nur darin unterscheiden,
+  kollidieren und die zweite wird (geloggt) gedroppt — Sekundärfeld in den Survivor mergen oder in den id-Key
+  aufnehmen. (b) kein Cap auf geparste approaches/possibilities (Output ist token-bounded → niedriges Risiko, aber
+  konsistent mit conductors `_MAX_SUB_QUESTIONS`). (c) grounding-ids vor id/emit nicht dedupliziert (`c1|c1` vs `c1`
+  schwächt Dedup). (d) non-dict-Array-Elemente in `_cluster`/`_open` still gefiltert (Count-Log fehlt für Audit).
+  Architect-spezifisch deferred: `_SYSTEM`-Schema listet sourcing/domain/site/material_density/tool/torque_quantity_id
+  nicht, die Parser aber akzeptieren (owner: Live-Prompt-Änderung → Live-Remeasure) + per-Feld-Array-Caps (DoS, token-bounded).
 - FEATURE DONE: Abo-OAuth LLM-Adapter — ClaudeCLI + GrokCLI (shellen `claude -p`/`grok -p`, keylos, Max-Abos),
   make_llm-Factory (family-routed) im cli.py-Live-Wiring, config-Default claude-opus-4-8 / grok-composer-2.5-fast.
   LIVE PONG-verifiziert (beide), 11 Offline-Tests, ruff clean, Suite 1132 grün, kein Import-Zyklus.
