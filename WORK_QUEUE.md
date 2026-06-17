@@ -19,10 +19,12 @@ Reihenfolge (Rückgrat → alles):
 8. export/ + costing + completeness + software  ·  9. pipelines/ + integration/ + grenzverschiebung/
    + research + memory + web/
 Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
-- core/state.py — DONE: reviewed (Claude+Grok, 19 Grok-Findings), fixed (Measurement.unit-Guard + 2× doc-truth),
+- core/state.py — DONE (a1361b9): reviewed (Claude+Grok, 19 Findings), fixed (Measurement.unit-Guard + 2× doc-truth),
   eval grün 1121/9. Gros der Findings = intentionales Gate-Deferral (defended; permissive Konstruktoren für
   adversariale Gate-Tests). Erster echter End-to-End-CRAFT-Zyklus bewiesen.
-- core/interfaces.py — NEXT
+- core/interfaces.py — DONE: reviewed (Claude+Grok), Quelle CLEAN (kein Bug). Protocol-Tightening-Findings → D4.
+  Grok-„mojibake" war Artefakt meiner Dispatch-Pipeline (Get-Content ohne -Encoding UTF8, PS5.1) → Pipeline gefixt.
+- core/errors.py — NEXT
 
 Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, Claude×Grok-Einigkeit):
 - D1: ModuleSpec/ColonyModule/NanoRecipe (Space-Colony/Nano-„2036-Leap"-Typen) aus dem Kern nach
@@ -30,6 +32,9 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
 - D2: _now()-Wall-Clock-Timestamps brechen bit-identische Checkpoint-Replays (Prinzip 5) — run-start-Timestamp
   injizieren (breiter Refactor über alle created_at-Felder).
 - D3: Quantity value/uncertainty isfinite-Guard — vor Fix prüfen, ob ein DERIVED-Pfad legitim inf erzeugt.
+- D4: core/interfaces.py Protocol-Tightening (Claude+Grok): Tool typed Result statt object/**kwargs; Agent-Protocol-
+  Member (input/output_schema, tools, failure_modes) vs Docstring angleichen; GateResult.failures tuple statt list
+  (mit verification/gates.py zusammen); SearchBackend/LedgerStore typed failure surface. Architektur, owner-level.
 
 ## Next
 - (Kampagne läuft; nach core/ → verification/ usw. gemäß Reihenfolge oben)
