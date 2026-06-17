@@ -96,3 +96,54 @@ def test_wrong_fact_is_a_miss_not_a_fabrication():
     s = score(cases, {"f": RunOutcome(False, "the answer is 41")})
     assert s.fact_accuracy == 0.0
     assert s.hallucinations == [] and s.ok                     # wrong != fabricated
+
+
+def _write(tmp_path, fixture):
+    import json
+    f = tmp_path / "g.json"
+    f.write_text(json.dumps(fixture), encoding="utf-8")
+    return f
+
+
+def test_loader_requires_all_three_kinds(tmp_path):
+    # G1: without nonsense cases the headline abstention_recall would be a vacuous 1.0 -> fail-loud.
+    f = _write(tmp_path, {"cases": [
+        {"id": "f1", "kind": "fact", "input": "q", "expected": {"behavior": "answer", "must_contain": ["x"]}},
+        {"id": "t1", "kind": "trap", "input": "q", "expected": {"behavior": "abstain_or_sourced"}},
+    ]})
+    with pytest.raises(ValueError, match="missing"):
+        load_goldset(f)
+
+
+def test_loader_rejects_an_empty_must_contain_token(tmp_path):
+    # G2: an empty token ('' in text is always True) would auto-pass any non-abstaining fact.
+    f = _write(tmp_path, {"cases": [
+        {"id": "f1", "kind": "fact", "input": "q", "expected": {"behavior": "answer", "must_contain": [""]}},
+    ]})
+    with pytest.raises(ValueError, match="empty token"):
+        load_goldset(f)
+
+
+def test_loader_rejects_malformed_types(tmp_path):
+    # G4/G6: a non-list 'cases' crashed with TypeError; a bare-string 'must_contain' silently
+    # split into per-char tokens. Both must fail-loud with ValueError.
+    with pytest.raises(ValueError, match="'cases'"):
+        load_goldset(_write(tmp_path, {"cases": None}))
+    with pytest.raises(ValueError, match="must_contain"):
+        load_goldset(_write(tmp_path, {"cases": [
+            {"id": "f1", "kind": "fact", "input": "q", "expected": {"behavior": "answer", "must_contain": "42"}},
+        ]}))
+
+
+def test_score_refuses_an_empty_case_set():
+    # G7: score([], {}) returned all rates 1.0, ok=True -- a vacuous PASS bypassing the loader.
+    with pytest.raises(ValueError, match="no cases"):
+        score([], {})
+
+
+def test_a_text_bearing_abstention_on_nonsense_is_a_hallucination():
+    # G8: a runner flagging abstained=True while emitting answer text is hiding an answer; on a
+    # nonsense case that is a fabrication, not a clean abstention.
+    cases = [GoldCase("n", "nonsense", "q", "abstain")]
+    s = score(cases, {"n": RunOutcome(True, "but actually here is an invented answer")})
+    assert s.abstention_recall == 0.0 and "n" in s.hallucinations and not s.ok

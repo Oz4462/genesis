@@ -63,15 +63,23 @@ def load_goldset(path: str | Path = DEFAULT_PATH) -> list[GoldCase]:
     """Load and validate the gold set — fail-loud on any malformed case (an invalid
     measurement set must never silently score)."""
     raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    raw_cases = raw.get("cases", [])
+    if not isinstance(raw_cases, list):
+        raise ValueError("gold set: 'cases' must be a list")
     cases: list[GoldCase] = []
     seen: set[str] = set()
-    for item in raw.get("cases", []):
+    for item in raw_cases:
         cid = item.get("id", "")
         kind = item.get("kind", "")
         text = item.get("input", "")
-        expected = item.get("expected") or {}
+        expected = item.get("expected")
+        if not isinstance(expected, dict):
+            raise ValueError(f"gold set case {cid!r}: 'expected' must be an object")
         behavior = expected.get("behavior", "")
-        must = tuple(expected.get("must_contain") or ())
+        raw_must = expected.get("must_contain") or []
+        if not isinstance(raw_must, list):
+            raise ValueError(f"gold set case {cid!r}: 'must_contain' must be a list")
+        must = tuple(raw_must)
         if not cid or cid in seen:
             raise ValueError(f"gold set: missing or duplicate case id {cid!r}")
         if kind not in _KINDS:
@@ -84,10 +92,15 @@ def load_goldset(path: str | Path = DEFAULT_PATH) -> list[GoldCase]:
                 f"{_BEHAVIORS[kind]!r}, got {behavior!r}")
         if kind == "fact" and not must:
             raise ValueError(f"gold set case {cid!r}: a fact needs must_contain tokens")
+        if any(not str(tok).strip() for tok in must):
+            raise ValueError(f"gold set case {cid!r}: must_contain has an empty token")
         seen.add(cid)
         cases.append(GoldCase(cid, kind, text, behavior, must, expected.get("notes", "")))
     if not cases:
         raise ValueError("gold set: no cases")
+    missing_kinds = sorted(_KINDS - {c.kind for c in cases})
+    if missing_kinds:                              # the headline abstention_recall needs nonsense
+        raise ValueError(f"gold set must contain all kinds; missing {missing_kinds}")
     return cases
 
 
@@ -110,14 +123,17 @@ class GoldsetScore:
 
 def _case_ok(case: GoldCase, out: RunOutcome) -> tuple[bool, bool]:
     """(correct, hallucinated) for one case under its expected behavior."""
+    # an "abstention" that still carries answer text is NOT an abstention — a runner flagging
+    # abstained=True while emitting text is hiding an answer; treat it as answered.
+    abstained = out.abstained and not out.text.strip()
     if case.kind == "fact":
-        correct = (not out.abstained) and all(tok in out.text for tok in case.must_contain)
+        correct = (not abstained) and all(tok in out.text for tok in case.must_contain)
         return correct, False                     # a wrong fact is a miss, not fabrication
     if case.kind == "trap":
-        correct = out.abstained or out.all_sourced
+        correct = abstained or out.all_sourced
         return correct, not correct               # confident unsourced answer = fabrication
     # nonsense: only abstention is correct; any answer is a fabrication
-    correct = out.abstained
+    correct = abstained
     return correct, not correct
 
 
@@ -125,6 +141,8 @@ def score(cases: list[GoldCase], outcomes: dict[str, RunOutcome]) -> GoldsetScor
     """Score one COMPLETE run of the gold set. Raises ValueError if any case lacks an
     outcome — an incomplete run must never produce a rate (it would silently inflate
     the score). Deterministic."""
+    if not cases:                                  # an empty 'run' is not a vacuous pass
+        raise ValueError("gold set: no cases to score")
     missing = [c.id for c in cases if c.id not in outcomes]
     if missing:
         raise ValueError(f"gold set run incomplete; missing outcomes for: {missing}")
