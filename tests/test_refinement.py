@@ -112,3 +112,23 @@ def test_is_deterministic():
     a = refine_until_pass(_over_stressed_shaft(), _strengthen_by(5.0), _physics_gate)
     b = refine_until_pass(_over_stressed_shaft(), _strengthen_by(5.0), _physics_gate)
     assert (a.converged, a.rounds, a.stuck) == (b.converged, b.rounds, b.stuck)
+
+
+def _oscillate(a: float, b: float):
+    """A scripted regenerator that CYCLES the diameter between two distinct FAILING values: it
+    never repeats the LAST signature, but it makes no real progress — a cycle the set-based
+    detector must catch (a consecutive-only check would burn the whole budget instead)."""
+    def regen(state, directives):
+        q = next(x for x in state.specification.quantities if x.id == "q_shaft_d")
+        _set_diameter(state, b if q.value == a else a)
+        return state
+    return regen
+
+
+def test_oscillating_regenerator_is_caught_as_stuck_not_run_to_budget():
+    # d 5 <-> 6 both fail torsion; consecutive signatures always differ, so the old last-only
+    # check ran to the full budget as 'exhausted'. The cycle (set) detector catches the repeat.
+    result = refine_until_pass(_over_stressed_shaft(), _oscillate(5.0, 6.0), _physics_gate,
+                               max_rounds=8)
+    assert result.stuck and not result.converged
+    assert result.rounds < 8                      # caught at the cycle, not at the budget

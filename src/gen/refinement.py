@@ -37,7 +37,7 @@ from .core.state import RunState
 # loop never fabricates a specific fix it cannot name.
 DIRECTIVE_TEMPLATES: dict[str, str] = {
     # delta-physics gate
-    "PHYSICS_CHECK_FAILED": "strengthen the design or reduce the load so the safety margin clears",
+    "PHYSICS_CHECK_FAILED": "strengthen the design or relax the driving requirement so the check's margin clears",
     "PHYSICS_CHECK_ERROR": "fix the contradictory / uncomputable input the validator rejected",
     "PHYSICS_UNKNOWN_VALIDATOR": "remove the check or add the missing validator model",
     # gamma anti-hallucination gate
@@ -100,8 +100,12 @@ class RefinementResult:
     history: list[tuple[int, bool, tuple[str, ...]]] = field(default_factory=list)
 
 
-def _signature(result: GateResult) -> tuple[str, ...]:
-    return tuple(sorted(f"{f.code}|{f.claim_id or f.detail}" for f in result.failures))
+def _signature(result: GateResult) -> tuple[tuple[str, str, str], ...]:
+    """A stable, collision-free fingerprint of the failure SET: (code, claim_id, detail) per
+    failure, sorted. claim_id and detail are kept SEPARATE (no field-value collision) and BOTH
+    carried, so "same failure" means same code AND same target AND same reason — an unchanged
+    failure is identical, a changed reason is distinct."""
+    return tuple(sorted((f.code, f.claim_id or "", f.detail) for f in result.failures))
 
 
 def refine_until_pass(
@@ -124,16 +128,18 @@ def refine_until_pass(
     if max_rounds < 1:
         raise ValueError("max_rounds must be >= 1")
     history: list[tuple[int, bool, tuple[str, ...]]] = []
-    last_signature: tuple[str, ...] | None = None
+    seen: set[tuple[tuple[str, str, str], ...]] = set()
     for rnd in range(max_rounds + 1):
         result = evaluate_gate(state)
         history.append((rnd, result.passed, tuple(f.code for f in result.failures)))
         if result.passed:
             return RefinementResult(True, rnd, [], False, history)
         signature = _signature(result)
-        if signature == last_signature:        # a round changed nothing -> stuck, stop
+        if signature in seen:                  # this failure set RECURRED -> no progress, stop.
+            #                                    Catches A<->B oscillation, not only a consecutive
+            #                                    repeat (matches the "recurred" honesty contract).
             return RefinementResult(False, rnd, list(result.failures), True, history)
-        last_signature = signature
+        seen.add(signature)
         if rnd == max_rounds:                  # budget spent without convergence
             return RefinementResult(False, rnd, list(result.failures), False, history)
         state = regenerate(state, directives_from_gate(result))
