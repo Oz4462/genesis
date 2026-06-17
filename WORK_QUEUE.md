@@ -188,7 +188,13 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
     `trace_min_mm:0.2`/`via_min:0.3` + rückwärtige Namens-Logik raus. `dfm.py`: gequellte JLCPCB/IPC-2221-Konstanten +
     echtes `ipc2221_trace_width_mm()` (gg. Standardwert getestet) + `pcb_dfm_gaps()`; Referenz-Caps NESTED + `evaluated:False`.
     Grok 3 Runden (6+3+1 Lücken, je gg. JLCPCB selbst verifiziert), 2 neue Tests, volle Suite 1213 grün. BUILD_LOG dok.
-  - [ ] Stein 4 echtes Kostenmodell (statt `cost_stub`/`cost_model_stub` — Material+Zeit+Prozess, gequellt).
+  - [x] **Stein 4 Kostenmodell (2026-06-18)**: Kosten-Stubs (`"~5-12 EUR"`/`"8-25 EUR"`) → echtes bereich-basiertes
+    Modell `cad/cost_model.py` (NEU): `CostEstimate` + `estimate_fdm_cost()` (Material aus Volumen×Dichte×Infill;
+    Maschinenzeit/Job-Average-Durchsatz×Rate excl. Material; Setup-Band) + per-Material gequellte Bänder. Bereich
+    statt Punkt; Annahmen+Gaps explizit (Shell-dominiert/Commercial/Material-Default geflaggt). Report trägt
+    strukturiertes `cost_estimate`; FDM-`cost_hint`+`cost_model_stub` echt. Grok 3 Runden (9+3 Lücken), 5+1 Tests,
+    volle Suite 1219 grün. Nur FDM berechnet; CNC/Laser/PCB ehrlicher Cost-Gap. BUILD_LOG dok.
+    Naht-Follow-up: `fertigungs.py:KostenModell` (String-Prosa) soll `CostEstimate` konsumieren.
   - [ ] Stein 5 G-Code real (statt `pipelines/fertigungs.py`-Text-Stub).
   - [ ] Stein 6 KiCad-Adapter real (statt `generate_kicad_schematic_stub`, `electronics.py:824`).
   - Nebenfund (Stein 3): `electronics.py:run_internal_drc` nutzt unbelegte Magic-Numbers (`trace_a_per_mm2=12.0`

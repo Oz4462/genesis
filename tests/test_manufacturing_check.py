@@ -308,6 +308,26 @@ def test_pcb_is_all_gaps_on_a_mechanical_solid_not_a_vacuous_pass():
     assert "0.127" in spacing_gap and "0.127" not in edge_gap   # 0.127 is spacing, not edge
 
 
+def test_advanced_report_carries_a_real_cost_estimate_not_a_fabricated_stub():
+    """The report's cost is a computed, ranged FDM estimate (Stein 4), not the old
+    '8-25 EUR' / '~5-12 EUR' prose; with no volume it honestly refuses to estimate."""
+    from gen.cad.manufacturing_check import check_advanced_dfm
+    from gen.cad.cost_model import CostEstimate
+
+    rep = check_advanced_dfm(_artifact("Cost Part", (80, 60, 20), 2.0, vol=50.0))
+    assert isinstance(rep.cost_estimate, CostEstimate)
+    assert rep.cost_estimate.low_eur < rep.cost_estimate.high_eur   # a band, not a number
+    assert "8-25 EUR" not in (rep.cost_model_stub or "")            # legacy prose gone
+    assert "€" in (rep.cost_model_stub or "")                       # the computed band
+    fdm = next(p for p in rep.processes if p.process == "FDM")
+    assert fdm.cost_hint and "0.05-0.15 EUR/g" not in fdm.cost_hint  # computed, not prose
+
+    # no volume on the artifact -> honest refusal, not a guessed number
+    rep0 = check_advanced_dfm(_artifact("No Vol", (80, 60, 20), 2.0, vol=0.0))
+    assert rep0.cost_estimate is None
+    assert "not estimable" in (rep0.cost_model_stub or "")
+
+
 def test_ipc2221_trace_width_matches_the_standard_and_fails_loud():
     """The IPC-2221 trace-width primitive must match the published value (a 1A trace
     at 10C rise on 1oz external copper needs ~0.30mm / 12mil), make internal layers

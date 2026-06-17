@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 import os
 
 from .prototype_cad_builder import BuildArtifact
+from .cost_model import CostEstimate, estimate_fdm_cost
 from gen.dfm import (
     FDM_MIN_WALL_MM,
     FDM_MIN_HOLE_DIAMETER_MM,
@@ -184,6 +185,9 @@ class AdvancedDFMReport:
     # Un-evaluable rules across all processes (e.g. CNC geometric rules needing
     # geometry the spec does not carry). Surfaced so a partial verdict is honest.
     total_gaps: list[str] = field(default_factory=list)
+    # The structured, ranged FDM cost estimate (None if no volume). cost_model_stub
+    # is its one-line summary; this carries the band + breakdown + assumptions + gaps.
+    cost_estimate: CostEstimate | None = None
 
 
 def check_advanced_dfm(
@@ -226,13 +230,16 @@ def check_advanced_dfm(
     if wall < 1.0:
         fdm_issues.append("FDM: free-standing wall <1.0mm risks wobble/delam (printability.py)")
 
+    # real, sourced, ranged FDM cost from the solid volume (None if no volume) —
+    # replaces the old fabricated "~5-12 EUR est." prose.
+    fdm_cost = estimate_fdm_cost(vol, artifact.spec.material_hint) if vol > 0 else None
     fdm_printable = len(fdm_issues) == 0 and base.printable
     processes.append(ProcessDFM(
         process="FDM",
         printable=fdm_printable,
         issues=fdm_issues,
         details=fdm_details,
-        cost_hint="~0.05-0.15 EUR/g material + support (Jetpack Tether ~5-12 EUR est.)",
+        cost_hint=fdm_cost.summary() if fdm_cost else None,
         qa_hints=["Visual + caliper on critical dims", "Pull test sample for layer strength"],
     ))
 
@@ -389,7 +396,14 @@ def check_advanced_dfm(
         "real STL from prototype_cad_builder"
     )
 
-    cost_stub = "Est. 8-25 EUR for Jetpack Tether prototype (FDM dominant; scales with qty/process)"
+    # real computed FDM cost summary (the volume-driven process); subtractive/sheet/
+    # PCB cost needs process data not in the mechanical artifact — stated, not guessed.
+    cost_summary = (
+        f"{fdm_cost.summary()} — FDM only; CNC/laser/PCB cost needs process data "
+        f"(toolpath time / cut length / board layers) not in the artifact"
+        if fdm_cost else
+        "cost not estimable — the artifact carries no volume estimate"
+    )
     qa_stub = ["FDM: dimensional + pull sample", "CNC: surface + tolerance", "Final: fit to assembly + functional load test"]
 
     return AdvancedDFMReport(
@@ -400,7 +414,8 @@ def check_advanced_dfm(
         stl_path=stl_path,
         run_id=run_id,
         quelle=quelle,
-        cost_model_stub=cost_stub,
+        cost_model_stub=cost_summary,
         qa_plan_stub=qa_stub,
         total_gaps=[g for p in processes for g in p.gaps],
+        cost_estimate=fdm_cost,
     )

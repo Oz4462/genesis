@@ -7407,3 +7407,27 @@ Bereit f�r n�chste grosse Idee oder weitere Nachverfolgung.
 **4 Linsen:** L1 (jede Zahl gequellt + selbst verifiziert, Referenz-Caps strukturell als nicht-evaluiert markiert); L2 (kein Drift — FDM/CNC/Laser unberührt; run_internal_drc NICHT angefasst); L3 (Naht-Pointer zu electronics.py); L4 (TDD RED→GREEN, IPC-2221 gegen Standardwert verifiziert, Cross-Model 3 Runden).
 
 **Rest-Risiko / ehrlicher Befund:** `electronics.py:run_internal_drc` nutzt unbelegte Magic-Numbers (`trace_a_per_mm2=12.0` Harness-Draht-Stromdichte, `min_clearance_mm=0.8`, `max_power_density=2.5`, hardcodierte Board-Fläche 150cm²) — das ist die TIEFE Elektronik-DRC (anderer Belang: Draht-Ampacity ≠ PCB-Trace), bewusst NICHT in diesem Stein angefasst → Review-Schritt 7-9 (electronics/circuit). Kostenmodell `cost_stub` (Stein 4); G-Code/KiCad (Stein 5/6); FDM-`hole_hint=3.0` Fake (notiert).
+
+
+---
+
+## Kostenmodell Stein (Teil 2, Stein 4) — 2026-06-18
+
+**Scope:** Die Kosten-Stubs (`"~5-12 EUR est."` FDM-`cost_hint`, `"Est. 8-25 EUR"` `cost_model_stub`) durch ein echtes, gequelltes, **bereich-basiertes** Kostenmodell ersetzt.
+
+**Kerneinsicht:** Kosten sind ein BEREICH mit expliziten Annahmen, keine einzelne erfundene Zahl. Der alte Stub versteckte die echten Unsicherheiten (Infill 30–60%, Job-Average-Durchsatz ~4×, self-run vs. Service ~10×). Material ist aus dem Volumen real berechenbar; exakte Druckzeit/Shell-Anteil brauchen Slicing → Gap. CNC/Laser/PCB-Kosten brauchen Prozessdaten, die das Mechanik-Artefakt nicht trägt → Cost-Gap, kein erfundener Wert.
+
+**Gebaut**
+- src/gen/cad/cost_model.py (NEU): `CostEstimate` (low/high + breakdown + assumptions + gaps + source) + `estimate_fdm_cost()` (Material-Masse aus Volumen × Dichte × Infill-Anteil; Maschinenzeit = Deposit-Volumen / Job-Average-Durchsatz × Rate excl. Material; Setup-Band) + `resolve_fdm_material()`. Per-Material gequellte Bänder (PLA/PETG/ABS Dichte + Preis), Durchsatz 8–30 cm³/h (Job-Average, unter Peak-Flow), Maschinenrate 0,20–1,00 EUR/h excl. Material, Infill 30–60% (Annahme), Setup 0–1 EUR (Band). Fail-loud auf nicht-finite/≤0 Volumen.
+- src/gen/cad/manufacturing_check.py: FDM-`cost_hint` = echte `estimate.summary()`; Report `cost_model_stub` = echte Summary (+ Note CNC/Laser/PCB brauchen Prozessdaten) statt Prosa; neues strukturiertes `cost_estimate`-Feld; no-volume → ehrliches „not estimable".
+- tests/test_cost_model.py (NEU, 5 Tests) + tests/test_manufacturing_check.py (Wiring-Test): Bereich statt Zahl, fail-loud (inkl. NaN/inf), Material-Resolution, Monotonie, ehrliche Limits als Gaps, Report trägt echtes `cost_estimate`.
+
+**Research:** 3DSourced/Omnicalculator (Filament-Dichte/Preis PLA 1,24/PETG 1,27/ABS 1,04; PLA ~13–40, PETG ~13,6–60 EUR/kg), Polymaker/3D-Printing-Speed (Peak-Flow 5–15 mm³/s → Job-Average), 3D-Solved/3DPI (Maschinenzeit self-run ~0,20 bis Service; Material separat) — 2026-06-18.
+
+**Cross-Model (Grok, Kernprinzip #3):** 3 adversariale Runden + Bestätigung. Grok fing 9+3+0 echte Lücken — Durchsatz war Peak- statt Job-Average; Infill-Mapping ignorierte Shell-dominierte/near-solid Teile (jetzt explizit gescoped + out-of-scope als UNDER-stated geflaggt, nicht erfunden-envelopt); Maschinenrate-Basis vermengt (jetzt excl. Material + Commercial-Pricing als Gap, kein Double-Count); Setup unbelegt → Band 0–1; PETG-Preis von PLA kopiert → per-Material; Default-Material still → Gap. Konvergenz sauber.
+
+**Checks:** ruff sauber; cost_model 5 passed + manufacturing 11 passed/3 skipped; volle Suite **1219 passed / 9 skipped**; fail-loud gegen ≤0/NaN/inf verifiziert.
+
+**4 Linsen:** L1 (jede Zahl gequellt + per-Material; Annahmen vs. gequellte Konstanten klar getrennt; Bereich statt Punkt); L2 (kein Drift — `KostenModell` in fertigungs.py unberührt, kann `CostEstimate` später konsumieren); L3 (Naht: Report-`cost_estimate` + integrator-manifest `cost_hint` jetzt echte Summary); L4 (TDD RED→GREEN, Cross-Model 3 Runden, arithmetisch verifiziert 50cm³ PLA = €0,34–6,24).
+
+**Rest-Risiko:** Nur FDM berechnet (Volumen→Material direkt); CNC/Laser/PCB-Kosten = ehrlicher Gap (brauchen Toolpath/Schnittlänge/Lagen). `fertigungs.py:KostenModell` bleibt String-Prosa (Naht-Follow-up: soll `CostEstimate` konsumieren). G-Code/KiCad (Stein 5/6). FDM-`hole_hint=3.0` Fake (notiert).
