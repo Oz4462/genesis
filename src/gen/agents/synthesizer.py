@@ -82,7 +82,7 @@ class Synthesizer:
 
         seen: set[str] = set()
         for item in proposed:
-            name = (item.get("name") or "").strip()
+            name = str(item.get("name") or "").strip()
             # Validate every referenced id against the VERIFIED set. The model cannot
             # invent grounding: ids that are absent or not VERIFIED are dropped here.
             grounding = [cid for cid in _as_str_list(item.get("grounding")) if cid in verified]
@@ -98,6 +98,7 @@ class Synthesizer:
                 continue
             ap_id = approach_id(run_id, name, grounding)
             if ap_id in seen:
+                state.log.append(f"synthesizer: drop duplicate approach {name!r}")
                 continue
             seen.add(ap_id)
             state.approaches.append(
@@ -115,7 +116,7 @@ class Synthesizer:
         return state
 
     async def _cluster(self, problem: str, verified: dict) -> list[dict]:
-        claim_lines = "\n".join(f"{cid}: {c.text}" for cid, c in verified.items())
+        claim_lines = "\n".join(f"{cid}: {c.text}" for cid, c in sorted(verified.items()))
         user = f"PROBLEM:\n{problem}\n\nVERIFIED CLAIMS:\n{claim_lines}"
         resp = await self._llm.complete(system=_SYSTEM, user=user)
         value = extract_json(resp.text, agent="synthesizer")

@@ -133,3 +133,32 @@ def test_under_confident_verified_is_excluded():
     payload = json.dumps([{"name": "Low", "grounding": ["c1"], "tradeoffs": []}])
     st = run(Synthesizer(_llm(lambda s, u: payload), confidence_threshold=0.7).run(_state([c1])))
     assert st.approaches == []      # below τ -> excluded from the verified set
+
+
+def test_non_string_name_is_coerced_not_crashed():
+    # A non-string "name" (here an int) must NOT raise: the field is coerced like
+    # architect's parsing, not trusted. Before the str() guard, `123 or ""` -> 123
+    # and 123.strip() raised AttributeError, aborting the whole beta run instead of
+    # honestly degrading (contract: malformed LLM output -> never crash).
+    c1 = _vclaim("c1", "Token bucket rate-limits APIs.")
+    payload = json.dumps([{"name": 123, "grounding": ["c1"], "tradeoffs": []}])
+    st = run(Synthesizer(_llm(lambda s, u: payload)).run(_state([c1])))
+    assert len(st.approaches) == 1
+    assert st.approaches[0].name == "123"        # coerced to str, not crashed
+    assert st.approaches[0].grounding == ["c1"]  # grounding still validated
+
+
+def test_duplicate_approach_is_dropped_and_logged():
+    # Two proposals with identical name+grounding collapse to one approach; the drop
+    # is now logged so the audit trail can explain the missing duplicate (parity with
+    # forge.py). Before the log line the drop was silent.
+    c1 = _vclaim("c1", "Token bucket rate-limits APIs.")
+    payload = json.dumps(
+        [
+            {"name": "Token bucket", "grounding": ["c1"], "tradeoffs": []},
+            {"name": "Token bucket", "grounding": ["c1"], "tradeoffs": []},
+        ]
+    )
+    st = run(Synthesizer(_llm(lambda s, u: payload)).run(_state([c1])))
+    assert len(st.approaches) == 1
+    assert any("drop duplicate approach" in line for line in st.log)
