@@ -70,6 +70,15 @@ def test_too_few_replicates_is_caught():
     assert "INSUFFICIENT_REPLICATES" in {f.code for f in gate_protocol(_state(d)).failures}
 
 
+def test_duplicate_group_names_do_not_satisfy_two_groups():
+    # A sham design with two identical group names has no real comparison arm:
+    # len(groups)==2 but there is only one distinct group. The gate counts DISTINCT
+    # groups, so this must be rejected as TOO_FEW_GROUPS.
+    d = ExperimentDesign(measured="yield", groups=["control", "control"],
+                         control="control", replicates=5)
+    assert "TOO_FEW_GROUPS" in {f.code for f in gate_protocol(_state(d)).failures}
+
+
 # --- the safety limit rides on the existing constraint machinery (C-13) --------
 
 def test_overdose_trips_the_safety_constraint():

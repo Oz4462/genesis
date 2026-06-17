@@ -1955,13 +1955,13 @@ def gate_protocol(state: RunState) -> GateResult:
                     detail=f"control {exp.control!r} is not among the groups {exp.groups}.",
                 )
             )
-        if len(exp.groups) < 2:
+        if len(set(exp.groups)) < 2:
             failures.append(
                 GateFailure(
                     code="TOO_FEW_GROUPS",
                     detail=(
-                        f"a measured outcome needs >= 2 groups (treatment + control), "
-                        f"got {exp.groups}."
+                        f"a measured outcome needs >= 2 distinct groups (treatment + "
+                        f"control), got {exp.groups}."
                     ),
                 )
             )
