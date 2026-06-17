@@ -103,3 +103,18 @@ def test_conformal_accept_threshold_lower_tail():
     assert conformal_accept_threshold([0.5, 0.6, 0.7, 0.8, 0.9], 0.1) is None
     with pytest.raises(ValueError):
         conformal_accept_threshold([0.5], 1.0)
+
+
+def test_ece_does_not_misbin_a_negative_confidence_into_the_top_bin():
+    # A c<0 must land in the LOW bin, not (via Python negative indexing) the TOP bin. The bug
+    # merged -0.1 with the high-confidence pair in bin 9 and reported ~0.27; the correct binning
+    # (-0.1 alone in bin 0, {0.95,0.96} in bin 9) gives ~0.337.
+    ece = expected_calibration_error([(-0.1, False), (0.95, False), (0.96, True)], n_bins=10)
+    assert ece > 0.30                                    # buggy top-bin merge gave 0.27
+
+
+def test_threshold_for_precision_rejects_an_out_of_range_target():
+    with pytest.raises(ValueError):
+        threshold_for_precision(_SCORED, 1.5)            # >1 silently qualified nothing before
+    with pytest.raises(ValueError):
+        threshold_for_precision(_SCORED, -0.1)           # <0 silently qualified EVERYTHING before

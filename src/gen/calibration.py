@@ -57,6 +57,8 @@ def threshold_for_precision(
     confidences and requires a non-empty acceptance. Returns None if no threshold meets the
     bar — an honest "the labelled set does not support this precision", never a fabricated
     threshold."""
+    if not 0.0 <= target_precision <= 1.0:
+        raise ValueError("target_precision must be in [0, 1]")
     candidates = sorted({c for c, _ in scored})
     qualifying = [
         op for op in (precision_recall_at(scored, thr) for thr in candidates)
@@ -75,7 +77,8 @@ def expected_calibration_error(scored: list[tuple[float, bool]], *, n_bins: int 
         return 0.0
     bins: list[list[tuple[float, bool]]] = [[] for _ in range(n_bins)]
     for c, t in scored:
-        idx = min(int(c * n_bins), n_bins - 1)
+        # clamp BOTH ends: a c<0 must not land (via Python negative indexing) in the TOP bin
+        idx = max(0, min(int(c * n_bins), n_bins - 1))
         bins[idx].append((c, t))
     n = len(scored)
     ece = 0.0
