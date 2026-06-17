@@ -100,3 +100,20 @@ def test_unparseable_llm_abstains():
     state = _run(forge, _state([_verified()], Spark(id="s1", raw="x")))
     assert state.divergence is not None
     assert state.divergence.possibilities == []
+
+
+def test_non_string_statement_or_mechanism_is_coerced_not_crashed():
+    # Non-string 'statement'/'mechanism' from the LLM must NOT raise: both fields are
+    # coerced (str()) like architect/synthesizer, not trusted. Before the guard,
+    # `123 or ""` -> 123 and 123.strip() raised AttributeError OUTSIDE the
+    # LLMOutputError handler, crashing the whole phi run instead of degrading.
+    forge = Forge(ScriptedLLM(
+        "qwen3.5:9b",
+        lambda s, u: '[{"statement":123,"mechanism":456,"grounding":["c1"]}]',
+    ))
+    state = _run(forge, _state([_verified()], Spark(id="s1", raw="x")))
+    assert state.divergence is not None
+    assert len(state.divergence.possibilities) == 1
+    p = state.divergence.possibilities[0]
+    assert p.statement == "123" and p.mechanism == "456"   # coerced, not crashed
+    assert p.grounding == ["c1"]

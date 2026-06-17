@@ -89,8 +89,8 @@ class Forge:
 
         seen: set[str] = set()
         for item in proposed:
-            statement = (item.get("statement") or "").strip()
-            mechanism = (item.get("mechanism") or "").strip()
+            statement = str(item.get("statement") or "").strip()
+            mechanism = str(item.get("mechanism") or "").strip()
             # Validate every cited id against the VERIFIED set. The model cannot invent
             # grounding: ids that are absent or not VERIFIED are dropped here.
             grounding = [cid for cid in _as_str_list(item.get("grounding")) if cid in verified]
