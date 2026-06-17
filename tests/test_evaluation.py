@@ -83,3 +83,27 @@ def test_leak_rate_denominator_counts_unsound_cases():
     assert report.n_sound == sum(1 for c in all_cases() if c.expected_pass)
     out = format_report(report)
     assert "Rate 0%" in out                                     # leak rate rendered, 0%
+
+
+def test_physics_verdict_counts_a_gap_as_not_a_pass():
+    # G4: evaluate_spec_physics()["gate"].passed is True both when the checks cleared AND when an
+    # indicated check could not run (a gap). The harness verdict must NOT score a gap as a clean
+    # physics pass — same honesty as pipeline.physics_ok. Before the fix it scored True.
+    from gen.demo import drive_shaft_state
+    from gen.evaluation import Case, _gate_verdict
+    st = drive_shaft_state()
+    st.specification.quantities = [q for q in st.specification.quantities
+                                   if q.measurand != "material.endurance_limit"]
+    case = Case("shaft with an indicated physics gap", st, expected_pass=False, gate="physics")
+    assert _gate_verdict(case) is False
+
+
+def test_leak_rate_is_none_when_there_are_no_unsound_cases():
+    # A vacuous 0% leak rate over ZERO unsound cases would falsely read as a held guarantee; it
+    # must be None (nothing discriminated), and the report renders 'n/a', never a misleading '0%'.
+    from gen.evaluation import anti_hallucination_cases, evaluate
+    sound_only = [c for c in anti_hallucination_cases() if c.expected_pass]
+    report = evaluate(sound_only)
+    assert report.n_unsound == 0
+    assert report.leak_rate is None
+    assert "n/a" in format_report(report)

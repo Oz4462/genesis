@@ -112,7 +112,9 @@ def _dimension_mismatch_state() -> RunState:
 
 
 def anti_hallucination_cases() -> list[Case]:
-    """Curated sound + unsound γ cases, one per hallucination class GATE γ guards."""
+    """Curated sound + unsound γ cases — a REPRESENTATIVE subset, one case per targeted
+    hallucination class (C-2/C-4/C-6/C-15/C-17), NOT all of C-1..C-18; the uncovered codes
+    are an honest coverage gap, not a proven-leak-free claim over every class."""
     return [
         Case("capstone (full sound spec)", capstone_state(), True),
         Case("honest abstention (empty + gaps)", _abstention_state(), True),
@@ -165,15 +167,17 @@ class EvalReport:
     n_sound: int = 0          # how many cases SHOULD pass (the false-alarm denominator)
 
     @property
-    def leak_rate(self) -> float:
+    def leak_rate(self) -> float | None:
         """Fraction of unsound cases that wrongly passed — the false-accept rate of the
-        guarantee. MUST be 0."""
-        return len(self.leaks) / self.n_unsound if self.n_unsound else 0.0
+        guarantee. MUST be 0. None when there are NO unsound cases: a vacuous 0% over zero
+        unsound cases would falsely read as a held guarantee (nothing was discriminated)."""
+        return len(self.leaks) / self.n_unsound if self.n_unsound else None
 
     @property
-    def false_alarm_rate(self) -> float:
-        """Fraction of sound cases wrongly blocked (over-blocking)."""
-        return len(self.false_alarms) / self.n_sound if self.n_sound else 0.0
+    def false_alarm_rate(self) -> float | None:
+        """Fraction of sound cases wrongly blocked (over-blocking). None when there are no
+        sound cases (nothing to discriminate)."""
+        return len(self.false_alarms) / self.n_sound if self.n_sound else None
 
 
 def _gate_verdict(case: Case) -> bool:
@@ -181,7 +185,11 @@ def _gate_verdict(case: Case) -> bool:
     if case.gate == "gamma":
         return gate_gamma(case.state).passed
     if case.gate == "physics":
-        return evaluate_spec_physics(case.state.specification)["gate"].passed
+        # gate.passed is True both when the checks cleared AND when an indicated check could
+        # not run (a gap). An indicated-but-unrunnable check is NOT a clean pass — same honesty
+        # as pipeline.physics_ok, so a non-empty gap list counts as not-passed here too.
+        result = evaluate_spec_physics(case.state.specification)
+        return result["gate"].passed and not result["gaps"]
     raise ValueError(f"unknown gate {case.gate!r} in case {case.name!r}")
 
 
@@ -205,15 +213,22 @@ def evaluate(cases: list[Case]) -> EvalReport:
                       n_unsound=n_unsound, n_sound=len(cases) - n_unsound)
 
 
+def _pct(rate: float | None) -> str:
+    """None-safe percentage: 'n/a' when there was nothing to discriminate (never a vacuous 0%)."""
+    return "n/a" if rate is None else f"{rate:.0%}"
+
+
 def format_report(report: EvalReport) -> str:
     lines = ["Anti-Halluzinations-Gate-Evaluation (deterministisch, offline):", ""]
     for name, exp, act in report.verdicts:
         mark = "OK " if exp == act else "XX "
         lines.append(f"  {mark}{'PASS' if act else 'FAIL'} (erwartet {'PASS' if exp else 'FAIL'})  {name}")
     lines.append("")
-    lines.append(f"  Ergebnis: {report.correct}/{report.total} korrekt")
+    lines.append(f"  Ergebnis: {report.correct}/{report.total} korrekt "
+                 f"({report.n_unsound} unsound / {report.n_sound} sound — kuratierte Offline-Fixtures, "
+                 "misst Gate-Diskriminierung, nicht Live-Modell-Qualität)")
     lines.append(f"  Leaks (durchgerutschte Halluzinationen): {len(report.leaks)}  "
-                 f"(Rate {report.leak_rate:.0%})  <- muss 0 sein")
+                 f"(Rate {_pct(report.leak_rate)})  <- muss 0 sein")
     lines.append(f"  Fehlalarme (fälschlich blockierte solide Specs): {len(report.false_alarms)}  "
-                 f"(Rate {report.false_alarm_rate:.0%})")
+                 f"(Rate {_pct(report.false_alarm_rate)})")
     return "\n".join(lines)
