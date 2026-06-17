@@ -18,9 +18,14 @@ Das hier ist der Kern der Frage „aufgeschrieben, aber nicht implementiert":
 
 | Aufgeschrieben als gebaut | Realität im Code | Evidenz |
 |---|---|---|
-| `GENESIS_TODO.md` §3.5 (Z.18): „FragmentStore + **SourceConnectorRegistry**" | FragmentStore = `wissensbasis/store.py` ✓ — **SourceConnectorRegistry existiert NICHT** | `grep -riE 'SourceConnectorRegistry\|source_connector' src/gen/` → 0 Treffer |
-| `GENESIS_TODO.md` Z.67: „KiCad-Export/PCB-Layout … abgeschlossen" | Kein KiCad-Adapter; nur interne regelbasierte Place/Route/DRC | keine `kicad`-Adapter-Module; `grenzverschiebung/lumencrucible.py` Z.50 nennt KiCad/Ansys selbst „external-tool seams" |
+| `GENESIS_TODO.md` Z.67: „KiCad-Export/PCB-Layout … abgeschlossen" | Kein KiCad-**Adapter/-Export**; nur interne regelbasierte Place/Route/DRC | keine `kicad`-Adapter-Module; `grenzverschiebung/lumencrucible.py` Z.50 nennt KiCad/Ansys selbst „external-tool seams" mit „strong internal deterministic equivalents" |
 | `GENESIS_TODO.md` Z.25 / `HORIZON.md` Z.29: „~950 passed" / „950 passed / 19 skipped" | **1185 passed / 9 skipped** (frisch gemessen) | `python -m pytest -q` |
+
+> Korrektur-Hinweis (Selbst-Audit): Ein erster Entwurf dieses Dokuments listete hier auch
+> „SourceConnectorRegistry existiert nicht". **Das war falsch** — verursacht durch ein fehlerhaftes
+> `grep -E '…\|…'` (Backslash-Pipe wurde als Literal gesucht). `class SourceConnectorRegistry`
+> existiert in `wissensbasis/store.py:213`; `GENESIS_TODO.md` §3.5 war an dieser Stelle korrekt.
+> Beim erneuten, korrekten Grep entfernt. (Genau die Verifikation, die GENESIS predigt.)
 
 ---
 
@@ -46,7 +51,7 @@ während der Code das Gegenteil zeigt.
 
 **Genuin NICHT gebaut (verifiziert abwesend — `grep` → 0 Treffer in `src/gen/`):**
 
-- Lab Notebook · Measurement Plan Builder · **SourceConnectorRegistry** · Reference Case Library
+- Lab Notebook · Measurement Plan Builder · Reference Case Library
 - Mesh Gate · Convergence Gate (die Simulations-Qualitäts-Gates)
 - Readiness Ladder · Resource Planner · Teacher Mode · Community Evidence Store · Proof Package Generator (Plattform-Kappen)
 - `docs/architecture/{MODULE_CONTRACT,SOURCE_CONNECTORS,RD_SYSTEM,SIMULATION_CONTRACT}.md` — das Verzeichnis `docs/architecture/` existiert nicht
