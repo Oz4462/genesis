@@ -7,7 +7,7 @@
 > Open-Source-Infrastruktur, damit Menschen — privat wie Unternehmen — aus einer kleinen Idee etwas Vollständiges erschaffen können: mit Quellen statt Behauptungen, mit nachgerechneter Physik statt geratener Zahlen, und mit ehrlichen Lücken statt erfundener Antworten.
 
 ```
-881 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
+1185 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
 ```
 
 ---
@@ -173,7 +173,7 @@ pip install -e .[full]      # alles inkl. Dev-Tools (pytest, ruff, httpx)
 Ohne die optionalen Pakete bleibt alles funktionsfähig — die betreffenden Features/Tests **skippen ehrlich**, statt zu raten.
 
 ```bash
-python -m pytest tests/ -q          # 881 passed (volle Deps) — ohne LLM-Token, ohne Netz
+python -m pytest tests/ -q          # 1185 passed, 9 skipped — ohne LLM-Token, ohne Netz
 ```
 
 ## 8 · Nutzung: CLI
@@ -198,7 +198,7 @@ genesis-web                           # lokale Web-UI auf http://127.0.0.1:8077
 
 (Vor `pip install -e .` geht alles auch direkt aus dem Repo: `PYTHONPATH=src python -m gen …` bzw. `python -m gen.web`.)
 
-Live-Modi (lokales Ollama nötig, siehe [§11](#11--live-modus-lokale-llms)):
+Live-Modi (Claude/Grok-CLI **oder** lokales Ollama, siehe [§11](#11--live-modus-lokale-llms)):
 
 ```bash
 genesis "Wie funktioniert ein Wälzlager?"          # Live-α: Frage → belegter Report
@@ -258,14 +258,18 @@ from gen.pressure_vessel import pressure_vessel_check
 
 ## 11 · Live-Modus (lokale LLMs)
 
-Der Live-Pfad nutzt **lokales Ollama** (kein Cloud-Key) und ein keyloses Wikipedia-Backend:
+Der Live-Pfad ist **cross-model per Konstruktion** — Generator und Verifizierer sind verschiedene Modellfamilien — und keylos auf zwei Wegen. Quellen liefert ein keyloses Wikipedia-Backend.
+
+**Default — Abo-OAuth über die CLIs** (kein API-Key, nutzt bestehende Max-Abos): Generator `claude-opus-4-8` über `claude -p`, Verifizierer `grok-composer-2.5-fast` über `grok -p`. Die Adapter shellen die installierten CLIs, die `make_llm`-Factory routet familien-gebunden; beide live PONG-verifiziert. Konfiguriert in `config.py` (`Models.generator`/`.verifier`).
+
+**Alternative — vollständig lokales Ollama** (offline, deterministisch, kein Cloud-Kontakt):
 
 ```bash
-ollama pull qwen3.5:9b      # Generator (scout/scholar) — Default
+ollama pull qwen3.5:9b      # Generator (scout/scholar)
 ollama pull gemma4:12b      # Verifizierer (skeptic) — MUSS eine andere Modellfamilie sein
 ```
 
-Die Modellwahl (verifiziert 2026-06-12 für 11-GB-GPUs): `qwen3.5:9b` (6,6 GB, 256K Kontext, Instruction-Following-Spitze der ≤14B-Klasse) + `gemma4:12b` (7,6 GB, 256K) — jedes passt **allein** mit Reserve in den VRAM, es ist nie mehr als ein Modell gleichzeitig geladen. Andere Modelle: `--generator`/`--verifier` (CLI) bzw. `GENESIS_GENERATOR`/`GENESIS_VERIFIER` (Web-UI).
+Die Ollama-Modellwahl (verifiziert 2026-06-12 für 11-GB-GPUs): `qwen3.5:9b` (6,6 GB, 256K Kontext) + `gemma4:12b` (7,6 GB, 256K) — jedes passt **allein** mit Reserve in den VRAM, nie mehr als ein Modell gleichzeitig geladen. Modelle/Backends wechseln: `--generator`/`--verifier` (CLI) bzw. `GENESIS_GENERATOR`/`GENESIS_VERIFIER` (Web-UI).
 
 Gleiche Modellfamilie für Generator und Verifizierer? GENESIS **bricht ab, bevor irgendein Call passiert** — Cross-Model ist Pflicht, nicht Vorschlag. Mit `--checkpoint-dir runs` entsteht pro Lauf ein reproduzierbarer Audit-Checkpoint.
 
@@ -292,14 +296,14 @@ Der Scorer (`gen/goldset.py`) berechnet Fakten-Genauigkeit, **Abstention-Recall*
 - **Zwei unabhängige Methoden:** FEM gegen geschlossene Form, BREP gegen analytisches Volumen, MNA gegen Ohm — Übereinstimmung als Schutz gegen Fehler in einer von beiden.
 - **Tests mit Zähnen:** Jeder Wächter hat Negativtests (der manipulierte Fall **muss** scheitern). Das Eval-Harness aggregiert das zu Leaks = 0.
 - **Real-World-Verifikation:** Die Web-UI wurde nicht nur unit-getestet, sondern im echten Browser bedient (Playwright): Klärungs-Dialog Gelb→Grün, Sign-off-Verweigerung, Live-Ablehnungskarte.
-- **881 Tests** (volle Abhängigkeiten) / 835 + 19 skipped (Minimal-Umgebung) — alle ohne LLM-Token und ohne Netz; zusätzlich grün mit Deprecation-Warnings als Fehlern. Lint-Baseline: `ruff check src tests` = sauber.
+- **1185 Tests grün, 9 ehrlich übersprungen** (optionale Deps wie build123d/Postgres/gmsh fehlen → `importorskip`, nie geraten) — alle ohne LLM-Token und ohne Netz. Lint-Baseline: `ruff check .` = sauber.
 
 ## 14 · Projektstruktur
 
 ```
 src/gen/
   core/                state.py (Claim/Quantity/Spec …), interfaces.py, errors.py, …
-  agents/              scout, scholar, skeptic, conductor, synthesizer, architect
+  agents/              scout, scholar, skeptic, conductor, synthesizer, architect, forge (HORIZON φ)
   ledger/              In-Memory- + Postgres-Fakten-Ledger (Quellenzwang)
   tools/, llm/         ehrliches Fetch/Search, LLM-Boundary (Ollama + ScriptedLLM)
   verification/        gates.py (α/β/γ/δ/ERC/CODE/PROTOCOL), derivation, units,
@@ -328,13 +332,13 @@ goldset/v1.json        das kuratierte Mess-Set für die Live-Läufe
 sql/001_ledger.sql     Quellenzwang als DB-Constraint
 docs/                  VISION, ARCHITECTURE, DATA_MODEL, PIPELINE, phases/ (α–δ inkl.
                        PHASE_DELTA.md §1–§57), research/, agents/
-tests/                 881 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-Engine,
+tests/                 1185 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-Engine,
                        Web-API & 4 Frageklassen
 ```
 
 ## 15 · Status & ehrliche Grenzen
 
-**Fertig und bewiesen (offline):** die komplette α/β/γ/δ-Kette mit allen Gates, die Physik-Engine (27 Validatoren + FEM, inkl. Rotation im CSG-Vokabular, der Flug-Achsen und der NIST-verankerten Krypto-Achse), die Druckbarkeits-Schicht (bis in CLI, Web-UI und den gegateten STL-Export verdrahtet), die Quality-Engine (inkl. Conformal-Prediction-Schwellen mit verteilungsfreier Garantie), deutsche Ergebnisse auf jeder menschenlesbaren Oberfläche (Claims, Bauanleitung, Spezifikations-Texte, CLI-Renderer, Klärungsfragen, Warnungen, Druck-Verdikt und die komplette Demo-Welt — Zitate bleiben wortlautgetreu in der Quellsprache), CLI, Web-UI (Idee→Ergebnis-Flow für Laien), Packaging, Gold-Set-Vertrag — 881 Tests, deterministisch, reproduzierbar.
+**Fertig und bewiesen (offline):** die komplette α/β/γ/δ-Kette mit allen Gates, die Physik-Engine (27 Validatoren + FEM, inkl. Rotation im CSG-Vokabular, der Flug-Achsen und der NIST-verankerten Krypto-Achse), die Druckbarkeits-Schicht (bis in CLI, Web-UI und den gegateten STL-Export verdrahtet), die Quality-Engine (inkl. Conformal-Prediction-Schwellen mit verteilungsfreier Garantie), deutsche Ergebnisse auf jeder menschenlesbaren Oberfläche (Claims, Bauanleitung, Spezifikations-Texte, CLI-Renderer, Klärungsfragen, Warnungen, Druck-Verdikt und die komplette Demo-Welt — Zitate bleiben wortlautgetreu in der Quellsprache), CLI, Web-UI (Idee→Ergebnis-Flow für Laien), Packaging, Gold-Set-Vertrag — 1185 Tests, deterministisch, reproduzierbar.
 
 **Live bewiesen:** α (Fakten-Report) und β gegen echte lokale Modelle, inklusive empirischer Bestätigung, dass der Wortlaut-Wächter echte Modell-Paraphrasen abfängt.
 
@@ -356,6 +360,7 @@ tests/                 881 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-En
 | `docs/PIPELINE.md` | Die Phasen und ihre Gates |
 | `docs/phases/PHASE_ALPHA…DELTA(.RESULT).md` | Max. Detail pro Phase; RESULT-Dateien sind ehrliche, historische Abnahme-Snapshots |
 | `docs/phases/PHASE_DELTA.md` (§1–§57) | Jede Validierungs-Schicht: was sie fängt, wogegen sie verifiziert ist, was ihre ehrliche Grenze ist, Quelle |
+| `docs/HORIZON.md` | HORIZON (φ–Ω): die Gate-/Builder-Erweiterungsschicht über γ/δ (φ/χ-Gates + `reality`/`seams`/`memory_fabric`/`omega`/`inverse_design`/`coverage`/`proof_kernels`) |
 | `docs/research/PRINT_DESIGN_FAILURES.md` | 16 Klassen von 3D-Druck-Designfehlern: gebaut vs. Evidenz vs. ehrliche Lücke, mit Quellen |
 | `docs/agents/*.md` | Pro Agent: Verantwortung, I/O, Werkzeuge, Fehlerzustände |
 | `CLAUDE.md` / `CONTRIBUTING.md` | Arbeitskonventionen; ein Commit = ein selbstkontrollierter Schritt |
