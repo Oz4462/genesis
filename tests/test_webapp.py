@@ -147,7 +147,12 @@ def test_ratification_flow_no_auto_approval(client):
     empty = client.post("/api/ratification/check", json={"approved": []}).json()
     assert empty["ratified"] is False                        # nothing approved by default
     assert len(empty["unratified"]) == len(blocking)
-    full = client.post("/api/ratification/check", json={"approved": blocking}).json()
+    # full approval WITHOUT a named approver is anonymous -> still not ratified
+    anon = client.post("/api/ratification/check", json={"approved": blocking}).json()
+    assert anon["ratified"] is False
+    # a named human signing off every blocking item ratifies
+    full = client.post("/api/ratification/check",
+                       json={"approved": blocking, "approver": "ozan"}).json()
     assert full["ratified"] is True and full["unratified"] == []
 
 

@@ -77,3 +77,36 @@ def test_is_deterministic():
     a = ratification_packet(spec)
     b = ratification_packet(spec)
     assert [(it.kind, it.ref, it.blocking) for it in a] == [(it.kind, it.ref, it.blocking) for it in b]
+
+
+def test_full_approval_without_an_approver_is_not_ratified():
+    # G4: ratifying every blocking ref but with NO named approver is an anonymous approval —
+    # is_ratified must be False (no accountable human signed). Before the fix it returned True.
+    packet = ratification_packet(capstone_spec())
+    all_refs = frozenset(it.ref for it in packet if it.blocking)
+    assert not is_ratified(packet, SignOff(approved=all_refs, approver=""))
+    assert is_ratified(packet, SignOff(approved=all_refs, approver="ozan"))     # named -> ok
+
+
+def test_empty_packet_still_needs_a_human_approver():
+    # G3: a spec with nothing blocking was auto-ratified with no human at all. 'Done' still
+    # needs a named approver to acknowledge it.
+    from gen.core.state import Specification
+    packet = ratification_packet(Specification(run_id="r", idea="x"))   # no decisions/gaps/gates
+    assert packet == []
+    assert not is_ratified(packet, SignOff())                           # was True (vacuous done)
+    assert is_ratified(packet, SignOff(approver="ozan"))                # a human acknowledged it
+
+
+def test_duplicate_decision_ids_get_distinct_namespaced_refs():
+    # G1/G2: decision refs are namespaced (decision:<id>) so a decision id can never collide
+    # with a gap/gate ref, and duplicate ids each get a DISTINCT ref so one sign-off cannot
+    # silently ratify an unseen sibling. Before the fix both collapsed to the bare id.
+    from gen.core.state import Decision, Specification
+    spec = Specification(run_id="r", idea="x", decisions=[
+        Decision(id="d", title="A", choice="x", rationale="r", informed_by=[]),
+        Decision(id="d", title="B", choice="y", rationale="r", informed_by=[]),
+    ])
+    refs = [it.ref for it in ratification_packet(spec) if it.kind == "decision"]
+    assert len(refs) == 2 and len(set(refs)) == 2          # distinct, not collapsed to one
+    assert all(r.startswith("decision:") for r in refs)    # namespaced (no cross-kind collision)

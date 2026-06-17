@@ -51,6 +51,12 @@ class SignOff:
     approved: frozenset[str] = frozenset()
     approver: str = ""
 
+    def __post_init__(self) -> None:
+        # Coerce to a frozenset so the approval set cannot be mutated AFTER the sign-off was
+        # made: a mutable set passed in would otherwise let approvals grow without a new sign-off.
+        if not isinstance(self.approved, frozenset):
+            object.__setattr__(self, "approved", frozenset(self.approved))
+
 
 def ratification_packet(
     spec: Specification, gate_results: dict[str, GateResult] | None = None
@@ -59,9 +65,14 @@ def ratification_packet(
     (a design choice), every gap (residual risk to acknowledge), and each gate verdict
     (evidence; a FAILED gate blocks). Deterministic, order-stable."""
     items: list[RatificationItem] = []
-    for d in spec.decisions:
+    seen: set[str] = set()
+    for i, d in enumerate(sorted(spec.decisions, key=lambda x: x.id)):  # order-stable
+        ref = f"decision:{d.id}"                         # namespaced -> never collides with gap:/gate:
+        if ref in seen:                                  # a duplicate id gets a distinct ref so one
+            ref = f"decision:{d.id}#{i}"                 # sign-off cannot silently ratify the sibling
+        seen.add(ref)
         items.append(RatificationItem(
-            "decision", d.id, f"{d.title}: Wahl {d.choice!r} — {d.rationale}", True))
+            "decision", ref, f"{d.title}: Wahl {d.choice!r} — {d.rationale}", True))
     for i, gap in enumerate(spec.gaps):
         items.append(RatificationItem("gap", f"gap:{i}", gap, True))
     for name, result in sorted((gate_results or {}).items()):
@@ -80,6 +91,7 @@ def unratified_items(packet: list[RatificationItem], signoff: SignOff) -> list[R
 
 
 def is_ratified(packet: list[RatificationItem], signoff: SignOff) -> bool:
-    """True only if EVERY blocking item is explicitly in the sign-off. An empty sign-off
-    over a packet with any blocking item is False — nothing is approved by default."""
-    return not unratified_items(packet, signoff)
+    """True only if a NAMED human approver has explicitly signed off EVERY blocking item. An
+    empty sign-off, an anonymous one (no `approver`), or even an empty packet with no approver
+    is NOT "done" — nothing is approved by default and no approval is anonymous."""
+    return bool(signoff.approver.strip()) and not unratified_items(packet, signoff)

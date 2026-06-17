@@ -201,7 +201,7 @@ def test_missing_ratification_ref_fails():
         run_id=cert.run_id,
         gate_receipts=cert.gate_receipts,
         learning_notes=cert.learning_notes,
-        ratification_refs=tuple(ref for ref in cert.ratification_refs if ref != "d_material"),
+        ratification_refs=tuple(ref for ref in cert.ratification_refs if ref != "decision:d_material"),
         signoff=cert.signoff,
     )
 
