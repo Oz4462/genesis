@@ -1,7 +1,7 @@
 # WORK QUEUE — GENESIS
 
 > Voller Kontext: `docs/integration/SESSION_HANDOFF.md`. Branch `feat/app-integration-phase0-2`
-> (69 ahead of main, lokal, KEIN Push). Suite: 1189 passed / 9 skipped. Ollama gestoppt.
+> (71 ahead of main, lokal, KEIN Push). Suite: 1191 passed / 9 skipped. Ollama gestoppt.
 
 ## Active — DEEP REVIEW CAMPAIGN (Claude+Grok · sorgfältig · eval-gated · kein Push)
 Tiefendurchlauf jedes Moduls Zeile für Zeile, **immer mit Grok** (research → 1 Rebuttal → der Eval
@@ -87,12 +87,24 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
     vakuöse `leak_rate`/`false_alarm_rate` → None statt 0.0 + ehrliche Coverage-Doku (5/18 C-Codes = Subset) + Scope.
   · refinement.py `d7d1878` FIXED: Oszillations-/Zyklus-Erkennung (seen-Set statt nur letzter Signatur) +
     kollisionsfreie `(code,claim_id,detail)`-Signatur + domänen-neutrale PHYSICS_CHECK_FAILED-Direktive.
-  · NEXT (8 Module): clarification, ratification, calibration, telemetry, grounding_integrity,
-    constraint_consistency, geometry_verification, goldset.
+  · clarification.py `17479d4` FIXED: `unblocks` listet nur Checks, die der Answer ALLEIN runnable macht
+    (war: jeder beitragende Check → überstellt) + measurand-stabile qid; priority bleibt EVPI-Proxy.
+  · grounding_integrity.py — CLEAN (konservativ-korrekt: kein falsches „circular", kein verpasstes dangling/refuted
+    in der Map; Grok bestätigt). Limitierungen → D15.
+  · constraint_consistency.py — CLEAN (Sign-Set-Algebra provably-complete für pairwise-same-expr; Grok bestätigt).
+  · geometry_verification.py — REVIEWED, deferred (D15): exakte Cross-Checks solide (Hemisphären-Guard grün), ABER
+    NICHT in pipeline verdrahtet (nur self-tested; README §6 impliziert Komposition) + non-exact-Looseness + Rotation-
+    AABB-False-Negative (isclose statt Containment) + ungeguardete Kernel-Calls. Alle unerreicht (nicht im Prod-Pfad).
+  · NEXT (4 Module): ratification, calibration, telemetry, goldset.
 - D14 (Schritt-6 deferred, Claude×Grok, alle med/low): pipeline G3 (printability verwirft gefundene Blocker bei
   GeometryError — enger als gedacht, braucht Blocker-Geometrie-Fixture → Printability-Slice) + G4 (physics_failed
   vor physics_incomplete reordern — NICHT erreichbar: gaps↔questions 1:1 gekoppelt, needs_clarification feuert zuerst).
   refinement G5 (converged vertraut result.passed ohne `not failures` — defensiv gg. malformed GateResult).
+- D15 (Schritt-6 deferred, Claude×Grok): grounding_integrity (Alias-ID-Kanonisierung für Zirkularität, body-vs-map-
+  Bijection, vakuöse independent_rate/coverage bei Nenner 0). **geometry_verification NICHT in pipeline verdrahtet
+  trotz README §6** → entweder verdrahten ODER README-Claim entschärfen; VOR dem Verdrahten: non-exact Volume-Untergrenze
+  + Extent-Containment-statt-isclose für konservative AABBs (Rotation) + Volume()/BoundingBox()-Guards. clarification
+  G2/G4 (NaN-Answer schon fail-loud; unneeded-measurand-Fold) — low.
   evaluation: per-gate leak-breakdown + jeder unsound-Case soll für seinen GELABELTEN C-Code scheitern.
 - D11: Audit-Log-Lücken (Grok, low, A5): scout._queries + skeptic._judge schlucken LLM/Parse-Fehler ohne log
   (best-effort, kein Fabrication-Risiko, aber schwer reproduzierbar) — state.log threaden. Auch: skeptic.claim.verification
