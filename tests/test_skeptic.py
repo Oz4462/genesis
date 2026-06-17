@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -11,7 +12,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from gen.agents.skeptic import Skeptic  # noqa: E402
+from gen.agents.skeptic import Skeptic, _clamp01  # noqa: E402
 from gen.core.errors import ModelConflictError, SearchBackendError  # noqa: E402
 from gen.core.state import (  # noqa: E402
     Claim,
@@ -250,3 +251,36 @@ def test_second_judge_same_family_as_generator_raises():
     sk = Skeptic([backend], fetch, verifier, ledger, second_judge=bad_second)
     with pytest.raises(ModelConflictError):
         run(sk.run(st))
+
+
+# --- non-finite confidence must never poison a verdict ------------------------
+
+def test_clamp01_maps_non_finite_to_zero():
+    # NaN passes both `< 0` and `> 1` (every NaN comparison is False); a non-finite
+    # confidence is no signal and must not slip past a later `confidence < tau` gate.
+    assert _clamp01(float("nan")) == 0.0
+    assert _clamp01(float("inf")) == 0.0
+    assert _clamp01(float("-inf")) == 0.0
+    assert _clamp01(0.5) == 0.5  # finite values are untouched
+    assert _clamp01(-0.2) == 0.0 and _clamp01(1.7) == 1.0
+
+
+def test_nan_confidence_from_verifier_does_not_fabricate_verified():
+    # A malicious/buggy verifier emits a NaN confidence on a SUPPORT verdict. The
+    # JSON boundary rejects the non-finite literal -> the judgment is treated as
+    # irrelevant -> the claim stays honestly UNSUPPORTED with a finite confidence,
+    # never VERIFIED-with-NaN (which would later bypass a confidence threshold).
+    def nan_responder(system, user):
+        return json.dumps({"relation": "supports", "confidence": float("nan")})
+
+    ledger = InMemoryLedgerStore()
+    st, c = _state_with_claim(ledger)
+    backend = FakeBackend("b", ["https://i1", "https://i2"])
+    fetch = WebFetchTool(http_serving({
+        "https://i1": "SUPPORT one", "https://i2": "SUPPORT two",
+    }))
+    sk = Skeptic([backend], fetch, ScriptedLLM("gpt-4o", nan_responder), ledger,
+                 min_sources_for_verified=2)
+    run(sk.run(st))
+    assert c.status is ClaimStatus.UNSUPPORTED
+    assert math.isfinite(c.confidence) and c.confidence == 0.0

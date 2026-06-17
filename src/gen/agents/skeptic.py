@@ -18,6 +18,7 @@ verification sources on existing claims.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from functools import reduce
 from typing import Sequence
@@ -240,4 +241,11 @@ class Skeptic:
 
 
 def _clamp01(x: float) -> float:
+    # NaN / ±inf must never escape into a confidence: NaN passes both `< 0` and
+    # `> 1` (every NaN comparison is False) and would later slip past a
+    # `confidence < tau` gate. A non-finite confidence is no signal -> 0.0. The
+    # JSON boundary (llm.parsing) already rejects non-finite literals; this also
+    # covers `float("nan")`/`float("inf")` coerced from a quoted "NaN"/"inf".
+    if not math.isfinite(x):
+        return 0.0
     return 0.0 if x < 0 else 1.0 if x > 1 else x

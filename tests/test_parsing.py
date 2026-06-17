@@ -99,3 +99,26 @@ def test_agent_name_is_carried_into_the_error():
     with pytest.raises(LLMOutputError) as exc:
         extract_json("nope", agent="synthesizer")
     assert "synthesizer" in str(exc.value)
+
+
+# --- untrusted JSON must not smuggle non-finite numbers (NaN/Inf) --------------
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        '{"confidence": NaN}',
+        '{"confidence": Infinity}',
+        '{"x": -Infinity}',
+        "[NaN]",
+        "[1, 2, Infinity]",
+    ],
+)
+def test_non_finite_literal_is_rejected(payload):
+    # json.loads accepts NaN/Infinity by default; a non-finite number from an
+    # untrusted model would poison numeric consumers (e.g. skeptic confidence).
+    with pytest.raises(LLMOutputError):
+        extract_json(payload, agent="skeptic")
+
+
+def test_finite_numbers_still_parse():
+    assert extract_json('{"confidence": 0.83, "n": -5}') == {"confidence": 0.83, "n": -5}

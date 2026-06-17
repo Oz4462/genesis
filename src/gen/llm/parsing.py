@@ -12,6 +12,16 @@ import json
 from ..core.errors import LLMOutputError
 
 
+def _reject_nonfinite(token: str) -> object:
+    # json.loads accepts the non-standard constants NaN / Infinity / -Infinity by
+    # default. LLM output is UNTRUSTED, and a non-finite number poisons numeric
+    # consumers — e.g. the skeptic's confidence flows into the claim status, and a
+    # later ``confidence < tau`` gate silently passes a NaN (every NaN comparison
+    # is False). Raise so it surfaces as ``LLMOutputError`` like any other
+    # unparseable output, never a silent non-finite value entering the pipeline.
+    raise json.JSONDecodeError(f"non-finite JSON literal: {token}", token, 0)
+
+
 def extract_json(text: str, *, agent: str = "llm") -> object:
     """Return the first JSON object/array found in `text`.
 
@@ -38,13 +48,13 @@ def extract_json(text: str, *, agent: str = "llm") -> object:
     # Fast path: the whole thing is JSON. On any trailing-junk / not-yet-JSON
     # decode error, fall back to scanning for the first balanced { } or [ ] span.
     try:
-        value = json.loads(s)
+        value = json.loads(s, parse_constant=_reject_nonfinite)
     except json.JSONDecodeError:
         span = _first_balanced_span(s)
         if span is None:
             raise LLMOutputError(agent, f"no JSON value in: {s[:120]!r}") from None
         try:
-            value = json.loads(span)
+            value = json.loads(span, parse_constant=_reject_nonfinite)
         except json.JSONDecodeError as exc:
             raise LLMOutputError(agent, f"{exc}") from exc
 
