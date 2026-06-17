@@ -23,6 +23,7 @@ import os
 
 from .prototype_cad_builder import BuildArtifact
 from .cost_model import CostEstimate, estimate_fdm_cost
+from .gcode import GCodeProgram, generate_profile_gcode
 from gen.dfm import (
     FDM_MIN_WALL_MM,
     FDM_MIN_HOLE_DIAMETER_MM,
@@ -188,6 +189,9 @@ class AdvancedDFMReport:
     # The structured, ranged FDM cost estimate (None if no volume). cost_model_stub
     # is its one-line summary; this carries the band + breakdown + assumptions + gaps.
     cost_estimate: CostEstimate | None = None
+    # A real, verified 2.5D outside-profile CNC program for the bounding footprint
+    # (None if the bbox is degenerate). Internal features / 3D toolpaths are its gaps.
+    gcode_program: GCodeProgram | None = None
 
 
 def check_advanced_dfm(
@@ -406,6 +410,17 @@ def check_advanced_dfm(
     )
     qa_stub = ["FDM: dimensional + pull sample", "CNC: surface + tolerance", "Final: fit to assembly + functional load test"]
 
+    # real, verified 2.5D outside-profile CNC program for the bounding footprint (a
+    # runnable starting program); None if the bbox is degenerate. Replaces the prose
+    # "datei_stub" — internal features / 3D toolpaths are declared as its gaps.
+    bx, by, bz = artifact.spec.bounding_box_hint_mm
+    try:
+        gcode_program = (generate_profile_gcode(bx, by, bz)
+                         if all(isinstance(d, (int, float)) and d > 0 for d in (bx, by, bz))
+                         else None)
+    except (ValueError, TypeError):
+        gcode_program = None
+
     return AdvancedDFMReport(
         artifact_name=name,
         overall_printable=overall and len(all_issues) == 0,
@@ -418,4 +433,5 @@ def check_advanced_dfm(
         qa_plan_stub=qa_stub,
         total_gaps=[g for p in processes for g in p.gaps],
         cost_estimate=fdm_cost,
+        gcode_program=gcode_program,
     )

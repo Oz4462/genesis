@@ -89,14 +89,14 @@ def map_to_fertigungs_spec(
                 name="FDM",
                 begruendung="Primary for prototype (volume ~49cm³, 2mm wall from CAD; printable per advanced DFM)",
                 prozessgrenzen="min wall 0.8mm, bridge <=10mm, layer adhesion warning (from dfm/printability + advanced DFM)",
-                datei_stub="gcode/FDM_tether_anchor.gcode (stub: standard 0.2mm layer, 20% infill, supports for overhangs)",
+                datei_stub="FDM print gcode needs a slicer (per-layer toolpaths) — not generated (honest gap); a real, verified 2.5D CNC profile gcode for the bounding footprint is produced by cad.gcode (AdvancedDFMReport.gcode_program)",
                 quelle="advanced_dfm (FDM process) + prototype_cad_builder (real STL/volume) + PLAN §4.7",
             ),
             FertigungsProzess(
                 name="CNC",
                 begruendung="Alternative for precision/strength (if FDM layer issues)",
                 prozessgrenzen="min feature 0.5mm, tol ±0.05mm (from advanced DFM CNC stub)",
-                datei_stub="CNC_tether_anchor.step (use CAD export)",
+                datei_stub="real, verified 2.5D outside-profile CNC gcode via cad.gcode (AdvancedDFMReport.gcode_program); full toolpaths (pockets/holes/3D) need a CAM kernel",
                 quelle="advanced_dfm (CNC) + PLAN §4.7",
             ),
         ]
@@ -117,7 +117,7 @@ def map_to_fertigungs_spec(
             gate_kriterien="FDM printable per advanced DFM + no critical layer load without reorient",
             quelle="advanced_dfm qa_plan + prior Safety/Physiker + PLAN §4.7",
         )
-        zusammen = "Jetpack FertigungsSpec: FDM primary (real STL + DFM), CNC alt; cost/volume from CAD/Wissensbasis; gcode stub; QA with DFM gates. Naht to realize/packager (DFM in manifest)."
+        zusammen = "Jetpack FertigungsSpec: FDM primary (real STL + DFM), CNC alt; cost/volume from CAD/Wissensbasis; real verified CNC profile gcode (cad.gcode) + FDM-slicing gap; QA with DFM gates. Naht to realize/packager (DFM in manifest)."
         quelle = "GENESIS_PLATFORM_PLAN.md §4.7 (Fertigungs-Pipeline) + advanced_dfm (prior stone) + prototype_cad_builder (real) + Wissensbasis Material + Jetpack-Kanon"
     else:
         prozesse = [FertigungsProzess(name="FDM", begruendung="Default prototype", prozessgrenzen="min wall from DFM", quelle="Generic")]

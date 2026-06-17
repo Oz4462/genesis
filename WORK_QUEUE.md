@@ -195,7 +195,12 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
     strukturiertes `cost_estimate`; FDM-`cost_hint`+`cost_model_stub` echt. Grok 3 Runden (9+3 Lücken), 5+1 Tests,
     volle Suite 1219 grün. Nur FDM berechnet; CNC/Laser/PCB ehrlicher Cost-Gap. BUILD_LOG dok.
     Naht-Follow-up: `fertigungs.py:KostenModell` (String-Prosa) soll `CostEstimate` konsumieren.
-  - [ ] Stein 5 G-Code real (statt `pipelines/fertigungs.py`-Text-Stub).
+  - [x] **Stein 5 G-Code (2026-06-18)**: `datei_stub`-Prosa → echte VERIFIZIERTE G-Code-Generierung `cad/gcode.py`
+    (NEU): `generate_profile_gcode()` (2,5D-Außenkontur RS-274/ISO 6983, Tool-Radius-Offset explizit, Stepdown,
+    fail-loud) + `verify_gcode()` als Gate (Units/Spindel+S/Feed-F/Gouge-lateral+Rapid-Z/Retract-vor-M5/Bounds).
+    Report trägt verifiziertes `gcode_program` (echte bbox); fertigungs-`datei_stub` ehrlich (FDM-Print=Slicer-Gap).
+    Verifier NON-VACUOUS (bewiesen). Grok 3 Runden (10+2 Lücken, eigene Regression selbst gefangen), 6+1 Tests,
+    volle Suite 1226 grün. Nur 2,5D-Kontur; Pockets/3D/Slicing = Gaps. BUILD_LOG dok.
   - [ ] Stein 6 KiCad-Adapter real (statt `generate_kicad_schematic_stub`, `electronics.py:824`).
   - Nebenfund (Stein 3): `electronics.py:run_internal_drc` nutzt unbelegte Magic-Numbers (`trace_a_per_mm2=12.0`
     Harness-Draht-Stromdichte ≠ PCB-Trace, `min_clearance_mm=0.8`, `max_power_density=2.5`, hardcodierte Board-Fläche

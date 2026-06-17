@@ -328,6 +328,19 @@ def test_advanced_report_carries_a_real_cost_estimate_not_a_fabricated_stub():
     assert "not estimable" in (rep0.cost_model_stub or "")
 
 
+def test_advanced_report_carries_a_real_verified_gcode_program():
+    """The report carries a real, VERIFIED 2.5D profile program for the bbox footprint
+    (Stein 5) — not a prose stub; it profiles to the part thickness."""
+    from gen.cad.manufacturing_check import check_advanced_dfm
+    from gen.cad.gcode import GCodeProgram, verify_gcode
+
+    rep = check_advanced_dfm(_artifact("Gcode Part", (120, 80, 6), 2.0, vol=50.0))
+    assert isinstance(rep.gcode_program, GCodeProgram)
+    assert verify_gcode(rep.gcode_program).ok               # valid + spindle-safe + bounded
+    assert "M30" in rep.gcode_program.text()                # a real program, ends cleanly
+    assert rep.gcode_program.bounds_mm["z"][0] <= -6.0 + 1e-9   # profiles to the part thickness
+
+
 def test_ipc2221_trace_width_matches_the_standard_and_fails_loud():
     """The IPC-2221 trace-width primitive must match the published value (a 1A trace
     at 10C rise on 1oz external copper needs ~0.30mm / 12mil), make internal layers

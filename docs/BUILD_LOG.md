@@ -7431,3 +7431,28 @@ Bereit f�r n�chste grosse Idee oder weitere Nachverfolgung.
 **4 Linsen:** L1 (jede Zahl gequellt + per-Material; Annahmen vs. gequellte Konstanten klar getrennt; Bereich statt Punkt); L2 (kein Drift — `KostenModell` in fertigungs.py unberührt, kann `CostEstimate` später konsumieren); L3 (Naht: Report-`cost_estimate` + integrator-manifest `cost_hint` jetzt echte Summary); L4 (TDD RED→GREEN, Cross-Model 3 Runden, arithmetisch verifiziert 50cm³ PLA = €0,34–6,24).
 
 **Rest-Risiko:** Nur FDM berechnet (Volumen→Material direkt); CNC/Laser/PCB-Kosten = ehrlicher Gap (brauchen Toolpath/Schnittlänge/Lagen). `fertigungs.py:KostenModell` bleibt String-Prosa (Naht-Follow-up: soll `CostEstimate` konsumieren). G-Code/KiCad (Stein 5/6). FDM-`hole_hint=3.0` Fake (notiert).
+
+
+---
+
+## G-Code Stein (Teil 2, Stein 5) — 2026-06-18
+
+**Scope:** Den G-Code-Text-Stub (`datei_stub`-Prosa in `pipelines/fertigungs.py`) durch echte, VERIFIZIERTE G-Code-Generierung ersetzt.
+
+**Kerneinsicht:** Echtes Druck-/CAM-G-Code braucht Slicing/CAM (Toolpaths pro Layer) — das GENESIS nicht hat → Gap. Aber ein **2,5D-Außenkontur-Schnitt** der bbox-Grundfläche ist deterministisch + verifizierbar erzeugbar. Der **Verifier ist das Ehrlichkeits-Gate** (Verifikation = Gate, kein Vorschlag): er beweist Gültigkeit + Sicherheit, statt „sieht aus wie G-Code".
+
+**Gebaut**
+- src/gen/cad/gcode.py (NEU): `generate_profile_gcode()` — valides RS-274/ISO 6983 (G21/G90/G17, G0/G1, M3/M5/M30), Tool-Radius-Offset EXPLIZIT nach außen (verifizierbar statt G41/G42), Stepdown-Pässe; fail-loud auf nicht-finite/≤0-Geometrie und Feeds/RPM<1. `verify_gcode()` — parst + prüft: Units/Absolut vor Motion, Spindel-an(+S) vor Schnitt & Stopp+M30, modale Feed-Rate F>0 auf G1, Gouge (G0 lateral unter Stock + G0-Z-Rapid-Plunge), Retract vor M5/Ende, Bounds-Konsistenz + optionale Envelope. `GCodeProgram`/`GCodeCheck`-Dataclasses + Struktur gequellt; Feeds/Speeds als deklarierte Annahmen, CAM/Slicing/Pockets/Löcher/3D als Gaps.
+- src/gen/cad/manufacturing_check.py: Report trägt echtes, verifiziertes `gcode_program` aus der bbox-Grundfläche (None bei degenerierter bbox).
+- src/gen/pipelines/fertigungs.py: `datei_stub`-Prosa → ehrlich (FDM-Print-G-Code = Slicer-Gap; echtes CNC-Profil-G-Code via cad.gcode im Report).
+- tests/test_gcode.py (NEU, 6) + test_manufacturing_check.py (Wiring): Generator valide+sicher+gebunden; **Verifier NON-VACUOUS** (Gouge lateral+Rapid-Z, fehlende Spindel/S, Motion-vor-Setup, fehlende Feed-Rate, kein-Retract, Schnitt-nach-M5 — je gefangen); fail-loud Geometrie+Feeds+RPM; Determinismus; Outward-Offset; Report-Programm verifiziert.
+
+**Research:** RS-274 / ISO 6983-1 (1980); G21 mm/G90 absolut/G17 XY/M3 CW/M5/M30; G41/G42 Cutter-Comp; Feeds material/tool-spezifisch. Quellen: ISO 6983-1, G-code (Wikipedia), RS-274 Reference (PythonicGcodeMachine), CNC Programming Hub — 2026-06-18.
+
+**Cross-Model (Grok, Kernprinzip #3):** 3 adversariale Runden. Grok fing 10+2 echte Lücken — Generator guardete Feeds/RPM nicht; Verifier prüfte kein F auf G1, keinen Retract-vor-M5, keinen Rapid-Z-Plunge-Gouge, Spindel-ohne-S setzte trotzdem on, Schnitt-nach-M5 unentdeckt; sub-1-Feed→F0-Trunkierung. Alle gefixt. **Eigene Regression selbst gefangen** (End-Spindel-Check feuerte falsch nach M5-Clear → entfernt, Per-Move-Check ist korrekt). Konvergenz 0 STILL/0 NEW; Default-Programm verifiziert clean.
+
+**Checks:** ruff sauber; gcode 6 + manufacturing 12/3 skipped + fertigungs grün; volle Suite **1226 passed / 9 skipped**.
+
+**4 Linsen:** L1 (Struktur gequellt RS-274; Feeds/Speeds als Annahmen markiert, nicht als Fakt); L2 (kein Drift — bestehende DFM/Cost unberührt; fertigungs `datei_stub` ehrlich statt Prosa); L3 (Naht: Report-`gcode_program` + fertigungs-Pointer); L4 (TDD RED→GREEN, Verifier-Non-Vacuity bewiesen, Cross-Model 3 Runden, Regression gefangen).
+
+**Rest-Risiko / ehrlicher Scope:** Nur 2,5D-Außenkontur (Blank-zu-Outline); Pockets/Löcher/echtes 2D-Profil/3D-Toolpaths/FDM-Slicing = deklarierte Gaps (brauchen CAM-Kernel/Slicer). Entry = Straight-Plunge (kein Ramp/Helix). KiCad-Adapter (Stein 6). `run_internal_drc`-Magic-Numbers (Schritt 7-9). FDM-`hole_hint=3.0` Fake (notiert).
