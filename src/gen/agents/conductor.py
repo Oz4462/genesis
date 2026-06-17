@@ -18,6 +18,11 @@ from ..core.state import ClaimStatus
 from ..verification.derivation import DEFAULT_TOLERANCE
 from ..verification.gates import gate_alpha, gate_beta, gate_gamma
 
+# Best-effort decomposition backstop: the system prompt asks for 2-5 sub-questions;
+# this hard cap stops an adversarial or buggy LLM reply from spawning unbounded
+# scout/scholar/skeptic work for one question.
+_MAX_SUB_QUESTIONS = 10
+
 
 class Conductor:
     """Satisfies the ``Agent`` Protocol. Produces no facts of its own."""
@@ -82,7 +87,13 @@ class Conductor:
         try:
             resp = await self._llm.complete(system=system, user=question.raw)
             value = extract_json(resp.text, agent="conductor")
-            subs = [str(s).strip() for s in value if str(s).strip()]  # type: ignore[union-attr]
+            if not isinstance(value, list):
+                # An object reply would iterate its KEYS ('sub_questions', ...) as
+                # bogus sub-questions; only a JSON array is a sub-question list. Fall
+                # back to the raw question — same array-shape discipline as
+                # scout._queries / scholar._extract / skeptic._check_queries.
+                value = []
+            subs = [str(s).strip() for s in value if str(s).strip()][:_MAX_SUB_QUESTIONS]
         except Exception:  # noqa: BLE001 - decomposition is best-effort
             subs = []
         if not subs:

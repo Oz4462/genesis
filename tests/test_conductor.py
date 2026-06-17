@@ -150,3 +150,30 @@ def test_decompose_without_llm_yields_single_subquestion():
     st = run(conductor.run(_state()))
     assert len(st.sub_questions) == 1
     assert st.sub_questions[0].text == "What kernel does build123d use?"
+
+
+# --- _decompose untrusted-LLM boundary (array-shape discipline) --------------
+
+def test_decompose_object_reply_does_not_leak_dict_keys_as_subquestions():
+    # extract_json enforces an object/array root; an OBJECT reply must NOT have its
+    # keys ('sub_questions', ...) iterated as bogus sub-questions. Honest fallback:
+    # the raw question as the single sub-question — same guard as scout._queries.
+    llm = ScriptedLLM(
+        "claude-opus-4-8",
+        lambda system, user: json.dumps({"sub_questions": ["leaked-key-a", "leaked-key-b"]}),
+    )
+    conductor = Conductor(None, None, None, llm=llm)  # type: ignore[arg-type]  # _decompose ignores the sub-agents
+    subs = run(conductor._decompose(Question(raw="What kernel does build123d use?", run_id="r1")))
+    assert [s.text for s in subs] == ["What kernel does build123d use?"]
+
+
+def test_decompose_caps_a_runaway_subquestion_array():
+    # A buggy/adversarial LLM returning a huge array must not spawn unbounded
+    # downstream scout/scholar/skeptic work for a single question.
+    llm = ScriptedLLM(
+        "claude-opus-4-8",
+        lambda system, user: json.dumps([f"q{i}" for i in range(50)]),
+    )
+    conductor = Conductor(None, None, None, llm=llm)  # type: ignore[arg-type]
+    subs = run(conductor._decompose(Question(raw="root question", run_id="r1")))
+    assert 0 < len(subs) <= 10
