@@ -30,9 +30,13 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
 - >>> core/ PAKET KOMPLETT reviewt (interfaces clean · state fixed · errors fixed · __init__ clean) <<<
 - gen/config.py — DONE: reviewed (Claude+Grok), fixed (#2 search_backends str-Koersion → fail-loud statt Zeichen-Tuple),
   eval grün 1121/9. Grok-Irrtum „Config nicht hashable" widerlegt (frozen ⇒ hashbar). Cross-Model-Frage → cross_model.py.
-- verification/ — NEXT: gates.py zuerst. cross_model.py BEREITS GEPRÜFT (clean): model_family() vergleicht Familien
-  per Keyword (claude/xai/openai…) — Grok-Gap (gpt-4o vs gpt-4o-mini) ist abgedeckt (beide→openai→ModelConflictError).
-  Dann derivation/units/geometry. llm/base+ollama+factory im Adapter-Feature mitgeprüft.
+- verification/ — DONE (Claude-Workflow: 8 parallele Tiefenreviews + eval-gated Fixes):
+  · gates.py: HIGH C-4 value_in_text vorzeichen-blind GEFIXT (64bf3c7) + non-vakuöser Regressionstest
+  · derivation.py inf/nan-Scalar fail-loud + constraint_smt.py term() finite-Guard + ehrlicher unsat-core-Doc (502e964)
+  · units.py Dead-Code-Cleanup + consensus.py REFUTED-confidence-Doc (83d5b5a)
+  · cross_model.py / drift_monitor.py / trustcore_adapter.py / geometry.py: CLEAN (kein Fix)
+  · Grok-Cross-Review: nachgeholt (war Klassifizierer-Outage). Suite 1134/9, ruff clean.
+- ledger/ — NEXT (store.py, postgres.py)
 - FEATURE DONE: Abo-OAuth LLM-Adapter — ClaudeCLI + GrokCLI (shellen `claude -p`/`grok -p`, keylos, Max-Abos),
   make_llm-Factory (family-routed) im cli.py-Live-Wiring, config-Default claude-opus-4-8 / grok-composer-2.5-fast.
   LIVE PONG-verifiziert (beide), 11 Offline-Tests, ruff clean, Suite 1132 grün, kein Import-Zyklus.
@@ -55,6 +59,11 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
   LUMENCRUCIBLE, App-Integration, Cloud-Model-Defaults, 1121 statt 881 Tests). Eigene README-Update-Aufgabe.
 - OWNER-Q1 GELÖST: Abo-OAuth statt API-Key. ClaudeCLI + GrokCLI gebaut (CLI-Shell, keylos, Claude-Max + Grok-Max),
   live verifiziert. Lokaler Ollama-Pfad bleibt für reproduzierbare/deterministische Läufe (A5) erhalten.
+- D7: verification/ deferred (Claude-Workflow-Findings, owner-/risk-level): gates.py eq-Constraint ignoriert GUM-Unsicherheit
+  (Doc behauptet Gating) → eq-Toleranz um kombinierte Unsicherheit weiten ODER Doc einschränken; gates.py ERC duplicate-net
+  meldet falschen Code 'DANGLING_PIN_REF' (eigener 'DUPLICATE_NET' nötig) + E-2 bei leerer BOM still übersprungen;
+  geometry.py exact=True auf degenerierten Operanden (med) + 90°-float-Doc; consensus.py intra-panel Familien-Dedup
+  + UNVERIFIED/NaN-loud; Doc-Nits (units leading-/ + min/max-Literal-Asymmetrie, drift_monitor scan-index, trustcore isinf).
 
 ## Next
 - (Kampagne läuft; nach core/ → verification/ usw. gemäß Reihenfolge oben)
