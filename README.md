@@ -82,6 +82,8 @@ Idee/Frage
 
 Jeder Agent erfüllt ein framework-freies Protocol (`core/interfaces.py`); Framework-Spezifisches lebt hinter Adaptern. Der Zustand ist typisiert (`core/state.py`), der Ledger erzwingt Provenance, Checkpoints machen Läufe reproduzierbar.
 
+> **Über α–δ hinaus:** Der **HORIZON-Bogen (φ → Ω)** erweitert die Kette um den *Funken* davor (φ/χ) und das *Bindegewebe* danach (δ⁺/γ⁺/ε/ζ/Ω), plus eine generelle Frontier-/Pipeline-/Simulations-Schicht für *jede* Idee — gebaut, je hinter einem eigenen Gate, getestet. Ehrliche Einordnung von Reife und offenen Punkten in [§15](#15--status--ehrliche-grenzen); der volle Bogen in `docs/HORIZON.md`.
+
 ## 4 · Die Gates
 
 Eine Phase endet erst, wenn ihr Gate besteht. Gates sind **reine, deterministische Funktionen** — kein Modell-Urteil:
@@ -340,13 +342,28 @@ tests/                 1185 Tests inkl. Gate-Akzeptanz, Physik-Engine, Quality-E
 
 **Fertig und bewiesen (offline):** die komplette α/β/γ/δ-Kette mit allen Gates, die Physik-Engine (27 Validatoren + FEM, inkl. Rotation im CSG-Vokabular, der Flug-Achsen und der NIST-verankerten Krypto-Achse), die Druckbarkeits-Schicht (bis in CLI, Web-UI und den gegateten STL-Export verdrahtet), die Quality-Engine (inkl. Conformal-Prediction-Schwellen mit verteilungsfreier Garantie), deutsche Ergebnisse auf jeder menschenlesbaren Oberfläche (Claims, Bauanleitung, Spezifikations-Texte, CLI-Renderer, Klärungsfragen, Warnungen, Druck-Verdikt und die komplette Demo-Welt — Zitate bleiben wortlautgetreu in der Quellsprache), CLI, Web-UI (Idee→Ergebnis-Flow für Laien), Packaging, Gold-Set-Vertrag — 1185 Tests, deterministisch, reproduzierbar.
 
+**HORIZON (φ → Ω) — über die fertige Idee hinaus, je gegated + getestet:** Die α–δ-Kette härtet eine *fertige* Idee; HORIZON ergänzt den Anfang und das Ende im Leben einer Idee (`docs/HORIZON.md`). Jede Phase trägt ein eigenes deterministisches Gate:
+- **φ · Der Funke** (`agents/forge.py` + `gate_phi`): geerdete Divergenz — ein roher `Spark` wird in verankerte `Possibility`-Objekte geöffnet, jede an einen VERIFIED-Claim/realen Mechanismus gekoppelt; eine erfundene Möglichkeit verlässt das Gate nicht, und der Raum wird immer als „geerdete Stichprobe, nicht der ganze Raum" deklariert (der konzeptionell härteste Knoten — Divergenz hat kein natürliches Gate, also ist *Verankerung* das Gate).
+- **χ · Die Frontkarte** (`gate_chi`): belegte Karte des Bekannten + ehrliche Kante des Unbekannten.
+- **δ⁺ · Realitäts-Beweis** (`reality.py`, `gate_delta_plus`): GENESIS entwirft das Falsifikations-Experiment und liest die *echte Messung* — ein Claim geht von „berechnet" auf „empirisch korroboriert" oder ehrlich „widerlegt" (mit Dimensions-Wächter gegen die Mars-Climate-Orbiter-Klasse).
+- **δ⁺ · Deckungs-Beweis** (`coverage.py`, `gate_delta_plus_coverage`): welche Versagensmodi geprüft wurden und welche indizierten Modi *unprüfbar* bleiben — als Zertifikat, nie als stiller Pass.
+- **γ⁺ · Inverses Design** (`inverse_design.py`, `gate_gamma_plus`): Ziel → validierte **Pareto-Front** statt einer Spec (δ-Engine als Fitness-Orakel; nicht-dominiert, Objektive aus den Specs nachgerechnet).
+- **ε · Nähte** (`seams.py`, `gate_epsilon`): verifizierte Kopplung zwischen Domänen (elektrisch→thermisch→mechanisch→Firmware→Kosten) als typisierte, deterministisch nachgerechnete Relationen — dort, wo lokal ehrliche Domänen an der Schnittstelle sterben.
+- **ζ · Bindegewebe** (`memory_fabric.py`, `gate_zeta`): conformal-gegatetes Audit über dem geteilten Gedächtnis (`VerifiedFactsLibrary`) — was in den Speicher kam, was wiederverwendet wurde.
+- **Ω · Exoskelett** (`omega.py`, `gate_omega`): der Vollständigkeits-Vertrag über alle Phasen — jede Phasen-Vollendung hat eine Gate-Quittung, kein „fertig" versteckt eine gescheiterte Quittung; Lücken/Kanten/Entscheidungen werden zu Lernnotizen.
+
+**Die Frontier-Schicht (gebaut + getestet, bewusst research-stage):** GENESIS ist als *generelle* Erfindungsmaschine für jede Idee gedacht (Mechanik, Bio, Software, Energie, Chemie, soziale Systeme …), nicht auf eine Domäne spezialisiert. Über HORIZON hinaus existieren, jeweils vom Test-Lauf abgedeckt: **LUMENCRUCIBLE** (`grenzverschiebung/lumencrucible.py`) — `process_dream(roher_traum)` → erster falsifizierbarer „Hammer" (kleinster Teststand-Schritt) + Omega-Zertifikat + Claim + verifizierbarer Self-Improvement-Append; die **Grenzverschiebungs-Module** (Entwicklungs-Front, Capability-Gap-Analyzer, Experiment-Designer, Teststand-Architekt, Safety-Ladder, Breakthrough-Watch …), die **BreakthroughBridge** (`extensions/`, „das Unmögliche wird möglich"), **11 Fach-Pipelines** (`pipelines/`: Architekt, Ingenieur, Physiker, Techniker, Elektriker, Designer, Fertigung, Software, Regulatorik, Wirtschaft, Integrator), eine **Simulations-Schicht** (`simulation/`: strukturell/modal/buckling/fatigue + Falsifikations-Kopplung zu δ⁺), eine **Elektronik-Schicht** (`electronics.py`: MNA-Schaltungssim + Netlist + Harness + Co-Sim Leistung→Thermik), eine **8-Schritt-Lernmaschine** (`lernmaschine/`) und eine **Wissensbasis** (`wissensbasis/`). Alles deterministisch/offline. **Ehrliche Reife-Grenze:** „gebaut + gegated + getestet" heißt hier *nicht* „produktionsvalidiert" — die reale Validierung (gemessene Live-Läufe, live Wissensbasis-Connectors, externe CAD/EDA-Adapter) ist bewusst aufgeschoben (siehe unten). Was diese Schicht heute schon ehrlich macht statt erfindet, ist über die Gates und die Tests gedeckt; was sie *nicht* kann, steht in `docs/DOC_CODE_DRIFT.md`.
+
 **Live bewiesen:** α (Fakten-Report) und β gegen echte lokale Modelle, inklusive empirischer Bestätigung, dass der Wortlaut-Wächter echte Modell-Paraphrasen abfängt.
 
 **Bewusst offen (owner-gated, wartet auf den gemessenen Erstlauf):**
 - der Gold-Set-Lauf gegen Ollama (der Scorer steht bereit),
 - die Live-γ-Erstvalidierung (Idee → Spec gegen ein echtes Modell),
 - ob ein echtes Modell die `measurand`-Tags zuverlässig deklariert (der Vertrag ist gebaut und scripted bewiesen),
-- der Live-Verify→Refine-Loop und Verifizierer-Multi-Sampling.
+- der Live-Verify→Refine-Loop und Verifizierer-Multi-Sampling,
+- **live Wissensbasis-Connectors** (Paper-/Patent-/Lieferanten-Discovery — `wissensbasis/` existiert offline, die Live-Connectors sind aufgeschoben),
+- **externe CAD/EDA-Adapter** (FreeCAD/KiCad/PRINTFORGE — intern existieren deterministische Äquivalente: regelbasiertes Place/Route/DRC + build123d-CAD; echte Vendor-Adapter sind bewusste externe Nähte),
+- der **vollständige Plattform-Demo-Pfad** (E2E über alle Schichten) und einige Plattform-Kappen (Readiness-/Resource-Ladder, Teacher-Mode, Community-Evidence-Store, Proof-Package-Generator).
 
 **Prinzipielle Grenzen (deklariert, nicht versteckt):** Die Physik-Validatoren sind lineare Ingenieursmodelle mit dokumentierten Annahmen — ein bestandener Check ist *notwendig, nicht hinreichend* für ein sicheres reales Produkt. GENESIS spezifiziert und prüft; bauen, messen und verantworten muss weiterhin ein Mensch — genau dafür existiert der Sign-off.
 
