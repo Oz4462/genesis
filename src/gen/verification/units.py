@@ -190,14 +190,12 @@ def parse_unit(unit: str) -> Dimension:
     tokens = re.findall(r"([*/]?)\s*([^*/\s]+)", text)
     if not tokens:
         raise UnitError(f"unparseable unit {unit!r}")
-    first = True
     for op, atom in tokens:
         atom_dim = _resolve_atom(atom)
         if op == "/":
             dim = dim / atom_dim
-        elif op == "*" or (op == "" and first) or op == "":
+        elif op in ("*", ""):  # implicit '*' (leading atom or explicit) multiplies
             dim = dim * atom_dim
-        first = False
     return dim
 
 

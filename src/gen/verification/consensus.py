@@ -35,7 +35,8 @@ class ConsensusVerdict:
     """Outcome of aggregating a panel of independent judgments.
 
     `status`      the conservative consensus status (VERIFIED only on agreement).
-    `confidence`  0..1, corroborated for an accepted VERIFIED, else the aggregate.
+    `confidence`  0..1: corroborated noisy-OR for an accepted VERIFIED; the strongest
+                  refuter's confidence for REFUTED; the weighted aggregate for UNSUPPORTED.
     `aggregate`   weighted mean of per-judge support scores (the accept signal).
     `accept`      True iff status is VERIFIED.
     `per_judge`   (model, support_score) for audit, in input order.
