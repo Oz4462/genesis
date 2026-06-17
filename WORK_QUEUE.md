@@ -174,7 +174,14 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
   Auch low: limit-clamp (≤25) an Backend-Eingang; Content-Type text/* erzwingen statt lossy errors="replace"-Hash auf Binär.
 
 ## Next
-- (Kampagne läuft; nach core/ → verification/ usw. gemäß Reihenfolge oben)
+- **TEIL 2 (nächste Session): CAD-Fertigungs-Stubs real bauen** (Drift-Rec #5, `docs/DOC_CODE_DRIFT.md` §6/§8):
+  CNC/Laser/PCB-DFM-Regeln, Kostenmodell (statt hartkodiertem `cost_stub`), G-Code, KiCad-Adapter — je nach
+  Research→Production-Disziplin (Quellen, Domain-Regeln, TDD). Vorgeschlagener erster Stein: CNC-DFM
+  (min-Feature/Toleranz/Wandstärke gegen belegte Quellen) — kleinster, klarster Stub in `cad/manufacturing_check.py`.
+- Review-Kampagne **Schritt 7-9 offen** (Reihenfolge oben): physics_validation + 27 Validatoren + fem*/modal/dfm/
+  orientation/mesh_integrity/brep/circuit → export/+costing+completeness+software → pipelines/+integration/+grenzverschiebung/.
+- Deferred Findings aus Schritt 6: D14 (pipeline/refinement), D15 (grounding/geometry — geometry_verification NICHT
+  verdrahtet), D16 (goldset/telemetry/calibration/ratification Tails) — je in den Commit-Messages dokumentiert.
 
 ## Owner-gated / blockiert
 - Branch mergen/pushen (braucht Owner-Auftrag).
