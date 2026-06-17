@@ -39,7 +39,14 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
 - ledger/ — DONE: store.py CLEAN (atomare add_claims/batch-before-mutate, Quellenzwang Layer 2, Determinismus,
   non-independence-View); postgres.py CLEAN (spiegelt InMemory + sql/001_ledger.sql, lazy asyncpg, 3-Layer-Trigger)
   — NICHT eval-bar (keine DB in der Sandbox → review-only, keine spekulativen Änderungen). Micro-Nits low → kein Fix.
-- llm/ + tools/ — NEXT (llm/base+ollama+factory+ClaudeCLI/GrokCLI im Adapter-Feature mitgeprüft; tools/ offen)
+- llm/ — DONE: base.py CLEAN (Protocol + frozen LLMResponse + deterministischer ScriptedLLM);
+  ollama.py CLEAN (transport→LLMTransportError fail-loud, 2xx-Check, Envelope-Guard, temp0/num_ctx); parsing.py FIXED:
+  structured-root-Enforcement (dict/list per Docstring-Kontrakt — Scalar wurde sonst von best-effort-Caller-Fallbacks
+  als „honest emptiness" maskiert) + whitespace-empty-Klarheit; NEU test_parsing.py (19 adversariale Fälle, Boundary
+  war ungetestet). Claude×Grok: Groks Scalar-Finding (high) korrobiert+gefixt; ollama SSRF/Redirect/DoS/empty-content
+  REBUTTED für dieses File (base_url ist operator-Config, kein untrusted Input; Loopback-Allowlist bräche Remote-Ollama)
+  → als Review-Ziele zu tools/fetch.py weitergetragen. Suite 1153/9, ruff clean.
+- tools/ — NEXT (http.py, fetch.py [untrusted-URL SSRF/Redirect/Size-Limit aus Grok-llm-Review hierher], search.py, arxiv_backend.py)
 - FEATURE DONE: Abo-OAuth LLM-Adapter — ClaudeCLI + GrokCLI (shellen `claude -p`/`grok -p`, keylos, Max-Abos),
   make_llm-Factory (family-routed) im cli.py-Live-Wiring, config-Default claude-opus-4-8 / grok-composer-2.5-fast.
   LIVE PONG-verifiziert (beide), 11 Offline-Tests, ruff clean, Suite 1132 grün, kein Import-Zyklus.
