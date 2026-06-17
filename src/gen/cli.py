@@ -733,7 +733,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--demo", action="store_true", help="run the offline deterministic demo")
     parser.add_argument(
         "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol",
-                           "assess", "print", "realize", "breakthrough"),
+                           "assess", "print", "realize", "breakthrough", "research"),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
              "spec = Phase γ build specification; capstone = a complete, fully "
@@ -919,6 +919,66 @@ def main(argv: list[str] | None = None) -> int:
             print("")
             all_ok = all_ok and (p.ok or p.status == "no_geometry")
         return 0 if all_ok else 3
+
+    if args.mode == "research":
+        # Math-research branch: assess a conjectured identity/inequality through the honest
+        # deterministic gates (falsify -> prove -> novelty). Structured input ONLY (no freetext
+        # NL->math parser): pass the question positionally as "lhs|rhs[|relation]". relation in eq|ge|gt|le|lt
+        # (default eq). Free symbols are auto-declared as real variables over R.
+        # Exit: 0 only if a real verdict was produced and it is not REFUTED; 3 otherwise.
+        import sympy as sp
+
+        from . import identity_research as _ir
+
+        raw = args.question or ""
+        parts = [p.strip() for p in raw.split("|")]
+        if len(parts) < 2 or not parts[0] or not parts[1]:
+            print('research mode needs a positional question "lhs|rhs[|relation]" '
+                  '(relation in eq|ge|gt|le|lt; default eq). Example: gen --mode research "(x+1)**2|x**2+2*x+1"')
+            return 2
+        lhs, rhs = parts[0], parts[1]
+        relation = (parts[2].lower() if len(parts) >= 3 and parts[2] else "eq")
+        if relation not in ("eq", "ge", "gt", "le", "lt"):
+            print(f"unknown relation {relation!r} (expected eq|ge|gt|le|lt)")
+            return 2
+        try:
+            free = sorted({s.name for s in (sp.sympify(lhs).free_symbols
+                                            | sp.sympify(rhs).free_symbols)})
+        except (sp.SympifyError, SyntaxError, TypeError) as exc:
+            print(f"could not parse expressions: {exc}")
+            return 2
+        manifest = _ir.AssumptionManifest(domain_id="R", variables={n: "real" for n in free})
+        try:
+            if relation == "eq":
+                art = _ir.assess_identity("cli-research", lhs, rhs, manifest, register=False)
+            else:
+                art = _ir.assess_inequality("cli-research", lhs, rhs, relation, manifest, register=False)
+        except Exception as exc:  # noqa: BLE001 - surface the gate failure honestly, never a fake pass
+            print(f"assessment failed: {exc}")
+            return 3
+
+        relsym = {"eq": "=", "ge": ">=", "gt": ">", "le": "<=", "lt": "<"}[relation]
+        print(f"=== Math-Research: {lhs} {relsym} {rhs}  (domain R, vars: {', '.join(free) or 'none'}) ===")
+        print(f"  Status:    {art.status}")
+        print(f"  Promotion: {art.promotion}")
+        print(f"  Severity:  {art.severity:.3f}")
+        if art.proof is not None:
+            print(f"  Proof:     method={art.proof.method} lean_status={art.proof.lean_status} "
+                  f"tier={art.proof_tier}")
+        if art.falsify is not None:
+            f = art.falsify
+            print(f"  Falsify:   samples={f.samples_tested} passed={f.passed} "
+                  f"mode={f.refutation_mode}")
+            if f.witness is not None:
+                print(f"  Witness:   {f.witness}  residual={f.witness_residual}")
+        if art.search is not None:
+            s = art.search
+            print(f"  Novelty:   {s.match_kind} hits={s.hits} corpora={','.join(s.corpora_checked)}")
+        if art.note:
+            print(f"  Note:      {art.note}")
+        print("  (SURVIVED != proven universal; only a CAS/z3-certified proof + human sign-off "
+              "makes an ESTABLISHED anchor.)")
+        return 0 if art.status not in ("REFUTED", "INCONCLUSIVE") else 3
 
     if args.demo:
         if args.mode == "report":

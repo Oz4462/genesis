@@ -17,7 +17,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
@@ -139,6 +139,43 @@ def _ratification_dict(items: list[RatificationItem]) -> list[dict]:
     ]
 
 
+def _research_dict(art, variables: list[str], relation: str) -> dict:
+    """JSON-safe view of a math-research IdentityArtifact. Mirrors the CLI's honest badges:
+    a SURVIVED status is NOT a universal proof — only the proof certificate (cas/z3) plus a
+    human sign-off makes an ESTABLISHED anchor. Witness/novelty are surfaced verbatim."""
+    proof = None
+    if art.proof is not None:
+        proof = {
+            "method": art.proof.method,
+            "lean_status": art.proof.lean_status,
+            "deductively_proved": art.proof.deductively_proved,
+            "tier": art.proof_tier,
+        }
+    falsify = None
+    if art.falsify is not None:
+        f = art.falsify
+        falsify = {
+            "samples_tested": f.samples_tested, "passed": f.passed,
+            "refutation_mode": f.refutation_mode, "witness": f.witness,
+            "witness_residual": f.witness_residual, "coverage_claim": f.coverage_claim,
+        }
+    novelty = None
+    if art.search is not None:
+        s = art.search
+        novelty = {
+            "match_kind": s.match_kind, "hits": s.hits,
+            "nearest_distance": s.nearest_distance, "corpora_checked": list(s.corpora_checked),
+        }
+    return {
+        "lhs": art.claim.lhs, "rhs": art.claim.rhs, "relation": relation,
+        "domain_id": art.claim.manifest.domain_id, "variables": variables,
+        "status": art.status, "promotion": art.promotion, "severity": art.severity,
+        "proof": proof, "falsify": falsify, "novelty": novelty, "note": art.note,
+        "honesty_note": ("SURVIVED is finite-grid only, never a universal proof; an "
+                         "ESTABLISHED anchor needs a cas/z3-certified proof AND a human sign-off."),
+    }
+
+
 def _files_dict(spec: Specification) -> dict:
     """Render the spec's deliverable files inline (strings), one honest entry each.
 
@@ -222,6 +259,13 @@ class AskBody(BaseModel):
     mode: str = "report"           # report | solution | spec
 
 
+class ResearchBody(BaseModel):
+    lhs: str
+    rhs: str
+    relation: str = "eq"           # eq | ge | gt | le | lt (structured input only — no NL parser)
+    domain_id: str = "R"
+
+
 # --- the app ------------------------------------------------------------------------
 
 def create_app() -> FastAPI:
@@ -246,7 +290,7 @@ def create_app() -> FastAPI:
                 "sich nur mit GENESIS_ALLOW_LIVE=1. Generator und Verifizierer müssen "
                 "verschiedene Modellfamilien sein — das erzwingt der Code."
             ),
-            "offline_modes": ["report", "spec", "capstone", "assess", "eval", "ratification"],
+            "offline_modes": ["report", "spec", "capstone", "assess", "eval", "ratification", "research"],
             "note": ("Live-Läufe sind deaktiviert (Owner-Gate). Alle anderen Ansichten "
                      "sind deterministisch und offline."),
         }
@@ -388,6 +432,36 @@ def create_app() -> FastAPI:
         }
         answered = apply_answers(_underspecified_shaft(), answers)
         return {"assessment": _assessment_dict(assess_specification(answered))}
+
+    @app.post("/api/research/assess")
+    def research_assess(body: ResearchBody) -> dict:
+        # Math-research branch over the honest deterministic gates. Structured input only
+        # (lhs/rhs/relation/domain) — no freetext NL->math parser. Offline + deterministic.
+        import sympy as sp
+
+        from .. import identity_research as ir
+
+        relation = (body.relation or "eq").lower()
+        if relation not in ("eq", "ge", "gt", "le", "lt"):
+            raise HTTPException(status_code=400, detail=f"unknown relation {relation!r} (eq|ge|gt|le|lt)")
+        if body.domain_id not in ("R", "R+", "N", "Z", "C"):
+            raise HTTPException(status_code=400, detail=f"unknown domain_id {body.domain_id!r}")
+        try:
+            free = sorted({s.name for s in (sp.sympify(body.lhs).free_symbols
+                                            | sp.sympify(body.rhs).free_symbols)})
+        except (sp.SympifyError, SyntaxError, TypeError) as exc:
+            raise HTTPException(status_code=400, detail=f"could not parse expressions: {exc}")
+        manifest = ir.AssumptionManifest(domain_id=body.domain_id,
+                                         variables={n: "real" for n in free})
+        try:
+            if relation == "eq":
+                art = ir.assess_identity("web-research", body.lhs, body.rhs, manifest, register=False)
+            else:
+                art = ir.assess_inequality("web-research", body.lhs, body.rhs, relation, manifest,
+                                           register=False)
+        except Exception as exc:  # noqa: BLE001 - surface the gate failure honestly, never a fake pass
+            raise HTTPException(status_code=422, detail=f"assessment failed: {exc}")
+        return _research_dict(art, free, relation)
 
     @app.post("/api/ask")
     async def ask(body: AskBody):

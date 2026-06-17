@@ -26,4 +26,13 @@ def __getattr__(name: str):
     if name == "assess_specification":
         from .pipeline import assess_specification
         return assess_specification
+    # Math-research branch (lazy: pulls sympy/mpmath; keep `import gen` light).
+    if name in ("assess_identity", "assess_inequality", "explore_family", "run_identity_research",
+                "AssumptionManifest", "IdentityArtifact", "NoveltyIndex", "OnlineNoveltyBackend",
+                "ConjectureTemplate"):
+        from . import identity_research as _ir
+        return getattr(_ir, name)
+    if name in ("autonomous_stage", "promote_to_established", "PromotionLedger"):
+        from . import research_promotion as _rp
+        return getattr(_rp, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
