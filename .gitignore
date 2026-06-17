@@ -39,3 +39,5 @@ robin_output/
 
 # --- Lokale Claude-/Tooling-Artefakte (Session-Tracking, nicht versionieren) ---
 .claude/
+# MCP-Tool-Schema/-Cache-Dumps (asya-state/pinecone/project-state) — Session-Artefakt, kein Source
+mcps/
