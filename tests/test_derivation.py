@@ -29,6 +29,14 @@ from gen.verification.derivation import (  # noqa: E402
 
 # --- evaluate_formula: the grammar -------------------------------------------
 
+def test_non_finite_result_fails_loud():
+    # overflow -> +inf and inf-inf -> nan: a DERIVED value must never be a silent inf/nan.
+    with pytest.raises(FormulaError):
+        evaluate_formula("a * a", {"a": 1e308})          # overflows to +inf
+    with pytest.raises(FormulaError):
+        evaluate_formula("a * a - a * a", {"a": 1e308})  # inf - inf -> nan
+
+
 def test_basic_arithmetic_and_precedence():
     assert evaluate_formula("a + b * 2", {"a": 1.0, "b": 3.0}) == 7.0
     assert evaluate_formula("(a + b) * 2", {"a": 1.0, "b": 3.0}) == 8.0

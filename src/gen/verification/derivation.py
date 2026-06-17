@@ -15,6 +15,7 @@ Implementation walks the Python AST; no dynamic code execution of any kind.
 from __future__ import annotations
 
 import ast
+import math
 
 from ..core.errors import FormulaError
 from ..core.state import Derivation
@@ -51,7 +52,14 @@ def evaluate_formula(formula: str, bindings: dict[str, float]) -> float:
         tree = ast.parse(formula, mode="eval")
     except SyntaxError as exc:
         raise FormulaError(formula, f"not parseable: {exc.msg}") from None
-    return _eval_node(tree.body, formula, bindings)
+    result = _eval_node(tree.body, formula, bindings)
+    # Fail loud on a non-finite SCALAR result (overflow -> inf; inf-inf -> nan). Scoped to
+    # scalars via isinstance(int|float): the vectorized numpy path (montecarlo passes arrays,
+    # which are not int/float instances) is untouched. A DERIVED value must never be a silent
+    # inf/nan (no-silent-bad-value discipline, PHASE_GAMMA.md §0).
+    if isinstance(result, (int, float)) and not isinstance(result, bool) and not math.isfinite(result):
+        raise FormulaError(formula, "non-finite result (overflow or nan)")
+    return result
 
 
 def _eval_node(node: ast.AST, formula: str, bindings: dict[str, float]) -> float:

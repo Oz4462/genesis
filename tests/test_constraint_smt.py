@@ -45,5 +45,13 @@ def test_numeric_literals_are_constants():
     assert is_feasible([_c("k1", "a", "gt", "5"), _c("k2", "a", "lt", "9")]) is True
 
 
+def test_non_finite_literal_is_opaque_not_crash():
+    # float() accepts 'inf'/'nan', but z3.RealVal rejects them; the guard must treat such a
+    # side as an opaque variable instead of crashing. Decisive check: no exception is raised.
+    assert is_feasible([_c("k1", "a", "lt", "inf")]) is True
+    res = check_feasibility([_c("k1", "x", "lt", "nan")])
+    assert isinstance(res.feasible, bool)
+
+
 def test_empty_is_feasible():
     assert is_feasible([]) is True
