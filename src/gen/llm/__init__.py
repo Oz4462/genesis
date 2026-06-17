@@ -3,7 +3,19 @@
 from __future__ import annotations
 
 from .base import LLMClient, LLMResponse, ScriptedLLM
+from .claude_cli import ClaudeCLI
+from .factory import make_llm
+from .grok_cli import GrokCLI
 from .ollama import OllamaLLM
 from .parsing import extract_json
 
-__all__ = ["LLMClient", "LLMResponse", "OllamaLLM", "ScriptedLLM", "extract_json"]
+__all__ = [
+    "ClaudeCLI",
+    "GrokCLI",
+    "LLMClient",
+    "LLMResponse",
+    "OllamaLLM",
+    "ScriptedLLM",
+    "extract_json",
+    "make_llm",
+]

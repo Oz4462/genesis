@@ -33,7 +33,7 @@ from .core.state import (
     ValueOrigin,
 )
 from .llm.base import ScriptedLLM
-from .llm.ollama import OllamaLLM
+from .llm.factory import make_llm
 from .ledger.store import InMemoryLedgerStore
 from .export.build123d import specification_to_build123d
 from .export.markdown import BOM_ROLE_LABELS_DE, specification_to_markdown
@@ -326,10 +326,11 @@ def build_spec_demo() -> tuple[str, Dependencies, Config]:
     return idea, deps, default_config()
 
 
-# --- live wiring (local Ollama + Semantic Scholar) ----------------------------
+# --- live wiring (model id -> backend via make_llm: Claude/Grok CLI or local Ollama) ---------
 
 def build_live(generator: str, verifier: str) -> tuple[Dependencies, Config]:
-    """Wire real adapters: local Ollama models + Semantic Scholar + real HTTP.
+    """Wire real adapters: each model id -> its backend via make_llm (Claude/Grok subscription
+    CLI over OAuth, or local Ollama) + Semantic Scholar + real HTTP.
 
     Pure wiring — performs no network call itself. The cross-model rule is
     enforced HERE, before any model is contacted: a misconfigured pair must
@@ -348,8 +349,8 @@ def build_live(generator: str, verifier: str) -> tuple[Dependencies, Config]:
             SemanticScholarBackend(default_http_get),
         ],
         http_get=default_http_get,
-        generator_llm=OllamaLLM(generator),
-        verifier_llm=OllamaLLM(verifier),
+        generator_llm=make_llm(generator),
+        verifier_llm=make_llm(verifier),
         ledger=InMemoryLedgerStore(),
     )
     models = {"generator": generator, "verifier": verifier}

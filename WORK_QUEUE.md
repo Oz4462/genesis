@@ -30,8 +30,12 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
 - >>> core/ PAKET KOMPLETT reviewt (interfaces clean · state fixed · errors fixed · __init__ clean) <<<
 - gen/config.py — DONE: reviewed (Claude+Grok), fixed (#2 search_backends str-Koersion → fail-loud statt Zeichen-Tuple),
   eval grün 1121/9. Grok-Irrtum „Config nicht hashable" widerlegt (frozen ⇒ hashbar). Cross-Model-Frage → cross_model.py.
-- verification/ — NEXT: gates.py zuerst; cross_model.py PRIORITÄR: Familien- vs Exact-String-Vergleich prüfen
-  (Grok-Gap: gpt-4o vs gpt-4o-mini wären gleiche Familie, andere Strings). Dann derivation/units/geometry.
+- verification/ — NEXT: gates.py zuerst. cross_model.py BEREITS GEPRÜFT (clean): model_family() vergleicht Familien
+  per Keyword (claude/xai/openai…) — Grok-Gap (gpt-4o vs gpt-4o-mini) ist abgedeckt (beide→openai→ModelConflictError).
+  Dann derivation/units/geometry. llm/base+ollama+factory im Adapter-Feature mitgeprüft.
+- FEATURE DONE: Abo-OAuth LLM-Adapter — ClaudeCLI + GrokCLI (shellen `claude -p`/`grok -p`, keylos, Max-Abos),
+  make_llm-Factory (family-routed) im cli.py-Live-Wiring, config-Default claude-opus-4-8 / grok-composer-2.5-fast.
+  LIVE PONG-verifiziert (beide), 11 Offline-Tests, ruff clean, Suite 1132 grün, kein Import-Zyklus.
 
 Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, Claude×Grok-Einigkeit):
 - D1: ModuleSpec/ColonyModule/NanoRecipe (Space-Colony/Nano-„2036-Leap"-Typen) aus dem Kern nach
@@ -49,8 +53,8 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
   rounds≥0) — Achtung Gate-Test-Konstruktion; YAML-Schema = from_dict-Pfad teilen; Float-Repr-Repro. Blast-Radius.
 - README-SYNC (Owner-Hinweis): README ist stale — viele Erweiterungen fehlen (HORIZON φ–Ω, research/ProofKernel,
   LUMENCRUCIBLE, App-Integration, Cloud-Model-Defaults, 1121 statt 881 Tests). Eigene README-Update-Aufgabe.
-- OWNER-Q1: Cloud-Model-Defaults (claude-opus-4-8/gpt-4o) vs lokal-first (qwen3.5:9b/gemma4:12b) — gewollte Erweiterung
-  oder auf lokal zurück? Cross-Model-Invariante in beiden Fällen erfüllt.
+- OWNER-Q1 GELÖST: Abo-OAuth statt API-Key. ClaudeCLI + GrokCLI gebaut (CLI-Shell, keylos, Claude-Max + Grok-Max),
+  live verifiziert. Lokaler Ollama-Pfad bleibt für reproduzierbare/deterministische Läufe (A5) erhalten.
 
 ## Next
 - (Kampagne läuft; nach core/ → verification/ usw. gemäß Reihenfolge oben)

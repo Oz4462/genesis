@@ -17,8 +17,8 @@ from dataclasses import asdict, dataclass, field
 
 @dataclass(frozen=True)
 class Models:
-    generator: str = "claude-opus-4-8"   # scout + scholar family
-    verifier: str = "gpt-4o"             # skeptic family — MUST differ from generator
+    generator: str = "claude-opus-4-8"   # scout + scholar — Claude (Max) via the claude CLI (OAuth)
+    verifier: str = "grok-composer-2.5-fast"  # skeptic — Grok (Max) via the grok CLI (OAuth); MUST differ from generator family
     judge: str | None = None             # optional second judge on dissent
 
 
