@@ -69,6 +69,13 @@ __all__ = [
     "out_of_sample_validate",
     "OutOfSampleResult",
     "pendulum_case",
+    "SimulationSpec",
+    "SimulationData",
+    "SimulatorBackend",
+    "InProcessReferenceBackend",
+    "BridgeResult",
+    "bridge_discover",
+    "should_offload",
     "rediscovery_benchmark",
     "BenchmarkCase",
     "kepler_case",
@@ -130,6 +137,13 @@ def __getattr__(name: str):
         from . import validation as _m
         globals()["out_of_sample_validate"] = _m.out_of_sample_validate
         globals()["OutOfSampleResult"] = _m.OutOfSampleResult
+        return globals()[name]
+    if name in ("SimulationSpec", "SimulationData", "SimulatorBackend", "InProcessReferenceBackend",
+                "BridgeResult", "bridge_discover", "should_offload"):
+        from . import universe_bridge as _m
+        for n in ("SimulationSpec", "SimulationData", "SimulatorBackend", "InProcessReferenceBackend",
+                  "BridgeResult", "bridge_discover", "should_offload"):
+            globals()[n] = getattr(_m, n)
         return globals()[name]
     if name in ("DiscoveryGraph", "GraphNode"):
         from . import graph as _m
