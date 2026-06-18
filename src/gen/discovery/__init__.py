@@ -40,6 +40,10 @@ __all__ = [
     "ExplorationState",
     "ControllerResult",
     "DepthTier",
+    "surrogate_score",
+    "prefilter",
+    "discover_prefiltered",
+    "SurrogateRanking",
     "rediscovery_benchmark",
     "BenchmarkCase",
     "kepler_case",
@@ -61,6 +65,11 @@ def __getattr__(name: str):
     if name in ("ExplorationController", "ExplorationState", "ControllerResult", "DepthTier"):
         from . import controller as _m
         for n in ("ExplorationController", "ExplorationState", "ControllerResult", "DepthTier"):
+            globals()[n] = getattr(_m, n)
+        return globals()[name]
+    if name in ("surrogate_score", "prefilter", "discover_prefiltered", "SurrogateRanking"):
+        from . import surrogate as _m
+        for n in ("surrogate_score", "prefilter", "discover_prefiltered", "SurrogateRanking"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     if name in ("DiscoveryGraph", "GraphNode"):
