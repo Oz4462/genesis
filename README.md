@@ -7,7 +7,7 @@
 > Open-Source-Infrastruktur, damit Menschen — privat wie Unternehmen — aus einer kleinen Idee etwas Vollständiges erschaffen können: mit Quellen statt Behauptungen, mit nachgerechneter Physik statt geratener Zahlen, und mit ehrlichen Lücken statt erfundener Antworten.
 
 ```
-1299 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
+1315 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
 ```
 
 ---
@@ -290,7 +290,7 @@ from gen.pressure_vessel import pressure_vessel_check
 
 ## 11 · Live-Modus (lokale LLMs)
 
-Der Live-Pfad ist **cross-model per Konstruktion** — Generator und Verifizierer sind verschiedene Modellfamilien — und keylos auf zwei Wegen. Quellen liefert ein keyloses Wikipedia-Backend.
+Der Live-Pfad ist **cross-model per Konstruktion** — Generator und Verifizierer sind verschiedene Modellfamilien — und keylos auf zwei Wegen. Quellen liefern drei Backends: keyloses Wikipedia, Semantic Scholar (akademische Tiefe) und ein **formel-bewusstes Backend** (`gen.tools.formula_backend`), das bei Formel-/Gesetz-/Konstanten-Fragen autoritative Quellen liefert — NIST **CODATA 2022** (`gen.tools.codata`), **DLMF**-Spezialfunktionen (`gen.tools.dlmf`) und Wikidata-Gesetze (`gen.tools.wikidata`), gebündelt über eine inhalts-adressierte `FormulaRegistry`. Jede so gewonnene Konstante/Formel wird zu einem **gequellten `UNVERIFIED`-Claim** (downstream gegated, nie als Fakt gesetzt).
 
 **Default — Abo-OAuth über die CLIs** (kein API-Key, nutzt bestehende Max-Abos): Generator `claude-opus-4-8` über `claude -p`, Verifizierer `grok-composer-2.5-fast` über `grok -p`. Die Adapter shellen die installierten CLIs, die `make_llm`-Factory routet familien-gebunden; beide live PONG-verifiziert. Konfiguriert in `config.py` (`Models.generator`/`.verifier`).
 
