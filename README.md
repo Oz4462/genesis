@@ -103,7 +103,7 @@ Eine Phase endet erst, wenn ihr Gate besteht. Gates sind **reine, deterministisc
 
 Eine deterministische, LLM-freie Engineering-Validierungs-Engine (`docs/phases/PHASE_DELTA.md`, §1–§57). **Jeder Validator ist gegen geschlossene Formen verifiziert** — exakt, wo es beweisbar ist (Maschinengenauigkeit), sonst als ehrliche Konvergenz oder konservative Schranke mit deklarierter Grenze.
 
-**27 Validatoren hinter dem δ-Physik-Gate** (13 Physik + 7 Druckbarkeit + 4 Flug + 3 Krypto):
+**37 Validatoren hinter dem δ-Physik-Gate** (13 Physik + 7 Druckbarkeit + 4 Flug + 3 Krypto + 10 Roboter):
 
 | Versagensmodus | Validator | Verifiziert gegen |
 |---|---|---|
@@ -140,6 +140,8 @@ Eine deterministische, LLM-freie Engineering-Validierungs-Engine (`docs/phases/P
 **Dahinter rechnet echte FEM** (reines numpy, optional gmsh/cadquery): 3-D-Kontinuum mit linearen **und quadratischen** Tetraedern (T10 trifft die Biegefrequenz auf 0,2 %), berechnete Loch-Spannungskonzentration (trifft Howlands Kt≈3,14), Thermik stationär **und transient**, Modalanalyse (exakt 6 Starrkörpermoden), Monte-Carlo-Unsicherheit (JCGM 101), SPICE-artige Schaltungsanalyse (DC/AC/nichtlinear/transient), exakte BREP-Geometrie (OpenCASCADE) und orientierungsabhängiges FDM-DFM.
 
 **Auto-Select:** Die Spezifikation wählt ihre Checks selbst. Größen tragen deklarierte `measurand`-Tags (`shaft.torque`, `material.shear_strength`, …); ein Rezept-Katalog löst daraus die passenden Checks auf — **einheiten-korrekt konvertiert** (150 N·m → 150000 N·mm), und eine indizierte-aber-unrechenbare Prüfung wird **Lücke**, nie still verworfen und nie mit falscher Einheit gefüttert.
+
+**Humanoid-Roboter-Achsen** (`kinematics`, `actuation`, `compute`, `digital_bus` — aus einer Pipeline-Lücken-Analyse mit dem Beispiel „humanoider Roboter"): GENESIS verifizierte schon den Körper (Struktur/Thermik/Elektronik/Energie), aber nicht Bewegung, Aktuation und Gehirn. Die 10 neuen Closed-Form-Validatoren schließen das — **Kinematik** (DH-Vorwärts, analytische 2R-Inverse, statisches Gelenk-Drehmoment, ZMP-Balance), **Aktuation** (Motor-Drehmoment-Drehzahl durch Getriebe; Hydraulik `F=p·A`, `Q=A·v`, Hagen-Poiseuille), **Compute** (TOPS-Budget, Inferenz-Leistung → speist `thermal`, Regelschleifen-Latenz) und **Daten-Bus** (Durchsatz + Poll-Zyklus-Latenz). Alle gegen exakte Anker verifiziert, in denselben Auto-Select-Gate verdrahtet: eine Humanoid-Bein-`Specification` feuert ihre Checks selbst → ehrliches Verdikt (gut dimensioniert = pass, untersizter Knie-Aktuator = honest fail, fehlende Motor-Angabe = Lücke). Begleitet von `training_plan` — der **ehrlichen ML-Grenze**: GENESIS trainiert nicht und sagt keine Genauigkeit voraus, es erzwingt die Akzeptanz-Kriterien *vorher* und ratifiziert das gemessene Ergebnis *danach* (gegen Goalpost-Verschiebung).
 
 ## 6 · Die Quality-Engine
 
