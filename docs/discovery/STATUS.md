@@ -13,7 +13,7 @@
 | **1 — Kern-Loop** | dimensionale Regression, `discover_new_formulas`, Discovery Graph, Tournament, Rediscovery-Benchmark | `[GEBAUT]` (`65a7262`) |
 | **0 — Setup** | Grok-Drift-Harness (`scripts/grok_review.sh`), README-Sektion, Trading-Scrub (Code ZERO), Status-Docs | `[GEBAUT]` |
 | **2 — Deep Controller + Surrogat** | `controller.py` (Budget/Tiefe/Checkpoint), `surrogate.py` (Vorfilter, bestätigt nie) | `[GEBAUT]` (`10aa897`, `904092c`) |
-| **3 — Grok-Symbiose + Reality Fork** | `symbiosis.py` (Grok=Breite, GENESIS=Verifikation), `reality_fork.py` (counterfactual Welten) | `[DESIGN]` |
+| **3 — Grok-Symbiose + Reality Fork** | `symbiosis.py` (Grok=Breite, GENESIS=Verifikation), `reality_fork.py` (counterfactual Welten) | `[GEBAUT]` (`ca8c83c`, `3c76c35`) |
 | **4 — Radikal-Features + Live-Test** | `cosmic_insight.py`, `assumption_annihilator.py`, `first_principles.py`, Out-of-Sample-Benchmark | `[DESIGN]` |
 | **5 — Universe Bridge** | `universe_bridge.py` (Adapter zu externen Simulatoren, bewusst zuletzt) | `[DESIGN]` |
 
@@ -38,6 +38,20 @@
 - **Cross-Model-Drift-Check (grok-build):** „KEIN DRIFT" auf alle Controller- und Surrogat-Claims;
   fing einen Namens-Überclaim (`skipped_over_budget` → `deferred_to_resume`), selbst verifiziert + gefixt.
 - Volle Offline-Suite nach Phase 2: **1243 passed / 0 failed / 19 skipped**.
+
+## Phase 3 — gemessene Evidenz
+
+- **Symbiose** (`symbiosis.py`, Tour 3.1): Grok = Breite (schlägt Exponenten-Hypothesen vor),
+  GENESIS = Verifikation (jeder Vorschlag via `judge_candidate` gegated; Fallback ohne Grok).
+  **Live-Beweis (echter grok-build):** Grok schlug {a:1.5,μ:-0.5} (korrekt) + 2 falsche vor →
+  GENESIS gated: korrekt `bestätigt`, beide falsch `widerlegt` → validiert `T=6.28319·a^(3/2)·μ^(-1/2)`.
+  Groks falsche Vorschläge wurden KEINE Entdeckung. 5 Tests grün.
+- **Reality Fork** (`reality_fork.py`, Tour 3.2): Gauss-Dimensions-Fork (r^-(D-1); 3D=r^-2 real,
+  4D=r^-3 + Ehrenfest-Notiz) + Konstanten-Fork; jede Fork als counterfactual markiert, nie ein
+  Real-Verdikt. 5 Tests grün.
+- **Cross-Model-Drift-Check (grok-build):** „KEIN DRIFT" auf alle Symbiose- + Reality-Fork-Claims;
+  Grok verifizierte die Gauss/Orbital-Physik unabhängig; fand eine Doc-Überziehung (3D-Basis) → gefixt.
+- Volle Offline-Suite nach Phase 3: **1253 passed / 0 failed / 19 skipped**.
 
 ## Drift-Kontroll-Protokoll (jede Tour)
 

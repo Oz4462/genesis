@@ -183,7 +183,9 @@ result, graph = discover(DiscoveryProblem(
 print(result.validated[0].candidate.expression)  # T = 6.28319 * a^3/2 * mu^-1/2
 ```
 
-**Ehrliche Grenze + Roadmap:** Heute deckt die Engine die **Power-Law/π-Gruppen-Familie** (Kepler, Gas, Newton, Coulomb). Summen mehrerer Terme, transzendente Formen und volle GP-Suche, der Deep-Controller (Budget/Checkpoint), der Physics-Surrogat-Vorfilter, die Grok-Symbiose, der Reality-Fork-Simulator, Cosmic-Insight, der Assumption-Annihilator, der First-Principles-Modus und die Universe-Simulator-Bridge sind der laufende Mehr-Wochen-Bau (`docs/discovery/` + `GROK_BUILD_GENESIS_UNIVERSE_EXPLORER.md`).
+**Bereits dazugebaut (Phase 2+3):** Deep-Controller (`controller.py` — Budget/Tiefe-Stufen/Checkpoint-Resume), Physics-Surrogat-Vorfilter (`surrogate.py` — rankt/prunt, bestätigt nie), **Grok-Symbiose** (`symbiosis.py` — `grok-build` schlägt Hypothesen vor, GENESIS gated jede; live bewiesen), **Reality-Fork-Simulator** (`reality_fork.py` — counterfactual Welten via Gauss-Gesetz in D Dimensionen).
+
+**Ehrliche Grenze + Roadmap:** Heute deckt die Engine die **Power-Law/π-Gruppen-Familie** (Kepler, Gas, Newton, Coulomb). Summen mehrerer Terme, transzendente Formen und volle GP-Suche, Cosmic-Insight, der Assumption-Annihilator, der First-Principles-Modus und die Universe-Simulator-Bridge sind der laufende Mehr-Wochen-Bau (`docs/discovery/STATUS.md` + `GROK_BUILD_GENESIS_UNIVERSE_EXPLORER.md`).
 
 ## 7 · Installation
 
