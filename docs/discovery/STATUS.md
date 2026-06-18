@@ -118,15 +118,33 @@
   `validation.out_of_sample_validate` (→ auf die neue Funktion umgestellt) und „beide Modi"-Claim ohne
   Over-Pruning-Test (→ expliziten `test_oos_validation_detects_over_pruning` ergänzt, Claim jetzt belegt).
 
-## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1 + 6.2
+- **Tour 6.3 — Transzendente Formen** (`transcendental.py`): Entdeckung von `y = C·f(α·π) + D` mit
+  `f ∈ {exp, log, sin, tanh}` über eine **dimensionslose** π-Gruppe. Buckingham-π: eine transzendente
+  Funktion ist die Taylor-Reihe einer reinen Zahl → das Argument MUSS dimensionslos sein, also wird die
+  π-Gruppe aus dem **Nullraum** der Quell-Dimensionsmatrix gebildet (`A·p = 0`, gleiches Gitter wie die
+  Power-Law-Suche, beide Orientierungen). `C` trägt die Ziel-Dimension (gefitteter Skalen-Parameter),
+  der Fit ist **nichtlinear in α** → `scipy.optimize.curve_fit` mit fixen, deterministischen Startwerten.
+  **Ehrliches Gate (das Kernstück):** der Rivale ist eine Power-Law DERSELBEN π-Familie `C·π^β + D`;
+  `bestaetigt` nur wenn die beste Transzendente im Wesentlichen exakt ist (R² ≥ 0.999) UND die beste
+  Power-of-a-group über ALLE Gruppen es NICHT ist → sonst `unentschieden` (eine Power-Law erklärt es
+  gleich gut, kein Über-Claim) bzw. `widerlegt` (kein dimensionsloses Argument). **Live + 7 Tests grün:**
+  Exp-Zerfall `x=10·exp(−t/τ)` → `bestaetigt` (R²=1.0, pow-Baseline 0.998); Schwingung `y=3·sin(2·t/τ)+5`
+  → `bestaetigt` (pow-Baseline 0.66); Quadrat `y=7·(t/τ)²` → `unentschieden` (pow-Baseline 1.0 fängt den
+  Über-Claim); Kepler → `widerlegt` (kein Nullraum bei (a,μ)).
+- **Cross-Model-Drift-Check (grok-build):** 0 Math-/Dimensions-/Logik-Fehler; bestätigte Nullraum=dimensionslos
+  (Buckingham) und das Gate unabhängig. Fand 3 Präzisions-Befunde — stale „beat-by-margin"- + „same-group"-Prosa
+  (→ auf die Threshold-Regel / „beste Power-of-a-group über alle Gruppen" umgestellt) und einen zu schwachen
+  Quadrat-Test mit falscher Docstring (`!= bestaetigt` → jetzt `== unentschieden` + `powerlaw_r2 ≈ 1.0` gepinnt).
+
+## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1–6.3
 
 Der gesamte Mehr-Wochen-Plan aus `GROK_BUILD_GENESIS_UNIVERSE_EXPLORER.md` ist gebaut, getestet,
-grok-build-drift-geprüft und committet (lokal, kein Push). **79 Discovery-Tests** über 15 Module;
-`rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Mit Frontier 6.1+6.2 sind nun auch
-**Summen mehrerer dimensional-gültiger Terme** abgedeckt — inkl. ehrlicher Out-of-Sample-Validierung.
-Ehrliche verbleibende Grenze (keine Phase,
-sondern Forschungs-Frontier): transzendente Formen (sin/exp/log einer dimensionslosen Gruppe) und
-volle GP/symbolische Suche jenseits der Power-Law/π-Gruppen-Familie.
+grok-build-drift-geprüft und committet (lokal, kein Push). **86 Discovery-Tests** über 16 Module;
+`rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Mit Frontier 6.1–6.3 sind nun
+**Summen mehrerer dimensional-gültiger Terme** (inkl. Out-of-Sample-Validierung) UND **transzendente
+Formen** (exp/log/sin/tanh einer dimensionslosen π-Gruppe, mit Power-Law-Rivale-Gate) abgedeckt.
+Ehrliche verbleibende Grenze (keine Phase, sondern Forschungs-Frontier): Produkte/Kompositionen von
+Transzendenten und eine volle GP/symbolische Suche jenseits dieser Familie.
 
 ## Drift-Kontroll-Protokoll (jede Tour)
 

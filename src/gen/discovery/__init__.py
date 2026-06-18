@@ -87,6 +87,10 @@ __all__ = [
     "evaluate_multiterm_law",
     "multiterm_out_of_sample_validate",
     "MultiTermValidation",
+    "discover_transcendental",
+    "dimensionless_groups",
+    "TranscendentalForm",
+    "TranscendentalLaw",
 ]
 
 
@@ -176,6 +180,11 @@ def __getattr__(name: str):
         from . import multiterm as _m
         for n in ("discover_multiterm", "candidate_term_exponents", "Term", "MultiTermLaw",
                   "evaluate_multiterm_law", "multiterm_out_of_sample_validate", "MultiTermValidation"):
+            globals()[n] = getattr(_m, n)
+        return globals()[name]
+    if name in ("discover_transcendental", "dimensionless_groups", "TranscendentalForm", "TranscendentalLaw"):
+        from . import transcendental as _m
+        for n in ("discover_transcendental", "dimensionless_groups", "TranscendentalForm", "TranscendentalLaw"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
