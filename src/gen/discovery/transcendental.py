@@ -287,3 +287,72 @@ def discover_transcendental(
         form_name=form.name, group=dict(group), params=params, r_squared=r2,
         powerlaw_r2=powerlaw_r2, verdict=verdict,
         expression=_format(form.name, group, params, problem.target.name))
+
+
+@dataclass(frozen=True)
+class RivalForm:
+    """A single fitted rival — a transcendental (exp/sin/tanh/log) OR the power-of-a-group (pow)
+    — that can be EVALUATED on new data. This is what an ``unentschieden`` verdict leaves on the
+    table: two forms that fit the observed data equally well. ``active_resolution`` uses the pair
+    to find where they disagree."""
+
+    form_name: str
+    group: dict[str, float]
+    params: dict[str, float]
+    r_squared: float
+
+
+def _apply_form(form_name: str, params: dict[str, float], pi: np.ndarray) -> np.ndarray:
+    """Evaluate a fitted form on dimensionless-group values ``pi``. The argument scale is named
+    ``alpha`` for the transcendentals and ``beta`` for the power; ``log`` has no scale."""
+    c = params.get("C", 1.0)
+    d = params.get("D", 0.0)
+    a = params.get("alpha", params.get("beta", 1.0))
+    if form_name == "exp":
+        return c * np.exp(a * pi) + d
+    if form_name == "sin":
+        return c * np.sin(a * pi) + d
+    if form_name == "tanh":
+        return c * np.tanh(a * pi) + d
+    if form_name == "log":
+        return c * np.log(pi) + d
+    if form_name == "pow":
+        return c * np.power(pi, a) + d
+    raise ValueError(f"unknown form {form_name!r}")
+
+
+def _to_rival(best: tuple[float, TranscendentalForm, dict[str, float], tuple[float, ...]] | None) -> RivalForm | None:
+    if best is None:
+        return None
+    r2, form, group, popt = best
+    return RivalForm(form_name=form.name, group=dict(group),
+                     params={n: float(v) for n, v in zip(form.param_names, popt)}, r_squared=r2)
+
+
+def discover_rivals(
+    problem: DiscoveryProblem,
+    *,
+    max_abs_exp: float = DEFAULT_MAX_ABS_EXP,
+    step: float = DEFAULT_STEP,
+) -> tuple[RivalForm | None, RivalForm | None]:
+    """Fit the best transcendental rival AND the best power-of-a-group rival over the same
+    dimensionless groups. Returns ``(transcendental, powerlaw)`` — the two forms an
+    ``unentschieden`` verdict cannot separate. Either is ``None`` if nothing fits or there is no
+    dimensionless argument. Raises ValueError on non-positive magnitudes."""
+    y = np.asarray(problem.target.values, dtype=float)
+    names, arrs = _source_arrays(problem)
+    groups = dimensionless_groups(problem, max_abs_exp=max_abs_exp, step=step)
+    if not groups:
+        return None, None
+    pi_cache = {i: _group_values(g, names, arrs) for i, g in enumerate(groups)}
+    transcendental = _best_over_groups(_form_library(), groups, pi_cache, y)
+    powerlaw = _best_over_groups((_baseline_form(),), groups, pi_cache, y)
+    return _to_rival(transcendental), _to_rival(powerlaw)
+
+
+def evaluate_rival(rival: RivalForm, problem: DiscoveryProblem) -> np.ndarray:
+    """Evaluate a fitted rival on a problem's data — its π-group recomputed from the inputs/
+    constants, then the form applied. No refit. Raises ValueError on non-positive magnitudes."""
+    names, arrs = _source_arrays(problem)
+    pi = _group_values(rival.group, names, arrs)
+    return _apply_form(rival.form_name, rival.params, pi)

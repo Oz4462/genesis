@@ -52,19 +52,18 @@ dimensionale symbolische Regression (Buckingham-π) → `discover_new_formulas` 
 Graph → Tournament → Rediscovery-Benchmark, plus Deep-Controller, Physics-Surrogat,
 Grok-Symbiose (Model **`grok-build`**, live bewiesen), Reality Fork, Cosmic Insight,
 Assumption Annihilator, First-Principles-Beweisbäume, Out-of-Sample, Universe Bridge.
-16 Module, 86 Discovery-Tests; `rediscovery_benchmark()` 100 %/100 %; jede Tour
+17 Module, 93 Discovery-Tests; `rediscovery_benchmark()` 100 %/100 %; jede Tour
 cross-model-drift-geprüft mit grok-build; **kein Trading/ASYA/MT5**. Status-Karte:
-`docs/discovery/STATUS.md`. **Frontier 6.1–6.3 gebaut**: 6.1/6.2 `multiterm.py` (additive
-Gesetze `y = Σ Cᵢ·termᵢ`, Parsimonie + Pruning + Out-of-Sample-Validierung, fängt Overfit
-UND Over-Pruning); **6.3 `transcendental.py`** (`y = C·f(α·π)+D`, `f ∈ {exp,log,sin,tanh}`
-über dimensionslose π-Gruppe aus Nullraum `A·p=0`, nichtlinearer scipy-Fit; Gate verlangt
-dass die Transzendente die Power-Law derselben π-Familie schlägt → Exp-Zerfall/Sin
-`bestaetigt`, Quadrat `unentschieden`, Kepler `widerlegt`). grok-build je Tour 0 Math-Fehler
-(Wording-/Präzisions-Befunde gefixt). Offene Forschungs-Frontier (kein Bauauftrag):
-Produkte/Kompositionen von Transzendenten + volle GP-Suche. Volle Suite offline **1299 passed
-/ 0 failed / 19 skipped** (mein Commit-Stand; die im Arbeitsbaum liegende, unkommittierte
-Fremd-WIP `formulas/`+`codata`+`dlmf`+`wikidata` ist separat und bricht test_codata/dlmf/
-wikidata/runner — nicht Teil von Frontier 6).
+`docs/discovery/STATUS.md`. **Frontier 6.1–6.4 gebaut**: 6.1/6.2 `multiterm.py` (additive
+Gesetze + Out-of-Sample-Validierung, fängt Overfit UND Over-Pruning); 6.3 `transcendental.py`
+(`y = C·f(α·π)+D` über dimensionslose π-Gruppe `A·p=0`, scipy-Fit, Power-Law-Rivale-Gate);
+**6.4 `active_resolution.py`** (der aktive Zug nach `unentschieden` — `propose_resolution`
+berechnet die diskriminierende Messung, die zwei gleich-gut-passende Rivalen trennt: begrenzte
+Divergenz-Region f≤3, Spread-Punkte gegen den Shape, ehrliches `discriminating=False`-Gate;
+Akzeptanztest = Flip von `unentschieden`→`bestaetigt` nach Augmentation; mit grok-build in einer
+Q&A-Runde als stärkster USP-Hebel erarbeitet). grok-build je Tour 0 Math-Fehler. **Wissensbasis-
+Feature (CODATA/DLMF/Wikidata) integriert** (`69c43b3`). Offene Forschungs-Frontier: Minimal-
+Correction bei Komposition + GP-Suche. Volle Suite offline **1322 passed / 0 failed / 19 skipped**.
 
 ---
 

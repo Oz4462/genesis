@@ -136,15 +136,41 @@
   (→ auf die Threshold-Regel / „beste Power-of-a-group über alle Gruppen" umgestellt) und einen zu schwachen
   Quadrat-Test mit falscher Docstring (`!= bestaetigt` → jetzt `== unentschieden` + `powerlaw_r2 ≈ 1.0` gepinnt).
 
-## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1–6.3
+- **Tour 6.4 — Active Resolution of Uncertainty** (`active_resolution.py`, in der Q&A-Runde mit
+  grok-build als stärkster einzigartiger Hebel priorisiert): der **aktive nächste Zug nach
+  `unentschieden`**. Wenn der Discovery-Arm zwei dimensional-gültige Rivalen findet, die gleich gut
+  passen (transzendent vs. Power-of-a-group), berechnet `propose_resolution` deterministisch +
+  LLM-frei + ohne Hardware die **Messung, die den Gleichstand bricht**: `discover_rivals` liefert
+  beide gefitteten Formen, `evaluate_rival` wertet sie auf neuen Daten aus (kein Refit), und der
+  Operator findet im **hart begrenzten** Bereich `[lo/f, hi·f]` (f≤3) die Region maximaler Divergenz
+  und gibt einen `DecisionSpec` zurück: welcher Input, welcher Bereich, ein **Spread** von Messpunkten
+  (nicht der Einzel-Peak — den biegt ein 3-Parameter-Rivale hin; der Spread zwingt die SHAPE), die
+  erwartete Signatur jedes Rivalen, das Verdikt-Kriterium. **Ehrliches Gate:** `discriminating` nur
+  wenn Spitzen-Divergenz ≥ `min_discrimination` (5) Rausch-Böden — sonst ehrlich „keine
+  Unterscheidungskraft, mehr Daten im beobachteten Regime" statt eines erfundenen Extrapolations-
+  Experiments. **Live + 7 Tests grün (DER Akzeptanztest = Flip):** Schmalband-Exp-Zerfall →
+  `unentschieden` (exp R²=1.0, pow R²=0.99997) → `propose_resolution` (discriminating, ratio≈315,
+  Spread [0.33…9.0]) → mit wahren Daten augmentieren → re-judge **flippt zu `bestaetigt`** (pow-R²
+  fällt auf 0.996 < Bar). Negativ: f=1.02 → `discriminating=False` (ratio≈1.6). Macht GENESIS vom
+  **passiven Verifizierer zum aktiven Instrument** — optimal-experimental-design-im-Geist auf
+  symbolische dimensionale Gesetze, gegated gegen Extrapolations-Artefakte.
+- **Cross-Model-Drift-Check (grok-build):** „KEIN DRIFT" (Math + Implementierung + Claims + 6/7 Tests
+  unabhängig verifiziert; Spread-statt-Cluster-Argument „mathematisch sauber" bestätigt). Fand 3
+  Mini-Präzisionen — „diverge MOST/point" (singular) → „Spread"-Wording präzisiert, „optimal
+  experimental design" → „im Geist, kein formales Fisher-Design" entschärft, `None`-Rivale → klarer
+  `ValueError` statt `AttributeError` (+Test). Selbst nachkontrolliert + gefixt.
+
+## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1–6.4
 
 Der gesamte Mehr-Wochen-Plan aus `GROK_BUILD_GENESIS_UNIVERSE_EXPLORER.md` ist gebaut, getestet,
-grok-build-drift-geprüft und committet (lokal, kein Push). **86 Discovery-Tests** über 16 Module;
-`rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Mit Frontier 6.1–6.3 sind nun
-**Summen mehrerer dimensional-gültiger Terme** (inkl. Out-of-Sample-Validierung) UND **transzendente
-Formen** (exp/log/sin/tanh einer dimensionslosen π-Gruppe, mit Power-Law-Rivale-Gate) abgedeckt.
-Ehrliche verbleibende Grenze (keine Phase, sondern Forschungs-Frontier): Produkte/Kompositionen von
-Transzendenten und eine volle GP/symbolische Suche jenseits dieser Familie.
+grok-build-drift-geprüft und committet (lokal, kein Push). **93 Discovery-Tests** über 17 Module;
+`rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Mit Frontier 6.1–6.4 sind nun
+**Summen mehrerer dimensional-gültiger Terme** (inkl. Out-of-Sample-Validierung), **transzendente
+Formen** (exp/log/sin/tanh einer dimensionslosen π-Gruppe, mit Power-Law-Rivale-Gate) UND die
+**Active Resolution of Uncertainty** (aktiver nächster Zug nach `unentschieden` — die diskriminierende
+Messung, die den Gleichstand bricht) abgedeckt. Ehrliche verbleibende Grenze (keine Phase, sondern
+Forschungs-Frontier): Minimal-Correction-Discovery bei Komposition (Residuen-SR auf 2 gequellte δ-Gesetze),
+Produkte/Kompositionen von Transzendenten, volle GP/symbolische Suche jenseits dieser Familie.
 
 ## Drift-Kontroll-Protokoll (jede Tour)
 
