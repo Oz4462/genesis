@@ -102,13 +102,29 @@
   „Artefakt" statt „über die gesampelten Daten vernachlässigbar"; „JEDER Term erfüllt A·p=b" muss
   den Intercept ausnehmen) → alle drei selbst verifiziert + im Docstring präzisiert; zusätzlich eine
   echte Kante gehärtet (leerer Pool → klarer `ValueError` statt `IndexError`).
+- **Tour 6.2 — Out-of-Sample-Validierung für Mehr-Term (Rest-Risiko-Auflösung)** (`multiterm.py`):
+  ein additives Gesetz hat mehr Freiheitsgrade und ist nicht mehr allein am In-Sample-R² zu trauen.
+  `multiterm_out_of_sample_validate` fittet das Gesetz (Term-Struktur + Pruning + Koeffizienten) NUR
+  auf einem Train-Split und scort es **unverändert** auf dem Held-out (kein Refit, kein Leak — wie
+  der Einzel-Gesetz-Validator); `evaluate_multiterm_law` ist die Vorhersage-Primitive. Der Held-out-R²
+  fängt **beide** Fehlermodi: Overfit (spurious Terme → Test-R² kollabiert) UND Over-Pruning (echter
+  Term fälschlich entfernt → Pruned-Gesetz unterfittet). **Live + 5 Tests grün:** echtes Gesetz
+  (Kinematik, train auf 6 Punkten) → Held-out R²=1.0000, gap=0, `generalises=True`, 2 Terme; Rauschen
+  → Held-out R²=−0.73, `generalises=False`; erzwungenes Over-Pruning (`prune_rel_tol=0.9`) lässt den
+  Held-out-R² messbar fallen (ein gedroppter echter Term bleibt nicht verborgen).
+- **Cross-Model-Drift-Check (grok-build):** 0 Korrektheits-Fehler; verifizierte unabhängig, dass
+  No-Refit/No-Leak hart erzwungen ist (discover NUR auf Train, evaluate nutzt nur Train-Koeffizienten,
+  Held-out nie gefittet). Fand 2 Präzisions-Befunde — veraltete Doc-Referenz auf
+  `validation.out_of_sample_validate` (→ auf die neue Funktion umgestellt) und „beide Modi"-Claim ohne
+  Over-Pruning-Test (→ expliziten `test_oos_validation_detects_over_pruning` ergänzt, Claim jetzt belegt).
 
-## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1
+## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1 + 6.2
 
 Der gesamte Mehr-Wochen-Plan aus `GROK_BUILD_GENESIS_UNIVERSE_EXPLORER.md` ist gebaut, getestet,
-grok-build-drift-geprüft und committet (lokal, kein Push). **74 Discovery-Tests** über 15 Module;
-`rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Mit Frontier 6.1 sind nun auch
-**Summen mehrerer dimensional-gültiger Terme** abgedeckt. Ehrliche verbleibende Grenze (keine Phase,
+grok-build-drift-geprüft und committet (lokal, kein Push). **79 Discovery-Tests** über 15 Module;
+`rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Mit Frontier 6.1+6.2 sind nun auch
+**Summen mehrerer dimensional-gültiger Terme** abgedeckt — inkl. ehrlicher Out-of-Sample-Validierung.
+Ehrliche verbleibende Grenze (keine Phase,
 sondern Forschungs-Frontier): transzendente Formen (sin/exp/log einer dimensionslosen Gruppe) und
 volle GP/symbolische Suche jenseits der Power-Law/π-Gruppen-Familie.
 

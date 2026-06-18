@@ -52,16 +52,18 @@ dimensionale symbolische Regression (Buckingham-π) → `discover_new_formulas` 
 Graph → Tournament → Rediscovery-Benchmark, plus Deep-Controller, Physics-Surrogat,
 Grok-Symbiose (Model **`grok-build`**, live bewiesen), Reality Fork, Cosmic Insight,
 Assumption Annihilator, First-Principles-Beweisbäume, Out-of-Sample, Universe Bridge.
-15 Module, 74 Discovery-Tests; `rediscovery_benchmark()` 100 %/100 %; jede Tour
+15 Module, 79 Discovery-Tests; `rediscovery_benchmark()` 100 %/100 %; jede Tour
 cross-model-drift-geprüft mit grok-build; **kein Trading/ASYA/MT5**. Status-Karte:
-`docs/discovery/STATUS.md`. **Frontier 6.1 gebaut** (`multiterm.py`): additive Gesetze
+`docs/discovery/STATUS.md`. **Frontier 6.1+6.2 gebaut** (`multiterm.py`): additive Gesetze
 `y = Σ Cᵢ·termᵢ (+ Intercept)`, jeder Term dimensional gültig (`A·p=b`), Parsimonie +
-Pruning gegen Overfit (Kinematik → exakt 2 Terme, Kepler bleibt 1; grok-build-geprüft,
-3 Wording-Überziehungen gefixt). Offene Forschungs-Frontier (kein Bauauftrag):
-transzendente Formen + volle GP-Suche jenseits der Power-Law-Familie. Volle Suite offline
-**1287 passed / 0 failed / 19 skipped** (mein Commit-Stand; die im Arbeitsbaum liegende,
-unkommittierte Fremd-WIP `formulas/`+`codata`+`dlmf`+`wikidata` ist separat und bricht
-test_codata/dlmf/wikidata/runner — nicht Teil von Frontier 6.1).
+Pruning gegen Overfit (Kinematik → exakt 2 Terme, Kepler bleibt 1) **+ Out-of-Sample-
+Validierung** (`multiterm_out_of_sample_validate`: Train-Fit, Held-out-Score ohne Refit,
+fängt Overfit UND Over-Pruning; Rauschen → Held-out R²=−0.73). grok-build-geprüft (0 Math-
+Fehler; 3 Wording- + 2 Präzisions-Befunde gefixt, Over-Pruning-Test ergänzt). Offene
+Forschungs-Frontier (kein Bauauftrag): transzendente Formen + volle GP-Suche jenseits der
+Power-Law-Familie. Volle Suite offline **1292 passed / 0 failed / 19 skipped** (mein Commit-
+Stand; die im Arbeitsbaum liegende, unkommittierte Fremd-WIP `formulas/`+`codata`+`dlmf`+
+`wikidata` ist separat und bricht test_codata/dlmf/wikidata/runner — nicht Teil von Frontier 6).
 
 ---
 

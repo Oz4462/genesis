@@ -16,8 +16,10 @@ two things that make GENESIS honest:
     CAN fit noise — the opposite of the single-power-law's built-in safety. Terms are added by
     greedy forward selection (orthogonal-matching-pursuit style) and a term is kept ONLY if it
     improves the fit by more than a threshold. So a pure power law (Kepler) comes back as ONE
-    term, not a padded sum, and noise does not accrete spurious terms. Pair with
-    ``validation.out_of_sample_validate`` for the out-of-sample check.
+    term, not a padded sum, and noise does not accrete spurious terms. The in-sample R² is NOT
+    the final word: pair every discovered law with :func:`multiterm_out_of_sample_validate` (in
+    this module), whose held-out R² catches both an overfit (spurious terms) and an over-pruned
+    (a real term wrongly dropped) additive model.
 
 The coefficients are fitted by LINEAR least squares (the model is linear in the Cᵢ), so the fit
 is exact and deterministic. Offline, numpy-only. Two honest boundaries: (1) the final pruning is
@@ -37,7 +39,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .engine import DiscoveryProblem, dimensional_system
+from .engine import DiscoveryProblem, Variable, dimensional_system
 
 #: Largest absolute exponent and lattice step for enumerating dimensionally-valid terms.
 DEFAULT_MAX_ABS_EXP = 2.0
@@ -230,3 +232,86 @@ def discover_multiterm(
         terms=terms, r_squared=_r2(y, best_pred),
         rmse=float(np.sqrt(np.mean((y - best_pred) ** 2))),
         n_terms=len(terms), expression=expr)
+
+
+#: Held-out R² at/above which a multi-term law is judged to generalise (mirrors the single-law
+#: validator's bar). Below it the additive model did not transfer — overfit OR over-pruned.
+DEFAULT_GENERALISES_R2 = 0.99
+
+
+@dataclass(frozen=True)
+class MultiTermValidation:
+    """Out-of-sample fit of an additive law: `test_r2` is the law's R² on data it was NOT fitted
+    on (the honest number); `generalises` is the verdict; `overfit_gap` = train − test (large
+    means the additive model — its terms AND its pruning — did not transfer)."""
+
+    law: str
+    train_r2: float
+    test_r2: float
+    overfit_gap: float
+    generalises: bool
+    n_train: int
+    n_test: int
+    n_terms: int
+
+
+def evaluate_multiterm_law(law: MultiTermLaw, problem: DiscoveryProblem) -> np.ndarray:
+    """Apply a discovered additive law to a problem's data — ``Σ Cᵢ·termᵢ`` evaluated on the
+    inputs/constants, with the intercept (empty exponents → ones) carried uniformly. The primitive
+    behind out-of-sample scoring: the law's coefficients are NOT refitted here. Raises ValueError
+    on non-positive magnitudes (the power-law domain is positive)."""
+    names, arrs = _arrays(problem)
+    pred = np.zeros(len(problem.target.values), dtype=float)
+    for term in law.terms:
+        pred = pred + term.coefficient * _term_vector(term.exponents, names, arrs)
+    return pred
+
+
+def _split_indices(n: int, train_fraction: float, seed: int) -> tuple[np.ndarray, np.ndarray]:
+    k = max(2, min(n - 1, int(round(n * train_fraction))))
+    rng = np.random.default_rng(seed)
+    perm = rng.permutation(n)
+    return np.sort(perm[:k]), np.sort(perm[k:])
+
+
+def _subproblem(problem: DiscoveryProblem, idx: np.ndarray) -> DiscoveryProblem:
+    y = np.asarray(problem.target.values, float)
+    return DiscoveryProblem(
+        idea=problem.idea,
+        target=Variable(problem.target.name, problem.target.unit, tuple(y[idx])),
+        inputs=tuple(Variable(v.name, v.unit, tuple(np.asarray(v.values, float)[idx]))
+                     for v in problem.inputs),
+        constants=problem.constants, run_id=problem.run_id)
+
+
+def multiterm_out_of_sample_validate(
+    problem: DiscoveryProblem,
+    *,
+    train_fraction: float = 0.6,
+    r2_threshold: float = DEFAULT_GENERALISES_R2,
+    seed: int = 0,
+    **discover_kwargs,
+) -> MultiTermValidation:
+    """Out-of-sample validation for an ADDITIVE law (the honest guard for the multi-term frontier).
+
+    Discovers the multi-term law — its term structure, its pruning AND its train-fitted
+    coefficients — on a TRAIN split, then scores it UNCHANGED on the HELD-OUT split (no refit, no
+    peeking). The held-out R² catches BOTH failure modes the extra degrees of freedom open up:
+    overfitting (spurious terms chasing the train data → test R² collapses) AND over-pruning (a
+    real-but-weak term wrongly dropped → the pruned law under-fits the held-out data). A real
+    additive law (kinematics from a subset of points) transfers; noise does not. ``discover_kwargs``
+    are forwarded to :func:`discover_multiterm`. Raises ValueError on too few points to split."""
+    n = len(problem.target.values)
+    if n < 4:
+        raise ValueError("need at least 4 data points to split train/held-out")
+    train_idx, test_idx = _split_indices(n, train_fraction, seed)
+    train_law = discover_multiterm(_subproblem(problem, train_idx), **discover_kwargs)
+    test_problem = _subproblem(problem, test_idx)
+    y_test = np.asarray(test_problem.target.values, float)
+    pred = evaluate_multiterm_law(train_law, test_problem)
+    test_r2 = _r2(y_test, pred)
+    return MultiTermValidation(
+        law=train_law.expression, train_r2=train_law.r_squared, test_r2=test_r2,
+        overfit_gap=train_law.r_squared - test_r2,
+        generalises=test_r2 >= r2_threshold,
+        n_train=int(train_idx.shape[0]), n_test=int(test_idx.shape[0]), n_terms=train_law.n_terms)

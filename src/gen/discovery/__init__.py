@@ -84,6 +84,9 @@ __all__ = [
     "candidate_term_exponents",
     "Term",
     "MultiTermLaw",
+    "evaluate_multiterm_law",
+    "multiterm_out_of_sample_validate",
+    "MultiTermValidation",
 ]
 
 
@@ -168,9 +171,11 @@ def __getattr__(name: str):
         for n in ("rediscovery_benchmark", "BenchmarkCase", "kepler_case", "ideal_gas_case", "pendulum_case"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
-    if name in ("discover_multiterm", "candidate_term_exponents", "Term", "MultiTermLaw"):
+    if name in ("discover_multiterm", "candidate_term_exponents", "Term", "MultiTermLaw",
+                "evaluate_multiterm_law", "multiterm_out_of_sample_validate", "MultiTermValidation"):
         from . import multiterm as _m
-        for n in ("discover_multiterm", "candidate_term_exponents", "Term", "MultiTermLaw"):
+        for n in ("discover_multiterm", "candidate_term_exponents", "Term", "MultiTermLaw",
+                  "evaluate_multiterm_law", "multiterm_out_of_sample_validate", "MultiTermValidation"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
