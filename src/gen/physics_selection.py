@@ -236,6 +236,81 @@ RECIPES: list[CheckRecipe] = [
         trigger="crypto.gcm_invocations",
         inputs={"n_invocations": ("crypto.gcm_invocations", "1")},
     ),
+    # ---- robot: humanoid kinematics / actuation / onboard-compute sizing screens ----
+    CheckRecipe(
+        name="arm reach (2R workspace)", validator="reach", trigger="arm.target_x",
+        inputs={
+            "l1": ("arm.link1_length", "m"),
+            "l2": ("arm.link2_length", "m"),
+            "x": ("arm.target_x", "m"),
+            "y": ("arm.target_y", "m"),
+        },
+    ),
+    CheckRecipe(
+        name="balance (ZMP in support polygon)", validator="zmp_balance", trigger="balance.com_x",
+        inputs={
+            "com_x": ("balance.com_x", "m"),
+            "com_z": ("balance.com_height", "m"),
+            "support_min_x": ("balance.support_min_x", "m"),
+            "support_max_x": ("balance.support_max_x", "m"),
+        },
+    ),
+    CheckRecipe(
+        name="electric joint actuator (torque-speed)", validator="electric_actuator",
+        trigger="actuator.joint_torque",
+        inputs={
+            "joint_torque": ("actuator.joint_torque", "N*m"),
+            "joint_speed": ("actuator.joint_speed", "rad/s"),
+            "motor_stall_torque": ("motor.stall_torque", "N*m"),
+            "motor_noload_speed": ("motor.noload_speed", "rad/s"),
+            "gear_ratio": ("drivetrain.gear_ratio", "1"),
+            "efficiency": ("drivetrain.efficiency", "1"),
+        },
+    ),
+    CheckRecipe(
+        name="hydraulic cylinder force", validator="hydraulic_cylinder",
+        trigger="hydraulic.pressure",
+        inputs={
+            "pressure": ("hydraulic.pressure", "Pa"),
+            "bore_area": ("hydraulic.bore_area", "m^2"),
+            "required_force": ("hydraulic.required_force", "N"),
+        },
+    ),
+    CheckRecipe(
+        name="hydraulic flow", validator="hydraulic_flow", trigger="hydraulic.piston_velocity",
+        inputs={
+            "bore_area": ("hydraulic.bore_area", "m^2"),
+            "piston_velocity": ("hydraulic.piston_velocity", "m/s"),
+            "pump_flow": ("hydraulic.pump_flow", "m^3/s"),
+        },
+    ),
+    CheckRecipe(
+        name="compute throughput budget", validator="compute_budget",
+        trigger="compute.workload_tops",
+        inputs={
+            "workload_tops": ("compute.workload_tops", "1"),
+            "chip_tops": ("compute.chip_tops", "1"),
+            "utilisation_max": ("compute.utilisation", "1"),
+        },
+    ),
+    CheckRecipe(
+        name="inference power", validator="inference_power",
+        trigger="compute.efficiency_tops_per_w",
+        inputs={
+            "workload_tops": ("compute.workload_tops", "1"),
+            "efficiency_tops_per_w": ("compute.efficiency_tops_per_w", "1"),
+            "power_budget_w": ("compute.power_budget", "W"),
+        },
+    ),
+    CheckRecipe(
+        name="inference latency (control loop)", validator="inference_latency",
+        trigger="compute.inference_ops",
+        inputs={
+            "inference_ops": ("compute.inference_ops", "1"),
+            "throughput_ops_per_s": ("compute.throughput_ops_per_s", "1"),
+            "control_period_s": ("control.period", "s"),
+        },
+    ),
 ]
 
 

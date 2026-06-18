@@ -66,6 +66,17 @@ from .printability import (
 from .thermal import overtemperature_check
 from .thermal_stress import thermal_mismatch_check
 from .torsion import shaft_torsion_check
+from .kinematics import reach_check, zmp_balance_check
+from .actuation import (
+    electric_actuator_check,
+    hydraulic_cylinder_check,
+    hydraulic_flow_check,
+)
+from .compute import (
+    compute_budget_check,
+    inference_latency_check,
+    inference_power_check,
+)
 
 # Registry of validators the gate can run. Each is a *_check function returning a dict
 # that contains at least an "ok" bool (and usually a "safety_factor"). The key is the
@@ -101,6 +112,15 @@ VALIDATORS = {
     "birthday_bound": birthday_bound_check,
     "key_security": key_security_check,
     "gcm_invocation_budget": gcm_invocation_budget_check,
+    # robot — humanoid kinematics / actuation / onboard-compute sizing screens
+    "reach": reach_check,
+    "zmp_balance": zmp_balance_check,
+    "electric_actuator": electric_actuator_check,
+    "hydraulic_cylinder": hydraulic_cylinder_check,
+    "hydraulic_flow": hydraulic_flow_check,
+    "compute_budget": compute_budget_check,
+    "inference_power": inference_power_check,
+    "inference_latency": inference_latency_check,
 }
 
 
