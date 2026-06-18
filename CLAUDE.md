@@ -63,7 +63,17 @@ Residuum `y−y_base`, Gate `residual_explained≥0.9` ∧ `ΔR²>1e-3` ∧ Leav
 Korrektur aus Rauschen; Kopplung `x+½k·x²`→findet exakt `0.5·x²·k`). 6.4 + 6.5 in einer Q&A-Runde
 MIT grok-build als die 2 stärksten USP-Hebel erarbeitet. grok-build je Tour 0 Math-Fehler.
 **Wissensbasis-Feature (CODATA/DLMF/Wikidata) integriert** (`69c43b3`). Offene Frontier:
-multiplikative/transzendente Kopplungen + GP-Suche. Volle Suite offline **1329 passed / 0 failed / 19 skipped**.
+multiplikative/transzendente Kopplungen + GP-Suche.
+
+**Humanoid-Roboter-δ-Achsen (2026-06-18, nach Pipeline-Lücken-Analyse, Plan `steady-sleeping-pascal.md`):**
+neue Closed-Form-Achsen im `flight.py`-Muster, in den δ-Physik-Gate verdrahtet — `kinematics.py`
+(DH-FK, 2R-IK, statisches Gelenk-Drehmoment, ZMP-Balance), `actuation.py` (Motor-Drehmoment-Drehzahl
+durch Getriebe, Hydraulik F=p·A/Q=A·v/Hagen-Poiseuille), `compute.py` (TOPS-Budget, Inferenz-Leistung
+→ speist `thermal`, Latenz). 8 Validatoren in `physics_validation.VALIDATORS` + 8 `CheckRecipe` in
+`physics_selection.RECIPES`; eine Humanoid-Bein-`Specification` feuert 6 Checks **auto** aus
+measurand-Tags → ehrliches Gate-Verdikt (pass/fail/gap, live bewiesen). 26 neue Tests; je Tour
+grok-build KEIN DRIFT. Memory: [[project-genesis-robot-axes]]. Offen: Tour 5 electronics-digital,
+Tour 6 training-plan. Volle Suite offline **1355 passed / 0 failed / 19 skipped**.
 
 ---
 
