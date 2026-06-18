@@ -57,12 +57,14 @@ class GraphNode:
     encounters: int = 1
 
     def to_record(self) -> dict:
-        """The Anhang-C Ledger/Discovery-Graph JSON record for this node."""
+        """The Anhang-C Ledger/Discovery-Graph JSON record for this node (lossless:
+        ``from_record`` reconstructs the node exactly, so a graph round-trips through JSON)."""
         return {
             "id": self.id,
             "timestamp": self.timestamp,
             "input_idea": self.input_idea,
             "candidate": self.candidate,
+            "exponent_signature": dict(self.exponent_signature),
             "delta_to_consensus": self.delta_to_consensus,
             "gates": self.gates,
             "verdict": self.verdict,
@@ -71,6 +73,24 @@ class GraphNode:
             "graph_edges": list(self.graph_edges),
             "encounters": self.encounters,
         }
+
+    @staticmethod
+    def from_record(record: dict) -> "GraphNode":
+        """Reconstruct a node from its Anhang-C record (the inverse of ``to_record``)."""
+        return GraphNode(
+            id=record["id"],
+            input_idea=record["input_idea"],
+            candidate=record["candidate"],
+            exponent_signature=dict(record.get("exponent_signature", {})),
+            delta_to_consensus=record["delta_to_consensus"],
+            gates=record["gates"],
+            verdict=record["verdict"],
+            provenance=tuple(record.get("provenance", ())),
+            parent_ids=tuple(record.get("parent_ids", ())),
+            graph_edges=tuple(record.get("graph_edges", ())),
+            timestamp=record.get("timestamp"),
+            encounters=record.get("encounters", 1),
+        )
 
 
 @dataclass
@@ -162,6 +182,16 @@ class DiscoveryGraph:
     def to_ledger_records(self) -> list[dict]:
         """All nodes as Anhang-C JSON records — the Ledger-aligned, serialisable form."""
         return [n.to_record() for n in self._nodes.values()]
+
+    @staticmethod
+    def from_records(records: list[dict]) -> "DiscoveryGraph":
+        """Rebuild a graph from serialised Anhang-C records — used to resume a checkpointed
+        exploration so the live graph contains the pre-checkpoint nodes exactly."""
+        g = DiscoveryGraph()
+        for rec in records:
+            node = GraphNode.from_record(rec)
+            g._nodes[node.id] = node
+        return g
 
     def to_json(self, *, indent: int | None = 2) -> str:
         return json.dumps(self.to_ledger_records(), indent=indent, ensure_ascii=False, sort_keys=True)

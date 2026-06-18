@@ -30,11 +30,16 @@ __all__ = [
     "symbolic_regress",
     "discover_new_formulas",
     "dimensional_power_law",
+    "judge_candidate",
     "discover",
     "DiscoveryGraph",
     "GraphNode",
     "evolve",
     "TournamentReport",
+    "ExplorationController",
+    "ExplorationState",
+    "ControllerResult",
+    "DepthTier",
     "rediscovery_benchmark",
     "BenchmarkCase",
     "kepler_case",
@@ -45,13 +50,17 @@ __all__ = [
 def __getattr__(name: str):
     # Lazy, and — like gen.integration — cached into globals() so a same-named submodule
     # can never shadow a function export.
-    if name in ("Variable", "Constant", "DiscoveryProblem", "Candidate",
-                "DiscoveryVerdict", "DiscoveryResult", "symbolic_regress",
-                "discover_new_formulas", "dimensional_power_law"):
+    _engine_names = ("Variable", "Constant", "DiscoveryProblem", "Candidate",
+                     "DiscoveryVerdict", "DiscoveryResult", "symbolic_regress",
+                     "discover_new_formulas", "dimensional_power_law", "judge_candidate")
+    if name in _engine_names:
         from . import engine as _m
-        for n in ("Variable", "Constant", "DiscoveryProblem", "Candidate",
-                  "DiscoveryVerdict", "DiscoveryResult", "symbolic_regress",
-                  "discover_new_formulas", "dimensional_power_law"):
+        for n in _engine_names:
+            globals()[n] = getattr(_m, n)
+        return globals()[name]
+    if name in ("ExplorationController", "ExplorationState", "ControllerResult", "DepthTier"):
+        from . import controller as _m
+        for n in ("ExplorationController", "ExplorationState", "ControllerResult", "DepthTier"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     if name in ("DiscoveryGraph", "GraphNode"):

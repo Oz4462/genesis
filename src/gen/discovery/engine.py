@@ -380,3 +380,22 @@ def discover_new_formulas(
                              key=lambda r: (-r.candidate.r_squared, r.candidate.complexity)))
     return DiscoveryResult(problem_idea=problem.idea, validated=validated,
                            all_records=tuple(records), run_id=problem.run_id)
+
+
+def judge_candidate(
+    problem: DiscoveryProblem,
+    candidate: Candidate,
+    *,
+    known_laws: dict[str, dict[str, float]] | None = None,
+    r2_threshold: float = DEFAULT_R2_THRESHOLD,
+) -> DiscoveryVerdict:
+    """Judge a single, already-built Candidate against `problem` — the public gate wrapper the
+    controller/tournament use to record an externally-produced candidate (e.g. an evolved or a
+    Grok-proposed one) with the SAME gates and δ-asymmetry as the engine's own candidates.
+    Refits the coefficient from the candidate's exponents and runs the dimensional/recompute/
+    fit/uncertainty gates. Deterministic."""
+    y = np.asarray(problem.target.values, dtype=float)
+    names, _, arrays = _source_arrays(problem, y.shape[0])
+    _, y_hat = _fit_coefficient(arrays, candidate.exponents, names, y)
+    delta = _delta_to_consensus(candidate, known_laws or {})
+    return _judge(candidate, y, y_hat, r2_threshold=r2_threshold, delta=delta)
