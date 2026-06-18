@@ -112,6 +112,19 @@ def newton_gravity_case() -> BenchmarkCase:
     return BenchmarkCase("Newton gravitation", problem, {"m1": 1.0, "m2": 1.0, "r": -2.0, "G": 1.0})
 
 
+def pendulum_case() -> BenchmarkCase:
+    """Simple-pendulum period: T = 2π·L^(1/2)·g^(-1/2)."""
+    g = 9.80665
+    L = np.array([0.25, 0.5, 1.0, 1.5, 2.0, 0.75])
+    T = 2.0 * math.pi * np.sqrt(L / g)
+    problem = DiscoveryProblem(
+        idea="Schwingungsdauer eines Fadenpendels.",
+        target=Variable("T", "s", tuple(T)),
+        inputs=(Variable("L", "m", tuple(L)),),
+        constants=(Constant("g", g, "m/s^2"),))
+    return BenchmarkCase("Pendulum period", problem, {"L": 0.5, "g": -0.5})
+
+
 def redteam_impossible_case() -> BenchmarkCase:
     """A temperature target that no length+time product can form — must be 'widerlegt'."""
     x = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
@@ -139,7 +152,7 @@ def redteam_offset_case() -> BenchmarkCase:
 
 
 def default_cases() -> list[BenchmarkCase]:
-    return [kepler_case(), ideal_gas_case(), newton_gravity_case(),
+    return [kepler_case(), ideal_gas_case(), newton_gravity_case(), pendulum_case(),
             redteam_impossible_case(), redteam_offset_case()]
 
 

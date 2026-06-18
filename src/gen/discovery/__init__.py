@@ -66,6 +66,9 @@ __all__ = [
     "ProofTree",
     "verify_proof",
     "derive",
+    "out_of_sample_validate",
+    "OutOfSampleResult",
+    "pendulum_case",
     "rediscovery_benchmark",
     "BenchmarkCase",
     "kepler_case",
@@ -123,6 +126,11 @@ def __getattr__(name: str):
         for n in ("Axiom", "ProofStep", "ProofTree", "verify_proof", "derive"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
+    if name in ("out_of_sample_validate", "OutOfSampleResult"):
+        from . import validation as _m
+        globals()["out_of_sample_validate"] = _m.out_of_sample_validate
+        globals()["OutOfSampleResult"] = _m.OutOfSampleResult
+        return globals()[name]
     if name in ("DiscoveryGraph", "GraphNode"):
         from . import graph as _m
         globals()["DiscoveryGraph"] = _m.DiscoveryGraph
@@ -137,9 +145,9 @@ def __getattr__(name: str):
         globals()["evolve"] = _m.evolve
         globals()["TournamentReport"] = _m.TournamentReport
         return globals()[name]
-    if name in ("rediscovery_benchmark", "BenchmarkCase", "kepler_case", "ideal_gas_case"):
+    if name in ("rediscovery_benchmark", "BenchmarkCase", "kepler_case", "ideal_gas_case", "pendulum_case"):
         from . import benchmark as _m
-        for n in ("rediscovery_benchmark", "BenchmarkCase", "kepler_case", "ideal_gas_case"):
+        for n in ("rediscovery_benchmark", "BenchmarkCase", "kepler_case", "ideal_gas_case", "pendulum_case"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -41,6 +41,6 @@ def test_red_team_hidden_additive_term_is_not_falsely_confirmed():
 
 def test_benchmark_report_is_structured():
     report = run_bench()
-    assert report.n_total == 5
+    assert report.n_total == 6                      # Kepler, ideal gas, Newton, pendulum + 2 red-team
     names = {r.name for r in report.results}
-    assert "Kepler III" in names and "Red-team: impossible dimension" in names
+    assert {"Kepler III", "Pendulum period", "Red-team: impossible dimension"} <= names
