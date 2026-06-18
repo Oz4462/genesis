@@ -20,12 +20,17 @@ cad = ["cadquery>=2.4", "gmsh>=4.12", "build123d>=0.8"]   # exact BREP geometry 
 postgres = ["asyncpg>=0.29"]                   # persistent ledger (in-memory is the default)
 verify = ["trust-core>=0.1.0"]                 # conformal/FDR single-source + CCDD drift (gen.verification.trustcore_adapter / drift_monitor); core stays numpy-only
 smt = ["z3-solver>=4.13"]                       # global constraint feasibility (gen.verification.constraint_smt); closes the transitive-infeasibility gap
-dev = ["pytest>=8", "ruff>=0.4", "httpx>=0.27"]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.4", "httpx>=0.27"]   # pytest-asyncio drives the async LLM-CLI adapter tests (gen.llm.claude_cli / grok_cli)
 full = ["genesis-engine[web,cad,postgres,verify,smt,dev]"]
 
 [project.scripts]
 genesis = "gen.cli:main"
 genesis-web = "gen.web.__main__:main"
+
+[tool.pytest.ini_options]
+# async LLM-CLI adapter tests use explicit @pytest.mark.asyncio markers; strict mode
+# keeps that explicit (and silences the "asyncio_mode unset" warning).
+asyncio_mode = "strict"
 
 [tool.setuptools.packages.find]
 where = ["src"]
