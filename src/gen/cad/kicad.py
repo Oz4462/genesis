@@ -226,3 +226,66 @@ def verify_kicad_schematic(text: str, *, components, netlist=None) -> KiCadCheck
             issues.append(f"global-label count {len(labels)} != net count {n_nets}")
 
     return KiCadCheck(ok=not issues, issues=issues, n_components=len(refs), n_nets=n_nets)
+
+
+def _is_number(token: str) -> bool:
+    """True iff `token` parses as a float — guards the (at x y rot) coordinate check."""
+    try:
+        float(token)
+        return True
+    except ValueError:
+        return False
+
+
+def to_kicad_pcb(placements, components, *, thickness_mm: float = 1.6) -> str:
+    """Export a KiCad PCB (`.kicad_pcb`) placement SKELETON (v20231120): every placement
+    as a ``(footprint ...)`` at its ``(at x y z-rotation)``, the footprint id resolved by
+    ``ref_des`` from the matching component's package (generic fallback) — NOT by the old
+    positional ``zip`` that mis-paired and silently dropped the tail.
+
+    Three correctness fixes over the old stub: the modern ``(footprint ...)`` keyword (not
+    KiCad-5 ``(module ...)``), only the Z component of the 3-tuple rotation in ``(at ...)``
+    (the old code stringified the whole tuple into a broken S-expr), and a typed layer
+    stack. Traces are NOT generated — an autorouter is a declared external step. Strings
+    are escaped; output is deterministic (input order)."""
+    comp_by_ref = {c.id: c for c in components}
+    lines = [
+        '(kicad_pcb (version 20231120) (generator "genesis_cad_kicad")',
+        f"  (general (thickness {thickness_mm:g}))",
+        '  (layers (0 "F.Cu" signal) (31 "B.Cu" signal) (32 "B.SilkS" user))',
+        "  (setup (pad_to_mask_clearance 0))",
+    ]
+    for p in placements:
+        x, y = p.pos_mm[0], p.pos_mm[1]
+        rot = p.rot_deg[2] if isinstance(p.rot_deg, (tuple, list)) else (p.rot_deg or 0.0)
+        comp = comp_by_ref.get(p.ref_des)
+        fp = p.footprint or (getattr(comp, "package", "") or "") or "Genesis:Generic_SMD"
+        lines.append(
+            f'  (footprint "{_esc(fp)}" (layer "F.Cu") (at {x:g} {y:g} {rot:g}) '
+            f'(fp_text reference "{_esc(p.ref_des)}" (at 0 0 {rot:g}) (layer "F.SilkS")))')
+    lines.append(")")
+    return "\n".join(lines)
+
+
+def verify_kicad_pcb(text: str, *, placements) -> KiCadCheck:
+    """Verify a KiCad PCB skeleton: balanced S-expr, kicad_pcb header, the (layers) and
+    (footprint) sections, EVERY placement's ref_des emitted as a footprint reference
+    (catches the old positional-zip drop), and every ``(at ...)`` numeric (catches the
+    old rot-tuple leak ``(at 1 1 (0.0, 0.0, 90.0))``). Non-vacuous."""
+    issues = _paren_issues(text)
+    if not text.lstrip().startswith("(kicad_pcb"):
+        issues.append("missing (kicad_pcb ...) header")
+    for section in ("(layers", "(footprint"):
+        if section not in text:
+            issues.append(f"missing {section} section")
+
+    refs = {_unesc(m) for m in re.findall(r"\(fp_text reference " + _STR, text)}
+    declared = {p.ref_des for p in placements}
+    for ref in sorted(declared - refs):
+        issues.append(f"placement {ref!r} missing from the .kicad_pcb — dropped")
+
+    for at in re.findall(r"\(at ([^)]*)\)", text):
+        if not at.split() or not all(_is_number(t) for t in at.split()):
+            issues.append(f"malformed (at {at}) — non-numeric placement coordinate")
+
+    return KiCadCheck(ok=not issues, issues=issues, n_components=len(refs), n_nets=0)

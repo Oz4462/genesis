@@ -67,6 +67,29 @@ class FertigungsSpec:
     quelle: str | None = None
 
 
+def _fdm_cost_estimate_from_dfm(dfm_report: Optional[Any]) -> str | None:
+    """Pull the FDM process's REAL ranged cost estimate (cost_model.py, Stein 4) out of
+    an AdvancedDFMReport — or an equivalent dict. Returns ``None`` when no FDM cost is
+    present, so the caller declares an honest gap instead of FABRICATING a band (the
+    "8-25 EUR" disease cost_model was built to cure). The estimate is computed upstream
+    by check_advanced_dfm via estimate_fdm_cost; this is the seam that consumes it (no
+    duplicate computation, no fabricated number)."""
+    if dfm_report is None:
+        return None
+    processes = getattr(dfm_report, "processes", None)
+    if processes is None and isinstance(dfm_report, dict):
+        processes = dfm_report.get("processes")
+    for proc in processes or []:
+        name = getattr(proc, "process", None)
+        hint = getattr(proc, "cost_hint", None)
+        if name is None and isinstance(proc, dict):
+            name = proc.get("process") or proc.get("p")
+            hint = proc.get("cost_hint")
+        if (name or "").upper() == "FDM" and hint:
+            return str(hint)
+    return None
+
+
 def map_to_fertigungs_spec(
     concept: SystemConcept,
     ingenieur: IngenieurSpec,
@@ -101,13 +124,23 @@ def map_to_fertigungs_spec(
             ),
         ]
         dfm_ref = "advanced_dfm report for Jetpack Tether Anchor (printable FDM primary, issues noted)"
-        kosten = KostenModell(
-            material_kosten="~0.05-0.15 EUR/g (Alu/CFK from Wissensbasis MaterialSpec stub)",
-            prozess_kosten="FDM: low for 1pc; CNC: higher tooling",
-            gesamt_est="8-25 EUR prototype (FDM dominant; scales with qty)",
-            stueckzahl_hinweis="1-10: FDM; >50: consider injection or CNC batch",
-            quelle="advanced_dfm cost_hint + Wissensbasis MaterialSpec + CAD volume + PLAN §4.7",
-        )
+        fdm_cost = _fdm_cost_estimate_from_dfm(dfm_report)
+        if fdm_cost:
+            kosten = KostenModell(
+                material_kosten="im gerangten FDM-Modell enthalten (Volumen × Dichte × Infill × Preis, cost_model.py Stein 4)",
+                prozess_kosten="im gerangten FDM-Modell enthalten (Maschinenzeit × Maschinenrate)",
+                gesamt_est=fdm_cost,
+                stueckzahl_hinweis="1-10: FDM; >50: Spritzguss oder CNC-Batch prüfen",
+                quelle="advanced_dfm → cost_model.estimate_fdm_cost (Stein 4, reale gerangte Schätzung) + CAD-Volumen + PLAN §4.7",
+            )
+        else:
+            kosten = KostenModell(
+                material_kosten="Lücke: kein DFM-Kostenmodell übergeben",
+                prozess_kosten="Lücke: kein DFM-Kostenmodell übergeben",
+                gesamt_est="Lücke: keine gerangte Schätzung (advanced_dfm mit realem CAD-Volumen nötig — cost_model.py Stein 4; keine fabrizierte Zahl)",
+                stueckzahl_hinweis="1-10: FDM; >50: Spritzguss oder CNC-Batch prüfen",
+                quelle="PLAN §4.7 (keine Kosten ohne cost_model-Quelle)",
+            )
         qa = QAPlan(
             schritte=[
                 "FDM: dimensional + pull sample for layer strength (from DFM)",

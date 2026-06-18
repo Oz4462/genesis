@@ -218,11 +218,18 @@ def check_advanced_dfm(
     wall = artifact.spec.min_wall_thickness_mm or 0.0
 
     # dfm rules
+    fdm_gaps: list[str] = []
     if wall < FDM_MIN_WALL_MM:
         fdm_issues.append(f"FDM: wall {wall}mm < min reliable {FDM_MIN_WALL_MM}mm (dfm.py)")
-    hole_hint = 3.0  # conservative; real would come from geometry
-    if hole_hint < FDM_MIN_HOLE_DIAMETER_MM:
-        fdm_issues.append(f"FDM: small hole ~{hole_hint}mm < {FDM_MIN_HOLE_DIAMETER_MM}mm (dfm.py)")
+    # min-hole-diameter rule: the spec carries NO hole geometry (PrototypeSpec is a
+    # bounding box + min wall, not a CSG tree with hole radii), so the rule is NOT
+    # evaluable here. Declared as a gap with its sourced threshold — never the old
+    # fabricated 3.0mm hole that always passed (3.0 >= 2.0). Necessary, not sufficient:
+    # the same honest stance as the CNC/Laser/PCB blocks below.
+    fdm_gaps.append(
+        f"FDM: min-hole-diameter rule (>= {FDM_MIN_HOLE_DIAMETER_MM}mm, dfm.py) not "
+        f"evaluable — the spec carries no hole geometry (CSG hole radii); needs the "
+        f"solid's feature geometry (gmsh/BREP), not a bounding box")
 
     # printability rules (from documented thresholds in printability.py)
     # bridge (simplified: assume if large flat -> potential)
@@ -237,11 +244,12 @@ def check_advanced_dfm(
     # real, sourced, ranged FDM cost from the solid volume (None if no volume) —
     # replaces the old fabricated "~5-12 EUR est." prose.
     fdm_cost = estimate_fdm_cost(vol, artifact.spec.material_hint) if vol > 0 else None
-    fdm_printable = len(fdm_issues) == 0 and base.printable
+    fdm_printable = len(fdm_issues) == 0 and not fdm_gaps and base.printable
     processes.append(ProcessDFM(
         process="FDM",
         printable=fdm_printable,
         issues=fdm_issues,
+        gaps=fdm_gaps,
         details=fdm_details,
         cost_hint=fdm_cost.summary() if fdm_cost else None,
         qa_hints=["Visual + caliper on critical dims", "Pull test sample for layer strength"],

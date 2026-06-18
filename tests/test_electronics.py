@@ -99,3 +99,48 @@ def test_mechanical_and_electronic_split_render():
     assert out.index("M4 screw") < elec_idx
     assert out.index("Raspberry Pi 4") > elec_idx
     assert mech_idx < elec_idx
+
+
+def test_internal_drc_uses_named_sourced_thresholds_and_is_non_vacuous():
+    """The internal DRC must apply the NAMED, sourced DRC_* rules-of-thumb (not buried
+    magic numbers) and actually CATCH a real violation — an undersized harness gauge and
+    an over-dense board — while a clean, cool, well-separated board passes."""
+    from gen.electronics import (
+        run_internal_drc, Component, HarnessSpec, HarnessSegment, PlacementHint,
+        DRC_MIN_CLEARANCE_MM, DRC_WIRE_CURRENT_DENSITY_A_PER_MM2,
+        DRC_MAX_BOARD_POWER_DENSITY_W_PER_CM2,
+    )
+    from gen.core.state import Netlist
+
+    def comp(cid, p=0.0):
+        return Component(id=cid, name=cid, kind="mcu", v_nom=12.0, i_max=1.0,
+                         p_max_dissip=p, footprint_mm=(10, 10, 2))
+
+    comps = [comp("U1"), comp("U2")]
+    placements = [PlacementHint(ref_des="U1", pos_mm=(10.0, 10.0, 0.0)),
+                  PlacementHint(ref_des="U2", pos_mm=(60.0, 60.0, 0.0))]
+    nl = Netlist(pins=[], nets=[])
+
+    # 1) the DEFAULT rules ARE the named sourced constants (the fix's point)
+    clean = run_internal_drc(nl, placements, None, comps)
+    assert clean["rules_applied"]["min_clearance_mm"] == DRC_MIN_CLEARANCE_MM
+    assert clean["rules_applied"]["trace_a_per_mm2"] == DRC_WIRE_CURRENT_DENSITY_A_PER_MM2
+    assert clean["rules_applied"]["max_power_density_w_cm2"] == DRC_MAX_BOARD_POWER_DENSITY_W_PER_CM2
+    assert clean["status"] == "pass"                       # separated, no harness, cool
+
+    # 2) an undersized harness gauge is FLAGGED (non-vacuous): 24A on 0.5mm^2 needs ~2mm^2
+    bad_harness = HarnessSpec(
+        segments=[HarnessSegment(from_ref="U1", to_ref="U2", gauge_mm2=0.5,
+                                 length_mm=100.0, signals=["PWR"], current_a=24.0, voltage_v=12.0)],
+        total_mass_est_g=10.0, emc_measures=[])
+    drc = run_internal_drc(nl, placements, bad_harness, comps)
+    assert any(v["type"] == "trace_width" for v in drc["violations"])
+
+    # 3) board_dims really drives the density screen (no silently hard-coded 150x100):
+    #    24W on a tiny 20x20mm board (=4cm^2 -> 6 W/cm^2) is flagged...
+    hot = [comp("U1", p=12.0), comp("U2", p=12.0)]
+    dense = run_internal_drc(nl, placements, None, hot, board_dims=(20.0, 20.0))
+    assert any(v["type"] == "power_density" for v in dense["violations"])
+    #    ...the SAME parts on the big default board (150cm^2 -> 0.16 W/cm^2) are not
+    big = run_internal_drc(nl, placements, None, hot)
+    assert not any(v["type"] == "power_density" for v in big["violations"])

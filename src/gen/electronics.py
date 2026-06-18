@@ -831,22 +831,21 @@ def generate_kicad_schematic_stub(components: list[Component], netlist: Netlist)
 
 
 def export_placement_to_kicad_pcb(placements: list[PlacementHint], components: list[Component]) -> str:
-    """Basic .kicad_pcb S-expr with modules at 3D-derived positions (mm), net hints.
-    Footprints derived from package name (generic fallback). Ready for import + routing in KiCad.
-    Traces not auto-generated (would require autorouter — honest external step).
-    """
-    lines = [
-        "(kicad_pcb (version 20231120) (generator \"genesis\")",
-        "  (general (thickness 1.6))",
-        "  (layers (0 \"F.Cu\") (31 \"B.Cu\") (32 \"B.SilkS\"))",
-        "  (setup (pad_to_mask_clearance 0))",
-    ]
-    for p, comp in zip(placements, components):
-        x, y = p.pos_mm[0], p.pos_mm[1]
-        fp = p.footprint or comp.package or "R_0805"
-        lines.append(f"  (module (reference \"{p.ref_des}\") (at {x} {y} {p.rot_deg}) (module \"{fp}\") (layer \"F.Cu\"))")
-    lines.append(")")
-    return "\n".join(lines)
+    """Export a KiCad PCB (`.kicad_pcb`) placement skeleton — every placement as a
+    v20231120 ``(footprint ...)`` at its ``(at x y z-rotation)``, the footprint resolved
+    by ``ref_des`` (not the old positional ``zip`` that mis-paired and dropped the tail).
+    Traces are NOT auto-generated (an autorouter is a declared external step).
+
+    Verification is a GATE: the skeleton is verified (valid S-expr, every placement
+    present, numeric coordinates) before return — a generator without a checker is half a
+    feature, so an invalid export raises instead of shipping silently broken text.
+    Raises ValueError if the generated .kicad_pcb fails its own verifier."""
+    from gen.cad.kicad import to_kicad_pcb, verify_kicad_pcb
+    text = to_kicad_pcb(placements, components)
+    check = verify_kicad_pcb(text, placements=placements)
+    if not check.ok:
+        raise ValueError(f"export_placement_to_kicad_pcb: invalid .kicad_pcb: {check.issues}")
+    return text
 
 
 # =============================================================================
@@ -854,6 +853,44 @@ def export_placement_to_kicad_pcb(placements: list[PlacementHint], components: l
 # Deterministic, provenance everywhere, multi-board/CAN/tether aware. Generalist (any Component list).
 # Provides actionable artifacts for package + Lern + early validation. Full pro autorouter/DRC (KiCad class) remains seam.
 # =============================================================================
+
+# --- Named thresholds for the internal DRC (NOT anonymous magic numbers) ---
+# These are deliberate ENGINEERING RULES OF THUMB for an early, internal screen — not
+# vendor/standard guarantees. The real PCB trace sizing is dfm.ipc2221_trace_width_mm,
+# and the real clearance/thermal limits come from IPC-2221 / the part datasheets. They
+# are named + sourced here so a reader sees the assumption instead of a buried literal,
+# and every one is overridable via the `rules`/`board_dims` arguments.
+
+#: Rough copper-wire current density for the harness gauge sanity check [A/mm^2]. A
+#: conservative-ish rule of thumb for short, ventilated runs; real ampacity depends on
+#: insulation, bundling and ambient (IEC 60364-5-52 / wire ampacity tables). Used only
+#: to FLAG an obviously undersized gauge, never to certify one.
+DRC_WIRE_CURRENT_DENSITY_A_PER_MM2 = 12.0
+
+#: Practical minimum wire gauge floor [mm^2] (~AWG 24); below this the "needed gauge"
+#: is dominated by handling/robustness, not ampacity.
+DRC_MIN_GAUGE_MM2 = 0.25
+
+#: Minimum component-to-component edge clearance [mm] — an IPC-2221-class general
+#: spacing rule of thumb (the real value depends on voltage, coating and altitude,
+#: IPC-2221 Table 6-1).
+DRC_MIN_CLEARANCE_MM = 0.8
+
+#: Centers-distance multiplier on the edge clearance: footprints have extent, so two
+#: component CENTERS closer than this multiple of the edge clearance are flagged as a
+#: proximity risk — a coarse stand-in for true courtyard overlap (which needs footprint
+#: courtyards this layer does not carry).
+DRC_CLEARANCE_CENTER_MULTIPLIER = 3.0
+
+#: Board-level power-density screen [W/cm^2] for natural convection — a thermal rule of
+#: thumb (forced air / heatsinks raise it a lot); flags a board that needs active
+#: cooling, not a hard limit.
+DRC_MAX_BOARD_POWER_DENSITY_W_PER_CM2 = 2.5
+
+#: Default board footprint [mm] when the caller supplies none (matches
+#: auto_place_components' default), used only to turn total dissipation into a density.
+DRC_DEFAULT_BOARD_DIMS_MM = (150.0, 100.0)
+
 
 def auto_place_components(
     components: list[Component],
@@ -949,18 +986,28 @@ def run_internal_drc(
     components: list[Component],
     *,
     rules: dict[str, Any] | None = None,
+    board_dims: tuple[float, float] = DRC_DEFAULT_BOARD_DIMS_MM,
     run_id: str | None = None,
 ) -> dict[str, Any]:
     """Basic internal DRC: current->trace width, min clearance from pos, bus consistency, power density, redundancy match.
     Fast deterministic, returns violations + severity + fix suggestions (usable by Lern + package).
+
+    The thresholds are the named, sourced ``DRC_*`` rules-of-thumb above (overridable via
+    `rules`); `board_dims` (default ``DRC_DEFAULT_BOARD_DIMS_MM``) sets the area used for
+    the power-density screen instead of a hard-coded board. These are early-screen rules,
+    not vendor guarantees — necessary, not sufficient.
     """
-    rules = rules or {"min_clearance_mm": 0.8, "trace_a_per_mm2": 12.0, "max_power_density_w_cm2": 2.5}
+    rules = rules or {
+        "min_clearance_mm": DRC_MIN_CLEARANCE_MM,
+        "trace_a_per_mm2": DRC_WIRE_CURRENT_DENSITY_A_PER_MM2,
+        "max_power_density_w_cm2": DRC_MAX_BOARD_POWER_DENSITY_W_PER_CM2,
+    }
     violations: list[dict] = []
     suggestions: list[str] = []
     # Trace / current (from harness segments + comp i_max)
     if harness:
         for seg in harness.segments:
-            min_width_mm2 = max(0.25, seg.current_a / rules["trace_a_per_mm2"])
+            min_width_mm2 = max(DRC_MIN_GAUGE_MM2, seg.current_a / rules["trace_a_per_mm2"])
             if seg.gauge_mm2 < min_width_mm2 * 0.9:
                 violations.append({
                     "type": "trace_width",
@@ -975,7 +1022,7 @@ def run_internal_drc(
             dx = p1.pos_mm[0] - p2.pos_mm[0]
             dy = p1.pos_mm[1] - p2.pos_mm[1]
             dist = (dx*dx + dy*dy) ** 0.5
-            if dist < rules["min_clearance_mm"] * 3:
+            if dist < rules["min_clearance_mm"] * DRC_CLEARANCE_CENTER_MULTIPLIER:
                 violations.append({
                     "type": "clearance",
                     "severity": "warn",
@@ -996,7 +1043,7 @@ def run_internal_drc(
             })
     # Power density hint
     total_p = sum((c.p_max_dissip or 0.0) for c in components)
-    board_area_cm2 = (150 * 100) / 100.0  # default board
+    board_area_cm2 = (board_dims[0] * board_dims[1]) / 100.0  # mm^2 -> cm^2
     if total_p / max(board_area_cm2, 1) > rules["max_power_density_w_cm2"]:
         violations.append({
             "type": "power_density",

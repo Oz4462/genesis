@@ -123,6 +123,23 @@ def _artifact(name: str, bbox, wall: float, vol: float = 50.0):
                          volume_estimate_cm3=vol)
 
 
+def test_fdm_declares_hole_rule_as_gap_not_a_fabricated_pass():
+    """The FDM min-hole-diameter rule is NOT evaluable from a spec that carries no hole
+    geometry; it must be a DECLARED gap, never the old fabricated 3.0mm hole that always
+    passed (3.0 >= 2.0). Necessary, not sufficient — same stance as CNC/Laser/PCB."""
+    from gen.cad.manufacturing_check import check_advanced_dfm
+    from gen.dfm import FDM_MIN_HOLE_DIAMETER_MM
+
+    report = check_advanced_dfm(_artifact("FDM Hole Part", (40, 30, 10), 2.0, vol=20.0))
+    fdm = next(p for p in report.processes if p.process == "FDM")
+    hole_gaps = [g for g in fdm.gaps if "hole" in g.lower()]
+    assert hole_gaps                                                    # declared, not faked
+    assert any(f"{FDM_MIN_HOLE_DIAMETER_MM:g}" in g for g in hole_gaps)  # sourced threshold surfaced
+    # the old fabricated hole "pass" is gone — no invented hole value in the issues
+    assert not any("small hole" in i.lower() or "~3" in i for i in fdm.issues)
+    assert any("FDM" in g and "hole" in g.lower() for g in report.total_gaps)  # surfaced, not dropped
+
+
 def test_cnc_declares_ungrounded_geometric_rules_as_gaps_not_passes():
     """Tracer: from bbox+wall alone the geometric CNC rules are not evaluable — they
     must be declared as gaps, and an un-certified process must NOT claim printable=True

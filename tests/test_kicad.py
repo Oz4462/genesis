@@ -139,3 +139,69 @@ def test_verifier_recovers_an_escaped_quote_in_a_ref():
     nl = Netlist(pins=[], nets=[Net(name="N", pins=['U"1.A'])])
     chk = verify_kicad_netlist(to_kicad_netlist(nl, comps), components=comps, netlist=nl)
     assert chk.ok, chk.issues
+
+
+# === .kicad_pcb placement export (Teil 2 Rest-Risiko: replaces the old (module ...) stub) ===
+
+def _placement(ref, x, y, rot=(0.0, 0.0, 90.0)):
+    from gen.electronics import PlacementHint
+    return PlacementHint(ref_des=ref, pos_mm=(x, y, 0.0), rot_deg=rot)
+
+
+def test_kicad_pcb_uses_footprint_keyword_zrotation_and_verifies():
+    """The PCB export must use the v6+ (footprint ...) keyword (NOT KiCad-5 (module ...)),
+    place every component by ref_des, and put ONLY the Z rotation in (at ...) — not the
+    whole 3-tuple the old stub stringified into a broken S-expr."""
+    from gen.cad.kicad import to_kicad_pcb, verify_kicad_pcb
+
+    comps = [Component(id=f"U{i}", name=f"p{i}", kind="mcu", v_nom=3.3, i_max=0.1,
+                       p_max_dissip=0.5, footprint_mm=(5, 5, 1), package=f"lib:fp{i}")
+             for i in range(3)]
+    placements = [_placement(f"U{i}", 10.0 * i, 5.0 * i) for i in range(3)]
+    text = to_kicad_pcb(placements, comps)
+    chk = verify_kicad_pcb(text, placements=placements)
+    assert chk.ok, chk.issues
+    assert text.lstrip().startswith("(kicad_pcb")
+    assert "(footprint " in text and "(module " not in text     # modern keyword, not the old stub
+    assert '(at 0 0 90)' in text                                 # z-rotation only, not a tuple
+    assert '"F.Cu" signal' in text                               # typed layer stack
+    for i in range(3):
+        assert f'reference "U{i}"' in text                       # all placements present
+        assert f'"lib:fp{i}"' in text                            # footprint resolved by ref_des
+
+
+def test_kicad_pcb_verifier_catches_dropped_placement_and_malformed_at():
+    """Non-vacuous: a truncated export (placement dropped — the old zip() tail-drop) and a
+    leaked rotation tuple in (at ...) must both fail the verifier."""
+    from gen.cad.kicad import to_kicad_pcb, verify_kicad_pcb
+
+    comps = [Component(id="U1", name="p", kind="mcu", v_nom=0.0, i_max=0.0,
+                       p_max_dissip=0.0, footprint_mm=(1, 1, 1))]
+    placements = [_placement("U1", 1.0, 1.0), _placement("U2", 2.0, 2.0)]
+
+    # both placements appear even though only U1 has a matching component (no positional drop)
+    text = to_kicad_pcb(placements, comps)
+    assert verify_kicad_pcb(text, placements=placements).ok
+    assert 'reference "U2"' in text
+
+    # a truncated pcb (U2 dropped) must fail
+    chk = verify_kicad_pcb(to_kicad_pcb(placements[:1], comps), placements=placements)
+    assert not chk.ok and any("U2" in i and "dropped" in i.lower() for i in chk.issues)
+
+    # the old rot-tuple leak `(at 1 1 (0.0, 0.0, 90.0))` must be caught as malformed
+    broken = ('(kicad_pcb (version 20231120) (layers (0 "F.Cu" signal)) '
+              '(footprint "x" (at 1 1 (0.0, 0.0, 90.0)) (fp_text reference "U1")))')
+    chk2 = verify_kicad_pcb(broken, placements=[_placement("U1", 1.0, 1.0)])
+    assert not chk2.ok and any("malformed" in i.lower() for i in chk2.issues)
+
+
+def test_export_placement_wrapper_gates_its_output():
+    """The electronics wrapper delegates to cad.kicad AND gates: valid placements yield a
+    verified .kicad_pcb (header + every ref present)."""
+    from gen.electronics import export_placement_to_kicad_pcb
+
+    comps = [Component(id="U1", name="MCU", kind="mcu", v_nom=3.3, i_max=0.1,
+                       p_max_dissip=0.5, footprint_mm=(10, 10, 1), package="lib:U")]
+    text = export_placement_to_kicad_pcb([_placement("U1", 1.0, 1.0)], comps)
+    assert text.lstrip().startswith("(kicad_pcb") and 'reference "U1"' in text
+    assert "(module " not in text
