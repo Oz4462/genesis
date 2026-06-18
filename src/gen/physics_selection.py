@@ -311,6 +311,24 @@ RECIPES: list[CheckRecipe] = [
             "control_period_s": ("control.period", "s"),
         },
     ),
+    CheckRecipe(
+        name="data bus bandwidth", validator="bus_bandwidth", trigger="bus.sample_rate",
+        inputs={
+            "n_devices": ("bus.n_devices", "1"),
+            "bytes_per_sample": ("bus.bytes_per_sample", "1"),
+            "sample_rate_hz": ("bus.sample_rate", "1/s"),
+            "bus_bitrate_bps": ("bus.bitrate", "1/s"),
+        },
+    ),
+    CheckRecipe(
+        name="data bus poll-cycle latency", validator="bus_latency", trigger="bus.bitrate",
+        inputs={
+            "n_devices": ("bus.n_devices", "1"),
+            "bytes_per_sample": ("bus.bytes_per_sample", "1"),
+            "bus_bitrate_bps": ("bus.bitrate", "1/s"),
+            "control_period_s": ("control.period", "s"),
+        },
+    ),
 ]
 
 

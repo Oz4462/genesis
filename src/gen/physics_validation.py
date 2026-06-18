@@ -77,6 +77,7 @@ from .compute import (
     inference_latency_check,
     inference_power_check,
 )
+from .digital_bus import bus_bandwidth_check, bus_latency_check
 
 # Registry of validators the gate can run. Each is a *_check function returning a dict
 # that contains at least an "ok" bool (and usually a "safety_factor"). The key is the
@@ -121,6 +122,8 @@ VALIDATORS = {
     "compute_budget": compute_budget_check,
     "inference_power": inference_power_check,
     "inference_latency": inference_latency_check,
+    "bus_bandwidth": bus_bandwidth_check,
+    "bus_latency": bus_latency_check,
 }
 
 
