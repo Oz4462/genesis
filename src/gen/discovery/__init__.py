@@ -96,6 +96,8 @@ __all__ = [
     "evaluate_rival",
     "propose_resolution",
     "DecisionSpec",
+    "discover_correction",
+    "CompositionResult",
 ]
 
 
@@ -197,6 +199,11 @@ def __getattr__(name: str):
     if name in ("propose_resolution", "DecisionSpec"):
         from . import active_resolution as _m
         for n in ("propose_resolution", "DecisionSpec"):
+            globals()[n] = getattr(_m, n)
+        return globals()[name]
+    if name in ("discover_correction", "CompositionResult"):
+        from . import composition as _m
+        for n in ("discover_correction", "CompositionResult"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

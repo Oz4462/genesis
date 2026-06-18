@@ -52,18 +52,18 @@ dimensionale symbolische Regression (Buckingham-π) → `discover_new_formulas` 
 Graph → Tournament → Rediscovery-Benchmark, plus Deep-Controller, Physics-Surrogat,
 Grok-Symbiose (Model **`grok-build`**, live bewiesen), Reality Fork, Cosmic Insight,
 Assumption Annihilator, First-Principles-Beweisbäume, Out-of-Sample, Universe Bridge.
-17 Module, 93 Discovery-Tests; `rediscovery_benchmark()` 100 %/100 %; jede Tour
+18 Module, 100 Discovery-Tests; `rediscovery_benchmark()` 100 %/100 %; jede Tour
 cross-model-drift-geprüft mit grok-build; **kein Trading/ASYA/MT5**. Status-Karte:
-`docs/discovery/STATUS.md`. **Frontier 6.1–6.4 gebaut**: 6.1/6.2 `multiterm.py` (additive
-Gesetze + Out-of-Sample-Validierung, fängt Overfit UND Over-Pruning); 6.3 `transcendental.py`
-(`y = C·f(α·π)+D` über dimensionslose π-Gruppe `A·p=0`, scipy-Fit, Power-Law-Rivale-Gate);
-**6.4 `active_resolution.py`** (der aktive Zug nach `unentschieden` — `propose_resolution`
-berechnet die diskriminierende Messung, die zwei gleich-gut-passende Rivalen trennt: begrenzte
-Divergenz-Region f≤3, Spread-Punkte gegen den Shape, ehrliches `discriminating=False`-Gate;
-Akzeptanztest = Flip von `unentschieden`→`bestaetigt` nach Augmentation; mit grok-build in einer
-Q&A-Runde als stärkster USP-Hebel erarbeitet). grok-build je Tour 0 Math-Fehler. **Wissensbasis-
-Feature (CODATA/DLMF/Wikidata) integriert** (`69c43b3`). Offene Forschungs-Frontier: Minimal-
-Correction bei Komposition + GP-Suche. Volle Suite offline **1322 passed / 0 failed / 19 skipped**.
+`docs/discovery/STATUS.md`. **Frontier 6.1–6.5 gebaut**: 6.1/6.2 `multiterm.py` (additive
+Gesetze + Out-of-Sample-Validierung); 6.3 `transcendental.py` (`y = C·f(α·π)+D` über π-Gruppe
+`A·p=0`, scipy-Fit, Power-Law-Rivale-Gate); **6.4 `active_resolution.py`** (aktiver Zug nach
+`unentschieden` — diskriminierende Messung, die zwei Rivalen trennt; Akzeptanztest = Flip);
+**6.5 `composition.py`** (Minimal-Correction bei Komposition — dimensionale SR auf das signierte
+Residuum `y−y_base`, Gate `residual_explained≥0.9` ∧ `ΔR²>1e-3` ∧ Leave-One-Out → keine
+Korrektur aus Rauschen; Kopplung `x+½k·x²`→findet exakt `0.5·x²·k`). 6.4 + 6.5 in einer Q&A-Runde
+MIT grok-build als die 2 stärksten USP-Hebel erarbeitet. grok-build je Tour 0 Math-Fehler.
+**Wissensbasis-Feature (CODATA/DLMF/Wikidata) integriert** (`69c43b3`). Offene Frontier:
+multiplikative/transzendente Kopplungen + GP-Suche. Volle Suite offline **1329 passed / 0 failed / 19 skipped**.
 
 ---
 

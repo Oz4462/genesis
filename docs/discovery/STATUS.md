@@ -160,17 +160,35 @@
   experimental design" → „im Geist, kein formales Fisher-Design" entschärft, `None`-Rivale → klarer
   `ValueError` statt `AttributeError` (+Test). Selbst nachkontrolliert + gefixt.
 
-## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1–6.4
+- **Tour 6.5 — Minimal-Correction bei Komposition** (`composition.py`, die ZWEITE komplementäre
+  Fähigkeit aus der grok-Q&A-Runde): „**Gilt die naive Superposition gequellter Gesetze — und wenn
+  nicht, was ist die kleinste Korrektur?**". `discover_correction(problem, baseline_prediction)` bildet
+  das Residuum `r = y − y_base` und fährt dimensionale SR **nur auf r**. Kernpunkt: r ist
+  **vorzeichenbehaftet**, ein Power-Law-Term ein positives Monom → Fit `r ≈ Σ Cᵢ·termᵢ` mit dem
+  Vorzeichen in den linearen lstsq-Koeffizienten, jeder Term dimensional konsistent mit r (= Ziel-Dim,
+  via `A·p=b`; Reuse der `multiterm`-Internas). **Ehrliches Gate (δ-Asymmetrie, eine Korrektur ist ein
+  CLAIM):** `korrektur_noetig` nur wenn `residual_explained ≥ 0.9` UND `corrected−baseline > 1e-3` UND
+  die Korrektur **Leave-One-Out überlebt** (`loo_r2 ≥ 0.5` — strukturiertes Rauschen, das die
+  In-Sample-Bar streift, kollabiert out-of-fold) — sonst `vollstaendig` (KEINE Korrektur behauptet,
+  *innerhalb* der additiven Monom-Basis). **Live + 7 Tests grün:** Kopplung `y = x + ½·k·x²`,
+  baseline `x` → findet **exakt `Korrektur = 0.5·x²·k`** (baseline-R²=0.16 → corrected-R²=1.0,
+  residual_explained=1.0, LOO-R²>0.99); baseline==y → `vollstaendig`; Rauschen → `vollstaendig`
+  (residual_explained=0.21 < 0.9). `relative_correction` = RMS-Anteil → „Superposition gilt bis ~X %".
+- **Cross-Model-Drift-Check (grok-build):** „KEIN DRIFT" (signierter Residuen-Fit + Gate „mathematisch
+  solide", dokumentierte Grenze „ehrlich und nicht übertrieben"). Empfehlung „OOS rein + Verdikt-Semantik
+  schärfen" → umgesetzt: **Leave-One-Out als dritte Gate-Bedingung** ergänzt (+Test) und Docstring
+  präzisiert (`vollstaendig` = „keine Korrektur in der additiven Basis", NICHT „physikalisch vollständig").
+
+## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1–6.5
 
 Der gesamte Mehr-Wochen-Plan aus `GROK_BUILD_GENESIS_UNIVERSE_EXPLORER.md` ist gebaut, getestet,
-grok-build-drift-geprüft und committet (lokal, kein Push). **93 Discovery-Tests** über 17 Module;
-`rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Mit Frontier 6.1–6.4 sind nun
-**Summen mehrerer dimensional-gültiger Terme** (inkl. Out-of-Sample-Validierung), **transzendente
-Formen** (exp/log/sin/tanh einer dimensionslosen π-Gruppe, mit Power-Law-Rivale-Gate) UND die
-**Active Resolution of Uncertainty** (aktiver nächster Zug nach `unentschieden` — die diskriminierende
-Messung, die den Gleichstand bricht) abgedeckt. Ehrliche verbleibende Grenze (keine Phase, sondern
-Forschungs-Frontier): Minimal-Correction-Discovery bei Komposition (Residuen-SR auf 2 gequellte δ-Gesetze),
-Produkte/Kompositionen von Transzendenten, volle GP/symbolische Suche jenseits dieser Familie.
+grok-build-drift-geprüft und committet (lokal, kein Push). **100 Discovery-Tests** über 18 Module;
+`rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Mit Frontier 6.1–6.5 sind nun
+**Summen mehrerer dimensional-gültiger Terme** (inkl. OOS), **transzendente Formen**, die **Active
+Resolution of Uncertainty** UND **Minimal-Correction bei Komposition** (Residuen-SR auf gequellte
+Gesetze, signed lstsq + strenges Gate `residual_explained≥0.9` ∧ `ΔR²>1e-3` ∧ Leave-One-Out) abgedeckt.
+Volle Offline-Suite **1329 passed / 0 failed / 19 skipped**. Ehrliche verbleibende Grenze:
+multiplikative/transzendente Kopplungen, Produkte/Kompositionen von Transzendenten, volle GP-Suche.
 
 ## Drift-Kontroll-Protokoll (jede Tour)
 
