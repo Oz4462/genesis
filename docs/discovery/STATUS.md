@@ -14,7 +14,7 @@
 | **0 — Setup** | Grok-Drift-Harness (`scripts/grok_review.sh`), README-Sektion, Trading-Scrub (Code ZERO), Status-Docs | `[GEBAUT]` |
 | **2 — Deep Controller + Surrogat** | `controller.py` (Budget/Tiefe/Checkpoint), `surrogate.py` (Vorfilter, bestätigt nie) | `[GEBAUT]` (`10aa897`, `904092c`) |
 | **3 — Grok-Symbiose + Reality Fork** | `symbiosis.py` (Grok=Breite, GENESIS=Verifikation), `reality_fork.py` (counterfactual Welten) | `[GEBAUT]` (`ca8c83c`, `3c76c35`) |
-| **4 — Radikal-Features + Live-Test** | `cosmic_insight.py`, `assumption_annihilator.py`, `first_principles.py`, Out-of-Sample-Benchmark | `[DESIGN]` |
+| **4 — Radikal-Features + Live-Test** | `cosmic_insight.py`, `assumption_annihilator.py`, `first_principles.py`, `validation.py` (Out-of-Sample) | `[GEBAUT]` (`40c3acf`,`fa4f284`,`6cfcb31`,`adaa2ca`) |
 | **5 — Universe Bridge** | `universe_bridge.py` (Adapter zu externen Simulatoren, bewusst zuletzt) | `[DESIGN]` |
 
 ## Phase 1 — gemessene Evidenz
@@ -52,6 +52,24 @@
 - **Cross-Model-Drift-Check (grok-build):** „KEIN DRIFT" auf alle Symbiose- + Reality-Fork-Claims;
   Grok verifizierte die Gauss/Orbital-Physik unabhängig; fand eine Doc-Überziehung (3D-Basis) → gefixt.
 - Volle Offline-Suite nach Phase 3: **1253 passed / 0 failed / 19 skipped**.
+
+## Phase 4 — gemessene Evidenz
+
+- **Cosmic Insight** (`cosmic_insight.py`, Tour 4.1): Struktur-Signatur (Exponenten-Multiset) findet
+  Cross-Domain-Analogien über den Graph — Newton-Gravitation ~ Coulomb (beide (-2,1,1,1)); proposiert
+  nur, bestätigt nie; Kepler-Shape matcht Newton nicht (kein falscher Bridge). 5 Tests.
+- **Assumption Annihilator** (`assumption_annihilator.py`, Tour 4.2): Konstante→Variable + Law Rebuilder;
+  **δ-Asymmetrie nicht optional** (δ=0.8 → grosse Beweis-Schranke), marginale Verbesserung wird nie als
+  Entdeckung akzeptiert (Guardrail gegen Halluzination). 4 Tests.
+- **First-Principles** (`first_principles.py`, Tour 4.3): Ableitung aus Axiomen, jeder Schritt durch
+  gate_c6 (`verification.derivation`) nachgerechnet → Beweis-Baum; manipulierter Schritt gefangen;
+  bounded Ableitungs-Suche. 6 Tests.
+- **Out-of-Sample** (`validation.py`, Tour 4.4): Train/Held-out-Split, Gesetz auf Train gefittet + ohne
+  Refit auf Held-out gescort → echtes Gesetz generalisiert, Rauschen nicht (anti-p-hacking, kein Leak).
+  Pendulum (T=2π·L^½·g^−½) zum Benchmark ergänzt. 4 Tests.
+- **Cross-Model-Drift-Check (grok-build):** „KEIN DRIFT" auf alle Phase-4-Claims; Grok verifizierte
+  Physik (Gauss/Orbital) + Statistik (kein OOS-Leak) selbst; fixte 1 Prosa-Überclaim (δ-Wording).
+- Volle Offline-Suite nach Phase 4: **1272 passed / 0 failed / 19 skipped**.
 
 ## Drift-Kontroll-Protokoll (jede Tour)
 
