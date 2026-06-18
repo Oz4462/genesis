@@ -29,9 +29,18 @@ def __getattr__(name: str):
     # Math-research branch (lazy: pulls sympy/mpmath; keep `import gen` light).
     if name in ("assess_identity", "assess_inequality", "explore_family", "run_identity_research",
                 "AssumptionManifest", "IdentityArtifact", "NoveltyIndex", "OnlineNoveltyBackend",
-                "ConjectureTemplate"):
+                "ConjectureTemplate", "load_exact_physical_anchors", "scipy_special_eval", "verify_formula_numeric"):
         from . import identity_research as _ir
         return getattr(_ir, name)
+
+    # Formula / authoritative constants (lazy: pulls codata + registry + dlmf, no heavy deps at import time)
+    if name in ("PhysicalConstant", "load_codata_constants", "get_constant",
+                "codata_table_source_ref", "make_codata_constant_claim", "content_hash_of",
+                "DlmfEntry", "fetch_dlmf_entry", "dlmf_source_ref", "load_curated_dlmf",
+                "WikidataLawHit", "search_physical_law", "get_formula_for", "sparql_query",
+                "FormulaRecord", "FormulaRegistry"):
+        from . import formulas as _f
+        return getattr(_f, name)
     if name in ("autonomous_stage", "promote_to_established", "PromotionLedger"):
         from . import research_promotion as _rp
         return getattr(_rp, name)

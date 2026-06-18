@@ -47,6 +47,7 @@ from ..core.state import (
     Step,
     ValueOrigin,
 )
+from ..formulas.registry import FormulaRegistry
 from ..llm.base import LLMClient
 from ..llm.parsing import extract_json
 from ..verification.derivation import DEFAULT_TOLERANCE, topological_values
@@ -369,6 +370,20 @@ class Architect:
                         f"architect: ignoring LLM-supplied value for derived {qid!r} "
                         "— code computes it"
                     )
+
+                # Formula-aware wiring: consult registry for known/standard formulas
+                try:
+                    reg = FormulaRegistry()
+                    for known_name in reg.list_names():
+                        rec = reg.get(known_name)
+                        if rec.expr and rec.expr.lower() in formula.lower():
+                            # Prefer registered verified form + note source
+                            formula = rec.expr
+                            log(f"architect: using registered formula from registry for {qid!r} (source: {rec.sources})")
+                            break
+                except Exception:
+                    pass
+
                 derived_pending[qid] = (
                     name, unit, Derivation(formula=formula, inputs=inputs),
                     _parse_measurand(item, qid, log),

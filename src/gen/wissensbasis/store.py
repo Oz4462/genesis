@@ -34,6 +34,13 @@ try:
 except Exception:  # noqa: BLE001
     bio_molecular = None  # type: ignore[assignment]
 
+# Formula / Law support (Phase 1+)
+# Allows persisting FormulaRecord (from codata/dlmf/wikidata + verified) with provenance.
+try:
+    from ..formulas.registry import FormulaRecord
+except Exception:  # noqa: BLE001
+    FormulaRecord = None  # type: ignore[assignment]
+
 
 @dataclass(frozen=True)
 class ProvenanceRecord:
@@ -81,6 +88,22 @@ class FragmentStore:
         self._cache[key] = data
         path = self._get_path(key)
         path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    def save_formula(self, key: str, rec: "FormulaRecord", provenance: ProvenanceRecord):
+        """Persist a verified FormulaRecord (CODATA/DLMF/Wikidata etc.) with provenance.
+        The record can later be turned into Ledger Claims.
+        """
+        if FormulaRecord is not None and not isinstance(rec, FormulaRecord):
+            # allow dict or plain for flexibility
+            if isinstance(rec, dict):
+                rec = FormulaRecord(**rec)
+        data = {
+            "data": asdict(rec) if hasattr(rec, "__dataclass_fields__") else rec,
+            "provenance": asdict(provenance),
+            "type": "FormulaRecord",
+        }
+        self._cache[key] = data
+        self._get_path(key).write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
     def load(self, key: str) -> Optional[dict[str, Any]]:
         """Lädt rohe Daten + Provenance. Gibt None wenn nicht vorhanden."""

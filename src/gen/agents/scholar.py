@@ -16,9 +16,12 @@ import unicodedata
 from ..core.errors import LLMOutputError
 from ..core.interfaces import LedgerStore
 from ..core.state import Claim, ClaimStatus, RunState
+from ..formulas.registry import FormulaRecord, FormulaRegistry
 from ..llm.base import LLMClient
 from ..llm.parsing import extract_json
 from ..tools.fetch import WebFetchTool, readable_text
+from ..tools.codata import load_codata_constants, make_codata_constant_claim
+from ..tools.dlmf import fetch_dlmf_entry, dlmf_latex_to_sympy, dlmf_source_ref
 
 _SYSTEM = (
     "You extract ATOMIC factual claims from a SOURCE TEXT that help answer a "
@@ -133,6 +136,57 @@ class Scholar:
 
             # Clean prose once; the model and the quote guard must see the SAME text.
             content = readable_text(result.content)
+
+            # === Formula-aware special path (full wiring) ===
+            # For DLMF / CODATA / authoritative formula sources we bypass or augment
+            # LLM extraction with deterministic, sourced formula registration + Claims.
+            # This ensures exact formulas + provenance enter the Ledger and Registry.
+            if any(k in cand.url_or_id for k in ("dlmf.nist.gov", "physics.nist.gov/cuu", "/constants", "codata")):
+                try:
+                    reg = FormulaRegistry()
+                    formula_claims = []
+                    if "dlmf.nist.gov" in cand.url_or_id:
+                        import re
+                        m = re.search(r"(\d+\.\d+\.E\d+)", cand.url_or_id + "/" + (cand.title or ""))
+                        if m:
+                            entry = fetch_dlmf_entry(m.group(1))
+                            expr = dlmf_latex_to_sympy(entry.latex)
+                            rec_id = f"dlmf:{m.group(1)}"
+                            rec = FormulaRecord(record_id=rec_id, kind="identity", name=f"DLMF {m.group(1)}",
+                                                expr=str(expr) if not isinstance(expr, str) else expr,
+                                                sources=(entry.source,))
+                            reg.register(rec)
+                            formula_claims.append(Claim(
+                                id=claim_id(run_id, cand.url_or_id, f"DLMF-{m.group(1)}"),
+                                text=f"Die Formeldefinition aus NIST DLMF {m.group(1)} ist: {entry.latex[:120]}",
+                                sources=[result.to_source_ref(span=entry.identifier)],
+                                quote=entry.latex[:80],
+                                status=ClaimStatus.UNVERIFIED,
+                                produced_by=self.name + "+dlmf",
+                            ))
+                    else:
+                        # CODATA table or constants page -> register key constants
+                        raw = content
+                        consts = load_codata_constants(raw_text=raw if "Quantity" in raw else None)
+                        for name in ["elementary_charge", "planck_constant", "speed_of_light_in_vacuum", "boltzmann_constant"]:
+                            if name in consts:
+                                c = consts[name]
+                                try:
+                                    cl = make_codata_constant_claim(c, raw or "CODATA-2022")
+                                    formula_claims.append(cl)
+                                    rec = FormulaRecord(record_id=f"codata:{name}", kind="constant",
+                                                        name=name, expr=str(c.value), unit=c.unit,
+                                                        sources=(c.source,))
+                                    reg.register(rec)
+                                except Exception:
+                                    pass
+                    if formula_claims:
+                        # add to ledger and state, then continue (still allow LLM for surrounding facts)
+                        await self._ledger.add_claims(run_id, formula_claims)
+                        state.claims.extend(formula_claims)
+                        state.log.append(f"scholar: formula-aware registered {len(formula_claims)} claims from {cand.url_or_id}")
+                except Exception as exc:  # noqa: BLE001
+                    state.log.append(f"scholar: formula path error for {cand.url_or_id}: {exc}")
 
             try:
                 items = await self._extract(state.question.raw, content)

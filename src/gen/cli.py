@@ -41,6 +41,7 @@ from .export.openscad import specification_to_openscad
 from .export.stl import specification_to_stl
 from .runner import Dependencies, run, run_solution, run_specification
 from .tools.http import HttpResponse, default_http_get
+from .tools.formula_backend import FormulaBackend
 from .tools.search import SemanticScholarBackend, WikipediaBackend
 from .verification.cross_model import assert_different_families
 from .verification.gates import (
@@ -347,6 +348,7 @@ def build_live(generator: str, verifier: str) -> tuple[Dependencies, Config]:
         backends=[
             WikipediaBackend(default_http_get),
             SemanticScholarBackend(default_http_get),
+            FormulaBackend(default_http_get),   # formula-aware: DLMF, CODATA, authoritative laws
         ],
         http_get=default_http_get,
         generator_llm=make_llm(generator),

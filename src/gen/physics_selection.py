@@ -36,6 +36,13 @@ from .core.interfaces import GateResult
 from .physics_validation import PhysicsCheck, gate_delta_physics
 from .verification.units import parse_unit, unit_scale
 
+# Phase 1+ integration point:
+# Standard closed-form expressions for many recipes live in the FormulaRegistry.
+# Use `from gen.formulas import FormulaRegistry` to look up provenance-backed
+# expressions for a given trigger (e.g. for "column buckling" use Euler formula
+# registered from CODATA/DLMF + verified).
+# This does not change numeric evaluation — it adds source traceability.
+
 
 @dataclass(frozen=True)
 class CheckRecipe:
