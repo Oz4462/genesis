@@ -46,6 +46,20 @@ tests/                    Tests, inkl. Gate-Akzeptanztests
 ```
 
 ## Aktueller Fokus
+**Universe Explorer (`src/gen/discovery/`) KOMPLETT (2026-06-18)** — der ehrliche
+Formel-Entdeckungs-Arm aus `GROK_BUILD_GENESIS_UNIVERSE_EXPLORER.md` ist voll gebaut:
+dimensionale symbolische Regression (Buckingham-π) → `discover_new_formulas` → Discovery
+Graph → Tournament → Rediscovery-Benchmark, plus Deep-Controller, Physics-Surrogat,
+Grok-Symbiose (Model **`grok-build`**, live bewiesen), Reality Fork, Cosmic Insight,
+Assumption Annihilator, First-Principles-Beweisbäume, Out-of-Sample, Universe Bridge.
+14 Module, 65 Discovery-Tests; `rediscovery_benchmark()` 100 %/100 %; jede Tour
+cross-model-drift-geprüft mit grok-build; **kein Trading/ASYA/MT5**. Status-Karte:
+`docs/discovery/STATUS.md`. Offene Forschungs-Frontier (kein Bauauftrag): additive
+Mehr-Term-/transzendente/GP-Suche jenseits der Power-Law-Familie. Volle Suite offline
+**1278 passed / 0 failed / 19 skipped**.
+
+---
+
 **Phase α + β + γ abgeschlossen + δ voll ausgebaut + Quality-Engine verdrahtet**
 (881 Tests offline mit vollen Deps / 835+19 skipped ohne; α/β live bewiesen).
 Live-Default-Verdrahtung (2026-06-12): Generator `qwen3.5:9b` + Verifier

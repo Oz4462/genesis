@@ -7482,3 +7482,41 @@ Bereit für nächste grosse Idee oder weitere Nachverfolgung.
 **Ehrlicher Befund (DEFERRED, geflaggt):** `export_placement_to_kicad_pcb` (separate PCB-Export-Funktion, NICHT der Schematic-Stub dieses Steins) hat eigene Bugs (rot_deg-Tupel statt Skalar, legacy `(module)`-Syntax statt `(footprint)`, kein `_esc`, `zip`-by-order-Truncation) â€” out-of-scope, ungegatet â†’ eigener Follow-up.
 
 **TEIL 2 KOMPLETT:** alle 6 CAD-Fertigungs-Steine (CNC/Laser/PCB-DFM + Kostenmodell + G-Code + KiCad) von Stub zu echt+verifiziert+gequellt, je Cross-Model-konvergiert, committet (kein Push).
+
+
+---
+
+## 2026-06-18 â€” GENESIS Universe Explorer (src/gen/discovery/) KOMPLETT
+
+Umsetzung des gesamten `GROK_BUILD_GENESIS_UNIVERSE_EXPLORER.md`-Plans (Phase 1-5 + alle
+Radikal-Features 4.1-4.7) als neues Subpackage `src/gen/discovery/`. 16 Commits 65a7262->0f6d0cc,
+lokal, kein Push. Branch feat/app-integration-phase0-2.
+
+**Was gebaut (14 Module, 65 Tests):**
+- Kern-Loop: engine.py (dimensionale symbolische Regression, Buckingham-pi/AI-Feynman -> Exponenten
+  aus Einheiten, Fit nur des Koeffizienten), discover_new_formulas (Anhang B), graph.py (Discovery
+  Graph, Anhang-C, Dedup), tournament.py (Evolution im Null-Raum), benchmark.py (Rediscovery+Red-Team), run.py.
+- Phase 2: controller.py (Budget/Tiefe/Checkpoint-Resume, DoD resume==ununterbrochen), surrogate.py
+  (Sub-Sample-Vorfilter, bestaetigt NIE - Gate entscheidet).
+- Phase 3: symbiosis.py (Grok=Breite/GENESIS=Verifikation, GrokProposer model=grok-build, jeder
+  Vorschlag gegated, Fallback ohne Grok; LIVE bewiesen), reality_fork.py (Gauss-Dimensions-Fork r^-(D-1)).
+- Phase 4: cosmic_insight.py (Cross-Domain-Analogien per Exponenten-Shape, Newton~Coulomb),
+  assumption_annihilator.py (Konstante->Variable, delta=0.8 Guardrail), first_principles.py (Beweis-
+  Baeume, jeder Schritt gate_c6-nachgerechnet), validation.py (Out-of-Sample gegen p-hacking).
+- Phase 5: universe_bridge.py (Adapter via typing.Protocol SimulatorBackend, simulate->discover->gate,
+  In-Process-Referenz-Backend beweist Interface, externe HPC = Drop-in).
+
+**Evidenz:** rediscovery_benchmark() = 100%/100% (Kepler/Gas/Newton/Pendel rediscovered, Red-Team
+gefangen); Kepler kommt als T=6.28319*a^3/2*mu^-1/2 (C/2pi=1.0, R2=1.0); volle Offline-Suite
+1278 passed / 0 failed / 19 skipped.
+
+**Methode:** pro Tour TDD -> Suite -> Cross-Model-Drift-Check via scripts/grok_review.sh (Model
+grok-build, andere Modellfamilie) -> Commit. Grok durchweg "KEIN DRIFT", verifizierte Physik
+(Gauss/Orbital-Stabilitaet) + Statistik (kein OOS-Leak) selbst, fing 6 echte Mini-Ueberclaims
+(selbst nachkontrolliert + gefixt). Harte Invariante eingehalten: KEIN Trading/ASYA/MT5/Forex
+irgendwo (src/gen grep = 0); deterministisch + offline + numpy/sympy-only; jede faktische
+Behauptung gegated; delta-Asymmetrie auf eigene Claims; ehrliche [GEBAUT]/[DESIGN]-Tags.
+
+**Ehrliche verbleibende Grenze (Forschungs-Frontier, kein Bauauftrag):** Summen mehrerer Terme,
+transzendente Formen, volle GP/symbolische Suche jenseits der Power-Law/pi-Gruppen-Familie.
+Status-Karte: docs/discovery/STATUS.md.
