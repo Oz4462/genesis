@@ -44,6 +44,11 @@ __all__ = [
     "prefilter",
     "discover_prefiltered",
     "SurrogateRanking",
+    "symbiosis_discover",
+    "GrokProposer",
+    "Proposal",
+    "JudgedProposal",
+    "SymbiosisResult",
     "rediscovery_benchmark",
     "BenchmarkCase",
     "kepler_case",
@@ -70,6 +75,11 @@ def __getattr__(name: str):
     if name in ("surrogate_score", "prefilter", "discover_prefiltered", "SurrogateRanking"):
         from . import surrogate as _m
         for n in ("surrogate_score", "prefilter", "discover_prefiltered", "SurrogateRanking"):
+            globals()[n] = getattr(_m, n)
+        return globals()[name]
+    if name in ("symbiosis_discover", "GrokProposer", "Proposal", "JudgedProposal", "SymbiosisResult"):
+        from . import symbiosis as _m
+        for n in ("symbiosis_discover", "GrokProposer", "Proposal", "JudgedProposal", "SymbiosisResult"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     if name in ("DiscoveryGraph", "GraphNode"):
