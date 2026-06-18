@@ -61,6 +61,11 @@ __all__ = [
     "CrossDomainHypothesis",
     "annihilate_constant",
     "AnnihilationResult",
+    "Axiom",
+    "ProofStep",
+    "ProofTree",
+    "verify_proof",
+    "derive",
     "rediscovery_benchmark",
     "BenchmarkCase",
     "kepler_case",
@@ -112,6 +117,11 @@ def __getattr__(name: str):
         from . import assumption_annihilator as _m
         globals()["annihilate_constant"] = _m.annihilate_constant
         globals()["AnnihilationResult"] = _m.AnnihilationResult
+        return globals()[name]
+    if name in ("Axiom", "ProofStep", "ProofTree", "verify_proof", "derive"):
+        from . import first_principles as _m
+        for n in ("Axiom", "ProofStep", "ProofTree", "verify_proof", "derive"):
+            globals()[n] = getattr(_m, n)
         return globals()[name]
     if name in ("DiscoveryGraph", "GraphNode"):
         from . import graph as _m
