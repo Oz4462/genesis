@@ -800,41 +800,34 @@ def electronics_to_thermal_loads(sim_result: ElectronicsSimulationResult) -> dic
 
 
 def generate_kicad_netlist(netlist: Netlist, components: list[Component]) -> str:
-    """Export standard-ish KiCad .net (or simple netlist text) for import into KiCad/Eeschema.
-    Uses pin names and nets from the rich layer. Pure text, deterministic.
-    """
-    lines = ["(export (version \"D\")", "  (design", "    (source \"genesis_electronics\")", "  )", "  (components"]
-    for c in components:
-        lines.append(f"    (comp (ref \"{c.id}\") (value \"{c.name}\") (footprint \"{c.package or 'generic'}\"))")
-    lines.append("  )")
-    lines.append("  (nets")
-    for i, n in enumerate(netlist.nets):
-        # Net.pins holds "{part}.{name}" string references (core.state.Net)
-        pin_nodes = []
-        for p in n.pins:
-            part, _, pin_name = p.partition(".")
-            pin_nodes.append(f"(node (ref \"{part}\") (pin \"{pin_name}\"))")
-        pins = " ".join(pin_nodes)
-        lines.append(f"    (net (code {i+1}) (name \"{n.name}\") {pins})")
-    lines.append("  )")
-    lines.append(")")
-    return "\n".join(lines)
+    """Export a complete, valid KiCad .net (S-expression) for import into KiCad /
+    Pcbnew. Delegates to the hardened, verifiable cad.kicad exporter (escaped
+    strings, every component, no dangling node — see cad.kicad.verify_kicad_netlist).
+    Deterministic. Verification is a GATE: the export is verified before return and a
+    structurally invalid / incomplete netlist fails loud (better than persisting a
+    broken KiCad file)."""
+    from gen.cad.kicad import to_kicad_netlist, verify_kicad_netlist
+    text = to_kicad_netlist(netlist, components)
+    check = verify_kicad_netlist(text, components=components, netlist=netlist)
+    if not check.ok:
+        raise ValueError(f"generate_kicad_netlist: invalid/incomplete export: {check.issues}")
+    return text
 
 
 def generate_kicad_schematic_stub(components: list[Component], netlist: Netlist) -> str:
-    """Minimal KiCad .kicad_sch S-expression stub with symbols and wires.
-    Enough for import / visual check; full symbols would come from KiCad libs.
-    """
-    lines = [
-        "(kicad_sch (version 20231120) (generator \"genesis\")",
-        "  (uuid genesis-elec-sch)",
-        "  (paper \"A4\")",
-    ]
-    for c in components[:8]:  # limit for stub size
-        lines.append(f"  (symbol (lib_id \"{c.kind or 'Device'}:R\") (at 0 0 0) (unit 1) (uuid {c.id}) (property (key \"Reference\") (value \"{c.id}\"))) ")
-    lines.append("  (sheet_instances (path \"/\" (page \"1\")))")
-    lines.append(")")
-    return "\n".join(lines)
+    """Export an honest KiCad .kicad_sch SKELETON via the hardened cad.kicad exporter:
+    ALL components (no silent [:8] truncation), GRID-placed (no all-at-origin
+    overlap), kind-appropriate generic symbols, connectivity via per-net global
+    labels. The symbol graphics resolve from KiCad's libraries on import — a declared
+    gap; this is a valid, complete-in-content skeleton, not a routed drawing.
+    Verification is a GATE: the skeleton is verified (all components present, distinct
+    positions, one label per net) before return."""
+    from gen.cad.kicad import to_kicad_schematic, verify_kicad_schematic
+    text = to_kicad_schematic(components, netlist)
+    check = verify_kicad_schematic(text, components=components, netlist=netlist)
+    if not check.ok:
+        raise ValueError(f"generate_kicad_schematic_stub: invalid skeleton: {check.issues}")
+    return text
 
 
 def export_placement_to_kicad_pcb(placements: list[PlacementHint], components: list[Component]) -> str:

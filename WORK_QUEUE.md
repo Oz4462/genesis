@@ -201,7 +201,16 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
     Report trägt verifiziertes `gcode_program` (echte bbox); fertigungs-`datei_stub` ehrlich (FDM-Print=Slicer-Gap).
     Verifier NON-VACUOUS (bewiesen). Grok 3 Runden (10+2 Lücken, eigene Regression selbst gefangen), 6+1 Tests,
     volle Suite 1226 grün. Nur 2,5D-Kontur; Pockets/3D/Slicing = Gaps. BUILD_LOG dok.
-  - [ ] Stein 6 KiCad-Adapter real (statt `generate_kicad_schematic_stub`, `electronics.py:824`).
+  - [x] **Stein 6 KiCad-Adapter (2026-06-18, letzter)**: `generate_kicad_schematic_stub` (droppte `[:8]` still,
+    alle `(at 0 0 0)` überlappend, alle als „R") → echter VERIFIZIERTER Export `cad/kicad.py` (NEU): `to_kicad_netlist()`
+    (komplette valide `.net`, bare `(code N)`, escaped) + `to_kicad_schematic()` (ehrliches Skeleton: alle Komponenten
+    grid + global_labels) + `verify_*()` als **Gate** (electronics-Wrapper raisen on !ok). Verifier NON-VACUOUS
+    (Dropped/Dangling/Floating/malformed/Overlap/Truncation gefangen, escape-aware). Grok 2 Runden (viele Lücken,
+    eigenen Regex-Tupel-Bug gefangen), 8 Tests, volle Suite 1234 grün. Netliste=Import-Pfad; grafischer Schaltplan=Gap.
+    **TEIL 2 KOMPLETT** (alle 6 Steine echt+verifiziert+gequellt). BUILD_LOG dok.
+  - Nebenfund (Stein 6, DEFERRED): `electronics.py:export_placement_to_kicad_pcb` hat eigene Bugs (rot_deg-Tupel statt
+    Skalar, legacy `(module)`-Syntax statt `(footprint)`, kein `_esc`, `zip`-by-order-Truncation) — separate PCB-Export-
+    Funktion, ungegatet → eigener Follow-up (kann `cad/kicad.py`-Härtung + Verifier-Muster nutzen).
   - Nebenfund (Stein 3): `electronics.py:run_internal_drc` nutzt unbelegte Magic-Numbers (`trace_a_per_mm2=12.0`
     Harness-Draht-Stromdichte ≠ PCB-Trace, `min_clearance_mm=0.8`, `max_power_density=2.5`, hardcodierte Board-Fläche
     150cm²) — tiefe Elektronik-DRC, bewusst nicht in Stein 3 angefasst → Review-Schritt 7-9 (electronics/circuit).

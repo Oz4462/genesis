@@ -7456,3 +7456,29 @@ Bereit f�r n�chste grosse Idee oder weitere Nachverfolgung.
 **4 Linsen:** L1 (Struktur gequellt RS-274; Feeds/Speeds als Annahmen markiert, nicht als Fakt); L2 (kein Drift — bestehende DFM/Cost unberührt; fertigungs `datei_stub` ehrlich statt Prosa); L3 (Naht: Report-`gcode_program` + fertigungs-Pointer); L4 (TDD RED→GREEN, Verifier-Non-Vacuity bewiesen, Cross-Model 3 Runden, Regression gefangen).
 
 **Rest-Risiko / ehrlicher Scope:** Nur 2,5D-Außenkontur (Blank-zu-Outline); Pockets/Löcher/echtes 2D-Profil/3D-Toolpaths/FDM-Slicing = deklarierte Gaps (brauchen CAM-Kernel/Slicer). Entry = Straight-Plunge (kein Ramp/Helix). KiCad-Adapter (Stein 6). `run_internal_drc`-Magic-Numbers (Schritt 7-9). FDM-`hole_hint=3.0` Fake (notiert).
+
+
+---
+
+## KiCad-Adapter Stein (Teil 2, Stein 6 — letzter) — 2026-06-18
+
+**Scope:** Den `generate_kicad_schematic_stub` (electronics.py:824) durch echten, VERIFIZIERTEN KiCad-Export ersetzt — schließt Teil 2 (CAD-Fertigungs-Stubs) ab.
+
+**Kerneinsicht:** Der alte Stub hatte echte Honesty-Bugs: `components[:8]` (droppt still alles ab dem 9.), alle Symbole `(at 0 0 0)` (überlappen), alle als „R"-Symbol (falsch je Typ), keine Wires trotz Docstring. Die **Netliste** ist der vollständige, verifizierbare elektrische Interchange (importierbar nach Pcbnew); der grafische Schaltplan mit Symbol-Geometrie/Routing ist genuin ein Gap (braucht KiCad-Symbol-Libs).
+
+**Gebaut**
+- src/gen/cad/kicad.py (NEU): `to_kicad_netlist()` (komplette, escaped, valide KiCad-`.net` S-Expr — alle Komponenten/Netze, bare `(code N)`-Integer) + `to_kicad_schematic()` (ehrliches Skeleton: ALLE Komponenten grid-platziert, kind-passende generische Symbole, Konnektivität via per-Netz global_labels) + `verify_kicad_netlist()`/`verify_kicad_schematic()` als **Gate** (Balanced-Parens string-aware, Header/Sections, jede Komponente präsent=keine Truncation, keine Dangling/Undeklarierten-Nodes, Dup-Refs, 0-Node-Floating-Nets, malformed Pins, distinkte Positionen=kein Overlap, label==net-Count; escape-aware Extraction via `_STR`/`_unesc`).
+- src/gen/electronics.py: `generate_kicad_netlist` + `generate_kicad_schematic_stub` delegieren an die gehärteten Funktionen UND **gaten** (verify + raise ValueError on !ok vor Return — kein stilles kaputtes File).
+- tests/test_kicad.py (NEU, 8): Netliste valide+vollständig; **Verifier NON-VACUOUS** (Dropped/Dangling/Floating/malformed/Overlap/Truncation je gefangen); bare-Code-Integer; escaped-quote-Recovery; Schematic alle-Komponenten-grid + label-Count; Determinismus.
+
+**Research:** KiCad `.net`/`.kicad_sch` S-Expr (export/version/components/nets, comp/ref/value/footprint, net/code/node). Quellen: KiCad-Netlist/Schematic-Format-Doku — 2026-06-18.
+
+**Cross-Model (Grok, Kernprinzip #3):** 2 adversariale Runden + Bestätigung. Grok fing echte Lücken — Verifier nie aufgerufen (Dekoration→Gate); `(code "1")` quoted statt bare-int; Verify akzeptierte 0-Node-Nets/Dup-Refs/leere-Pins; Regex brach bei `"` in id/value; Schematic ignorierte netlist; Import-Fidelity überklaimt. Alle in-scope gefixt; **eigenen Regex-Tupel-Bug selbst+via Grok gefangen** (Position-Regex captured (lib_id,at) → Overlap-False-Negative bei Mixed-Kind → lib_id non-capturing). Konvergenz 0 STILL/0 NEW.
+
+**Checks:** ruff sauber; kicad 8 + elektriker 5 grün; volle Suite **1234 passed / 9 skipped**; injection-safe (S-Expr-Breakout via `_esc` verhindert) + Gate fail-loud (Dangling/Floating→ValueError) evidence-verifiziert.
+
+**4 Linsen:** L1 (Format gequellt RS/KiCad; Import-Fidelity ehrlich gescoped — Netliste=Import-Pfad, Schematic=Content-Skeleton mit Gap); L2 (kein Drift — `generate_kicad_netlist`/`_stub`-Namen + `__all__` erhalten via Delegation); L3 (Naht: electronics produce_all_deep_artifacts gatet jetzt); L4 (TDD RED→GREEN, Verifier-Non-Vacuity bewiesen, Cross-Model, Regression gefangen).
+
+**Ehrlicher Befund (DEFERRED, geflaggt):** `export_placement_to_kicad_pcb` (separate PCB-Export-Funktion, NICHT der Schematic-Stub dieses Steins) hat eigene Bugs (rot_deg-Tupel statt Skalar, legacy `(module)`-Syntax statt `(footprint)`, kein `_esc`, `zip`-by-order-Truncation) — out-of-scope, ungegatet → eigener Follow-up.
+
+**TEIL 2 KOMPLETT:** alle 6 CAD-Fertigungs-Steine (CNC/Laser/PCB-DFM + Kostenmodell + G-Code + KiCad) von Stub zu echt+verifiziert+gequellt, je Cross-Model-konvergiert, committet (kein Push).
