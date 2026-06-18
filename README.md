@@ -7,7 +7,7 @@
 > Open-Source-Infrastruktur, damit Menschen — privat wie Unternehmen — aus einer kleinen Idee etwas Vollständiges erschaffen können: mit Quellen statt Behauptungen, mit nachgerechneter Physik statt geratener Zahlen, und mit ehrlichen Lücken statt erfundener Antworten.
 
 ```
-1278 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
+1287 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
 ```
 
 ---
@@ -169,6 +169,7 @@ Der **Erkundungs-Arm**: ein Mensch (oder ein Vorschlags-Modell) gibt eine Idee +
 | **Discovery Graph** (`discovery/graph.py`) | Versioniertes Langzeitgedächtnis (Anhang-C-Schema), per Dimensions-Fingerprint dedupliziert → verhindert doppelte Neu-Entdeckung | `[GEBAUT]` |
 | **Tournament** (`discovery/tournament.py`) | Populations-Evolution im Null-Raum der Dimensions-Constraints; schlägt Single-Shot bei freien π-Gruppen messbar | `[GEBAUT]` |
 | **Benchmark + Red-Team** (`discovery/benchmark.py`) | Rediscovery bekannter Gesetze aus Daten; falsche Ideen werden verworfen | `[GEBAUT]` |
+| **Mehr-Term** (`discovery/multiterm.py`) | Additive Gesetze `y = Σ Cᵢ·termᵢ (+ Intercept)`; jeder Term dimensional gültig (`A·p=b`), Parsimonie + Pruning gegen Overfit | `[GEBAUT]` |
 
 **Gemessener Beweis:** `rediscovery_benchmark()` = **100 % Rediscovery, 100 % Red-Team-Catch**. Kepler kommt als `T = 6.28319 · a^(3/2) · μ^(-1/2)` heraus (C/2π = 1.0, R² = 1.0); ideales Gasgesetz und Newton-Gravitation ebenso; dimensional unmögliche und „verlockend-aber-falsche" Ideen werden korrekt nicht bestätigt.
 
@@ -183,9 +184,9 @@ result, graph = discover(DiscoveryProblem(
 print(result.validated[0].candidate.expression)  # T = 6.28319 * a^3/2 * mu^-1/2
 ```
 
-**Komplett gebaut (Phase 2–5, der ganze Mehr-Wochen-Plan):** Deep-Controller (`controller.py` — Budget/Tiefe-Stufen/Checkpoint-Resume), Physics-Surrogat-Vorfilter (`surrogate.py` — rankt/prunt, bestätigt nie), **Grok-Symbiose** (`symbiosis.py` — `grok-build` schlägt Hypothesen vor, GENESIS gated jede; live bewiesen), **Reality-Fork-Simulator** (`reality_fork.py` — counterfactual Welten via Gauss-Gesetz in D Dimensionen), **Cosmic Insight** (`cosmic_insight.py` — Cross-Domain-Analogien, Newton ~ Coulomb), **Assumption Annihilator** (`assumption_annihilator.py` — Konstante→Variable, höchstes δ), **First-Principles-Modus** (`first_principles.py` — Beweis-Bäume, jeder Schritt gate-belegt), **Out-of-Sample-Validierung** (`validation.py` — gegen p-hacking), **Universe Simulator Bridge** (`universe_bridge.py` — simulate → discover → gate, externe HPC-Engines als deklarierte Naht). 65 Discovery-Tests grün; jede Tour grok-build-drift-geprüft.
+**Komplett gebaut (Phase 2–5, der ganze Mehr-Wochen-Plan):** Deep-Controller (`controller.py` — Budget/Tiefe-Stufen/Checkpoint-Resume), Physics-Surrogat-Vorfilter (`surrogate.py` — rankt/prunt, bestätigt nie), **Grok-Symbiose** (`symbiosis.py` — `grok-build` schlägt Hypothesen vor, GENESIS gated jede; live bewiesen), **Reality-Fork-Simulator** (`reality_fork.py` — counterfactual Welten via Gauss-Gesetz in D Dimensionen), **Cosmic Insight** (`cosmic_insight.py` — Cross-Domain-Analogien, Newton ~ Coulomb), **Assumption Annihilator** (`assumption_annihilator.py` — Konstante→Variable, höchstes δ), **First-Principles-Modus** (`first_principles.py` — Beweis-Bäume, jeder Schritt gate-belegt), **Out-of-Sample-Validierung** (`validation.py` — gegen p-hacking), **Universe Simulator Bridge** (`universe_bridge.py` — simulate → discover → gate, externe HPC-Engines als deklarierte Naht). Plus **Frontier 6.1 — Mehr-Term-Entdeckung** (`multiterm.py`): additive Gesetze `y = Σ Cᵢ·termᵢ (+ Intercept)`, jeder Term dimensional gültig (`A·p=b`), Parsimonie via greedy forward selection + Pruning gegen Overfit. Live: Kinematik `s = ½·a·t² + v0·t` → exakt 2 Terme (R²=1), Kepler bleibt 1 Term (kein Padding). 74 Discovery-Tests grün; jede Tour grok-build-drift-geprüft.
 
-**Ehrliche Grenze (Forschungs-Frontier, keine offene Bauphase mehr):** Die Engine deckt die **Power-Law/π-Gruppen-Familie** (Kepler, Gas, Newton, Coulomb, Pendel). Summen mehrerer Terme, transzendente Formen und eine volle GP/symbolische Suche jenseits dieser Familie bleiben die nächste echte Forschungsgrenze (`docs/discovery/STATUS.md`).
+**Ehrliche Grenze (Forschungs-Frontier, keine offene Bauphase mehr):** Die Engine deckt die **Power-Law/π-Gruppen-Familie** (Kepler, Gas, Newton, Coulomb, Pendel) **plus additive Summen mehrerer dimensional-gültiger Terme** (Frontier 6.1). Transzendente Formen (sin/exp/log einer dimensionslosen Gruppe) und eine volle GP/symbolische Suche jenseits dieser Familie bleiben die nächste echte Forschungsgrenze (`docs/discovery/STATUS.md`).
 
 ## 7 · Installation
 

@@ -83,13 +83,34 @@
   Anregung „Protokoll explizit machen" → `typing.Protocol SimulatorBackend` ergänzt.
 - Volle Offline-Suite nach Phase 5: **1278 passed / 0 failed / 19 skipped**.
 
-## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]`
+## Frontier 6 — über die Power-Law-Familie hinaus (Forschungs-Frontier, kein Phasen-Plan)
+
+- **Tour 6.1 — Mehr-Term-Entdeckung** (`multiterm.py`): additive Gesetze
+  `y = Σ Cᵢ·termᵢ (+ Intercept)`. JEDER Term ist dimensional konsistent — jeder enumerierte
+  Power-Law-Term erfüllt dieselbe Dimensionsgleichung `A·p=b` wie das Ziel (Gitter max_abs_exp=2.0,
+  step=0.5, trifft Keplers ½-Exponenten UND kinematische Ganzzahlen); der optionale Intercept trägt
+  die Ziel-Dimension per Konstruktion. **Parsimonie** gegen Overfit: greedy forward selection
+  (OMP-Stil), Term nur bei R²-Gewinn > `improvement_threshold`; plus Pruning numerisch
+  vernachlässigbarer Terme nach dem exakten linearen Least-Squares-Fit. Gemessen (9 Tests grün):
+  Kinematik `s = v0·t + ½·a·t²` → **exakt 2 Terme** (Koeff. 1.0 / 0.5, R²≈1, der greedy-gewählte
+  „Blend"-Term wird gepruned); freier Fall `v = 40 + g·t` → Intercept + g·t-Term; Kepler bleibt
+  **1 Term** (Parsimonie verwirft den Intercept korrekt); `improvement_threshold` ist ein echtes
+  Gate (0.99 → 1 Term, 1e-6 → 2); non-positive Magnituden → `ValueError`.
+- **Cross-Model-Drift-Check (grok-build):** keine Math-/Dimensions-/Logik-Fehler; bestätigte den
+  `A·p=b`-Filter, die lineare lstsq und die Gitter-Erreichbarkeit der ½-Exponenten unabhängig. Fand
+  drei ehrliche **Wording**-Überziehungen (Fallback-Kommentar „best" statt „first"; Pruning als
+  „Artefakt" statt „über die gesampelten Daten vernachlässigbar"; „JEDER Term erfüllt A·p=b" muss
+  den Intercept ausnehmen) → alle drei selbst verifiziert + im Docstring präzisiert; zusätzlich eine
+  echte Kante gehärtet (leerer Pool → klarer `ValueError` statt `IndexError`).
+
+## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1
 
 Der gesamte Mehr-Wochen-Plan aus `GROK_BUILD_GENESIS_UNIVERSE_EXPLORER.md` ist gebaut, getestet,
-grok-build-drift-geprüft und committet (lokal, kein Push). **65 Discovery-Tests** über 14 Module;
-`rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Ehrliche verbleibende Grenze
-(keine Phase, sondern Forschungs-Frontier): Summen mehrerer Terme, transzendente Formen, volle
-GP/symbolische Suche jenseits der Power-Law/π-Gruppen-Familie.
+grok-build-drift-geprüft und committet (lokal, kein Push). **74 Discovery-Tests** über 15 Module;
+`rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Mit Frontier 6.1 sind nun auch
+**Summen mehrerer dimensional-gültiger Terme** abgedeckt. Ehrliche verbleibende Grenze (keine Phase,
+sondern Forschungs-Frontier): transzendente Formen (sin/exp/log einer dimensionslosen Gruppe) und
+volle GP/symbolische Suche jenseits der Power-Law/π-Gruppen-Familie.
 
 ## Drift-Kontroll-Protokoll (jede Tour)
 

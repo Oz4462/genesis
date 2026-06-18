@@ -80,6 +80,10 @@ __all__ = [
     "BenchmarkCase",
     "kepler_case",
     "ideal_gas_case",
+    "discover_multiterm",
+    "candidate_term_exponents",
+    "Term",
+    "MultiTermLaw",
 ]
 
 
@@ -162,6 +166,11 @@ def __getattr__(name: str):
     if name in ("rediscovery_benchmark", "BenchmarkCase", "kepler_case", "ideal_gas_case", "pendulum_case"):
         from . import benchmark as _m
         for n in ("rediscovery_benchmark", "BenchmarkCase", "kepler_case", "ideal_gas_case", "pendulum_case"):
+            globals()[n] = getattr(_m, n)
+        return globals()[name]
+    if name in ("discover_multiterm", "candidate_term_exponents", "Term", "MultiTermLaw"):
+        from . import multiterm as _m
+        for n in ("discover_multiterm", "candidate_term_exponents", "Term", "MultiTermLaw"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
