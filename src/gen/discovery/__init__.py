@@ -54,6 +54,11 @@ __all__ = [
     "fork_constant",
     "fork_from_discovery",
     "gauss_force_exponent",
+    "structural_signature",
+    "find_analogies",
+    "cross_domain_hypotheses",
+    "Analogy",
+    "CrossDomainHypothesis",
     "rediscovery_benchmark",
     "BenchmarkCase",
     "kepler_case",
@@ -92,6 +97,13 @@ def __getattr__(name: str):
         from . import reality_fork as _m
         for n in ("CounterfactualWorld", "fork_spatial_dimension", "fork_constant",
                   "fork_from_discovery", "gauss_force_exponent"):
+            globals()[n] = getattr(_m, n)
+        return globals()[name]
+    if name in ("structural_signature", "find_analogies", "cross_domain_hypotheses",
+                "Analogy", "CrossDomainHypothesis"):
+        from . import cosmic_insight as _m
+        for n in ("structural_signature", "find_analogies", "cross_domain_hypotheses",
+                  "Analogy", "CrossDomainHypothesis"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     if name in ("DiscoveryGraph", "GraphNode"):
