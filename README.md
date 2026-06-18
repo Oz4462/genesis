@@ -7,7 +7,7 @@
 > Open-Source-Infrastruktur, damit Menschen — privat wie Unternehmen — aus einer kleinen Idee etwas Vollständiges erschaffen können: mit Quellen statt Behauptungen, mit nachgerechneter Physik statt geratener Zahlen, und mit ehrlichen Lücken statt erfundener Antworten.
 
 ```
-1185 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
+1278 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
 ```
 
 ---
@@ -183,9 +183,9 @@ result, graph = discover(DiscoveryProblem(
 print(result.validated[0].candidate.expression)  # T = 6.28319 * a^3/2 * mu^-1/2
 ```
 
-**Bereits dazugebaut (Phase 2–4):** Deep-Controller (`controller.py` — Budget/Tiefe-Stufen/Checkpoint-Resume), Physics-Surrogat-Vorfilter (`surrogate.py` — rankt/prunt, bestätigt nie), **Grok-Symbiose** (`symbiosis.py` — `grok-build` schlägt Hypothesen vor, GENESIS gated jede; live bewiesen), **Reality-Fork-Simulator** (`reality_fork.py` — counterfactual Welten via Gauss-Gesetz in D Dimensionen), **Cosmic Insight** (`cosmic_insight.py` — Cross-Domain-Analogien, Newton ~ Coulomb), **Assumption Annihilator** (`assumption_annihilator.py` — Konstante→Variable, höchstes δ), **First-Principles-Modus** (`first_principles.py` — Beweis-Bäume, jeder Schritt gate-belegt), **Out-of-Sample-Validierung** (`validation.py` — gegen p-hacking).
+**Komplett gebaut (Phase 2–5, der ganze Mehr-Wochen-Plan):** Deep-Controller (`controller.py` — Budget/Tiefe-Stufen/Checkpoint-Resume), Physics-Surrogat-Vorfilter (`surrogate.py` — rankt/prunt, bestätigt nie), **Grok-Symbiose** (`symbiosis.py` — `grok-build` schlägt Hypothesen vor, GENESIS gated jede; live bewiesen), **Reality-Fork-Simulator** (`reality_fork.py` — counterfactual Welten via Gauss-Gesetz in D Dimensionen), **Cosmic Insight** (`cosmic_insight.py` — Cross-Domain-Analogien, Newton ~ Coulomb), **Assumption Annihilator** (`assumption_annihilator.py` — Konstante→Variable, höchstes δ), **First-Principles-Modus** (`first_principles.py` — Beweis-Bäume, jeder Schritt gate-belegt), **Out-of-Sample-Validierung** (`validation.py` — gegen p-hacking), **Universe Simulator Bridge** (`universe_bridge.py` — simulate → discover → gate, externe HPC-Engines als deklarierte Naht). 65 Discovery-Tests grün; jede Tour grok-build-drift-geprüft.
 
-**Ehrliche Grenze + Roadmap:** Heute deckt die Engine die **Power-Law/π-Gruppen-Familie** (Kepler, Gas, Newton, Coulomb, Pendel). Summen mehrerer Terme, transzendente Formen, volle GP-Suche und die Universe-Simulator-Bridge (externe HPC-Simulatoren) sind der verbleibende Bau (`docs/discovery/STATUS.md` + `GROK_BUILD_GENESIS_UNIVERSE_EXPLORER.md`).
+**Ehrliche Grenze (Forschungs-Frontier, keine offene Bauphase mehr):** Die Engine deckt die **Power-Law/π-Gruppen-Familie** (Kepler, Gas, Newton, Coulomb, Pendel). Summen mehrerer Terme, transzendente Formen und eine volle GP/symbolische Suche jenseits dieser Familie bleiben die nächste echte Forschungsgrenze (`docs/discovery/STATUS.md`).
 
 ## 7 · Installation
 

@@ -15,7 +15,7 @@
 | **2 — Deep Controller + Surrogat** | `controller.py` (Budget/Tiefe/Checkpoint), `surrogate.py` (Vorfilter, bestätigt nie) | `[GEBAUT]` (`10aa897`, `904092c`) |
 | **3 — Grok-Symbiose + Reality Fork** | `symbiosis.py` (Grok=Breite, GENESIS=Verifikation), `reality_fork.py` (counterfactual Welten) | `[GEBAUT]` (`ca8c83c`, `3c76c35`) |
 | **4 — Radikal-Features + Live-Test** | `cosmic_insight.py`, `assumption_annihilator.py`, `first_principles.py`, `validation.py` (Out-of-Sample) | `[GEBAUT]` (`40c3acf`,`fa4f284`,`6cfcb31`,`adaa2ca`) |
-| **5 — Universe Bridge** | `universe_bridge.py` (Adapter zu externen Simulatoren, bewusst zuletzt) | `[DESIGN]` |
+| **5 — Universe Bridge** | `universe_bridge.py` (Adapter zu externen Simulatoren, bewusst zuletzt) | `[GEBAUT]` (`79b6a39`) |
 
 ## Phase 1 — gemessene Evidenz
 
@@ -70,6 +70,26 @@
 - **Cross-Model-Drift-Check (grok-build):** „KEIN DRIFT" auf alle Phase-4-Claims; Grok verifizierte
   Physik (Gauss/Orbital) + Statistik (kein OOS-Leak) selbst; fixte 1 Prosa-Überclaim (δ-Wording).
 - Volle Offline-Suite nach Phase 4: **1272 passed / 0 failed / 19 skipped**.
+
+## Phase 5 — gemessene Evidenz (FINALE PHASE)
+
+- **Universe Bridge** (`universe_bridge.py`, Tour 5.1): Adapter, der eine Simulation via
+  `SimulatorBackend`-Protokoll läuft und das Ergebnis **zurück durch die Gates** bringt
+  (simulate → discover → gate). Das `InProcessReferenceBackend` (echte numpy-Physik: Zwei-Körper-Orbit,
+  Harmonischer Oszillator) beweist das Interface + ist Offline-Default → **keine versteckte externe
+  Abhängigkeit**; ein echtes HPC-Backend ist ein Drop-in. `should_offload` = Sweep-Größen-Policy.
+  Beweis: aus simuliertem Orbit wird Kepler rediscovered + bestätigt (C≈2π). 6 Tests grün.
+- **Cross-Model-Drift-Check (grok-build):** „KEIN DRIFT" (keine Bypass-Pfade, keine versteckte Dep);
+  Anregung „Protokoll explizit machen" → `typing.Protocol SimulatorBackend` ergänzt.
+- Volle Offline-Suite nach Phase 5: **1278 passed / 0 failed / 19 skipped**.
+
+## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]`
+
+Der gesamte Mehr-Wochen-Plan aus `GROK_BUILD_GENESIS_UNIVERSE_EXPLORER.md` ist gebaut, getestet,
+grok-build-drift-geprüft und committet (lokal, kein Push). **65 Discovery-Tests** über 14 Module;
+`rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Ehrliche verbleibende Grenze
+(keine Phase, sondern Forschungs-Frontier): Summen mehrerer Terme, transzendente Formen, volle
+GP/symbolische Suche jenseits der Power-Law/π-Gruppen-Familie.
 
 ## Drift-Kontroll-Protokoll (jede Tour)
 
