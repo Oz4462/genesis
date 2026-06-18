@@ -12,7 +12,7 @@
 ## Aktueller Stand der Inventarisierung
 
 ### 1. Lokale Suche auf dem Rechner (C:\Users\Ozan)
-- Mehrere autonome Scans durchgeführt mit sauberem PowerShell (priorisierte Roots: Desktop, Documents, scripts, Desktop/tools, Desktop/Titanforg neu, Desktop/Genesis + begrenzte Top-Level-Suche unter C:\Users\Ozan). Hinweis: ASYA V4 und MT5-Trading sind separate Projekte und haben nichts mit Genesis zu tun.
+- Mehrere autonome Scans durchgeführt mit sauberem PowerShell (priorisierte Roots: Desktop, Documents, scripts, Desktop/tools, Desktop/Genesis + begrenzte Top-Level-Suche unter C:\Users\Ozan). Hinweis: einige separate, unverwandte Projekte unter C:\Users\Ozan haben nichts mit Genesis zu tun.
 - **Ergebnis der tiefen Suche:** Nur eine Datei gefunden, die den String enthält: `C:\Users\Ozan\Desktop\Genesis\genesis\genesis\docs\integration\PRINTFORGE_INVENTORY.md` (unsere eigene Dokumentation).
 - Keine Verzeichnisse oder Projekte mit Namen "*printforge*" oder "*PRINTFORGE*" in den gescannten Entwicklungsbereichen (Desktop, eigene Tool-Repos, TITANFORGE-Umfeld, Genesis etc.).
 - Fazit: Auf diesem System existiert derzeit **kein sichtbares Projekt oder Tool namens PRINTFORGE** (weder als CAD/Slicer/Printability-Layer noch als separates Fertigungs-Tool).

@@ -159,6 +159,32 @@ Um die Gates herum sitzt eine verdrahtete Produktions-Schicht — komponiert zu 
 
 Das Gesamt-Verdikt unterscheidet ehrlich: `physics_verified` · `needs_clarification` · `physics_incomplete` (Lücke ≠ Pass) · `physics_failed` · `no_physics_indicated` (nichts geprüft ≠ Freifahrtschein) · `inconsistent_constraints`.
 
+## 6½ · Universe Explorer (`discovery/`) — ehrliche Formel-Entdeckung
+
+Der **Erkundungs-Arm**: ein Mensch (oder ein Vorschlags-Modell) gibt eine Idee + Daten ein, und die Engine **entdeckt die zugrunde liegende Formel** — nicht durch LLM-Raterei, sondern durch die Dimensions-Algebra. Der Buckingham-π-Trick (das AI-Feynman-Prinzip) fixiert die Exponenten allein aus den Einheiten; der Fit findet nur noch den dimensionslosen Koeffizienten. Jeder Kandidat läuft durch dieselben Gates wie alles in GENESIS und endet mit einem ehrlichen Verdikt: **bestätigt / widerlegt / unentschieden** — nie einer erfundenen Entdeckung.
+
+| Baustein | Was es tut | Status |
+|---|---|---|
+| **Engine** (`discovery/engine.py`) | Dimensionale symbolische Regression + `discover_new_formulas`-Loop; pro Kandidat Dimensions-Gate, Nachrechnung (C-6), Fit-Gate (von der δ-Asymmetrie verschärft), Unsicherheit | `[GEBAUT]` |
+| **Discovery Graph** (`discovery/graph.py`) | Versioniertes Langzeitgedächtnis (Anhang-C-Schema), per Dimensions-Fingerprint dedupliziert → verhindert doppelte Neu-Entdeckung | `[GEBAUT]` |
+| **Tournament** (`discovery/tournament.py`) | Populations-Evolution im Null-Raum der Dimensions-Constraints; schlägt Single-Shot bei freien π-Gruppen messbar | `[GEBAUT]` |
+| **Benchmark + Red-Team** (`discovery/benchmark.py`) | Rediscovery bekannter Gesetze aus Daten; falsche Ideen werden verworfen | `[GEBAUT]` |
+
+**Gemessener Beweis:** `rediscovery_benchmark()` = **100 % Rediscovery, 100 % Red-Team-Catch**. Kepler kommt als `T = 6.28319 · a^(3/2) · μ^(-1/2)` heraus (C/2π = 1.0, R² = 1.0); ideales Gasgesetz und Newton-Gravitation ebenso; dimensional unmögliche und „verlockend-aber-falsche" Ideen werden korrekt nicht bestätigt.
+
+```python
+from gen.discovery import Variable, Constant, DiscoveryProblem, discover
+# Kepler aus Daten: T (Umlaufzeit) aus a (Bahnradius) + mu = G*M
+result, graph = discover(DiscoveryProblem(
+    idea="Wie haengt die Umlaufzeit von der Bahngroesse ab?",
+    target=Variable("T", "s", umlaufzeiten),
+    inputs=(Variable("a", "m", bahnradien),),
+    constants=(Constant("mu", 1.327e20, "m^3/s^2"),)))
+print(result.validated[0].candidate.expression)  # T = 6.28319 * a^3/2 * mu^-1/2
+```
+
+**Ehrliche Grenze + Roadmap:** Heute deckt die Engine die **Power-Law/π-Gruppen-Familie** (Kepler, Gas, Newton, Coulomb). Summen mehrerer Terme, transzendente Formen und volle GP-Suche, der Deep-Controller (Budget/Checkpoint), der Physics-Surrogat-Vorfilter, die Grok-Symbiose, der Reality-Fork-Simulator, Cosmic-Insight, der Assumption-Annihilator, der First-Principles-Modus und die Universe-Simulator-Bridge sind der laufende Mehr-Wochen-Bau (`docs/discovery/` + `GROK_BUILD_GENESIS_UNIVERSE_EXPLORER.md`).
+
 ## 7 · Installation
 
 Voraussetzung: **Python ≥ 3.11**. Alles läuft lokal; nichts verlässt deinen Rechner.

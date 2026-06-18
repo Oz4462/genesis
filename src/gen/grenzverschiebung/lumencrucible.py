@@ -51,7 +51,7 @@ except Exception:  # noqa: BLE001
 # Strong *internal* deterministic equivalents now active: rich MNA+transient+EMI in circuit/electronics, rule-based auto_place + route_harness + basic DRC (current/clearance/bus/density, multi-board/CAN aware), physical-like falsification in reality/sim.
 # Domain actuators (bio-reactor, chem, energy storage, control) fully internal via ComponentRecipe seeds + sim hooks + LUMEN pieces (no "live hardware" claim; sim is the Genesis strength for generalist ANY idea incl. bio).
 # Physical tests = rich experiment designs + predicted metrics (not the lab bench itself).
-# All preserve deterministic/offline/generalist for *ALL* ideas. No MT5/ASYA/trading ever. Rich interfaces for optional external plug-in. Internal versions are "besser als vorher" (fast co-sim, provenance, Lern deltas, package-ready).
+# All preserve deterministic/offline/generalist for *ALL* ideas. No domain-specific external coupling ever. Rich interfaces for optional external plug-in. Internal versions are "besser als vorher" (fast co-sim, provenance, Lern deltas, package-ready).
 try:
     from ..pipelines.elektriker import map_to_elektriker_spec
     from ..electronics import build_rich_electronics_pieces, generate_falsification_experiments_for_electronics, electronics_to_thermal_loads
