@@ -49,6 +49,11 @@ __all__ = [
     "Proposal",
     "JudgedProposal",
     "SymbiosisResult",
+    "CounterfactualWorld",
+    "fork_spatial_dimension",
+    "fork_constant",
+    "fork_from_discovery",
+    "gauss_force_exponent",
     "rediscovery_benchmark",
     "BenchmarkCase",
     "kepler_case",
@@ -80,6 +85,13 @@ def __getattr__(name: str):
     if name in ("symbiosis_discover", "GrokProposer", "Proposal", "JudgedProposal", "SymbiosisResult"):
         from . import symbiosis as _m
         for n in ("symbiosis_discover", "GrokProposer", "Proposal", "JudgedProposal", "SymbiosisResult"):
+            globals()[n] = getattr(_m, n)
+        return globals()[name]
+    if name in ("CounterfactualWorld", "fork_spatial_dimension", "fork_constant",
+                "fork_from_discovery", "gauss_force_exponent"):
+        from . import reality_fork as _m
+        for n in ("CounterfactualWorld", "fork_spatial_dimension", "fork_constant",
+                  "fork_from_discovery", "gauss_force_exponent"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     if name in ("DiscoveryGraph", "GraphNode"):
