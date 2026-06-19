@@ -20,7 +20,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import pytest  # noqa: E402
 
 from gen.bundle import classify_printability, emit_bundle  # noqa: E402
-from gen.demo import drive_shaft_spec, knee_mount_spec, leg_assembly_spec  # noqa: E402
+from gen.demo import (  # noqa: E402
+    drive_shaft_spec,
+    humanoid_spec,
+    knee_mount_spec,
+    leg_assembly_spec,
+)
 from gen.pipeline import assess_specification  # noqa: E402
 
 _HAS_CADQUERY = importlib.util.find_spec("cadquery") is not None
@@ -109,6 +114,33 @@ def test_leg_assembly_emits_per_part_stls_and_fires_dynamics(tmp_path):
         assert "leg_assembly__c_thigh.stl" in m.written               # one STL per printed part
         assert "leg_assembly__c_shank.stl" in m.written
         assert (tmp_path / "leg_assembly__c_thigh.stl").stat().st_size > 0
+
+
+def test_full_humanoid_emits_whole_body_artifacts_and_fires_compute(tmp_path):
+    """The WHOLE-BODY humanoid: the gate auto-fires the robot axes AND the onboard-compute axis
+    (chip throughput + inference power + control latency — the 'which chip' answer), with an honest
+    physics_verified verdict; emit_bundle writes ONE STL per printed structural part (8: pelvis, torso,
+    head, thigh, shank, upper arm, forearm, foot) plus a BOM that names the compute chip, the ten
+    gearmotors, the screws, the bearings, the IMU and the battery — everything the owner asked to see."""
+    spec = humanoid_spec()
+    a = assess_specification(spec)
+    fired = {c.validator for c in a.physics_checks}
+    assert {"compute_budget", "inference_power", "inference_latency"} <= fired      # the chip is sized
+    assert {"reach", "electric_actuator", "zmp_balance", "swing_resonance"} <= fired  # body axes
+    assert a.physics_gaps == [] and a.physics_ok and a.overall == "physics_verified"
+
+    m = emit_bundle(spec, tmp_path)
+    assert set(m.printed_parts) == {"b_pelvis", "b_torso", "b_head", "b_thigh", "b_shank",
+                                    "b_uarm", "b_farm", "b_foot"}                   # 8 printed parts
+    assert {"b_compute", "b_motors", "b_bolts", "b_bearings", "b_imu", "b_battery"} <= set(m.bought_parts)
+    bom = json.loads((tmp_path / "bom.json").read_text(encoding="utf-8"))
+    names = " ".join(i["name"] for i in bom["items"])
+    assert "Orin NX" in names and "M4x16" in names and "IMU" in names and "LiPo" in names
+    if _HAS_CADQUERY:
+        for cid in ("c_pelvis", "c_torso", "c_head", "c_thigh", "c_shank", "c_uarm", "c_farm", "c_foot"):
+            assert f"humanoid__{cid}.stl" in m.written
+            assert (tmp_path / f"humanoid__{cid}.stl").stat().st_size > 0
+        assert m.files_complete
 
 
 def test_cli_bundle_mode_emits_the_bundle(tmp_path, monkeypatch):

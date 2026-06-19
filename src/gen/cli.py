@@ -897,10 +897,10 @@ def main(argv: list[str] | None = None) -> int:
         from pathlib import Path
 
         from .bundle import emit_bundle
-        from .demo import capstone_spec, knee_mount_spec, leg_assembly_spec
+        from .demo import capstone_spec, humanoid_spec, knee_mount_spec, leg_assembly_spec
 
         all_complete = True
-        for spec in (leg_assembly_spec(), knee_mount_spec(), capstone_spec()):
+        for spec in (humanoid_spec(), leg_assembly_spec(), knee_mount_spec(), capstone_spec()):
             out_dir = Path("out") / "bundle" / spec.run_id
             m = emit_bundle(spec, out_dir)
             n_parts = len(m.printed_parts) + len(m.bought_parts)

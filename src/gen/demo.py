@@ -1057,3 +1057,366 @@ def leg_assembly_spec() -> Specification:
         ],
         claim_ids_used=[c.id for c in leg_assembly_claims()], produced_by="leg_assembly",
     )
+
+
+def humanoid_claims() -> list[Claim]:
+    return [
+        _claim("c_humanoid_anchor",
+               "Ein humanoider Roboter besteht aus Becken, Rumpf, Kopf, zwei Armen "
+               "(Oberarm + Unterarm) und zwei Beinen (Oberschenkel + Unterschenkel), "
+               "verbunden durch zehn angetriebene Drehgelenke."),
+        _claim("c_body_mass",
+               "Ein leichter Forschungs-Humanoid in dieser Bauklasse wiegt etwa 10 kg."),
+        _claim("c_gravity", "Die Normfallbeschleunigung ist definiert als 9.80665 m/s^2."),
+        _claim("c_pla",
+               "FDM-gedrucktes PLA, in der Druckebene belastet, hat eine Zugfestigkeit "
+               "von etwa 50 MPa."),
+        _claim("c_kirsch",
+               "Ein kreisrundes Loch in einer Platte unter Zug hat einen "
+               "Spannungskonzentrationsfaktor von 3 (Kirsch-Lösung)."),
+        _claim("c_knee_motor",
+               "Ein bürstenloser Robotik-Gelenkmotor der NEMA-23-Klasse liefert ein "
+               "Haltemoment (Stall) von etwa 2.0 N*m vor der Untersetzung."),
+        _claim("c_fdm_nozzle", "Eine Standard-FDM-Düse hat 0.4 mm Durchmesser."),
+        _claim("c_fdm_wall", "Eine FDM-Wand sollte mindestens 2 Perimeterlinien breit sein."),
+        _claim("c_fdm_hole",
+               "Das kleinste zuverlässig druckbare horizontale Loch im FDM-Druck hat "
+               "2.0 mm Durchmesser."),
+        _claim("c_bolt_src",
+               "McMaster-Carr führt das Teil 91290A115, eine M4x16-Innensechskantschraube."),
+        _claim("c_bolt_price",
+               "Die M4x16-Innensechskantschraube kostet bei McMaster-Carr 0.42 EUR pro Stück."),
+        _claim("c_bearing_price",
+               "Ein Rillenkugellager 6800-2RS (10 mm Bohrung) kostet etwa 3.50 EUR pro Stück."),
+        _claim("c_orin",
+               "Das NVIDIA Jetson Orin NX liefert etwa 100 INT8-TOPS KI-Rechenleistung "
+               "bei rund 25 W Leistungsaufnahme."),
+        _claim("c_imu",
+               "Eine 6-Achsen-IMU (z.B. Bosch BMI088) liefert Beschleunigung und Drehrate "
+               "für die Lageregelung."),
+        _claim("c_lipo",
+               "Ein 6S-LiPo-Akku (22.2 V Nennspannung) speist die Gelenkmotoren und die "
+               "Recheneinheit eines mobilen Humanoiden."),
+        _claim("c_driver",
+               "Ein Feldorientierter BLDC-Motortreiber (z.B. ODrive/MJBots moteus) "
+               "kommutiert je einen Gelenkmotor mit Stromregelung."),
+    ]
+
+
+def humanoid_spec() -> Specification:
+    """Ein Ganzkörper-Humanoid als komplette, gegatete GENESIS-Spezifikation: acht druckbare
+    Strukturteile (Becken, Rumpf, Kopf, Oberschenkel, Unterschenkel, Oberarm, Unterarm, Fuß —
+    je ein Kasten mit zwei Durchgangsbohrungen) als CAD-Komponenten → STL, plus die vollständige
+    Kaufliste (zehn Gelenkmotoren, Lager, Schrauben, Onboard-Recheneinheit/Chip, Echtzeit-MCU,
+    Motortreiber, IMU, Akku, Kabelbaum) und die measurand-getaggten Größen, die Kinematik,
+    Aktuator-Sizing, Onboard-Compute, Tragwerk, Balance und Schwung-Dynamik im δ-Physik-Gate
+    feuern. Maximal gedruckt (3D-Drucker-Direktive); nur Nicht-Druckbares steht auf der Kaufliste."""
+    _force_n = 40.0 * STANDARD_GRAVITY  # 20 kg Teil-Beinlast * SF 2, am Hüft-Pivot
+
+    def _link(sx, sy, sz, r1, off1, r2, off2):
+        """Ein gedrucktes Glied: Kasten minus zwei Durchgangsbohrungen an ±x-Enden (alle Argumente
+        sind quantity-ids)."""
+        return GeometryNode(kind="difference", children=[
+            GeometryNode(kind="box", params={"size_x": sx, "size_y": sy, "size_z": sz}),
+            GeometryNode(kind="translate", params={"x": off1, "y": "q_zero", "z": "q_zero"},
+                         children=[GeometryNode(kind="cylinder", params={"radius": r1, "height": sz})]),
+            GeometryNode(kind="translate", params={"x": off2, "y": "q_zero", "z": "q_zero"},
+                         children=[GeometryNode(kind="cylinder", params={"radius": r2, "height": sz})]),
+        ])
+
+    quantities = [
+        # --- load path: the thigh is the σ-checked bending member (hip cantilever) ---
+        _g("q_load", "anteilige Beinlast", 20.0, "kg", ["c_body_mass"]),
+        _d("q_sf", "Sicherheitsfaktor", 2.0, "1", "konservativ für statische Beinlast"),
+        _der("q_design", "Auslegungslast", 40.0, "kg", "q_load * q_sf", ("q_load", "q_sf")),
+        _g("q_g", "Normfallbeschleunigung", STANDARD_GRAVITY, "m/s^2", ["c_gravity"]),
+        _der("q_force", "Auslegungskraft am Hüft-Pivot", _force_n, "N",
+             weight_formula("q_design", "q_g"), ("q_design", "q_g")),
+        _g("q_strength", "PLA-Zugfestigkeit in der Druckebene", 50.0, "MPa", ["c_pla"]),
+        _d("q_density", "PLA-Dichte", 0.00124, "g/mm^3", "PLA ~1.24 g/cm³, je mm³"),
+        _g("q_kt", "Spannungskonzentrationsfaktor (kreisrundes Loch, Kirsch)",
+           STRESS_CONCENTRATION_CIRCULAR_HOLE, "1", ["c_kirsch"]),
+        _d("q_zero", "Null-Versatz", 0.0, "mm", "y/z-Versatz der Bohrungen (mittig)"),
+        # --- shared bore radii (Ø ≥ 6 mm ≥ druckbares Mindestloch) ---
+        _d("q_r_hip", "Hüft-Lochradius", 6.0, "mm", "Lagersitz Hüfte (Ø12)"),
+        _d("q_r_knee", "Knie-Lochradius", 5.0, "mm", "Lagersitz Knie (Ø10, 6800)"),
+        _d("q_r_ankle", "Knöchel-Lochradius", 4.0, "mm", "Knöchel-Durchgang (Ø8)"),
+        _d("q_r_shoulder", "Schulter-Lochradius", 5.0, "mm", "Lagersitz Schulter (Ø10)"),
+        _d("q_r_elbow", "Ellbogen-Lochradius", 4.0, "mm", "Lagersitz Ellbogen (Ø8)"),
+        _d("q_r_wrist", "Handgelenk-Lochradius", 3.0, "mm", "Handgelenk-Durchgang (Ø6)"),
+        _d("q_r_spine", "Spine-Lochradius", 6.0, "mm", "Rumpf-Becken-Drehachse (Ø12)"),
+        _d("q_r_neck", "Hals-Lochradius", 4.0, "mm", "Kopf-Drehachse (Ø8)"),
+        _d("q_r_cam", "Kamera-Lochradius", 3.0, "mm", "Kopf-Kameradurchgang (Ø6)"),
+        _d("q_r_toe", "Zehen-Lochradius", 4.0, "mm", "Fuß-Vorderbohrung (Ø8)"),
+        # --- pelvis: 160x60x20, two hip bores at ±60 ---
+        _d("q_pelvis_x", "Becken-Länge / size_x", 160.0, "mm", "Hüfte–Hüfte-Breite"),
+        _d("q_pelvis_y", "Becken-Breite / size_y", 60.0, "mm", "Tiefe"),
+        _d("q_pelvis_z", "Becken-Dicke / size_z", 20.0, "mm", "Plattendicke"),
+        _d("q_pelvis_off", "Becken-Bohrungsversatz +", 60.0, "mm", "+x Hüftbohrung"),
+        _d("q_pelvis_neg", "Becken-Bohrungsversatz -", -60.0, "mm", "-x Hüftbohrung"),
+        # --- torso: 200x120x20, spine bore (-80) + shoulder bore (+80) ---
+        _d("q_torso_x", "Rumpf-Länge / size_x", 200.0, "mm", "Spine-Achse vertikal"),
+        _d("q_torso_y", "Rumpf-Breite / size_y", 120.0, "mm", "Schulterbreite"),
+        _d("q_torso_z", "Rumpf-Dicke / size_z", 20.0, "mm", "Plattendicke"),
+        _d("q_torso_off", "Rumpf-Bohrungsversatz +", 80.0, "mm", "+x Schulterbohrung"),
+        _d("q_torso_neg", "Rumpf-Bohrungsversatz -", -80.0, "mm", "-x Spine-Bohrung"),
+        # --- head: 90x90x12, neck bore (-30) + camera bore (+30) ---
+        _d("q_head_x", "Kopf-Länge / size_x", 90.0, "mm", "Kopfplatte"),
+        _d("q_head_y", "Kopf-Breite / size_y", 90.0, "mm", "Kopfplatte"),
+        _d("q_head_z", "Kopf-Dicke / size_z", 12.0, "mm", "Plattendicke"),
+        _d("q_head_off", "Kopf-Bohrungsversatz +", 30.0, "mm", "+x Kamerabohrung"),
+        _d("q_head_neg", "Kopf-Bohrungsversatz -", -30.0, "mm", "-x Halsbohrung"),
+        # --- thigh: 180x40x18 (σ-checked), hip bore (-70) + knee bore (+70) ---
+        _d("q_thigh_x", "Oberschenkel-Länge / size_x", 180.0, "mm", "Hüfte–Knie"),
+        _d("q_thigh_y", "Oberschenkel-Breite / size_y", 40.0, "mm", "Breite b"),
+        _d("q_thigh_z", "Oberschenkel-Dicke / size_z", 18.0, "mm", "Höhe h in Lastrichtung"),
+        _d("q_thigh_arm", "Biege-Hebelarm Oberschenkel", 70.0, "mm", "Pivot-Abstand"),
+        _d("q_thigh_off", "Oberschenkel-Bohrungsversatz +", 70.0, "mm", "+x Knie"),
+        _d("q_thigh_neg", "Oberschenkel-Bohrungsversatz -", -70.0, "mm", "-x Hüfte"),
+        _der("q_sigma_nom", "nominale Biegespannung Oberschenkel (Kragarm)",
+             6.0 * _force_n * 70.0 / (40.0 * 18.0 * 18.0), "MPa",
+             cantilever_bending_stress_formula("q_force", "q_thigh_arm", "q_thigh_y", "q_thigh_z"),
+             ("q_force", "q_thigh_arm", "q_thigh_y", "q_thigh_z")),
+        _der("q_sigma_peak", "Spitzenspannung am Hüft-Loch",
+             STRESS_CONCENTRATION_CIRCULAR_HOLE * (6.0 * _force_n * 70.0 / (40.0 * 18.0 * 18.0)), "MPa",
+             peak_stress_formula("q_sigma_nom", "q_kt"), ("q_kt", "q_sigma_nom")),
+        # --- shank: 180x35x12, knee bore (+70) + ankle bore (-70) ---
+        _d("q_shank_x", "Unterschenkel-Länge / size_x", 180.0, "mm", "Knie–Fuß"),
+        _d("q_shank_y", "Unterschenkel-Breite / size_y", 35.0, "mm", "Breite"),
+        _d("q_shank_z", "Unterschenkel-Dicke / size_z", 12.0, "mm", "Dicke"),
+        _d("q_shank_off", "Unterschenkel-Bohrungsversatz +", 70.0, "mm", "+x Knie"),
+        _d("q_shank_neg", "Unterschenkel-Bohrungsversatz -", -70.0, "mm", "-x Knöchel"),
+        # --- upper arm: 140x30x12, shoulder bore (-55) + elbow bore (+55) ---
+        _d("q_uarm_x", "Oberarm-Länge / size_x", 140.0, "mm", "Schulter–Ellbogen"),
+        _d("q_uarm_y", "Oberarm-Breite / size_y", 30.0, "mm", "Breite"),
+        _d("q_uarm_z", "Oberarm-Dicke / size_z", 12.0, "mm", "Dicke"),
+        _d("q_uarm_off", "Oberarm-Bohrungsversatz +", 55.0, "mm", "+x Ellbogen"),
+        _d("q_uarm_neg", "Oberarm-Bohrungsversatz -", -55.0, "mm", "-x Schulter"),
+        # --- forearm: 130x28x10, elbow bore (-50) + wrist bore (+50) ---
+        _d("q_farm_x", "Unterarm-Länge / size_x", 130.0, "mm", "Ellbogen–Hand"),
+        _d("q_farm_y", "Unterarm-Breite / size_y", 28.0, "mm", "Breite"),
+        _d("q_farm_z", "Unterarm-Dicke / size_z", 10.0, "mm", "Dicke"),
+        _d("q_farm_off", "Unterarm-Bohrungsversatz +", 50.0, "mm", "+x Handgelenk"),
+        _d("q_farm_neg", "Unterarm-Bohrungsversatz -", -50.0, "mm", "-x Ellbogen"),
+        # --- foot: 120x60x10, ankle bore (-45) + toe bore (+45) ---
+        _d("q_foot_x", "Fuß-Länge / size_x", 120.0, "mm", "Ferse–Zeh"),
+        _d("q_foot_y", "Fuß-Breite / size_y", 60.0, "mm", "Breite"),
+        _d("q_foot_z", "Fuß-Dicke / size_z", 10.0, "mm", "Sohlendicke"),
+        _d("q_foot_off", "Fuß-Bohrungsversatz +", 45.0, "mm", "+x Zehe"),
+        _d("q_foot_neg", "Fuß-Bohrungsversatz -", -45.0, "mm", "-x Knöchel"),
+        # --- DFM gates ---
+        _g("q_nozzle", "FDM-Düsendurchmesser", FDM_NOZZLE_DIAMETER_MM, "mm", ["c_fdm_nozzle"]),
+        _g("q_perimeters", "Mindestzahl Wand-Perimeter", FDM_WALL_PERIMETERS_MIN, "1", ["c_fdm_wall"]),
+        _der("q_min_wall", "kleinste druckbare Wanddicke",
+             FDM_WALL_PERIMETERS_MIN * FDM_NOZZLE_DIAMETER_MM, "mm",
+             min_wall_formula("q_nozzle", "q_perimeters"), ("q_nozzle", "q_perimeters")),
+        _g("q_min_hole", "kleinster druckbarer Lochdurchmesser", FDM_MIN_HOLE_DIAMETER_MM, "mm",
+           ["c_fdm_hole"]),
+        _d("q_knee_bore_d", "Knie-Bohrung Durchmesser", 10.0, "mm", "für DFM-Lochcheck"),
+        _d("q_torque", "Schrauben-Anzugsmoment (Motorflansch)", 2.5, "N*m", "M4 in Kunststoff"),
+        _g("q_bolt_price", "Schrauben-Stückpreis", 0.42, "EUR", ["c_bolt_price"]),
+        _g("q_bearing_price", "Lager-Stückpreis", 3.50, "EUR", ["c_bearing_price"]),
+        # --- kinematics: the 2R leg reaches a foot target (arm.* recipe) ---
+        _dm("q_l1", "Oberschenkellänge (Link 1)", 0.18, "m", "Hüfte–Knie", "arm.link1_length"),
+        _dm("q_l2", "Unterschenkellänge (Link 2)", 0.18, "m", "Knie–Fuß", "arm.link2_length"),
+        _dm("q_tx", "Fuß-Zielposition x", 0.20, "m", "Schrittweite", "arm.target_x"),
+        _dm("q_ty", "Fuß-Zielposition y", 0.05, "m", "Höhe", "arm.target_y"),
+        # --- actuation: the knee gearmotor holds the joint torque ---
+        _dm("q_knee_torque", "Knie-Haltemoment (Bedarf)", 28.0, "N*m",
+            "statisches Knie-Moment unter Auslegungslast", "actuator.joint_torque"),
+        _dm("q_knee_speed", "Knie-Gelenkdrehzahl", 3.0, "rad/s", "Schritt", "actuator.joint_speed"),
+        _gm("q_motor_stall", "Motor-Haltemoment (Stall)", 2.0, "N*m", ["c_knee_motor"],
+            "motor.stall_torque"),
+        _dm("q_motor_noload", "Motor-Leerlaufdrehzahl", 300.0, "rad/s", "~2865 rpm", "motor.noload_speed"),
+        _dm("q_gear", "Getriebeuntersetzung", 40.0, "1", "Harmonic Drive", "drivetrain.gear_ratio"),
+        _dm("q_eff", "Antriebsstrang-Wirkungsgrad", 0.85, "1", "Getriebe+Lager", "drivetrain.efficiency"),
+        # --- balance + gait + swing dynamics ---
+        _dm("q_com_x", "CoM-Versatz", 0.0, "m", "zentriert", "balance.com_x"),
+        _dm("q_com_h", "CoM-Höhe", 0.55, "m", "Schwerpunkthöhe (kleiner Humanoid)", "balance.com_height"),
+        _dm("q_smin", "Stützpolygon min x", -0.10, "m", "Fußkante hinten", "balance.support_min_x"),
+        _dm("q_smax", "Stützpolygon max x", 0.10, "m", "Fußkante vorn", "balance.support_max_x"),
+        _dm("q_sway", "CoM-Schwankungsamplitude", 0.04, "m", "seitliche Gang-Schwankung",
+            "gait.com_amplitude"),
+        _dm("q_step_f", "Schrittfrequenz", 0.45, "Hz", "Gang-Kadenz", "gait.step_frequency"),
+        _dm("q_limb_I", "Schenkel-Trägheit um das Gelenk", 0.0216, "kg*m^2",
+            "≈ m·L²/3 (gleichförmiger Stab um die Hüfte) — geometrie-konsistent zu q_limb_m/q_l1",
+            "limb.inertia"),
+        _dm("q_limb_m", "Schenkel-Masse", 2.0, "kg", "Glied+Motor", "limb.mass"),
+        _dm("q_limb_d", "Schenkel-Schwerpunktabstand", 0.09, "m", "Gelenk→CoM", "limb.com_distance"),
+        _dm("q_swing", "Schwung-Amplitude", 0.4, "rad", "Knie-Schwung im Schritt", "swing.amplitude"),
+        _dm("q_avail_tau", "verfügbares Aktuator-Drehmoment", 80.0, "N*m",
+            "Stall·Getriebe·η am Gelenk", "actuator.available_torque"),
+        # --- onboard compute: the brain (the "which chip" answer) ---
+        _dm("q_workload", "KI-Rechenlast (Wahrnehmung+Regelung)", 35.0, "1",
+            "Personen-/Objekt-Erkennung + Ganzkörper-Policy, INT8-TOPS", "compute.workload_tops"),
+        _gm("q_chip_tops", "Chip-Spitzenleistung (Jetson Orin NX)", 100.0, "1", ["c_orin"],
+            "compute.chip_tops"),
+        _dm("q_util", "nachhaltige Auslastung", 0.6, "1", "real haltbarer Anteil der Spitze",
+            "compute.utilisation"),
+        _dm("q_chip_eff", "Recheneffizienz", 4.0, "1", "≈100 TOPS / 25 W (Orin NX)",
+            "compute.efficiency_tops_per_w"),
+        _dm("q_chip_pbudget", "Compute-Leistungsbudget", 40.0, "W", "thermisch+Akku für die Recheneinheit",
+            "compute.power_budget"),
+        _dm("q_inf_ops", "Operationen je Regel-Inferenz", 5.0e7, "1", "Policy-Netz je Regelschritt",
+            "compute.inference_ops"),
+        _dm("q_chip_throughput", "Chip-Durchsatz", 1.0e14, "1", "100 TOPS = 1e14 ops/s",
+            "compute.throughput_ops_per_s"),
+        _dm("q_ctrl_period", "Regelschleifen-Periode", 1.0e-3, "s", "1 kHz Ganzkörper-Regelung",
+            "control.period"),
+    ]
+
+    components = [
+        Component(id="c_pelvis", name="Becken", geometry=_link(
+            "q_pelvis_x", "q_pelvis_y", "q_pelvis_z", "q_r_hip", "q_pelvis_neg", "q_r_hip", "q_pelvis_off"),
+            quantity_ids=["q_pelvis_x", "q_pelvis_y", "q_pelvis_z", "q_r_hip", "q_pelvis_off",
+                          "q_pelvis_neg", "q_zero"], material_density="q_density"),
+        Component(id="c_torso", name="Rumpf", geometry=_link(
+            "q_torso_x", "q_torso_y", "q_torso_z", "q_r_spine", "q_torso_neg", "q_r_shoulder", "q_torso_off"),
+            quantity_ids=["q_torso_x", "q_torso_y", "q_torso_z", "q_r_spine", "q_r_shoulder",
+                          "q_torso_off", "q_torso_neg", "q_zero"], material_density="q_density"),
+        Component(id="c_head", name="Kopf", geometry=_link(
+            "q_head_x", "q_head_y", "q_head_z", "q_r_neck", "q_head_neg", "q_r_cam", "q_head_off"),
+            quantity_ids=["q_head_x", "q_head_y", "q_head_z", "q_r_neck", "q_r_cam", "q_head_off",
+                          "q_head_neg", "q_zero"], material_density="q_density"),
+        Component(id="c_thigh", name="Oberschenkel-Glied", geometry=_link(
+            "q_thigh_x", "q_thigh_y", "q_thigh_z", "q_r_hip", "q_thigh_neg", "q_r_knee", "q_thigh_off"),
+            quantity_ids=["q_thigh_x", "q_thigh_y", "q_thigh_z", "q_r_hip", "q_r_knee", "q_thigh_off",
+                          "q_thigh_neg", "q_zero"], material_density="q_density"),
+        Component(id="c_shank", name="Unterschenkel-Glied", geometry=_link(
+            "q_shank_x", "q_shank_y", "q_shank_z", "q_r_ankle", "q_shank_neg", "q_r_knee", "q_shank_off"),
+            quantity_ids=["q_shank_x", "q_shank_y", "q_shank_z", "q_r_ankle", "q_r_knee", "q_shank_off",
+                          "q_shank_neg", "q_zero"], material_density="q_density"),
+        Component(id="c_uarm", name="Oberarm-Glied", geometry=_link(
+            "q_uarm_x", "q_uarm_y", "q_uarm_z", "q_r_shoulder", "q_uarm_neg", "q_r_elbow", "q_uarm_off"),
+            quantity_ids=["q_uarm_x", "q_uarm_y", "q_uarm_z", "q_r_shoulder", "q_r_elbow", "q_uarm_off",
+                          "q_uarm_neg", "q_zero"], material_density="q_density"),
+        Component(id="c_farm", name="Unterarm-Glied", geometry=_link(
+            "q_farm_x", "q_farm_y", "q_farm_z", "q_r_elbow", "q_farm_neg", "q_r_wrist", "q_farm_off"),
+            quantity_ids=["q_farm_x", "q_farm_y", "q_farm_z", "q_r_elbow", "q_r_wrist", "q_farm_off",
+                          "q_farm_neg", "q_zero"], material_density="q_density"),
+        Component(id="c_foot", name="Fuß", geometry=_link(
+            "q_foot_x", "q_foot_y", "q_foot_z", "q_r_ankle", "q_foot_neg", "q_r_toe", "q_foot_off"),
+            quantity_ids=["q_foot_x", "q_foot_y", "q_foot_z", "q_r_ankle", "q_r_toe", "q_foot_off",
+                          "q_foot_neg", "q_zero"], material_density="q_density"),
+    ]
+
+    bom = [
+        BomItem(id="b_pelvis", name="Becken (gedruckt)", role=BomRole.PART, count=1,
+                component_id="c_pelvis", domain=BomDomain.MECHANICAL, grounding=["c_humanoid_anchor"]),
+        BomItem(id="b_torso", name="Rumpf (gedruckt)", role=BomRole.PART, count=1,
+                component_id="c_torso", domain=BomDomain.MECHANICAL, grounding=["c_humanoid_anchor"]),
+        BomItem(id="b_head", name="Kopf (gedruckt)", role=BomRole.PART, count=1,
+                component_id="c_head", domain=BomDomain.MECHANICAL, grounding=["c_humanoid_anchor"]),
+        BomItem(id="b_thigh", name="Oberschenkel-Glied (gedruckt)", role=BomRole.PART, count=2,
+                component_id="c_thigh", domain=BomDomain.MECHANICAL, grounding=["c_humanoid_anchor"]),
+        BomItem(id="b_shank", name="Unterschenkel-Glied (gedruckt)", role=BomRole.PART, count=2,
+                component_id="c_shank", domain=BomDomain.MECHANICAL, grounding=["c_humanoid_anchor"]),
+        BomItem(id="b_uarm", name="Oberarm-Glied (gedruckt)", role=BomRole.PART, count=2,
+                component_id="c_uarm", domain=BomDomain.MECHANICAL, grounding=["c_humanoid_anchor"]),
+        BomItem(id="b_farm", name="Unterarm-Glied (gedruckt)", role=BomRole.PART, count=2,
+                component_id="c_farm", domain=BomDomain.MECHANICAL, grounding=["c_humanoid_anchor"]),
+        BomItem(id="b_foot", name="Fuß (gedruckt)", role=BomRole.PART, count=2,
+                component_id="c_foot", domain=BomDomain.MECHANICAL, grounding=["c_humanoid_anchor"]),
+        BomItem(id="b_motors", name="BLDC-Gelenkmotor (~2.0 N*m Stall, mit Harmonic-Drive 40:1)",
+                role=BomRole.PART, count=10, domain=BomDomain.MECHANICAL, grounding=["c_knee_motor"]),
+        BomItem(id="b_bearings", name="Rillenkugellager 6800-2RS (10 mm)", role=BomRole.PART, count=20,
+                domain=BomDomain.MECHANICAL, grounding=["c_bearing_price"],
+                sourcing=Sourcing(supplier="(Lagerhandel)", part_number="6800-2RS",
+                                  price_quantity_id="q_bearing_price", grounding=["c_bearing_price"])),
+        BomItem(id="b_bolts", name="M4x16-Innensechskantschraube", role=BomRole.PART, count=40,
+                domain=BomDomain.MECHANICAL, grounding=["c_bolt_src"],
+                sourcing=Sourcing(supplier="McMaster-Carr", part_number="91290A115",
+                                  price_quantity_id="q_bolt_price", grounding=["c_bolt_src", "c_bolt_price"])),
+        BomItem(id="b_compute", name="Onboard-Recheneinheit NVIDIA Jetson Orin NX (~100 TOPS)",
+                role=BomRole.PART, count=1, domain=BomDomain.ELECTRONIC, grounding=["c_orin"]),
+        BomItem(id="b_mcu", name="Echtzeit-MCU (STM32-Klasse) für Gelenk-Regelung", role=BomRole.PART,
+                count=1, domain=BomDomain.ELECTRONIC),
+        BomItem(id="b_drivers", name="FOC-BLDC-Motortreiber (ein Kanal je Gelenk)", role=BomRole.PART,
+                count=10, domain=BomDomain.ELECTRONIC, grounding=["c_driver"]),
+        BomItem(id="b_imu", name="6-Achsen-IMU (Bosch BMI088)", role=BomRole.PART, count=1,
+                domain=BomDomain.ELECTRONIC, grounding=["c_imu"]),
+        BomItem(id="b_battery", name="6S-LiPo-Akku (22.2 V)", role=BomRole.PART, count=1,
+                domain=BomDomain.ELECTRONIC, grounding=["c_lipo"]),
+        BomItem(id="b_harness", name="Kabelbaum + Stromverteilung", role=BomRole.PART, count=1,
+                domain=BomDomain.ELECTRONIC),
+        BomItem(id="b_printer", name="3D-Drucker", role=BomRole.TOOL, count=1),
+        BomItem(id="b_press", name="Lager-Einpresswerkzeug", role=BomRole.TOOL, count=1),
+        BomItem(id="b_hex", name="4-mm-Innensechskantschlüssel", role=BomRole.TOOL, count=1),
+        BomItem(id="b_solder", name="Lötkolben + Kabelwerkzeug", role=BomRole.TOOL, count=1),
+    ]
+
+    steps = [
+        Step(id="s1", index=1, action="Alle acht Strukturteile drucken (Becken, Rumpf, Kopf, "
+             "2x Oberschenkel, 2x Unterschenkel, 2x Oberarm, 2x Unterarm, 2x Fuß).",
+             uses=["b_printer"], inputs=["b_pelvis", "b_torso", "b_head", "b_thigh", "b_shank",
+                                         "b_uarm", "b_farm", "b_foot"], outputs=["a_printed"],
+             check="Alle Teile gedruckt; alle Bohrungen frei und maßhaltig.",
+             tool="3D-Drucker", quantity_refs=["q_thigh_x", "q_torso_x"]),
+        Step(id="s2", index=2, action="Die 20 Lager in alle Gelenkbohrungen einpressen.",
+             uses=["b_press", "b_bearings"], inputs=["a_printed"], outputs=["a_bearing"],
+             check="Lager sitzen fest und laufen frei."),
+        Step(id="s3", index=3, action="Die zehn BLDC-Gelenkmotoren montieren (2x Hüfte, 2x Knie, "
+             "2x Schulter, 2x Ellbogen, 1x Spine, 1x Hals) und verschrauben.",
+             uses=["b_hex", "b_bolts", "b_motors"], inputs=["a_bearing"], outputs=["a_jointed"],
+             check="Alle zehn Gelenke bewegen sich frei; Motorwellen fluchten mit den Pivots.",
+             tool="4-mm-Innensechskantschlüssel", torque_quantity_id="q_torque",
+             quantity_refs=["q_knee_torque"]),
+        Step(id="s4", index=4, action="Recheneinheit, MCU, zehn Motortreiber, IMU und Akku im Rumpf "
+             "montieren und den Kabelbaum verlegen.",
+             uses=["b_solder", "b_harness"], inputs=["a_jointed", "b_compute", "b_mcu", "b_drivers",
+                                                     "b_imu", "b_battery"], outputs=["a_wired"],
+             check="Jeder Motor an seinem Treiber; IMU im Rumpf; Recheneinheit bootet."),
+        Step(id="s5", index=5, action="Statische + dynamische Endprüfung: Knie hält die Auslegungslast, "
+             "Schwung bleibt im Drehmoment-Budget, ZMP im Stützpolygon, Compute-Budget eingehalten.",
+             inputs=["a_wired"], outputs=["a_done"],
+             check="electric_actuator-Reserve > 1; joint_swing_torque-Reserve > 1; ZMP im Stützpolygon; "
+                   "compute_budget- und inference_power-Reserve > 1.",
+             quantity_refs=["q_knee_torque", "q_avail_tau", "q_workload", "q_chip_tops"]),
+    ]
+
+    constraints = [
+        Constraint(id="k_stress", kind="le", left="q_sigma_peak", right="q_strength",
+                   reason="die Spitzenspannung am Hüft-Loch des Oberschenkel-Glieds bleibt unter der "
+                          "PLA-Festigkeit — notwendig, nicht hinreichend"),
+        Constraint(id="k_dfm_thigh_wall", kind="ge", left="q_thigh_z", right="q_min_wall",
+                   reason="die Oberschenkel-Dicke ist mindestens die kleinste druckbare FDM-Wand"),
+        Constraint(id="k_dfm_farm_wall", kind="ge", left="q_farm_z", right="q_min_wall",
+                   reason="die Unterarm-Dicke ist mindestens die kleinste druckbare FDM-Wand"),
+        Constraint(id="k_dfm_knee_hole", kind="ge", left="q_knee_bore_d", right="q_min_hole",
+                   reason="die Knie-Bohrung ist mindestens der kleinste druckbare FDM-Lochdurchmesser"),
+    ]
+
+    decisions = [
+        Decision(id="d_mat", title="Material", choice="PLA, 3D-gedruckt (Prototyp)",
+                 rationale="maximal gedruckt je 3D-Drucker-Direktive; Prototyp-Last — eine "
+                           "lasttragende Serien-Baugruppe braucht Alu/CFK", informed_by=["c_pla"]),
+        Decision(id="d_chip", title="Recheneinheit", choice="NVIDIA Jetson Orin NX (~100 TOPS)",
+                 rationale="deckt Wahrnehmung + Ganzkörper-Policy mit Reserve bei ~25 W",
+                 informed_by=["c_orin"]),
+        Decision(id="d_actuation", title="Aktuation", choice="BLDC + Harmonic Drive 40:1, FOC-Treiber",
+                 rationale="hohe Drehmomentdichte und Rückfahrbarkeit für Gelenke", informed_by=["c_knee_motor"]),
+    ]
+
+    return Specification(
+        run_id="humanoid",
+        idea="Ein Ganzkörper-Humanoid (Becken, Rumpf, Kopf, zwei Arme, zwei Beine; zehn angetriebene "
+             "Gelenke) mit druckbaren Strukturteilen, Onboard-Recheneinheit und der vollständigen "
+             "Kaufliste — gegatet gegen Tragwerk, Kinematik, Aktuation, Compute, Balance und Schwung",
+        approach_id="ap_humanoid", quantities=quantities, components=components, bom=bom,
+        steps=steps, constraints=constraints, decisions=decisions,
+        gaps=[
+            "PLA ist für den druckbaren PROTOTYP; ein lasttragender Serien-Humanoid in voller Baugröße "
+            "braucht Aluminium oder CFK — der σ-Check nutzt PLA bei Prototyp-Last (SF 2).",
+            "Die acht Strukturteile sind als repräsentative druckbare Brackets (Kasten mit zwei "
+            "Hauptbohrungen) modelliert; ein Serienteil trägt Versteifungsrippen, Kabelkanäle und alle "
+            "Befestigungspunkte, die hier nicht einzeln ausmodelliert sind.",
+            "Die Gelenkmotoren, die Recheneinheit, der Akku und die Treiber sind über Kennwerte "
+            "(Stall-Moment, TOPS, Spannung) spezifiziert; konkrete SKUs/Preise liefert die Live-α-Recherche "
+            "nach (daher teils unbepreist in der Stückliste).",
+            "Geprüft sind statisches Halten, Onboard-Compute-Budget und die deterministischen "
+            "Dynamik-Screens (2R-Reichweite, Aktuator-Sizing, ZMP über die Gang-Trajektorie, "
+            "Schwung-Drehmoment); der volle Mehrgelenk-Kontakt-Gang läuft im externen Simulator über die "
+            "URDF-Brücke (PyBullet/Isaac), nicht in diesem Gate.",
+        ],
+        claim_ids_used=[c.id for c in humanoid_claims()], produced_by="humanoid",
+    )
