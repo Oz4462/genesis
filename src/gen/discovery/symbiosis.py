@@ -172,3 +172,80 @@ def symbiosis_discover(
 
     return SymbiosisResult(own=own, judged_proposals=tuple(judged),
                            validated=tuple(unique), used_proposer=used_proposer)
+
+
+# ---------------------------------------------------------------------------------------------------
+# Cross-model COUNCIL — grok AND Claude live in GENESIS, both proposing, the gate the final authority
+# ---------------------------------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class CouncilResult:
+    """A cross-model council run: GENESIS's own dimensional discovery, every proposal from EACH model
+    gated, the gate-passed union (best first), and the audit of which model families took part.
+
+    The anti-hallucination law is unchanged: a model — grok OR Claude — only ever WIDENS the candidate
+    space; ``judge_candidate`` (deterministic, model-free) is the sole authority on what is true.
+    ``cross_model`` is True when ≥ 2 distinct model families proposed (a genuine second family, the
+    skeptic discipline), so no single model's blind spot can carry a candidate through."""
+
+    own: DiscoveryResult
+    judged_by_model: dict[str, tuple[JudgedProposal, ...]]
+    validated: tuple[DiscoveryVerdict, ...]
+    families: tuple[str, ...]
+    cross_model: bool
+
+
+def council_discover(
+    problem: DiscoveryProblem,
+    *,
+    proposers: list[GrokProposer],
+    n_proposals: int = 4,
+    known_laws: dict[str, dict[str, float]] | None = None,
+    r2_threshold: float = DEFAULT_R2_THRESHOLD,
+) -> CouncilResult:
+    """Run the cross-model council: GENESIS's own discovery ALWAYS runs (it works with no model at
+    all), then EACH proposer (grok, Claude, …) widens the candidate space, and EVERY proposal — from
+    whichever model — is gated by ``judge_candidate``. The validated set is the union of all
+    gate-passed verdicts, deduped, best fit first. Provenance records, per model, what it proposed and
+    how the gate judged it. Deterministic GIVEN the proposers (live CLIs are non-deterministic; pass
+    ``ScriptedLLM``-backed proposers for a reproducible run).
+
+    This is how grok and Claude live INSIDE GENESIS: they contribute formulas GENESIS may not have
+    found on its own, and the deterministic gate — never a model — decides what survives."""
+    own = discover_new_formulas(problem, known_laws=known_laws, r2_threshold=r2_threshold)
+    judged_by_model: dict[str, tuple[JudgedProposal, ...]] = {}
+    all_judged: list[JudgedProposal] = []
+    families: list[str] = []
+    for pr in proposers:
+        families.append(model_family(pr.model))
+        props = asyncio.run(pr.propose(problem, n=n_proposals))
+        judged = _gate_proposals(problem, props, known_laws=known_laws, r2_threshold=r2_threshold)
+        judged_by_model[pr.model] = tuple(judged)
+        all_judged.extend(judged)
+
+    validated = list(own.validated) + [j.verdict for j in all_judged if j.verdict.passed]
+    seen: set[str] = set()
+    unique: list[DiscoveryVerdict] = []
+    for v in sorted(validated, key=lambda v: (-v.candidate.r_squared, v.candidate.complexity)):
+        if v.candidate.expression not in seen:
+            seen.add(v.candidate.expression)
+            unique.append(v)
+
+    fam_set = tuple(sorted(set(families)))
+    return CouncilResult(own=own, judged_by_model=judged_by_model, validated=tuple(unique),
+                         families=fam_set, cross_model=len(fam_set) >= 2)
+
+
+def default_council(*, grok_model: str = "grok-build",
+                    claude_model: str = "claude-opus-4-8") -> list[GrokProposer]:
+    """Build the LIVE cross-model council: a grok proposer (xAI family) AND a Claude proposer
+    (anthropic family), each a real CLI. Opt-in and non-deterministic (it shells out to the
+    installed ``grok`` and ``claude`` CLIs); for offline/reproducible runs pass ScriptedLLM-backed
+    proposers to ``council_discover`` instead."""
+    from ..llm.claude_cli import ClaudeCLI
+    from ..llm.grok_cli import GrokCLI
+
+    return [
+        GrokProposer(client=GrokCLI(model=grok_model), model=grok_model),
+        GrokProposer(client=ClaudeCLI(model=claude_model), model=claude_model),
+    ]

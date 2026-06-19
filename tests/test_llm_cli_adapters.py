@@ -42,7 +42,9 @@ async def test_grok_cli_parses_json_and_concatenates_prompt():
     assert r.argv is not None
     assert r.argv[0:2] == ["grok", "-p"]
     assert "be terse" in r.argv[2] and "hi" in r.argv[2]
-    assert "--model" in r.argv and "--output-format" in r.argv and "json" in r.argv
+    # grok's --output-format json mode auth-errors + hangs (verified live), so the adapter does NOT
+    # pass it; plain mode prints the (JSON) answer on stdout, which extract_cli_text reads.
+    assert "--model" in r.argv and "--output-format" not in r.argv
 
 
 @pytest.mark.asyncio

@@ -736,8 +736,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--demo", action="store_true", help="run the offline deterministic demo")
     parser.add_argument(
         "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol",
-                           "assess", "print", "bundle", "ideas", "dream", "humanoid", "realize",
-                           "breakthrough", "research"),
+                           "assess", "print", "bundle", "ideas", "dream", "humanoid", "council",
+                           "realize", "breakthrough", "research"),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
              "spec = Phase γ build specification; capstone = a complete, fully "
@@ -757,12 +757,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--checkpoint-dir", default=None, help="write a run checkpoint here")
     parser.add_argument(
-        "--generator", default="qwen3.5:9b",
-        help="Ollama model for scout/scholar (default: qwen3.5:9b)",
+        "--generator", default="grok-build",
+        help="generator/proposer model for scout/scholar (default: grok-build via the grok CLI; "
+             "the strong cross-model default — a local Ollama id like qwen3.5:9b still works as a "
+             "fallback when offline)",
     )
     parser.add_argument(
-        "--verifier", default="gemma4:12b",
-        help="Ollama model for skeptic — MUST be a different family (default: gemma4:12b)",
+        "--verifier", default="claude-opus-4-8",
+        help="verifier/skeptic model — MUST be a different family from the generator (default: "
+             "claude-opus-4-8 via the claude CLI; grok+Claude are the active cross-model pair, "
+             "Ollama gemma4:12b remains a local fallback)",
     )
     parser.add_argument(
         "--realize-package-name", default="Genesis Realization Package",
@@ -941,6 +945,38 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  fehlt:        {', '.join(m.missing) if m.missing else '—'}\n")
             all_ok = all_ok and m.files_complete and m.physics_ok
         return 0 if all_ok else 3
+
+    if args.mode == "council":
+        # The LIVE cross-model council: grok AND Claude (the strong CLIs, not the weak local Ollama)
+        # propose candidate formulas for real physics problems; GENESIS's deterministic gate decides
+        # what survives. This is grok + Claude working INSIDE GENESIS — proposing what GENESIS may not
+        # find alone — with the anti-hallucination gate as the final authority. Live (needs the grok +
+        # claude CLIs + network); non-deterministic by nature.
+        from .discovery.benchmark import kepler_case, pendulum_case
+        from .discovery.symbiosis import council_discover, default_council
+
+        council = default_council()   # grok-build (xAI) + claude-opus (anthropic) — real CLIs
+        print("GENESIS — Cross-Model-Council (grok + Claude live IN GENESIS, das Gate entscheidet)\n")
+        any_live = False
+        for case in (pendulum_case(), kepler_case()):
+            print(f"=== {case.name}: {case.problem.idea} ===")
+            try:
+                res = council_discover(case.problem, proposers=council, known_laws=case.known_laws)
+            except Exception as exc:   # CLI/network failure is reported, never a fake result
+                print(f"  LIVE-CLI nicht erreichbar: {type(exc).__name__}: {exc}\n")
+                continue
+            any_live = True
+            print(f"  cross_model={res.cross_model}  Familien={', '.join(res.families)}")
+            print(f"  GENESIS eigen (ohne Modell): {len(res.own.validated)} validierte Formel(n)")
+            for model, judged in res.judged_by_model.items():
+                passed = sum(1 for j in judged if j.verdict.passed)
+                print(f"  Vorschlag {model}: {len(judged)} Hypothesen → {passed} vom GENESIS-Gate bestätigt")
+            if res.validated:
+                best = res.validated[0]
+                print(f"  beste validierte Formel: {best.candidate.expression} "
+                      f"(R²={best.candidate.r_squared:.5f})")
+            print("")
+        return 0 if any_live else 3
 
     if args.mode == "humanoid":
         # The two COMPLETE whole-body humanoids built (with grok) to beat the 2026 state of the art:

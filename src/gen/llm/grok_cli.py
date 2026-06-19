@@ -1,9 +1,14 @@
 """Grok CLI adapter — a keyless ``LLMClient`` via the user's Grok subscription (OAuth).
 
-Launches the ``grok`` CLI in single-prompt headless mode
-(``grok -p <prompt> --model <m> --output-format json``), which authenticates through the
-installed xAI subscription — no API key, no per-token billing. ``grok``'s ``-p/--single``
-takes ONE prompt, so the system and user messages are concatenated.
+Launches the ``grok`` CLI in single-prompt headless mode (``grok -p <prompt> --model <m>``), which
+authenticates through the installed xAI subscription — no API key, no per-token billing. ``grok``'s
+``-p/--single`` takes ONE prompt, so the system and user messages are concatenated.
+
+IMPORTANT (verified live 2026-06-19): grok's ``--output-format json`` mode currently fails with
+``Auth(AuthorizationRequired)`` and the call hangs in a re-auth retry loop — so this adapter does NOT
+pass that flag. In plain mode grok prints the assistant text (including any requested JSON) cleanly on
+stdout, with its connection/auth chatter on stderr, which ``default_cli_run`` captures separately and
+``extract_cli_text`` ignores. The prompt still asks for JSON; the proposer parses it from stdout.
 
 Pair cross-model with a NON-xai generator (e.g. ``ClaudeCLI`` or ``OllamaLLM``);
 ``verification.cross_model.assert_different_families`` enforces the split (grok -> "xai").
@@ -45,7 +50,9 @@ class GrokCLI:
 
     async def complete(self, *, system: str, user: str) -> LLMResponse:
         prompt = f"{system}\n\n{user}" if system.strip() else user
-        argv = [self._binary, "-p", prompt, "--model", self.model, "--output-format", "json"]
+        # NO --output-format json: grok's JSON mode auth-errors and hangs (see module docstring).
+        # Plain mode prints the assistant text (incl. requested JSON) on stdout; chatter -> stderr.
+        argv = [self._binary, "-p", prompt, "--model", self.model]
         try:
             code, out, err = await self._run(argv)
         except Exception as exc:
