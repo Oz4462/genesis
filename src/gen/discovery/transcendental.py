@@ -356,3 +356,24 @@ def evaluate_rival(rival: RivalForm, problem: DiscoveryProblem) -> np.ndarray:
     names, arrs = _source_arrays(problem)
     pi = _group_values(rival.group, names, arrs)
     return _apply_form(rival.form_name, rival.params, pi)
+
+
+def refit_rival(rival: RivalForm, problem: DiscoveryProblem) -> RivalForm | None:
+    """RE-FIT a rival's form on its SAME π-group to a (possibly augmented) problem's data — letting the
+    rival bend maximally to the new points. Returns a freshly-fitted ``RivalForm`` (new params + R²) or
+    ``None`` if it cannot fit. This is the T-optimality move (FORSCHUNG §A4): a discriminating experiment
+    must defeat the losing rival EVEN AFTER it re-fits optimally to the proposed data. Raises ValueError on
+    non-positive magnitudes."""
+    names, arrs = _source_arrays(problem)
+    pi = _group_values(rival.group, names, arrs)
+    y = np.asarray(problem.target.values, dtype=float)
+    forms = {f.name: f for f in (*_form_library(), _baseline_form())}
+    form = forms.get(rival.form_name)
+    if form is None:
+        return None
+    fit = _fit_form(form, pi, y)
+    if fit is None:
+        return None
+    r2, popt = fit
+    return RivalForm(form_name=rival.form_name, group=dict(rival.group),
+                     params={n: float(v) for n, v in zip(form.param_names, popt)}, r_squared=r2)

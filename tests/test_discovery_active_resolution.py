@@ -13,6 +13,7 @@ import pytest
 from gen.discovery import (
     Constant, DiscoveryProblem, Variable,
     DecisionSpec, discover_rivals, discover_transcendental, propose_resolution,
+    propose_resolution_robust, RobustDecisionSpec,
 )
 
 TAU, X0 = 5.0, 10.0
@@ -115,3 +116,45 @@ def test_rejects_a_none_rival():
     trans, _ = discover_rivals(problem)
     with pytest.raises(ValueError):
         propose_resolution(trans, None, problem)
+
+
+def test_robust_spread_survives_the_losing_rival_refitting():
+    """T-optimality (FORSCHUNG §A4, maximin): a discriminating experiment must defeat the loser EVEN
+    AFTER it re-fits optimally to the proposed data. On the SPREAD the power-of-a-group loser, allowed
+    to re-fit to the world where the exponential is true, still cannot follow the exp SHAPE — its
+    residual stays far above the noise floor, so the verdict is robustly discriminating."""
+    problem = _decay_problem(_T_NARROW)
+    trans, powerlaw = discover_rivals(problem)
+    spec = propose_resolution_robust(trans, powerlaw, problem)
+    assert isinstance(spec, RobustDecisionSpec)
+    assert spec.base.discriminating               # the FITTED rivals already diverge
+    assert spec.survives_refit                    # ...and the loser STILL loses after re-fitting
+    assert spec.discriminating                    # robust verdict = base AND survives_refit
+    # the re-fit loser is a good (high-R²) but still-failing fit — it bends, but cannot match the shape
+    assert spec.refit_rival_r2 > 0.9
+    assert spec.residual_after_refit > 5.0 * (spec.base.max_divergence / spec.base.discrimination_ratio)
+
+
+def test_robust_single_point_is_absorbed_by_the_refitting_rival():
+    """The reason a SPREAD is required and a lone point is not enough: a three-parameter rival re-fits
+    to a single new value and follows it (residual collapses below the floor). The robust operator
+    honestly reports survives_refit=False there — a single point is an absorbable, non-robust experiment."""
+    problem = _decay_problem(_T_NARROW)
+    trans, powerlaw = discover_rivals(problem)
+    spread = propose_resolution_robust(trans, powerlaw, problem, n_suggest=5)
+    single = propose_resolution_robust(trans, powerlaw, problem, n_suggest=1)
+    assert len(single.base.measure_at) == 1
+    assert not single.survives_refit              # the lone point is absorbed by the re-fit
+    assert not single.discriminating
+    # the spread is strictly the more robust experiment: it survives where the single point does not
+    assert spread.residual_after_refit > single.residual_after_refit
+
+
+def test_robust_resolution_is_deterministic():
+    """Same problem, same proposal — the robust verdict and its residual are reproducible (no RNG)."""
+    problem = _decay_problem(_T_NARROW)
+    trans, powerlaw = discover_rivals(problem)
+    a = propose_resolution_robust(trans, powerlaw, problem)
+    b = propose_resolution_robust(trans, powerlaw, problem)
+    assert (a.survives_refit, a.discriminating) == (b.survives_refit, b.discriminating)
+    assert a.residual_after_refit == b.residual_after_refit

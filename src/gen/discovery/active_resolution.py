@@ -32,7 +32,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from .engine import DiscoveryProblem, Variable
-from .transcendental import RivalForm, evaluate_rival
+from .transcendental import RivalForm, evaluate_rival, refit_rival
 
 #: Hard cap on how far past the observed range the divergence search may look (×). A transcendental
 #: and a power law ALWAYS diverge eventually; only divergence near the data is a real experiment.
@@ -162,3 +162,70 @@ def propose_resolution(
         measure_at=measure_at, expected_a=expected_a, expected_b=expected_b,
         max_divergence=max_div, discrimination_ratio=ratio, discriminating=discriminating,
         verdict_criterion=crit, reason=reason)
+
+
+@dataclass(frozen=True)
+class RobustDecisionSpec:
+    """A discriminating spec that also SURVIVES the losing rival re-fitting (maximin T-optimality).
+
+    ``propose_resolution`` finds where the two FITTED rivals diverge; this asks the harder question — if
+    the loser is allowed to re-fit optimally to the proposed data, can it then follow the winner's shape?
+    ``survives_refit`` is True only when, EVEN AFTER the re-fit, the loser still misses the winner's
+    signature over the SPREAD by more than the discrimination floor; ``discriminating`` is the robust
+    verdict (base discriminating AND survives the re-fit)."""
+
+    base: DecisionSpec
+    refit_rival_r2: float
+    residual_after_refit: float
+    survives_refit: bool
+    discriminating: bool
+    detail: str
+
+
+def propose_resolution_robust(
+    rival_a: RivalForm | None,
+    rival_b: RivalForm | None,
+    problem: DiscoveryProblem,
+    *,
+    min_discrimination: float = DEFAULT_MIN_DISCRIMINATION,
+    **kwargs,
+) -> RobustDecisionSpec:
+    """Maximin-robust resolution (FORSCHUNG §A4 T-optimality): propose the discriminating spread, build the
+    world where ``rival_a`` is true (observed data + ``rival_a``'s prediction at the spread), RE-FIT the
+    loser ``rival_b`` on it, and require that it STILL cannot follow ``rival_a``'s shape over the spread.
+
+    A lone proposed point a three-parameter rival absorbs by re-fitting; a SPREAD it cannot — that is what
+    makes the experiment robust rather than a single absorbable value. ``discriminating`` is True only if the
+    base spec discriminates AND the re-fit loser's residual to the winner-truth over the spread stays above
+    ``min_discrimination`` noise floors. Same single-input MVP scope as ``propose_resolution``."""
+    spec = propose_resolution(rival_a, rival_b, problem, min_discrimination=min_discrimination, **kwargs)
+    var = problem.inputs[0]
+    obs_x = np.asarray(var.values, dtype=float)
+    obs_y = np.asarray(problem.target.values, dtype=float)
+    new_x = np.asarray(spec.measure_at, dtype=float)
+    truth_y = np.asarray(spec.expected_a, dtype=float)          # the world in which rival_a is true
+    noise = spec.max_divergence / spec.discrimination_ratio if spec.discrimination_ratio > 0 else 1e-12
+
+    if new_x.size == 0:
+        return RobustDecisionSpec(spec, float("nan"), float("nan"), False, False,
+                                  "keine Messpunkte vorgeschlagen")
+
+    augmented = DiscoveryProblem(
+        idea=problem.idea,
+        target=Variable(problem.target.name, problem.target.unit,
+                        tuple(np.concatenate([obs_y, truth_y]))),
+        inputs=(Variable(var.name, var.unit, tuple(np.concatenate([obs_x, new_x]))),),
+        constants=problem.constants, run_id=problem.run_id)
+    refit_b = refit_rival(rival_b, augmented)  # type: ignore[arg-type]  (None handled below)
+    if refit_b is None:
+        return RobustDecisionSpec(spec, float("nan"), float("inf"), True, spec.discriminating,
+                                  "der unterlegene Rivale konnte die erweiterten Daten nicht nachfitten")
+
+    refit_pred = evaluate_rival(refit_b, _with_input_values(problem, var.name, new_x))
+    residual = float(np.max(np.abs(refit_pred - truth_y)))
+    survives = residual >= min_discrimination * noise
+    discriminating = spec.discriminating and survives
+    detail = (f"Verlierer-Rivale '{rival_b.form_name if rival_b else '?'}' nach Refit R²={refit_b.r_squared:.4f}; "
+              f"Rest-Residuum {residual:.3g} = {residual / noise:.1f}x Rausch-Boden — "
+              + ("ueberlebt den Refit (robust entscheidbar)" if survives else "absorbiert die Punkte (nicht robust)"))
+    return RobustDecisionSpec(spec, refit_b.r_squared, residual, survives, discriminating, detail)

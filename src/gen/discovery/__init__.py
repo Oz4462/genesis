@@ -96,6 +96,8 @@ __all__ = [
     "evaluate_rival",
     "propose_resolution",
     "DecisionSpec",
+    "propose_resolution_robust",
+    "RobustDecisionSpec",
     "discover_correction",
     "CompositionResult",
 ]
@@ -196,9 +198,9 @@ def __getattr__(name: str):
                   "TranscendentalLaw", "RivalForm", "discover_rivals", "evaluate_rival"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
-    if name in ("propose_resolution", "DecisionSpec"):
+    if name in ("propose_resolution", "DecisionSpec", "propose_resolution_robust", "RobustDecisionSpec"):
         from . import active_resolution as _m
-        for n in ("propose_resolution", "DecisionSpec"):
+        for n in ("propose_resolution", "DecisionSpec", "propose_resolution_robust", "RobustDecisionSpec"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     if name in ("discover_correction", "CompositionResult"):
