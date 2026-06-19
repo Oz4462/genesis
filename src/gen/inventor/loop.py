@@ -18,20 +18,24 @@ spine that TN and TS wire into without a rewrite.
 
 from __future__ import annotations
 
+import dataclasses
 import os
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Awaitable, Callable, Optional
 
 from ..core.state import Possibility
 from ..llm.base import LLMClient
 from .brief import Invention, InventionBrief
 from .domains.base import InventionDomain
 from .generate import generate_concepts
+from .novelty import NICHT_NEU, NoveltyVerdict
 from .score import pareto_inventions
 
-#: Optional hooks the later phases wire in. SafetyScreen runs on the brief BEFORE generation; NoveltyCheck
-#: annotates each grounded invention; Checkpoint is called after each concept is grounded (resume/audit).
+#: Optional hooks the later phases wire in. SafetyScreen runs on the brief BEFORE generation; NoveltyGate runs
+#: on each CONCEPT before grounding (a nicht_neu concept is never grounded); NoveltyCheck annotates a grounded
+#: invention; Checkpoint is called after each concept is processed (resume/audit).
 SafetyScreen = Callable[[InventionBrief], bool]
+NoveltyGate = Callable[[Possibility], Awaitable[NoveltyVerdict]]
 NoveltyCheck = Callable[[Invention], Invention]
 Checkpoint = Callable[[Invention], None]
 
@@ -62,12 +66,14 @@ async def run_invention(
     architect: LLMClient,
     out_dir: Optional[str] = None,
     safety_screen: Optional[SafetyScreen] = None,
+    novelty_gate: Optional[NoveltyGate] = None,
     novelty_check: Optional[NoveltyCheck] = None,
     checkpoint: Optional[Checkpoint] = None,
 ) -> InventionRun:
     """Run the loop end to end. Returns an :class:`InventionRun`. If ``safety_screen`` rejects the brief, the
-    run is ``refused`` and the proposer is NEVER called (safety-first). Deterministic given deterministic
-    ``council``/``architect`` and the brief — re-running yields an identical front. ``out_dir`` emits a bundle
+    run is ``refused`` and the proposer is NEVER called (safety-first). If ``novelty_gate`` judges a concept
+    ``nicht_neu``, it is recorded but NEVER grounded — known prior art does not become an invention (M2 DoD).
+    Deterministic given deterministic inputs — re-running yields an identical front. ``out_dir`` emits a bundle
     per front member under ``out_dir/<concept-id>/``."""
     if safety_screen is not None and not safety_screen(brief):
         return InventionRun(brief, (), (), (), (), refused=True)
@@ -75,7 +81,24 @@ async def run_invention(
     concepts = await generate_concepts(brief, council)
     inventions: list[Invention] = []
     for concept in concepts:
+        verdict: Optional[NoveltyVerdict] = None
+        if novelty_gate is not None:
+            verdict = await novelty_gate(concept)
+            if verdict.verdict == NICHT_NEU:
+                # known prior art: record the honest non-novel verdict + evidence, but do NOT ground it.
+                evidence = (verdict.nearest_prior_art,) if verdict.nearest_prior_art else ()
+                rejected = Invention(concept=concept, novelty_verdict=verdict.verdict, prior_art=evidence,
+                                     gaps=("nicht neu — bekannte Prior-Art, nicht geerdet",))
+                inventions.append(rejected)
+                if checkpoint is not None:
+                    checkpoint(rejected)
+                continue
+
         invention = await domain.ground(concept, brief, architect)
+        if verdict is not None:
+            merged = tuple(dict.fromkeys((*invention.prior_art,
+                                          *( (verdict.nearest_prior_art,) if verdict.nearest_prior_art else () ))))
+            invention = dataclasses.replace(invention, novelty_verdict=verdict.verdict, prior_art=merged)
         if novelty_check is not None:
             invention = novelty_check(invention)
         inventions.append(invention)
@@ -97,4 +120,4 @@ async def run_invention(
                         tuple(artifact_dirs), refused=False)
 
 
-__all__ = ["InventionRun", "run_invention", "SafetyScreen", "NoveltyCheck", "Checkpoint"]
+__all__ = ["InventionRun", "run_invention", "SafetyScreen", "NoveltyGate", "NoveltyCheck", "Checkpoint"]

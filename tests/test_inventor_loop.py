@@ -73,3 +73,42 @@ def test_checkpoint_hook_is_called_per_concept():
     run(run_invention(_brief(), domain=MechatronicsDomain(), council=scripted_council(_COUNCIL),
                       architect=scripted_mechatronics_architect(), checkpoint=lambda inv: seen.append(inv.concept.id)))
     assert seen == ["M1-c1", "M1-c2"]
+
+
+def test_a_known_prior_art_concept_is_never_grounded_M2_dod():
+    """M2 DoD: a concept that the novelty gate judges nicht_neu (a verbatim duplicate of retrieved prior art)
+    is recorded with its verdict + evidence but NEVER grounded; only the novel concept reaches the front."""
+    from gen.core.state import SourceCandidate
+    from gen.inventor.novelty import build_novelty_gate
+
+    council = scripted_council([
+        {"statement": "resonant tendon gripper mount", "mechanism": "printed flexures store elastic energy",
+         "grounding": ["x"]},
+        {"statement": "Magnetohydrodynamic seawater thruster", "mechanism": "Lorentz force ionized brine",
+         "grounding": ["y"]},
+    ])
+
+    class _DupBackend:
+        name = "dup"
+
+        async def search(self, query, limit):
+            return [SourceCandidate(url_or_id="openalex:W9", title="resonant tendon gripper mount",
+                                    backend="dup", relevance_note="printed flexures store elastic energy")]
+
+    result = run(run_invention(_brief(), domain=MechatronicsDomain(), council=council,
+                               architect=scripted_mechatronics_architect(),
+                               novelty_gate=build_novelty_gate([_DupBackend()])))
+    by_stmt = {i.concept.statement: i for i in result.inventions}
+    dup = by_stmt["resonant tendon gripper mount"]
+    assert dup.novelty_verdict == "nicht_neu" and not dup.grounded and dup.specification is None
+    assert dup.prior_art == ("openalex:W9",)                       # the verdict carries its evidence
+    assert [i.concept.statement for i in result.front] == ["Magnetohydrodynamic seawater thruster"]
+
+
+def test_every_grounded_output_carries_a_novelty_verdict():
+    from gen.inventor.novelty import build_novelty_gate
+    result = run(run_invention(_brief(), domain=MechatronicsDomain(), council=scripted_council(_COUNCIL),
+                               architect=scripted_mechatronics_architect(),
+                               novelty_gate=build_novelty_gate(MechatronicsDomain().prior_art_sources())))
+    assert result.front
+    assert all(inv.novelty_verdict is not None for inv in result.front)
