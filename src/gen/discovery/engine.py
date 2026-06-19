@@ -41,9 +41,14 @@ from fractions import Fraction
 
 import numpy as np
 
+from typing import TYPE_CHECKING
+
 from ..verification.derivation import within_tolerance
 from ..verification.symbolic import cross_check_power_law
 from ..verification.units import Dimension, parse_unit
+
+if TYPE_CHECKING:
+    from .concept_utility import ConceptUtility
 
 #: Default fit-quality bar for a ``bestaetigt`` verdict (R² ≥ this, δ-raised per candidate).
 DEFAULT_R2_THRESHOLD = 0.999
@@ -372,6 +377,7 @@ def discover_new_formulas(
     *,
     known_laws: dict[str, dict[str, float]] | None = None,
     r2_threshold: float = DEFAULT_R2_THRESHOLD,
+    prior: "ConceptUtility | None" = None,
 ) -> DiscoveryResult:
     """The Phase-1 core loop (Anhang B): idea+data → candidate formulas → gated validation.
 
@@ -380,7 +386,12 @@ def discover_new_formulas(
     validated verdicts (best first) and the full record of every candidate — kept and
     rejected — because a rejection is information, not garbage (it feeds the Discovery
     Graph). `known_laws` optionally maps a law name to its exponent signature so an expected
-    rediscovery gets a low δ (a lower evidence bar) than a novel claim. Deterministic.
+    rediscovery gets a low δ (a lower evidence bar) than a novel claim.
+
+    `prior` is an optional ledger-learned ``ConceptUtility``: it ONLY breaks ties among validated
+    candidates of EQUAL fit and parsimony (best-fit-first is never overridden by a heuristic), so a
+    historically-passing concept structure is preferred only when the gate could not separate them.
+    Default ``None`` reproduces the bare gate ordering exactly. Deterministic.
     """
     known = known_laws or {}
     y = np.asarray(problem.target.values, dtype=float)
@@ -393,8 +404,12 @@ def discover_new_formulas(
         delta = _delta_to_consensus(cand, known)
         records.append(_judge(cand, y, y_hat, r2_threshold=r2_threshold, delta=delta))
 
-    validated = tuple(sorted((r for r in records if r.passed),
-                             key=lambda r: (-r.candidate.r_squared, r.candidate.complexity)))
+    def _key(r: DiscoveryVerdict):
+        # primary: best fit; secondary: parsimony; tertiary (only if prior given): learned utility.
+        utility = prior.score(r.candidate) if prior is not None else 0.0
+        return (-r.candidate.r_squared, r.candidate.complexity, -utility)
+
+    validated = tuple(sorted((r for r in records if r.passed), key=_key))
     return DiscoveryResult(problem_idea=problem.idea, validated=validated,
                            all_records=tuple(records), run_id=problem.run_id)
 
