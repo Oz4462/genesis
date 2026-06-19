@@ -72,8 +72,16 @@ durch Getriebe, Hydraulik F=p·A/Q=A·v/Hagen-Poiseuille), `compute.py` (TOPS-Bu
 → speist `thermal`, Latenz). 8 Validatoren in `physics_validation.VALIDATORS` + 8 `CheckRecipe` in
 `physics_selection.RECIPES`; eine Humanoid-Bein-`Specification` feuert 6 Checks **auto** aus
 measurand-Tags → ehrliches Gate-Verdikt (pass/fail/gap, live bewiesen). 26 neue Tests; je Tour
-grok-build KEIN DRIFT. Memory: [[project-genesis-robot-axes]]. Offen: Tour 5 electronics-digital,
-Tour 6 training-plan. Volle Suite offline **1355 passed / 0 failed / 19 skipped**.
+grok-build KEIN DRIFT. Memory: [[project-genesis-robot-axes]]. **Status-Korrektur 2026-06-19: Tour 5 + 6
+ABGESCHLOSSEN.** Tour 6 `training_plan.py` GEBAUT+getestet (ehrliche ML-Grenze:
+`training_plan_completeness_check` + `acceptance_gate` mit δ-Asymmetrie), via `gen --mode training`
+verdrahtet. Tour 5: `digital_bus.py` (`bus_bandwidth_check`/`bus_latency_check`) war schon gebaut+getestet
++ in `VALIDATORS`/`RECIPES` registriert (feuert auto aus `bus.sample_rate`/`bus.bitrate`); die fehlende
+Hälfte `chip_selection.py` (Chip-Auswahl-nach-Anforderung: geerdeter Katalog = Vorschlag, `compute.py`
+Throughput/Power/Latenz = Gate, ehrliches „keiner passt") gebaut + via `gen --mode chip` verdrahtet.
+`electronics.py` (analog/PowerTree/ERC/KiCad/Sim/DRC/route) bleibt der reiche Analog/PCB-Teil.
+**Lektion: vor neuem Modul erst per `grep`/Read prüfen, ob es schon existiert** (Write-Guard fing eine
+Beinahe-Duplizierung von `training_plan.py`). Volle Suite offline 1603 passed / 0 failed / 33 skipped.
 
 **Artefakte + Simulation + Ganzkörper + Formel-Fix + 5 Ideen (2026-06-19, autonom, je grok KEIN DRIFT):**
 `bundle.emit_bundle` (Bauanleitung+SCAD+watertight-STL-je-Bauteil+BOM+MANIFEST+MISSING); zwei
