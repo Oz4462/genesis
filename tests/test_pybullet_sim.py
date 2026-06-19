@@ -23,6 +23,7 @@ import pytest  # noqa: E402
 from gen.simulation.pybullet_sim import (  # noqa: E402
     articulate_and_track,
     drop_test,
+    gravity_compensated_hold,
     gravity_hold_torques,
     track_joint_swing,
     urdf_joint_count,
@@ -182,3 +183,34 @@ def test_articulate_rejects_unknown_names():
     with pytest.raises(ValueError):
         articulate_and_track(humanoid_urdf(), drives=[("no_such_joint", 0.5, 0.4)],
                              track_links=["l_forearm"], max_torque=100.0, duration=0.5)
+
+
+def test_computed_torque_holds_a_demanding_whole_body_pose_passive_collapses():
+    """The whole body HOLDS itself dynamically: computed-torque gravity compensation (torques from the
+    model's OWN inertials, via the engine's inverse dynamics) holds a demanding posture — both arms
+    raised horizontal (maximum gravity moment), spine twisted, both knees bent, every OTHER joint held
+    at 0 — with negligible drift (< 0.05 rad over 2 s), while the IDENTICAL passive body (zero motor
+    torque) collapses under gravity (> 0.5 rad). This is how a humanoid lab validates a mass model +
+    computed-torque law on a gantry before free walking: the GENESIS inertials produce hold torques a
+    real engine confirms by actually holding the posture. Honest boundary: FIXED (gantry) base, no
+    balancing — free-base ZMP walking is the external path."""
+    u = humanoid_urdf()
+    pose = {"l_shoulder": 1.4, "r_shoulder": 1.4, "spine": 0.3, "l_knee": 0.5, "r_knee": 0.5}
+    held = gravity_compensated_hold(u, pose, compensate=True, duration=2.0)
+    passive = gravity_compensated_hold(u, pose, compensate=False, duration=2.0)
+    assert held["finite"] and passive["finite"]
+    assert held["max_drift"] < 0.05                     # computed-torque HOLDS the posture (tight)
+    assert passive["max_drift"] > 0.5                   # the passive body COLLAPSES
+    assert passive["max_drift"] > 5.0 * held["max_drift"] + 0.5   # the model's torques are load-bearing
+
+
+def test_gravity_compensated_hold_is_deterministic_and_validates_inputs():
+    """Reproducible run-to-run (fixed step + solver), and bad joint names / non-positive gains raise."""
+    u = humanoid_urdf()
+    a = gravity_compensated_hold(u, {"l_knee": 0.5}, duration=0.5)
+    b = gravity_compensated_hold(u, {"l_knee": 0.5}, duration=0.5)
+    assert a["max_drift"] == b["max_drift"]
+    with pytest.raises(ValueError):
+        gravity_compensated_hold(u, {"no_such_joint": 0.5}, duration=0.5)
+    with pytest.raises(ValueError):
+        gravity_compensated_hold(u, {"l_knee": 0.5}, kp=0.0, duration=0.5)

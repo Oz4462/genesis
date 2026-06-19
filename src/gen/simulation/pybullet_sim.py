@@ -193,6 +193,72 @@ def articulate_and_track(urdf_str: str, *, drives: list[tuple[str, float, float]
         return {"travels": travels, "finite": finite}
 
 
+def gravity_compensated_hold(urdf_str: str, pose: dict[str, float], *, compensate: bool = True,
+                             kp: float = 10.0, kd: float = 1.0, duration: float = 2.0,
+                             dt: float = 1.0 / 240.0) -> dict:
+    """Hold a demanding WHOLE-BODY pose on a FIXED (gantry) base by COMPUTED-TORQUE control: each step
+    the gravity-compensation torque is computed by the engine's OWN inverse dynamics from the link
+    masses + inertials, plus a PD term to the target pose, and applied as joint torques. With
+    ``compensate=True`` the limbs HOLD the pose against gravity; with ``compensate=False`` (passive,
+    zero motor torque) they collapse under gravity. ``pose`` maps joint names to target angles [rad].
+
+    Returns ``{"max_drift", "finite", "compensate"}`` — ``max_drift`` is the worst |achieved−target|
+    over the posed joints [rad] (small ⇒ the pose is held). This is exactly how a humanoid lab
+    validates a mass/inertia model + a computed-torque law on a gantry BEFORE free walking: it shows
+    GENESIS's mass model yields hold torques a real engine confirms by ACTUALLY holding the pose.
+    Honest boundary: FIXED base (no balancing), gravity + the model's own inertials only — NOT
+    free-base balance, ZMP walking or a learned gait (that stays the external MuJoCo/Isaac path over
+    the same URDF). The gravity feedforward carries the load, so the PD gains are deliberately GENTLE
+    (a trim term); large explicit-integration gains would destabilise the light links, not help.
+    Deterministic. Raises ValueError on an unknown joint name or non-positive gains/duration/dt."""
+    if kp <= 0.0 or kd <= 0.0 or duration <= 0.0 or dt <= 0.0:
+        raise ValueError("kp, kd, duration and dt must be positive")
+    with _world(urdf_str, fixed_base=True) as (p, client, body):
+        p.setTimeStep(dt, physicsClientId=client)
+        p.setPhysicsEngineParameter(numSolverIterations=50, numSubSteps=1,
+                                    deterministicOverlappingPairs=1, physicsClientId=client)
+        n = int(p.getNumJoints(body, physicsClientId=client))
+        name_to_index = {p.getJointInfo(body, j, physicsClientId=client)[1].decode(): j
+                         for j in range(n)}
+        for jn in pose:
+            if jn not in name_to_index:
+                raise ValueError(f"unknown joint {jn!r}")
+        target = [0.0] * n
+        posed = [name_to_index[jn] for jn in pose]
+        for jn, angle in pose.items():
+            j = name_to_index[jn]
+            target[j] = angle
+            p.resetJointState(body, j, targetValue=angle, targetVelocity=0.0, physicsClientId=client)
+        # disable the default per-joint velocity motors so applied torques are not fought
+        for j in range(n):
+            p.setJointMotorControl2(body, j, p.VELOCITY_CONTROL, force=0.0, physicsClientId=client)
+        max_drift = 0.0
+        finite = True
+        for _ in range(int(round(duration / dt))):
+            states = [p.getJointState(body, j, physicsClientId=client) for j in range(n)]
+            q = [s[0] for s in states]
+            qd = [s[1] for s in states]
+            if compensate:
+                # computed-torque: engine inverse dynamics gives the gravity-hold torque at q
+                # (zero vel/accel), then a PD term to the target pose closes the loop.
+                tau_g = p.calculateInverseDynamics(body, q, [0.0] * n, [0.0] * n,
+                                                   physicsClientId=client)
+                tau = [tau_g[j] + kp * (target[j] - q[j]) - kd * qd[j] for j in range(n)]
+            else:
+                tau = [0.0] * n
+            for j in range(n):
+                p.setJointMotorControl2(body, j, p.TORQUE_CONTROL, force=tau[j],
+                                        physicsClientId=client)
+            p.stepSimulation(physicsClientId=client)
+            for j in posed:
+                ach = p.getJointState(body, j, physicsClientId=client)[0]
+                if not math.isfinite(ach):
+                    finite = False
+                else:
+                    max_drift = max(max_drift, abs(ach - target[j]))
+        return {"max_drift": max_drift, "finite": finite, "compensate": compensate}
+
+
 def drop_test(urdf_str: str, *, start_height: float = 0.6, duration: float = 2.0,
               dt: float = 1.0 / 240.0) -> dict:
     """Drop the free-base leg from ``start_height`` onto a ground plane and step the real dynamics
