@@ -31,6 +31,7 @@ from dataclasses import dataclass
 
 from ..llm.base import LLMClient
 from ..llm.schemas import parse_proposals
+from .canonical import dedupe_by_exponents
 from ..verification.cross_model import model_family
 from .engine import (
     Candidate,
@@ -104,11 +105,13 @@ class GrokProposer:
         system, user = self._prompt(problem, n)
         resp = await self._client.complete(system=system, user=user)
         # Validated parse (llm.schemas): the whole payload unparseable -> []; a shape-invalid item is
-        # skipped (honest abstention), never trusted. The gate still judges every surviving proposal.
-        return [
+        # skipped (honest abstention), never trusted. Canonical dedup (canonical.py) drops a model's own
+        # repeated forms so the gate never judges the same law twice. The gate still judges the rest.
+        proposals = [
             Proposal(exponents=dict(m.exponents), rationale=m.rationale, source=self.model)
             for m in parse_proposals(resp.text, agent="grok-proposer")
         ]
+        return dedupe_by_exponents(proposals, key=lambda p: p.exponents)
 
 
 def _gate_proposals(problem: DiscoveryProblem, proposals: list[Proposal], *,
