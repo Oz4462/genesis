@@ -121,3 +121,23 @@ def test_factory_routes_claude_to_cli():
 @pytest.mark.skipif(shutil.which("grok") is None, reason="grok CLI absent (honest-skip, README §7)")
 def test_factory_routes_grok_to_cli():
     assert isinstance(make_llm("grok"), GrokCLI)
+
+
+def test_grok_and_claude_are_a_valid_live_cross_model_pair():
+    """End-state readiness (Strang 3): a Claude generator + a Grok verifier satisfy the cross-model
+    rule (different families), and when the CLIs are installed the factory routes them to ClaudeCLI /
+    GrokCLI — so grok-build + Claude Code CLI form a valid LIVE skeptic pair. The rule is checked
+    unconditionally (no binary needed); the live run stays opt-in until GENESIS is finished (owner
+    directive: deterministic/offline until done, then the AI co-pilot runs in GENESIS)."""
+    from gen.core.errors import ModelConflictError
+    from gen.verification.cross_model import assert_different_families, model_family
+
+    gen_id, ver_id = "claude-opus-4-8", "grok-build"
+    assert model_family(gen_id) != model_family(ver_id)     # grok and claude are different families
+    assert_different_families(gen_id, ver_id)               # a valid cross-model pair -> no raise
+    with pytest.raises(ModelConflictError):
+        assert_different_families(ver_id, ver_id)           # same-model self-verification -> rejected
+    if shutil.which("claude") is not None:
+        assert isinstance(make_llm(gen_id), ClaudeCLI)      # routes to the real Claude CLI client
+    if shutil.which("grok") is not None:
+        assert isinstance(make_llm(ver_id), GrokCLI)        # routes to the real Grok CLI client

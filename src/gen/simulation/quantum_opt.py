@@ -14,6 +14,7 @@ class OptimizationResult:
     best_value: float
     four_lens: dict[str, Any]
     provenance: dict[str, Any]
+    param_names: list[str]
 
 def _make_provenance(stage: str, evals: list, params: dict, run_id: str | None = None) -> dict[str, Any]:
     return {
@@ -58,7 +59,6 @@ def optimize_params(
     state = np.ones(len(flat_coords), dtype=complex) / np.sqrt(len(flat_coords))
     for p in range(n_layers):
         gamma = np.linspace(0, np.pi, resolution)[p % resolution]
-        np.linspace(0, np.pi/2, resolution)[p % resolution]
         c_norm = (costs - costs.min()) / (costs.max() - costs.min() + 1e-12)
         phase = np.exp(-1j * gamma * c_norm)
         state = state * phase
@@ -66,10 +66,15 @@ def optimize_params(
         mixer = np.roll(state.reshape(resolution**d), 1) * 0.5 + state * 0.5
         state = mixer / (np.linalg.norm(mixer) + 1e-12)
 
-    probs = np.abs(state)**2
-    top_idx = int(np.argmax(probs))
-    best_vec = flat_coords[top_idx].copy()
-    best_val = float(objective(best_vec))
+    # The QAOA-style amplitudes are an exploration DIAGNOSTIC only: the cost entered as a pure phase
+    # exp(-i·gamma·c_norm), which does NOT change |amplitude|², so selecting by argmax(|state|²)
+    # ignored the objective entirely (it returned near-worst points). The COST drives the real
+    # selection — start the local polish from the actual lowest-cost grid point.
+    probs = np.abs(state) ** 2
+    qaoa_diagnostic_idx = int(np.argmax(probs))
+    best_idx = int(np.argmin(costs))
+    best_vec = flat_coords[best_idx].copy()
+    best_val = float(costs[best_idx])
 
     # local polish (coordinate, deterministic steps)
     for step in [0.05, 0.02]:
@@ -84,11 +89,13 @@ def optimize_params(
 
     best_params = dict(zip(param_names, best_vec))
     prov = _make_provenance("qa_grid+polish", evals[:max_total_evals], best_params, run_id)
+    prov["qaoa_diagnostic_pick"] = qaoa_diagnostic_idx
     return OptimizationResult(
         best_params=best_params,
         best_value=best_val,
         four_lens=_compute_four_lens(best_val),
         provenance=prov,
+        param_names=list(param_names),
     )
 
 def optimize_simulation_params(

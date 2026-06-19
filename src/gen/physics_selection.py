@@ -329,6 +329,41 @@ RECIPES: list[CheckRecipe] = [
             "control_period_s": ("control.period", "s"),
         },
     ),
+    # ---- robot dynamics: balance + actuation OVER a gait cycle, not one static pose ----
+    CheckRecipe(
+        name="swing resonance (natural leg cadence)", validator="swing_resonance",
+        trigger="limb.inertia",
+        inputs={
+            "inertia": ("limb.inertia", "kg*m^2"),
+            "mass": ("limb.mass", "kg"),
+            "com_distance": ("limb.com_distance", "m"),
+            "step_frequency": ("gait.step_frequency", "Hz"),
+        },
+    ),
+    CheckRecipe(
+        name="dynamic balance (ZMP over the gait cycle)", validator="zmp_dynamic",
+        trigger="gait.step_frequency",
+        inputs={
+            "com_height": ("balance.com_height", "m"),
+            "com_amplitude": ("gait.com_amplitude", "m"),
+            "step_frequency": ("gait.step_frequency", "Hz"),
+            "support_min_x": ("balance.support_min_x", "m"),
+            "support_max_x": ("balance.support_max_x", "m"),
+            "com_offset": ("balance.com_x", "m"),
+        },
+    ),
+    CheckRecipe(
+        name="swing joint torque (inverse dynamics over the swing)", validator="joint_swing_torque",
+        trigger="swing.amplitude",
+        inputs={
+            "inertia": ("limb.inertia", "kg*m^2"),
+            "mass": ("limb.mass", "kg"),
+            "com_distance": ("limb.com_distance", "m"),
+            "amplitude_rad": ("swing.amplitude", "rad"),
+            "step_frequency": ("gait.step_frequency", "Hz"),
+            "available_torque": ("actuator.available_torque", "N*m"),
+        },
+    ),
 ]
 
 

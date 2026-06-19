@@ -90,3 +90,26 @@ def test_packager_produces_richer_package_with_bom_and_assembly():
     assert "Schaltplan" in sch or "48V" in sch
     mon = (pkg_path / "MONTAGEANLEITUNG.md").read_text(encoding="utf-8")
     assert "Montage" in mon or "torque" in mon.lower()
+
+
+def test_ingenieur_spec_serialization_dumps_real_data_not_placeholder():
+    """Regression (2026-06-18 de-rot): the package's ingenieur_spec.json must carry the REAL
+    engineering spec, not the old ``locals().get("ingen")``-bug placeholder. Pure — needs no CAD
+    kernel, so it runs everywhere (unlike the full-package tests that import-skip build123d)."""
+    from gen.pipelines.integrator import _ingenieur_spec_to_dict
+    concept = map_to_system_concept("Ich will ein Jetpack bauen.", run_id="ser-test")
+    ingen = map_to_ingenieur_spec(concept, run_id="ser-test")
+    d = _ingenieur_spec_to_dict(ingen)
+    assert "note" not in d  # NOT the "data not available" placeholder the bug always wrote
+    assert set(d) >= {"lastfaelle", "material_hinweise", "toleranzen", "failure_modes",
+                      "cad_anforderungen", "pruefplan_hinweise"}
+    assert isinstance(d["lastfaelle"], list)
+    # the mapping yields a real, non-trivial engineering spec (at least one populated section)
+    assert d["lastfaelle"] or d["material_hinweise"] or d["failure_modes"]
+
+
+def test_full_package_rejects_empty_ideas_instead_of_unbound_crash():
+    """Regression (2026-06-19): an empty ideas list left the loop vars c/i unbound → a NameError deep
+    in the electronics step. It now fails loud with a clear reason up front."""
+    with pytest.raises(ValueError):
+        build_full_mini_realization_package([], package_name="x", run_id="empty-test")

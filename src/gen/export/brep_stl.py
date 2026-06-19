@@ -76,3 +76,25 @@ def specification_to_brep_stl(spec: Specification, *, tolerance: float = 0.1) ->
         raise GeometryError("tessellation produced no facets (degenerate geometry?)")
     chunks.append(f"endsolid genesis_{spec.run_id}\n")
     return "".join(chunks)
+
+
+def component_to_brep_stl(geometry, quantities: dict[str, Quantity], *,
+                          name: str = "part", tolerance: float = 0.1) -> str:
+    """Print-ready ASCII STL of ONE component's CSG, booleans evaluated on the OCCT kernel, as its own
+    ``solid`` block — for multi-part ASSEMBLIES where each part is printed separately (one file per
+    part), unlike ``specification_to_brep_stl`` which fuses every component into a single body. Same
+    tessellation and outward winding. Raises GeometryError if cadquery is absent, the CSG is malformed,
+    or the mesh is degenerate (no facets)."""
+    solid = csg_to_solid(geometry, quantities)
+    verts, tris = solid.tessellate(tolerance)
+    chunks: list[str] = [f"solid genesis_{name}\n"]
+    n_facets = 0
+    for i, j, k in tris:
+        facet = _facet(verts[i], verts[j], verts[k])
+        if facet is not None:
+            chunks.append(facet)
+            n_facets += 1
+    if n_facets == 0:
+        raise GeometryError(f"tessellation produced no facets for {name!r} (degenerate geometry?)")
+    chunks.append(f"endsolid genesis_{name}\n")
+    return "".join(chunks)

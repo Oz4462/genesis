@@ -78,6 +78,11 @@ from .compute import (
     inference_power_check,
 )
 from .digital_bus import bus_bandwidth_check, bus_latency_check
+from .dynamics import (
+    joint_swing_torque_check,
+    swing_resonance_check,
+    zmp_dynamic_check,
+)
 
 # Registry of validators the gate can run. Each is a *_check function returning a dict
 # that contains at least an "ok" bool (and usually a "safety_factor"). The key is the
@@ -124,6 +129,10 @@ VALIDATORS = {
     "inference_latency": inference_latency_check,
     "bus_bandwidth": bus_bandwidth_check,
     "bus_latency": bus_latency_check,
+    # robot dynamics — motion over a gait cycle (dynamic balance + swing inverse dynamics)
+    "swing_resonance": swing_resonance_check,
+    "zmp_dynamic": zmp_dynamic_check,
+    "joint_swing_torque": joint_swing_torque_check,
 }
 
 

@@ -736,7 +736,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--demo", action="store_true", help="run the offline deterministic demo")
     parser.add_argument(
         "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol",
-                           "assess", "print", "realize", "breakthrough", "research"),
+                           "assess", "print", "bundle", "realize", "breakthrough", "research"),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
              "spec = Phase γ build specification; capstone = a complete, fully "
@@ -889,6 +889,32 @@ def main(argv: list[str] | None = None) -> int:
             if a.overall != "physics_verified" and a.overall != "no_physics_indicated":
                 all_verified = False
         return 0 if all_verified else 3
+
+    if args.mode == "bundle":
+        # Emit the full honest realization bundle (build manual + SCAD + watertight STL + BOM +
+        # MANIFEST + MISSING) for the demo specs. The manifest records exactly what was produced and
+        # what is missing — never a silent gap. Deterministic; offline.
+        from pathlib import Path
+
+        from .bundle import emit_bundle
+        from .demo import capstone_spec, knee_mount_spec, leg_assembly_spec
+
+        all_complete = True
+        for spec in (leg_assembly_spec(), knee_mount_spec(), capstone_spec()):
+            out_dir = Path("out") / "bundle" / spec.run_id
+            m = emit_bundle(spec, out_dir)
+            n_parts = len(m.printed_parts) + len(m.bought_parts)
+            print(f"=== Bündel: {spec.run_id} -> {out_dir} ===")
+            print(f"  geschrieben:  {', '.join(m.written)}")
+            print(f"  fehlt:        {', '.join(m.missing) if m.missing else '—'}")
+            print(f"  Verdikt:      {m.overall}  physics_ok={m.physics_ok}")
+            print(f"  Kosten:       {m.cost_summary}")
+            if n_parts:
+                print(f"  Druck-Anteil: {len(m.printed_parts)}/{n_parts} gedruckt "
+                      f"({m.printed_share:.0%}) — Kaufteile: {', '.join(m.bought_parts) or '—'}")
+            print("")
+            all_complete = all_complete and m.files_complete
+        return 0 if all_complete else 3
 
     if args.mode == "print":
         # The printability verdict (PHASE_DELTA §52): overhang + bridge refinement +

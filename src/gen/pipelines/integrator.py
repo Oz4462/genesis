@@ -47,6 +47,23 @@ class RealizationFragment:
     quelle: str | None = None
 
 
+def _ingenieur_spec_to_dict(ingenieur: IngenieurSpec) -> dict:
+    """Serialize an IngenieurSpec to a JSON-able dict for the package's traceability dump.
+
+    Root-caused 2026-06-18: the inline version read ``locals().get("ingen")`` — a name that never
+    exists in this scope — so it ALWAYS fell through to a "data not available" placeholder and the
+    real engineering spec was silently dropped from every package. This takes the actual object and
+    dumps its real load cases, materials, tolerances and failure modes."""
+    return {
+        "lastfaelle": [lf.__dict__ for lf in ingenieur.lastfaelle],
+        "material_hinweise": [m.__dict__ for m in ingenieur.material_hinweise],
+        "toleranzen": [t.__dict__ for t in ingenieur.toleranzen],
+        "failure_modes": [f.__dict__ for f in ingenieur.failure_modes],
+        "cad_anforderungen": ingenieur.cad_anforderungen,
+        "pruefplan_hinweise": ingenieur.pruefplan_hinweise,
+    }
+
+
 def build_realization_fragment(
     concept: SystemConcept,
     ingenieur: IngenieurSpec,
@@ -135,25 +152,14 @@ Issues: {mfg_check.issues}
                     "open_decisions": concept.open_decisions,
                 }, f, indent=2, ensure_ascii=False)
             with open(pkg_root / "ingenieur_spec.json", "w", encoding="utf-8") as f:
-                ingen_obj = locals().get("ingen") or globals().get("ingen") or None
-                if ingen_obj:
-                    json.dump({
-                        "lastfaelle": [lf.__dict__ for lf in ingen_obj.lastfaelle],
-                        "material_hinweise": [m.__dict__ for m in ingen_obj.material_hinweise],
-                        "toleranzen": [t.__dict__ for t in ingen_obj.toleranzen],
-                        "failure_modes": [f.__dict__ for f in ingen_obj.failure_modes],
-                        "cad_anforderungen": ingen_obj.cad_anforderungen,
-                        "pruefplan_hinweise": ingen_obj.pruefplan_hinweise,
-                    }, f, indent=2, ensure_ascii=False)
-                else:
-                    json.dump({"note": "ingen data not available in this context"}, f, indent=2, ensure_ascii=False)
-        except Exception as e:
-            print("Spec JSON dump skipped:", e)
+                json.dump(_ingenieur_spec_to_dict(ingenieur), f, indent=2, ensure_ascii=False)
+        except Exception as e:  # recorded in open_luecken, not silently swallowed
+            open_luecken.append(f"Spezifikations-JSON-Dump übersprungen: {type(e).__name__}: {e}")
 
         pkg_dir = str(pkg_root)
         print("Real mini package dir written:", pkg_dir)
-    except Exception as e:
-        print("Mini package dir write skipped:", e)
+    except Exception as e:  # recorded in open_luecken, not silently swallowed
+        open_luecken.append(f"Reales Paket-Verzeichnis nicht geschrieben: {type(e).__name__}: {e}")
 
     return RealizationFragment(
         source_idea=concept.source_idea,
@@ -174,6 +180,10 @@ def build_full_mini_realization_package(ideas: list[str], package_name: str = "J
     import shutil
     from pathlib import Path
 
+    if not ideas:
+        # `c`/`i` below are bound inside this loop and reused after it; an empty list left them
+        # unbound (a NameError at map_to_elektriker_spec). Fail loud with the real reason instead.
+        raise ValueError("build_full_mini_realization_package needs at least one idea")
     fragments = []
     for idee in ideas:
         c = map_to_system_concept(idee, run_id=run_id)

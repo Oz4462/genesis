@@ -242,18 +242,24 @@ class SimulationRunner:
         length = artifact.spec.bounding_box_hint_mm[0] * 0.8  # conservative effective length
         # Very simplified section assumption for demo (real version would extract from CAD)
         e_modulus = material.get("e_modulus_mpa", 3500.0)  # PLA-ish default
-        inertia = 12000.0  # mm4 – representative for ~6-8mm thick plate with ribs
+        # rectangular-section second moment I = b·h³/12 from the bounding-box dimensions — a SOLID-
+        # rectangular APPROXIMATION (optimistic/non-conservative for hollow/ribbed/shell parts, and it
+        # assumes bbox = length×width×thickness), but it scales with the geometry, unlike the old
+        # hardcoded constant that gave the same answer for every part
+        bb = artifact.spec.bounding_box_hint_mm
+        inertia = bb[1] * bb[2] ** 3 / 12.0
 
         # Use existing fem logic where possible
         try:
             from ..fem import beam_element_stiffness
             # Simplified single-element approximation for the dominant load path
             beam_element_stiffness(e_modulus, inertia, length)
-            # Very rough deflection prediction under end load (for illustration)
-            deflection = (force * length**3) / (3 * e_modulus * inertia)
-            stress = (force * length * 6) / (artifact.spec.bounding_box_hint_mm[1] * 8**2)  # approx
-            predicted = max(deflection, stress)  # we report the governing value for the example
-            unit = "mm" if predicted < 100 else "MPa"
+            # cantilever end deflection under the dominant load path [mm] — ONE quantity, ONE unit.
+            # (Root-cause fix 2026-06-18: the old code took max(deflection_mm, stress_MPa) and guessed
+            # the unit by magnitude — physically meaningless, a length and a stress are not comparable.)
+            deflection = (force * length ** 3) / (3 * e_modulus * inertia)
+            predicted = deflection
+            unit = "mm"
         except Exception:
             # Fallback analytical
             deflection = (force * length**3) / (3 * e_modulus * inertia)
@@ -347,8 +353,11 @@ class SimulationRunner:
         e_mod = material.get("e_modulus_mpa", 3500.0)
         length = artifact.spec.bounding_box_hint_mm[0] * 0.9
         # Rough inertia from bounding box (real version would come from CAD section props)
-        inertia = 8000.0  # mm^4 proxy for slender feature
-        artifact.spec.bounding_box_hint_mm[1] * 3.0  # rough
+        # weak-axis second moment min(b·h³, h·b³)/12 from the bounding-box dimensions — a column
+        # buckles about its WEAK axis; a SOLID-rectangular bbox APPROXIMATION (optimistic for hollow
+        # sections; plate/shell buckling would need k-factors, declared out of scope), not a constant
+        bb = artifact.spec.bounding_box_hint_mm
+        inertia = min(bb[1] * bb[2] ** 3, bb[2] * bb[1] ** 3) / 12.0
 
         try:
             from ..buckling import END_CONDITION_FACTORS
@@ -375,7 +384,7 @@ class SimulationRunner:
                 "applied_load_n": applied,
                 "e_modulus_mpa": e_mod,
                 "length_mm": round(length, 1),
-                "inertia_mm4_proxy": inertia,
+                "inertia_mm4_weak_axis": inertia,
             },
             solver=solver,
             runtime_notes=[
@@ -443,7 +452,7 @@ class SimulationRunner:
         # Extremely simplified rectangular plate fundamental frequency
         # f ≈ (π/2) * sqrt(D / (ρ h)) / a²   (for simply supported, order-of-magnitude)
         a = artifact.spec.bounding_box_hint_mm[0]
-        h = 8.0  # representative thickness
+        h = artifact.spec.bounding_box_hint_mm[2]  # the ACTUAL thickness hint, not a hardcoded 8 mm
         rho = material.get("density_kg_m3", 1250.0)  # kg/m³
         e = material.get("e_modulus_mpa", 3500.0) * 1e6  # Pa
         nu = 0.35
@@ -523,16 +532,7 @@ class SimulationRunner:
                 quelle=f"{self.quelle_base} + wissensbasis.internal_space_colony_sim + VISION 2036 colony (MELiSSA + NTRS shielding)",
             )
         except Exception:
-            return SimulationCase(
-                domain="eclss_closed_loop",
-                description="Fallback colony life-support prediction",
-                predicted_value=14.5,
-                predicted_unit="g/h O2",
-                tolerance=3.0,
-                inputs_summary={"fallback": True},
-                solver="analytical_fallback",
-                quelle=f"{self.quelle_base} + fallback (colony extension)",
-            )
+            return None  # no fabricated prediction — surface the absence honestly, never invent a number
 
     def _run_nano_assembly(
         self, artifact: BuildArtifact, loads: dict, material: dict
@@ -555,16 +555,7 @@ class SimulationRunner:
                 quelle=f"{self.quelle_base} + wissensbasis nano recipes + bio_molecular (DNA origami / rotary motors)",
             )
         except Exception:
-            return SimulationCase(
-                domain="nano_self_assembly",
-                description="Nano self-assembly fallback",
-                predicted_value=58.0,
-                predicted_unit="pct",
-                tolerance=12.0,
-                inputs_summary={"fallback": True},
-                solver="analytical_fallback",
-                quelle=f"{self.quelle_base} + nano fallback",
-            )
+            return None  # no fabricated prediction — surface the absence honestly, never invent a number
 
     def optimize_params(
         self,

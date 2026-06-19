@@ -583,3 +583,477 @@ def drive_shaft_state() -> RunState:
                              grounding=["c_shaft_anchor"])]
     st.specification = drive_shaft_spec()
     return st
+
+
+# --- delta robot domain: a printable humanoid knee-actuator mount ----------------
+# The bracket is a static shelf part; the drive shaft is a rotating body with NO
+# geometry. This third complete spec is a ROBOT part that carries BOTH at once: a
+# printable CSG body (so it emits a real STL + BOM + Markdown build manual, exactly
+# like the bracket) AND measurand-tagged quantities that auto-fire the robot
+# delta-physics axes — electric_actuator (does the knee gearmotor hold the joint
+# torque through its reduction?) and reach (does the 2R thigh+shank leg the mount
+# serves reach its foot target?) — PLUS the gamma structural chain (does the printed
+# mount itself hold the leg load in bending at the pivot, counting the hole stress
+# raiser?). One coherent part, gated end to end. This is the spec that closes the
+# "robot has no buildable artifact" gap: it drives the same machinery the bracket does.
+
+def knee_mount_claims() -> list[Claim]:
+    return [
+        _claim("c_knee_anchor",
+               "Eine Gelenkhalterung verbindet den Aktuator mit dem Strukturrohr eines "
+               "humanoiden Beins und überträgt das Knie-Gelenkmoment."),
+        _claim("c_knee_load",
+               "Das Bein-Strukturteil eines leichten Humanoiden trägt eine statische "
+               "Auslegungslast von 20 kg (anteiliges Körpergewicht)."),
+        _claim("c_gravity", "Die Normfallbeschleunigung ist definiert als 9.80665 m/s^2."),
+        _claim("c_pla",
+               "FDM-gedrucktes PLA, in der Druckebene belastet (entlang der "
+               "Druckschichten), hat eine Zugfestigkeit von etwa 50 MPa."),
+        _claim("c_kirsch",
+               "Ein kreisrundes Loch in einer Platte unter Zug hat einen "
+               "Spannungskonzentrationsfaktor von 3 (Kirsch-Lösung)."),
+        _claim("c_knee_motor",
+               "Ein bürstenloser Robotik-Gelenkmotor der NEMA-23-Klasse liefert ein "
+               "Haltemoment (Stall) von etwa 2.0 N*m vor der Untersetzung."),
+        _claim("c_fdm_nozzle", "Eine Standard-FDM-Düse hat 0.4 mm Durchmesser."),
+        _claim("c_fdm_wall",
+               "Eine FDM-Wand sollte mindestens 2 Perimeterlinien breit sein, um "
+               "zuverlässig zu drucken."),
+        _claim("c_fdm_hole",
+               "Das kleinste zuverlässig druckbare horizontale Loch im FDM-Druck hat "
+               "2.0 mm Durchmesser."),
+        _claim("c_bolt_src",
+               "McMaster-Carr führt das Teil 91290A115, eine M4x16-Innensechskantschraube."),
+        _claim("c_bolt_price",
+               "Die M4x16-Innensechskantschraube kostet bei McMaster-Carr 0.42 EUR pro Stück."),
+        _claim("c_bearing_price",
+               "Ein Rillenkugellager 6800-2RS (10 mm Bohrung) kostet etwa 3.50 EUR pro Stück."),
+    ]
+
+
+def knee_mount_spec() -> Specification:
+    quantities = [
+        # gamma statics: does the printed mount hold the leg load in bending at the
+        # pivot hole? Same chain the bracket uses (force -> nominal bending -> Kirsch
+        # peak <= PLA strength); GENESIS does the arithmetic, GATE gamma recomputes it.
+        _g("q_load", "anteilige Beinlast", 20.0, "kg", ["c_knee_load"]),
+        _d("q_sf", "Sicherheitsfaktor", 2.0, "1", "konservativ für statische Beinlast"),
+        _der("q_design", "Auslegungslast", 40.0, "kg", "q_load * q_sf", ("q_load", "q_sf")),
+        _g("q_g", "Normfallbeschleunigung", STANDARD_GRAVITY, "m/s^2", ["c_gravity"]),
+        _der("q_force", "Auslegungskraft am Pivot",
+             40.0 * STANDARD_GRAVITY, "N",
+             weight_formula("q_design", "q_g"), ("q_design", "q_g")),
+        _d("q_w", "Halter-Hebelarm / Plattenlänge", 50.0, "mm",
+           "Abstand Schraubenlinie–Pivot — der Hebelarm L und die Box-Länge size_x"),
+        _d("q_h", "Halter-Breite", 70.0, "mm",
+           "Breite b des Biegequerschnitts und die Box-Breite size_y"),
+        _d("q_t", "Halter-Dicke", 12.0, "mm",
+           "Querschnittshöhe h in Lastrichtung und die Box-Dicke size_z"),
+        _der("q_sigma_nom", "nominale Biegespannung bei Auslegungslast "
+             "(Kragarm, Arm=q_w, b=q_h, h=q_t)",
+             6.0 * (40.0 * STANDARD_GRAVITY) * 50.0 / (70.0 * 12.0 * 12.0), "MPa",
+             cantilever_bending_stress_formula("q_force", "q_w", "q_h", "q_t"),
+             ("q_force", "q_w", "q_h", "q_t")),
+        _g("q_kt", "Spannungskonzentrationsfaktor (kreisrundes Loch, Kirsch)",
+           STRESS_CONCENTRATION_CIRCULAR_HOLE, "1", ["c_kirsch"]),
+        _der("q_sigma_peak", "Spitzenspannung am Pivot-Loch",
+             STRESS_CONCENTRATION_CIRCULAR_HOLE
+             * (6.0 * (40.0 * STANDARD_GRAVITY) * 50.0 / (70.0 * 12.0 * 12.0)), "MPa",
+             peak_stress_formula("q_sigma_nom", "q_kt"), ("q_kt", "q_sigma_nom")),
+        _g("q_strength", "PLA-Zugfestigkeit in der Druckebene", 50.0, "MPa", ["c_pla"]),
+        _d("q_density", "PLA-Dichte", 0.00124, "g/mm^3", "PLA ~1.24 g/cm³, je mm³"),
+        # CSG bores: a pivot bore (10 mm bearing) and a motor-shaft pilot bore (8 mm),
+        # placed at the two ends of the centered plate (translate offsets in x).
+        _d("q_pivot_d", "Pivot-Bohrung (Lagersitz)", 10.0, "mm", "Sitz für 6800-Lager (10 mm)"),
+        _der("q_pivot_r", "Pivot-Lochradius", 5.0, "mm", "q_pivot_d / 2", ("q_pivot_d",)),
+        _d("q_motor_d", "Motorwellen-Pilotbohrung", 8.0, "mm", "Durchgang für die Motorwelle"),
+        _der("q_motor_r", "Motor-Lochradius", 4.0, "mm", "q_motor_d / 2", ("q_motor_d",)),
+        _d("q_pivot_x", "Pivot-Bohrung x-Versatz", 15.0, "mm", "zum +x-Ende der Platte"),
+        _d("q_motor_x", "Motor-Bohrung x-Versatz", -15.0, "mm", "zum -x-Ende der Platte"),
+        _d("q_zero", "Null-Versatz", 0.0, "mm", "y- und z-Versatz der Bohrungen (mittig)"),
+        # DFM: minimum wall = 2 perimeters of a 0.4 mm nozzle; minimum hole 2.0 mm.
+        _g("q_nozzle", "FDM-Düsendurchmesser", FDM_NOZZLE_DIAMETER_MM, "mm", ["c_fdm_nozzle"]),
+        _g("q_perimeters", "Mindestzahl Wand-Perimeter", FDM_WALL_PERIMETERS_MIN, "1",
+           ["c_fdm_wall"]),
+        _der("q_min_wall", "kleinste druckbare Wanddicke",
+             FDM_WALL_PERIMETERS_MIN * FDM_NOZZLE_DIAMETER_MM, "mm",
+             min_wall_formula("q_nozzle", "q_perimeters"), ("q_nozzle", "q_perimeters")),
+        _g("q_min_hole", "kleinster druckbarer Lochdurchmesser", FDM_MIN_HOLE_DIAMETER_MM, "mm",
+           ["c_fdm_hole"]),
+        _d("q_torque", "Schrauben-Anzugsmoment (Motorflansch)", 2.5, "N*m", "M4 in Kunststoff, handfest"),
+        _g("q_bolt_price", "Schrauben-Stückpreis", 0.42, "EUR", ["c_bolt_price"]),
+        _g("q_bearing_price", "Lager-Stückpreis", 3.50, "EUR", ["c_bearing_price"]),
+        # delta-robot actuation: does the knee gearmotor hold the joint torque through
+        # its reduction? (electric_actuator). Numbers proven to pass in test_robot_physics.
+        _dm("q_knee_torque", "Knie-Haltemoment (Bedarf)", 30.0, "N*m",
+            "statisches Knie-Gelenkmoment unter Auslegungslast", "actuator.joint_torque"),
+        _dm("q_knee_speed", "Knie-Gelenkdrehzahl", 3.0, "rad/s",
+            "Knie-Winkelgeschwindigkeit beim Schritt", "actuator.joint_speed"),
+        _gm("q_motor_stall", "Motor-Haltemoment (Stall)", 2.0, "N*m", ["c_knee_motor"],
+            "motor.stall_torque"),
+        _dm("q_motor_noload", "Motor-Leerlaufdrehzahl", 300.0, "rad/s",
+            "~2865 rpm Leerlauf", "motor.noload_speed"),
+        _dm("q_gear", "Getriebeuntersetzung", 40.0, "1", "Harmonic-Drive-Untersetzung",
+            "drivetrain.gear_ratio"),
+        _dm("q_eff", "Antriebsstrang-Wirkungsgrad", 0.85, "1", "Getriebe + Lager",
+            "drivetrain.efficiency"),
+        # delta-robot kinematics: does the 2R leg (thigh+shank) this mount serves reach
+        # its foot target? (reach). arm.* = the 2R leg chain.
+        _dm("q_l1", "Oberschenkellänge (Link 1)", 0.4, "m", "Hüfte–Knie", "arm.link1_length"),
+        _dm("q_l2", "Unterschenkellänge (Link 2)", 0.4, "m", "Knie–Fuß", "arm.link2_length"),
+        _dm("q_tx", "Fuß-Zielposition x", 0.5, "m", "Schrittweite vorwärts", "arm.target_x"),
+        _dm("q_ty", "Fuß-Zielposition y", 0.1, "m", "Höhe über Hüfthorizont", "arm.target_y"),
+    ]
+    # CSG: a plate (box) with two bores cut out — difference(box, bore1, bore2) maps to
+    # box.cut(cyl1).cut(cyl2). Primitives are centered; the bores are translated to the
+    # two ends of the plate so they do not overlap.
+    geometry = GeometryNode(kind="difference", children=[
+        GeometryNode(kind="box", params={"size_x": "q_w", "size_y": "q_h", "size_z": "q_t"}),
+        GeometryNode(kind="translate", params={"x": "q_pivot_x", "y": "q_zero", "z": "q_zero"},
+                     children=[GeometryNode(kind="cylinder",
+                                            params={"radius": "q_pivot_r", "height": "q_t"})]),
+        GeometryNode(kind="translate", params={"x": "q_motor_x", "y": "q_zero", "z": "q_zero"},
+                     children=[GeometryNode(kind="cylinder",
+                                            params={"radius": "q_motor_r", "height": "q_t"})]),
+    ])
+    components = [
+        Component(id="c_mount", name="Knie-Aktuator-Halterung", geometry=geometry,
+                  quantity_ids=["q_w", "q_h", "q_t", "q_pivot_r", "q_motor_r",
+                                "q_pivot_x", "q_motor_x", "q_zero"],
+                  material_density="q_density"),
+    ]
+    bom = [
+        BomItem(id="b_mount", name="Knie-Aktuator-Halterung (gedruckt)", role=BomRole.PART,
+                count=1, component_id="c_mount", domain=BomDomain.MECHANICAL,
+                grounding=["c_knee_anchor"]),
+        BomItem(id="b_motor", name="Knie-Gelenkmotor (BLDC, NEMA-23-Klasse, ~2.0 N*m Stall)",
+                role=BomRole.PART, count=1, domain=BomDomain.MECHANICAL, grounding=["c_knee_motor"]),
+        BomItem(id="b_bearing", name="Rillenkugellager 6800-2RS (10 mm Bohrung)",
+                role=BomRole.PART, count=1, domain=BomDomain.MECHANICAL,
+                grounding=["c_bearing_price"],
+                sourcing=Sourcing(supplier="(Lagerhandel)", part_number="6800-2RS",
+                                  price_quantity_id="q_bearing_price", grounding=["c_bearing_price"])),
+        BomItem(id="b_bolts", name="M4x16-Innensechskantschraube (Motorflansch)",
+                role=BomRole.PART, count=4, domain=BomDomain.MECHANICAL, grounding=["c_bolt_src"],
+                sourcing=Sourcing(supplier="McMaster-Carr", part_number="91290A115",
+                                  price_quantity_id="q_bolt_price", grounding=["c_bolt_src", "c_bolt_price"])),
+        BomItem(id="b_printer", name="3D-Drucker", role=BomRole.TOOL, count=1),
+        BomItem(id="b_press", name="Lager-Einpresswerkzeug / Schraubstock", role=BomRole.TOOL, count=1),
+        BomItem(id="b_hex", name="4-mm-Innensechskantschlüssel", role=BomRole.TOOL, count=1),
+    ]
+    steps = [
+        Step(id="s1", index=1, action="Die Halterung gemäß ihrer CSG-Geometrie 3D-drucken.",
+             uses=["b_printer"], inputs=["b_mount"], outputs=["a_printed"],
+             check="Das gedruckte Teil misst 50 x 70 x 12 mm; beide Bohrungen sind frei.",
+             tool="3D-Drucker", quantity_refs=["q_w", "q_h", "q_t"]),
+        Step(id="s2", index=2, action="Das Pivot-Lager in die 10-mm-Bohrung einpressen.",
+             uses=["b_press", "b_bearing"], inputs=["a_printed"], outputs=["a_bearing"],
+             check="Das Lager sitzt fest und läuft frei.", tool="Lager-Einpresswerkzeug"),
+        Step(id="s3", index=3, action="Den Knie-Gelenkmotor an die Motoraufnahme schrauben.",
+             uses=["b_hex", "b_bolts", "b_motor"], inputs=["a_bearing"], outputs=["a_mounted"],
+             check="Die Motorwelle fluchtet mit der Pivot-Achse.",
+             tool="4-mm-Innensechskantschlüssel", torque_quantity_id="q_torque",
+             quantity_refs=["q_knee_torque"]),
+        Step(id="s4", index=4, action="Statische Prüfung: Der Motor hält den Knie-Winkel unter "
+             "Auslegungslast ohne Durchsacken.",
+             inputs=["a_mounted"], outputs=["a_done"],
+             check="Das Knie hält das geforderte Gelenkmoment (electric_actuator-Reserve > 1).",
+             quantity_refs=["q_knee_torque", "q_motor_stall"]),
+    ]
+    constraints = [
+        Constraint(id="k_stress", kind="le", left="q_sigma_peak", right="q_strength",
+                   reason="die Spitzenspannung am Pivot-Loch bei Auslegungslast (Kt·σ_nom) "
+                          "bleibt unter der PLA-Festigkeit in der Druckebene — notwendig, "
+                          "nicht hinreichend"),
+        Constraint(id="k_dfm_wall", kind="ge", left="q_t", right="q_min_wall",
+                   reason="die Plattendicke ist mindestens die kleinste druckbare FDM-Wand "
+                          "(zwei Perimeter einer 0.4-mm-Düse)"),
+        Constraint(id="k_dfm_pivot", kind="ge", left="q_pivot_d", right="q_min_hole",
+                   reason="die Pivot-Bohrung ist mindestens der kleinste zuverlässig "
+                          "druckbare FDM-Lochdurchmesser"),
+        Constraint(id="k_dfm_motor", kind="ge", left="q_motor_d", right="q_min_hole",
+                   reason="die Motor-Pilotbohrung ist mindestens der kleinste zuverlässig "
+                          "druckbare FDM-Lochdurchmesser"),
+    ]
+    decisions = [
+        Decision(id="d_mat", title="Material", choice="PLA, 3D-gedruckt (Prototyp)",
+                 rationale="schnell druckbar; ausreichend für die statische Prototyp-Last — "
+                           "eine Serien-Knie-Halterung in voller Baugröße braucht Alu/CFK"),
+        Decision(id="d_print", title="Druck-Orientierung",
+                 choice="flach (Plattenebene auf dem Druckbett)",
+                 rationale="die Biegelast liegt in der Druckebene; die Bohrungen drucken "
+                           "vertikal ohne Überhang",
+                 informed_by=["c_pla"]),
+        Decision(id="d_bearing", title="Pivot-Lager", choice="6800-2RS (10 mm Bohrung)",
+                 rationale="dünnwandiges Standard-Rillenkugellager für das Kniegelenk",
+                 informed_by=["c_bearing_price"]),
+    ]
+    return Specification(
+        run_id="knee_mount",
+        idea="Eine druckbare Knie-Aktuator-Halterung für ein humanoides Bein, "
+             "die das Knie-Gelenkmoment trägt und den Gelenkmotor aufnimmt",
+        approach_id="ap_knee", quantities=quantities, components=components, bom=bom,
+        steps=steps, constraints=constraints, decisions=decisions,
+        gaps=[
+            "PLA ist für den druckbaren PROTOTYP; eine lasttragende Serien-Knie-Halterung "
+            "in voller Humanoid-Baugröße braucht Aluminium oder CFK — der σ-Check hier "
+            "nutzt PLA-Festigkeit bei der deklarierten Prototyp-Last (Sicherheitsfaktor 2), "
+            "nicht die vollen dynamischen Körpergewichtslasten.",
+            "Der konkrete Gelenkmotor (SKU + Preis) ist offen: das Teil ist über sein "
+            "Stall-Moment spezifiziert, die Beschaffung liefert die Live-α-Recherche nach "
+            "(daher als unbepreist in der Stückliste geführt, nicht geraten).",
+            "Geprüft ist nur das STATISCHE Halten des Knies; dynamische Gang-/Aufprall-/"
+            "Landelasten und die Bewegung über die Zeit sind außerhalb des Geltungsbereichs "
+            "— das ist die fehlende Dynamik-Simulations-Achse (P3), kein Closed-Form-Gate.",
+            "Die watertight Boolean-STL braucht den OCCT-Kernel (cadquery); ohne ihn ist "
+            "der OpenSCAD-/build123d-Quellcode das Druck-Lieferobjekt (verweigert ehrlich, "
+            "statt eine kaputte Mesh zu liefern).",
+        ],
+        claim_ids_used=[c.id for c in knee_mount_claims()], produced_by="knee_mount",
+    )
+
+
+def knee_mount_state() -> RunState:
+    """The full RunState (claims + approach + spec) for gate verification."""
+    st = RunState(question=Question(raw="humanoid knee actuator mount", run_id="knee_mount"))
+    st.claims = knee_mount_claims()
+    st.approaches = [Approach(id="ap_knee", name="Knie-Aktuator-Halterung",
+                             grounding=["c_knee_anchor"])]
+    st.specification = knee_mount_spec()
+    return st
+
+
+# --- delta robot domain: a MULTI-PART humanoid leg ASSEMBLY ----------------------
+# The knee mount is one part; this is an ASSEMBLY — TWO printed link components (thigh and shank),
+# each a printable CSG body with two joint bores, plus the bought actuators/bearings/bolts. It emits
+# ONE STL PER PRINTED PART (each prints separately), a combined buy-list, an assembly build order, and
+# fires the dynamic robot axes (ZMP over the gait, swing inverse dynamics, the knee actuator, the 2R
+# reach) PLUS the gamma bending of the load-bearing thigh link. The "assembled robot, not a single
+# part" deliverable, through the same gated machinery.
+
+def leg_assembly_claims() -> list[Claim]:
+    return [
+        _claim("c_leg_anchor",
+               "Ein humanoides Bein besteht aus Oberschenkel- und Unterschenkel-Gliedern, "
+               "die über ein Kniegelenk verbunden sind."),
+        _claim("c_leg_load",
+               "Ein leichtes Humanoid-Bein trägt eine statische Auslegungslast von 20 kg "
+               "(anteiliges Körpergewicht)."),
+        _claim("c_gravity", "Die Normfallbeschleunigung ist definiert als 9.80665 m/s^2."),
+        _claim("c_pla",
+               "FDM-gedrucktes PLA, in der Druckebene belastet, hat eine Zugfestigkeit "
+               "von etwa 50 MPa."),
+        _claim("c_kirsch",
+               "Ein kreisrundes Loch in einer Platte unter Zug hat einen "
+               "Spannungskonzentrationsfaktor von 3 (Kirsch-Lösung)."),
+        _claim("c_knee_motor",
+               "Ein bürstenloser Robotik-Gelenkmotor der NEMA-23-Klasse liefert ein "
+               "Haltemoment (Stall) von etwa 2.0 N*m vor der Untersetzung."),
+        _claim("c_fdm_nozzle", "Eine Standard-FDM-Düse hat 0.4 mm Durchmesser."),
+        _claim("c_fdm_wall", "Eine FDM-Wand sollte mindestens 2 Perimeterlinien breit sein."),
+        _claim("c_fdm_hole",
+               "Das kleinste zuverlässig druckbare horizontale Loch im FDM-Druck hat "
+               "2.0 mm Durchmesser."),
+        _claim("c_bolt_src",
+               "McMaster-Carr führt das Teil 91290A115, eine M4x16-Innensechskantschraube."),
+        _claim("c_bolt_price",
+               "Die M4x16-Innensechskantschraube kostet bei McMaster-Carr 0.42 EUR pro Stück."),
+        _claim("c_bearing_price",
+               "Ein Rillenkugellager 6800-2RS (10 mm Bohrung) kostet etwa 3.50 EUR pro Stück."),
+    ]
+
+
+def leg_assembly_spec() -> Specification:
+    _force_n = 40.0 * STANDARD_GRAVITY
+    quantities = [
+        # gamma statics on the load-bearing thigh link (cantilever bending at the hip bore)
+        _g("q_load", "anteilige Beinlast", 20.0, "kg", ["c_leg_load"]),
+        _d("q_sf", "Sicherheitsfaktor", 2.0, "1", "konservativ für statische Beinlast"),
+        _der("q_design", "Auslegungslast", 40.0, "kg", "q_load * q_sf", ("q_load", "q_sf")),
+        _g("q_g", "Normfallbeschleunigung", STANDARD_GRAVITY, "m/s^2", ["c_gravity"]),
+        _der("q_force", "Auslegungskraft am Hüft-Pivot", _force_n, "N",
+             weight_formula("q_design", "q_g"), ("q_design", "q_g")),
+        # thigh link geometry (box minus a hip bore and a knee bore) + it is the bending member
+        _d("q_thigh_len", "Oberschenkel-Länge / Box size_x", 180.0, "mm", "Hüfte–Knie, Plattenlänge"),
+        _d("q_thigh_w", "Oberschenkel-Breite / size_y", 40.0, "mm", "Breite b des Biegequerschnitts"),
+        _d("q_thigh_t", "Oberschenkel-Dicke / size_z", 18.0, "mm", "Querschnittshöhe h in Lastrichtung"),
+        _d("q_thigh_arm", "Biege-Hebelarm Oberschenkel", 70.0, "mm", "Pivot-Abstand zur Lasteinleitung"),
+        _der("q_sigma_nom", "nominale Biegespannung Oberschenkel (Kragarm)",
+             6.0 * _force_n * 70.0 / (40.0 * 18.0 * 18.0), "MPa",
+             cantilever_bending_stress_formula("q_force", "q_thigh_arm", "q_thigh_w", "q_thigh_t"),
+             ("q_force", "q_thigh_arm", "q_thigh_w", "q_thigh_t")),
+        _g("q_kt", "Spannungskonzentrationsfaktor (kreisrundes Loch, Kirsch)",
+           STRESS_CONCENTRATION_CIRCULAR_HOLE, "1", ["c_kirsch"]),
+        _der("q_sigma_peak", "Spitzenspannung am Hüft-Loch",
+             STRESS_CONCENTRATION_CIRCULAR_HOLE * (6.0 * _force_n * 70.0 / (40.0 * 18.0 * 18.0)), "MPa",
+             peak_stress_formula("q_sigma_nom", "q_kt"), ("q_kt", "q_sigma_nom")),
+        _g("q_strength", "PLA-Zugfestigkeit in der Druckebene", 50.0, "MPa", ["c_pla"]),
+        _d("q_density", "PLA-Dichte", 0.00124, "g/mm^3", "PLA ~1.24 g/cm³, je mm³"),
+        # shank link geometry
+        _d("q_shank_len", "Unterschenkel-Länge / size_x", 180.0, "mm", "Knie–Fuß"),
+        _d("q_shank_w", "Unterschenkel-Breite / size_y", 35.0, "mm", "Breite"),
+        _d("q_shank_t", "Unterschenkel-Dicke / size_z", 12.0, "mm", "Dicke"),
+        # bores (shared knee bore Ø10; hip Ø12; ankle Ø8) + symmetric x-offset within each link
+        _d("q_hip_bore_d", "Hüft-Bohrung", 12.0, "mm", "Lagersitz Hüfte"),
+        _der("q_hip_bore_r", "Hüft-Lochradius", 6.0, "mm", "q_hip_bore_d / 2", ("q_hip_bore_d",)),
+        _d("q_knee_bore_d", "Knie-Bohrung", 10.0, "mm", "Lagersitz Knie (6800)"),
+        _der("q_knee_bore_r", "Knie-Lochradius", 5.0, "mm", "q_knee_bore_d / 2", ("q_knee_bore_d",)),
+        _d("q_ankle_bore_d", "Knöchel-Bohrung", 8.0, "mm", "Knöchel-Durchgang"),
+        _der("q_ankle_bore_r", "Knöchel-Lochradius", 4.0, "mm", "q_ankle_bore_d / 2", ("q_ankle_bore_d",)),
+        _d("q_bore_off", "Bohrungs-Versatz vom Glied-Zentrum", 70.0, "mm", "±x-Lage der Endbohrungen"),
+        _d("q_bore_neg", "negativer Bohrungs-Versatz", -70.0, "mm", "−x-Lage"),
+        _d("q_zero", "Null-Versatz", 0.0, "mm", "y/z-Versatz der Bohrungen (mittig)"),
+        # DFM
+        _g("q_nozzle", "FDM-Düsendurchmesser", FDM_NOZZLE_DIAMETER_MM, "mm", ["c_fdm_nozzle"]),
+        _g("q_perimeters", "Mindestzahl Wand-Perimeter", FDM_WALL_PERIMETERS_MIN, "1", ["c_fdm_wall"]),
+        _der("q_min_wall", "kleinste druckbare Wanddicke",
+             FDM_WALL_PERIMETERS_MIN * FDM_NOZZLE_DIAMETER_MM, "mm",
+             min_wall_formula("q_nozzle", "q_perimeters"), ("q_nozzle", "q_perimeters")),
+        _g("q_min_hole", "kleinster druckbarer Lochdurchmesser", FDM_MIN_HOLE_DIAMETER_MM, "mm",
+           ["c_fdm_hole"]),
+        _d("q_torque", "Schrauben-Anzugsmoment (Motorflansch)", 2.5, "N*m", "M4 in Kunststoff, handfest"),
+        _g("q_bolt_price", "Schrauben-Stückpreis", 0.42, "EUR", ["c_bolt_price"]),
+        _g("q_bearing_price", "Lager-Stückpreis", 3.50, "EUR", ["c_bearing_price"]),
+        # delta-robot kinematics: the 2R leg (thigh+shank) reaches a foot target
+        _dm("q_l1", "Oberschenkellänge (Link 1)", 0.18, "m", "Hüfte–Knie", "arm.link1_length"),
+        _dm("q_l2", "Unterschenkellänge (Link 2)", 0.18, "m", "Knie–Fuß", "arm.link2_length"),
+        _dm("q_tx", "Fuß-Zielposition x", 0.20, "m", "Schrittweite", "arm.target_x"),
+        _dm("q_ty", "Fuß-Zielposition y", 0.05, "m", "Höhe", "arm.target_y"),
+        # delta-robot actuation: the knee gearmotor holds the joint torque
+        _dm("q_knee_torque", "Knie-Haltemoment (Bedarf)", 28.0, "N*m",
+            "statisches Knie-Moment unter Auslegungslast", "actuator.joint_torque"),
+        _dm("q_knee_speed", "Knie-Gelenkdrehzahl", 3.0, "rad/s", "Schritt", "actuator.joint_speed"),
+        _gm("q_motor_stall", "Motor-Haltemoment (Stall)", 2.0, "N*m", ["c_knee_motor"],
+            "motor.stall_torque"),
+        _dm("q_motor_noload", "Motor-Leerlaufdrehzahl", 300.0, "rad/s", "~2865 rpm", "motor.noload_speed"),
+        _dm("q_gear", "Getriebeuntersetzung", 40.0, "1", "Harmonic Drive", "drivetrain.gear_ratio"),
+        _dm("q_eff", "Antriebsstrang-Wirkungsgrad", 0.85, "1", "Getriebe+Lager", "drivetrain.efficiency"),
+        # delta-robot DYNAMICS: balance over the gait + the swinging shank
+        _dm("q_com_x", "CoM-Versatz", 0.0, "m", "zentriert", "balance.com_x"),
+        _dm("q_com_h", "CoM-Höhe", 0.9, "m", "Schwerpunkthöhe", "balance.com_height"),
+        _dm("q_smin", "Stützpolygon min x", -0.10, "m", "Fußkante hinten", "balance.support_min_x"),
+        _dm("q_smax", "Stützpolygon max x", 0.10, "m", "Fußkante vorn", "balance.support_max_x"),
+        _dm("q_sway", "CoM-Schwankungsamplitude", 0.04, "m", "seitliche Gang-Schwankung",
+            "gait.com_amplitude"),
+        _dm("q_step_f", "Schrittfrequenz", 0.45, "Hz", "Gang-Kadenz", "gait.step_frequency"),
+        _dm("q_limb_I", "Schenkel-Trägheit um das Gelenk", 0.0216, "kg*m^2",
+            "≈ m·L²/3 (gleichförmiger Stab um die Hüfte) — geometrie-konsistent zu q_limb_m/q_l1",
+            "limb.inertia"),
+        _dm("q_limb_m", "Schenkel-Masse", 2.0, "kg", "Glied+Motor", "limb.mass"),
+        _dm("q_limb_d", "Schenkel-Schwerpunktabstand", 0.09, "m", "Gelenk→CoM", "limb.com_distance"),
+        _dm("q_swing", "Schwung-Amplitude", 0.4, "rad", "Knie-Schwung im Schritt", "swing.amplitude"),
+        _dm("q_avail_tau", "verfügbares Aktuator-Drehmoment", 80.0, "N*m",
+            "Stall·Getriebe·η am Gelenk", "actuator.available_torque"),
+    ]
+    thigh_geom = GeometryNode(kind="difference", children=[
+        GeometryNode(kind="box", params={"size_x": "q_thigh_len", "size_y": "q_thigh_w",
+                                          "size_z": "q_thigh_t"}),
+        GeometryNode(kind="translate", params={"x": "q_bore_neg", "y": "q_zero", "z": "q_zero"},
+                     children=[GeometryNode(kind="cylinder",
+                                            params={"radius": "q_hip_bore_r", "height": "q_thigh_t"})]),
+        GeometryNode(kind="translate", params={"x": "q_bore_off", "y": "q_zero", "z": "q_zero"},
+                     children=[GeometryNode(kind="cylinder",
+                                            params={"radius": "q_knee_bore_r", "height": "q_thigh_t"})]),
+    ])
+    shank_geom = GeometryNode(kind="difference", children=[
+        GeometryNode(kind="box", params={"size_x": "q_shank_len", "size_y": "q_shank_w",
+                                          "size_z": "q_shank_t"}),
+        GeometryNode(kind="translate", params={"x": "q_bore_off", "y": "q_zero", "z": "q_zero"},
+                     children=[GeometryNode(kind="cylinder",
+                                            params={"radius": "q_knee_bore_r", "height": "q_shank_t"})]),
+        GeometryNode(kind="translate", params={"x": "q_bore_neg", "y": "q_zero", "z": "q_zero"},
+                     children=[GeometryNode(kind="cylinder",
+                                            params={"radius": "q_ankle_bore_r", "height": "q_shank_t"})]),
+    ])
+    components = [
+        Component(id="c_thigh", name="Oberschenkel-Glied", geometry=thigh_geom,
+                  quantity_ids=["q_thigh_len", "q_thigh_w", "q_thigh_t", "q_hip_bore_r", "q_knee_bore_r",
+                                "q_bore_off", "q_bore_neg", "q_zero"], material_density="q_density"),
+        Component(id="c_shank", name="Unterschenkel-Glied", geometry=shank_geom,
+                  quantity_ids=["q_shank_len", "q_shank_w", "q_shank_t", "q_knee_bore_r", "q_ankle_bore_r",
+                                "q_bore_off", "q_bore_neg", "q_zero"], material_density="q_density"),
+    ]
+    bom = [
+        BomItem(id="b_thigh", name="Oberschenkel-Glied (gedruckt)", role=BomRole.PART, count=1,
+                component_id="c_thigh", domain=BomDomain.MECHANICAL, grounding=["c_leg_anchor"]),
+        BomItem(id="b_shank", name="Unterschenkel-Glied (gedruckt)", role=BomRole.PART, count=1,
+                component_id="c_shank", domain=BomDomain.MECHANICAL, grounding=["c_leg_anchor"]),
+        BomItem(id="b_knee_motor", name="Knie-Gelenkmotor (BLDC, ~2.0 N*m Stall)", role=BomRole.PART,
+                count=1, domain=BomDomain.MECHANICAL, grounding=["c_knee_motor"]),
+        BomItem(id="b_hip_motor", name="Hüft-Gelenkmotor (BLDC, ~2.0 N*m Stall)", role=BomRole.PART,
+                count=1, domain=BomDomain.MECHANICAL, grounding=["c_knee_motor"]),
+        BomItem(id="b_bearings", name="Rillenkugellager 6800-2RS (10 mm)", role=BomRole.PART, count=3,
+                domain=BomDomain.MECHANICAL, grounding=["c_bearing_price"],
+                sourcing=Sourcing(supplier="(Lagerhandel)", part_number="6800-2RS",
+                                  price_quantity_id="q_bearing_price", grounding=["c_bearing_price"])),
+        BomItem(id="b_bolts", name="M4x16-Innensechskantschraube", role=BomRole.PART, count=8,
+                domain=BomDomain.MECHANICAL, grounding=["c_bolt_src"],
+                sourcing=Sourcing(supplier="McMaster-Carr", part_number="91290A115",
+                                  price_quantity_id="q_bolt_price", grounding=["c_bolt_src", "c_bolt_price"])),
+        BomItem(id="b_printer", name="3D-Drucker", role=BomRole.TOOL, count=1),
+        BomItem(id="b_press", name="Lager-Einpresswerkzeug", role=BomRole.TOOL, count=1),
+        BomItem(id="b_hex", name="4-mm-Innensechskantschlüssel", role=BomRole.TOOL, count=1),
+    ]
+    steps = [
+        Step(id="s1", index=1, action="Oberschenkel- und Unterschenkel-Glied 3D-drucken.",
+             uses=["b_printer"], inputs=["b_thigh", "b_shank"], outputs=["a_printed"],
+             check="Beide Glieder gedruckt; alle vier Bohrungen frei.",
+             tool="3D-Drucker", quantity_refs=["q_thigh_len", "q_shank_len"]),
+        Step(id="s2", index=2, action="Die drei Lager in Hüft-, Knie- und Knöchel-Bohrung einpressen.",
+             uses=["b_press", "b_bearings"], inputs=["a_printed"], outputs=["a_bearing"],
+             check="Lager sitzen fest und laufen frei."),
+        Step(id="s3", index=3, action="Den Knie-Gelenkmotor zwischen Oberschenkel- und "
+             "Unterschenkel-Glied am Knie-Pivot verschrauben.",
+             uses=["b_hex", "b_bolts", "b_knee_motor"], inputs=["a_bearing"], outputs=["a_knee"],
+             check="Knie beugt frei; Motorwelle fluchtet mit dem Knie-Pivot.",
+             tool="4-mm-Innensechskantschlüssel", torque_quantity_id="q_torque",
+             quantity_refs=["q_knee_torque"]),
+        Step(id="s4", index=4, action="Den Hüft-Gelenkmotor an das Oberschenkel-Glied am Hüft-Pivot "
+             "verschrauben.",
+             uses=["b_hex", "b_bolts", "b_hip_motor"], inputs=["a_knee"], outputs=["a_assembled"],
+             check="Bein hängt komplett montiert; Hüfte und Knie bewegen sich frei."),
+        Step(id="s5", index=5, action="Statische + dynamische Prüfung: das Knie hält die Auslegungslast "
+             "und der Schwung bleibt im Drehmoment-Budget.",
+             inputs=["a_assembled"], outputs=["a_done"],
+             check="electric_actuator-Reserve > 1 und joint_swing_torque-Reserve > 1; ZMP im Stützpolygon.",
+             quantity_refs=["q_knee_torque", "q_avail_tau", "q_step_f"]),
+    ]
+    constraints = [
+        Constraint(id="k_stress", kind="le", left="q_sigma_peak", right="q_strength",
+                   reason="die Spitzenspannung am Hüft-Loch des Oberschenkel-Glieds bleibt unter der "
+                          "PLA-Festigkeit — notwendig, nicht hinreichend"),
+        Constraint(id="k_dfm_thigh_wall", kind="ge", left="q_thigh_t", right="q_min_wall",
+                   reason="die Oberschenkel-Dicke ist mindestens die kleinste druckbare FDM-Wand"),
+        Constraint(id="k_dfm_shank_wall", kind="ge", left="q_shank_t", right="q_min_wall",
+                   reason="die Unterschenkel-Dicke ist mindestens die kleinste druckbare FDM-Wand"),
+        Constraint(id="k_dfm_knee_hole", kind="ge", left="q_knee_bore_d", right="q_min_hole",
+                   reason="die Knie-Bohrung ist mindestens der kleinste druckbare FDM-Lochdurchmesser"),
+        Constraint(id="k_dfm_ankle_hole", kind="ge", left="q_ankle_bore_d", right="q_min_hole",
+                   reason="die Knöchel-Bohrung ist mindestens der kleinste druckbare FDM-Lochdurchmesser"),
+    ]
+    decisions = [
+        Decision(id="d_mat", title="Material", choice="PLA, 3D-gedruckt (Prototyp)",
+                 rationale="schnell druckbar; Prototyp-Last — eine Serien-Bein-Baugruppe braucht Alu/CFK"),
+        Decision(id="d_print", title="Druck-Orientierung", choice="flach, Glieder einzeln",
+                 rationale="jedes Glied druckt separat in der Plattenebene; die Bohrungen vertikal "
+                           "ohne Überhang", informed_by=["c_pla"]),
+    ]
+    return Specification(
+        run_id="leg_assembly",
+        idea="Eine montierte humanoide Bein-Baugruppe (Oberschenkel- + Unterschenkel-Glied, Kniegelenk), "
+             "die das Gelenkmoment trägt, sich dynamisch im Stützpolygon hält und die Glieder schwingt",
+        approach_id="ap_leg", quantities=quantities, components=components, bom=bom,
+        steps=steps, constraints=constraints, decisions=decisions,
+        gaps=[
+            "PLA ist für den druckbaren PROTOTYP; eine lasttragende Serien-Bein-Baugruppe in voller "
+            "Baugröße braucht Aluminium oder CFK — der σ-Check nutzt PLA bei Prototyp-Last (SF 2).",
+            "Die Gelenkmotoren (SKU + Preis) sind über ihr Stall-Moment spezifiziert; die Beschaffung "
+            "liefert die Live-α-Recherche nach (daher unbepreist in der Stückliste).",
+            "Geprüft sind statisches Halten + die deterministischen Dynamik-Screens (ZMP über die "
+            "Gang-Trajektorie, Schwung-Drehmoment); der volle Mehrgelenk-Kontakt-Gang läuft im externen "
+            "Simulator über die URDF-Brücke (PyBullet/Isaac), nicht in diesem Gate.",
+            "Die Baugruppe ist die Kinematik-Kette; eine reale Hüft-/Knöchel-Anbindung an Becken bzw. "
+            "Fuß ist außerhalb des Geltungsbereichs dieser Bein-Teilbaugruppe.",
+        ],
+        claim_ids_used=[c.id for c in leg_assembly_claims()], produced_by="leg_assembly",
+    )
