@@ -76,22 +76,17 @@ def stlsq(library_matrix: np.ndarray, target: np.ndarray, *, threshold: float, m
     return xi
 
 
-def discover_ode(
+def _assemble_library(
     traj,
     *,
-    target: str = "theta_ddot",
-    threshold: float = 0.05,
-    drop_edges: int = 3,
-    extra_terms: Sequence[tuple[str, Callable[[np.ndarray, np.ndarray], np.ndarray]]] = (),
-) -> SindyModel:
-    """Discover the sparse ODE ``θ̈ = f(θ, θ̇)`` (``target='theta_ddot'``) or ``θ̇ = f(...)`` from a
-    ``simulation.multibody.Trajectory``.
-
-    The target derivative is a central finite difference of the simulator's ω(t) (for θ̈) or θ(t) (for θ̇);
-    ``drop_edges`` rows are removed at each end (1st-order finite-difference edge error). ``extra_terms`` are
-    extra library functions ``(name, fn(theta, omega))`` — e.g. a dummy noise term for the hygiene test, or
-    a richer basis. STLSQ keeps only the terms the dynamics need. Raises ValueError on a too-short trajectory.
-    """
+    target: str,
+    drop_edges: int,
+    extra_terms: Sequence[tuple[str, Callable[[np.ndarray, np.ndarray], np.ndarray]]],
+) -> tuple[list[str], np.ndarray, np.ndarray]:
+    """Build the SINDy regression problem ``(names, library, y)`` from a trajectory: the target derivative
+    is a finite difference of ω(t) (θ̈) or θ(t) (θ̇), ``drop_edges`` rows are removed at each end, and the
+    default pendulum library is augmented with ``extra_terms``. Shared by ``discover_ode`` and the ensemble
+    bootstrap so they fit the EXACT same design matrix. Raises ValueError on a too-short trajectory."""
     t = np.asarray(traj.t, dtype=float)
     theta = np.asarray(traj.theta, dtype=float)
     omega = np.asarray(traj.omega, dtype=float)
@@ -113,6 +108,26 @@ def discover_ode(
     names = list(terms)
     library = np.column_stack([terms[n][sl] for n in names])
     y = dxdt[sl]
+    return names, library, y
+
+
+def discover_ode(
+    traj,
+    *,
+    target: str = "theta_ddot",
+    threshold: float = 0.05,
+    drop_edges: int = 3,
+    extra_terms: Sequence[tuple[str, Callable[[np.ndarray, np.ndarray], np.ndarray]]] = (),
+) -> SindyModel:
+    """Discover the sparse ODE ``θ̈ = f(θ, θ̇)`` (``target='theta_ddot'``) or ``θ̇ = f(...)`` from a
+    ``simulation.multibody.Trajectory``.
+
+    The target derivative is a central finite difference of the simulator's ω(t) (for θ̈) or θ(t) (for θ̇);
+    ``drop_edges`` rows are removed at each end (1st-order finite-difference edge error). ``extra_terms`` are
+    extra library functions ``(name, fn(theta, omega))`` — e.g. a dummy noise term for the hygiene test, or
+    a richer basis. STLSQ keeps only the terms the dynamics need. Raises ValueError on a too-short trajectory.
+    """
+    names, library, y = _assemble_library(traj, target=target, drop_edges=drop_edges, extra_terms=extra_terms)
 
     xi = stlsq(library, y, threshold=threshold)
     y_hat = library @ xi
@@ -126,3 +141,72 @@ def discover_ode(
     )
     return SindyModel(target=target, coefficients=coefficients, r_squared=r_squared,
                       expression=expression, n_active=len(coefficients))
+
+
+@dataclass(frozen=True)
+class CoefficientBand:
+    """A bootstrap uncertainty band for ONE discovered ODE coefficient: ``mean``/``std`` and the
+    ``[lo, hi]`` percentile interval over the ensemble, with ``n`` the number of resamples in which the
+    term stayed active. ``width`` and ``contains`` mirror ``uncertainty.ParameterBand``."""
+
+    term: str
+    mean: float
+    std: float
+    lo: float
+    hi: float
+    n: int
+
+    @property
+    def width(self) -> float:
+        return self.hi - self.lo
+
+    def contains(self, value: float) -> bool:
+        return self.lo <= value <= self.hi
+
+
+def ode_coefficient_bands(
+    traj,
+    *,
+    target: str = "theta_ddot",
+    threshold: float = 0.5,
+    drop_edges: int = 3,
+    extra_terms: Sequence[tuple[str, Callable[[np.ndarray, np.ndarray], np.ndarray]]] = (),
+    n_resamples: int = 60,
+    seed: int = 0,
+    ci: tuple[float, float] = (2.5, 97.5),
+) -> dict[str, CoefficientBand]:
+    """Ensemble-SINDy bootstrap uncertainty (Fasel/Kaiser/Kutz/Brunton/Proctor 2022): resample the
+    assembled regression rows ``(library, y)`` WITH REPLACEMENT ``n_resamples`` times, refit STLSQ on each
+    resample, and return a percentile band per term that is active in the full-data fit.
+
+    On clean RK4 data the band is tight — the coefficient is well-identified; measurement noise (which the
+    finite difference amplifies into the target) widens it sharply, an honest signal of lost identifiability.
+    HONEST BOUNDARY: this quantifies STATISTICAL uncertainty only, NOT the systematic finite-difference bias —
+    a tight band means "the data pins this coefficient", not "this coefficient equals the analytic truth".
+    Raises ValueError on ``n_resamples < 2`` or a too-short trajectory."""
+    if n_resamples < 2:
+        raise ValueError("n_resamples must be >= 2 for a band")
+    names, library, y = _assemble_library(traj, target=target, drop_edges=drop_edges, extra_terms=extra_terms)
+    full = stlsq(library, y, threshold=threshold)
+    active = {n for n, c in zip(names, full) if c != 0.0}
+
+    rng = np.random.default_rng(seed)
+    n_rows = library.shape[0]
+    samples: dict[str, list[float]] = {n: [] for n in active}
+    for _ in range(n_resamples):
+        idx = rng.integers(0, n_rows, size=n_rows)
+        xi = stlsq(library[idx], y[idx], threshold=threshold)
+        for n, c in zip(names, xi):
+            if n in active and c != 0.0:
+                samples[n].append(float(c))
+
+    lo_p, hi_p = ci
+    bands: dict[str, CoefficientBand] = {}
+    for n in active:
+        arr = np.asarray(samples[n], dtype=float)
+        if arr.size == 0:        # term active in the full fit but dropped in every resample: unstable, skip
+            continue
+        bands[n] = CoefficientBand(
+            term=n, mean=float(arr.mean()), std=float(arr.std()),
+            lo=float(np.percentile(arr, lo_p)), hi=float(np.percentile(arr, hi_p)), n=int(arr.size))
+    return bands

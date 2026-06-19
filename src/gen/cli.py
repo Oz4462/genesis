@@ -738,7 +738,7 @@ def main(argv: list[str] | None = None) -> int:
         "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol",
                            "assess", "print", "bundle", "ideas", "dream", "humanoid", "council",
                            "feynman", "campaign", "section", "training", "chip", "realize",
-                           "breakthrough", "research"),
+                           "breakthrough", "research", "discover-ode"),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
              "spec = Phase γ build specification; capstone = a complete, fully "
@@ -1255,6 +1255,42 @@ def main(argv: list[str] | None = None) -> int:
         print("  (SURVIVED != proven universal; only a CAS/z3-certified proof + human sign-off "
               "makes an ESTABLISHED anchor.)")
         return 0 if art.status not in ("REFUTED", "INCONCLUSIVE") else 3
+
+    if args.mode == "discover-ode":
+        # Research-core ODE discovery in ONE deterministic command: simulate a damped pendulum with one
+        # of GENESIS' own RK4 simulators, recover its second-order ODE by sparse identification (SINDy),
+        # run the SINDy-hygiene dummy-feature test, and report an ensemble-bootstrap uncertainty band per
+        # coefficient. No best-of-N, no LLM, no network. Exit 0 only on an HONEST success: the sparse law
+        # is recovered (high R²) AND the planted dummy feature is excluded; otherwise 3.
+        from .discovery.sindy import discover_ode, ode_coefficient_bands
+        from .simulation.multibody import STANDARD_GRAVITY, simulate_pendulum
+
+        m, d, c = 2.0, 0.18, 0.2                     # mass, com-distance, damping of the demo pendulum
+        inertia = m * d * d
+        true_sin = -(m * STANDARD_GRAVITY * d) / inertia
+        true_dot = -c / inertia
+        traj = simulate_pendulum(0.8, 0.0, lambda t, th, om: -c * om,
+                                 inertia=inertia, mass=m, com_distance=d, duration=12.0, dt=0.004)
+
+        model = discover_ode(traj, threshold=0.5)
+        dummy = (("theta*theta_dot", lambda th, om: th * om),)
+        with_dummy = discover_ode(traj, threshold=0.5, extra_terms=dummy)
+        dummy_excluded = "theta*theta_dot" not in with_dummy.coefficients
+        bands = ode_coefficient_bands(traj, threshold=0.5, n_resamples=60)
+
+        print("=== ODE-Entdeckung (SINDy aus GENESIS-Simulator, deterministisch, offline) ===")
+        print(f"  System:        gedaempftes Pendel  I·θ̈ = −c·ω − m·g·d·sinθ  (m={m}, d={d}, c={c})")
+        print(f"  Entdeckt:      {model.expression}")
+        print(f"  R²:            {model.r_squared:.6f}    aktive Terme: {model.n_active}")
+        print(f"  Wahrheit:      θ̈ = {true_dot:.4g}*theta_dot + {true_sin:.4g}*sin(theta)")
+        print(f"  Hygiene:       Dummy-Feature 'theta*theta_dot' "
+              f"{'ausgeschlossen ✓' if dummy_excluded else 'NICHT ausgeschlossen ✗'}")
+        print("  Unsicherheit (Ensemble-SINDy-Bootstrap, 60 Resamples; statistisch, nicht FD-Bias):")
+        for name, b in bands.items():
+            print(f"    {name:<14} {b.mean:+.4g}  [{b.lo:+.4g}, {b.hi:+.4g}]  std={b.std:.3g}")
+        ok = model.n_active >= 1 and model.r_squared > 0.99 and dummy_excluded and bool(bands)
+        print(f"  Verdikt:       {'OK — sparse DGL geerdet + Dummy raus + Band gemessen' if ok else 'KEINE saubere Entdeckung'}")
+        return 0 if ok else 3
 
     if args.demo:
         if args.mode == "report":
