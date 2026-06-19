@@ -738,7 +738,7 @@ def main(argv: list[str] | None = None) -> int:
         "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol",
                            "assess", "print", "bundle", "ideas", "dream", "humanoid", "council",
                            "feynman", "campaign", "section", "training", "chip", "realize",
-                           "breakthrough", "research", "discover-ode"),
+                           "breakthrough", "research", "discover-ode", "invent", "solve"),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
              "spec = Phase γ build specification; capstone = a complete, fully "
@@ -1290,6 +1290,59 @@ def main(argv: list[str] | None = None) -> int:
             print(f"    {name:<14} {b.mean:+.4g}  [{b.lo:+.4g}, {b.hi:+.4g}]  std={b.std:.3g}")
         ok = model.n_active >= 1 and model.r_squared > 0.99 and dummy_excluded and bool(bands)
         print(f"  Verdikt:       {'OK — sparse DGL geerdet + Dummy raus + Band gemessen' if ok else 'KEINE saubere Entdeckung'}")
+        return 0 if ok else 3
+
+    if args.mode in ("invent", "solve"):
+        # The autonomous invention loop end to end (INVENTOR §3): a council proposes bold concepts, the
+        # domain grounds each through the architect -> δ-physics gate, a 5-axis Pareto keeps the survivors.
+        # OFFLINE-DEFAULT is fully deterministic (scripted council + architect); --live shells out to the real
+        # council CLI for GENERATION only (the deterministic architect + gate keep the verification honest).
+        # Exit 0 only when >=1 invention is actually physics-verified; otherwise 3 (an honest empty front).
+        import asyncio as _asyncio
+
+        from .inventor import InventionBrief
+        from .inventor.domains import MechatronicsDomain, scripted_mechatronics_architect
+        from .inventor.generate import scripted_council
+        from .inventor.loop import run_invention
+        from .llm.base import LLMClient
+
+        field = args.question or "ein druckbares mechatronisches Bauteil"
+        framing = "Problem" if args.mode == "solve" else "Feld"
+        brief = InventionBrief(field=field, run_id=f"cli-{args.mode}", max_concepts=3)
+
+        demo_concepts = [
+            {"statement": "Resonanter Sehnen-Greifer-Halter", "mechanism": "gedruckte Flexuren speichern "
+             "elastische Energie", "grounding": ["https://openalex.org/W-actuator-mount"]},
+            {"statement": "Elektroadhäsions-Greifpad", "mechanism": "elektrostatisches Klemmen",
+             "grounding": ["patentsview:US-electroadhesion"]},
+        ]
+        council: LLMClient = scripted_council(demo_concepts)
+        live_note = "offline-deterministisch (scripted council)"
+        if args.live:
+            import shutil
+            if shutil.which("claude") is not None:
+                from .llm.factory import make_llm
+                council = make_llm(args.verifier if getattr(args, "verifier", None) else "claude-opus-4-8")
+                live_note = f"LIVE council via {council.model} (Architekt+Gate bleiben deterministisch)"
+            else:
+                live_note = "--live angefordert, aber 'claude' CLI nicht gefunden — Fallback offline (BLOCKED)"
+
+        architect = scripted_mechatronics_architect(first_natural_hz=150.0)
+        domain = MechatronicsDomain()
+        result = _asyncio.run(run_invention(brief, domain=domain, council=council, architect=architect))
+
+        print(f"=== GENESIS Erfindungs-Loop ({args.mode}) — {framing}: {field} ===")
+        print(f"  Quelle:        {live_note}")
+        print(f"  Konzepte:      {len(result.concepts)} vorgeschlagen")
+        print(f"  Geerdet:       {result.grounded_count} physik-verifiziert (δ-Physik-Gate)")
+        print(f"  Pareto-Front:  {len(result.front)} nicht-dominierte Erfindung(en)")
+        for inv in result.front:
+            print(f"    • {inv.concept.statement}  [verifiziert={inv.physics_verified}, "
+                  f"Quellen={len(inv.prior_art)}, Lücken={len(inv.gaps)}]")
+        if not result.front:
+            print("    (leere Front — kein Konzept überlebte das δ-Physik-Gate; ehrliche Lücke, keine Halluzination)")
+        ok = result.grounded_count >= 1 and bool(result.front)
+        print(f"  Verdikt:       {'OK — geerdete, gegatete Erfindung(en) geliefert' if ok else 'KEINE geerdete Erfindung'}")
         return 0 if ok else 3
 
     if args.demo:
