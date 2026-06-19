@@ -14,7 +14,7 @@ import pytest
 
 from gen.core.errors import LLMTransportError
 from gen.llm import _cli
-from gen.llm._cli import _cmd_caret_escape, _launch_spec, _msvcrt_quote, extract_cli_text
+from gen.llm._cli import _launch_spec, _msvcrt_quote, extract_cli_text
 from gen.llm.claude_cli import ClaudeCLI
 from gen.llm.factory import make_llm
 from gen.llm.grok_cli import GrokCLI
@@ -134,39 +134,45 @@ def test_factory_routes_grok_to_cli():
 # — which is deterministic and tested here against hand-computed expectations.
 
 
-def test_msvcrt_quote_leaves_bare_args_bare():
-    # No space/tab/newline/quote -> no quoting needed (a caret alone is not MSVCRT-special).
+def test_msvcrt_quote_leaves_bare_args_bare_unless_forced():
+    # Default: no space/tab/newline/quote -> no quoting needed.
     assert _msvcrt_quote("a^3") == "a^3"
     assert _msvcrt_quote("--model") == "--model"
-    assert _msvcrt_quote("C:/x/claude.CMD") == "C:/x/claude.CMD"
+    # force=True (the cmd.exe route): ALWAYS wrapped, so the quotes survive a shim's %* re-parse.
+    assert _msvcrt_quote("a^3", force=True) == '"a^3"'
+    assert _msvcrt_quote("--model", force=True) == '"--model"'
+    assert _msvcrt_quote("a&b|c", force=True) == '"a&b|c"'
 
 
 def test_msvcrt_quote_wraps_spaces_and_escapes_embedded_quotes():
     assert _msvcrt_quote("find a^3") == '"find a^3"'          # space -> wrapped, caret untouched
     assert _msvcrt_quote('say "hi"') == r'"say \"hi\""'        # embedded quotes -> backslash-escaped
-    assert _msvcrt_quote("") == '""'                           # empty arg must survive as ""
+    assert _msvcrt_quote("", force=True) == '""'              # empty arg must survive as ""
 
 
-def test_cmd_caret_escape_only_outside_quoted_spans():
-    # Outside quotes, cmd metacharacters must be caret-escaped...
-    assert _cmd_caret_escape("a^3") == "a^^3"
-    assert _cmd_caret_escape("x & y") == "x ^& y"
-    assert _cmd_caret_escape("a|b<c>d(e)") == "a^|b^<c^>d^(e^)"
-    # ...but inside a double-quoted span they are literal to cmd, so left alone.
-    assert _cmd_caret_escape('"a^3 & b"') == '"a^3 & b"'
-
-
-def test_launch_spec_routes_cmd_through_comspec_as_string_on_windows(monkeypatch):
+def test_launch_spec_force_quotes_every_arg_as_string_on_windows(monkeypatch):
     monkeypatch.setattr(_cli, "sys", types.SimpleNamespace(platform="win32"))
     monkeypatch.setenv("COMSPEC", r"C:\Windows\System32\cmd.exe")
     spec = _launch_spec(["C:/x/claude.CMD", "-p", "find a^3 & b", "--model", "claude-opus-4-8"])
     # A precise STRING command line (not a list) so we own cmd.exe's quoting exactly.
     assert isinstance(spec, str)
     assert spec.startswith(r'"C:\Windows\System32\cmd.exe" /d /s /c "')
-    # The space-bearing prompt is wrapped in quotes, so its ^ and & are literal to cmd (not escaped,
-    # not executed) -> the formula text reaches the CLI intact.
-    assert '"find a^3 & b"' in spec
-    assert "^&" not in spec  # the & sits inside the quoted prompt, so it is NOT caret-escaped
+    # EVERY arg is force-quoted (program, flags, prompt) so it survives the .cmd shim's %* re-parse.
+    for token in ('"C:/x/claude.CMD"', '"-p"', '"find a^3 & b"', '"--model"', '"claude-opus-4-8"'):
+        assert token in spec
+    # No caret-escaping anywhere: carets don't survive %*, so metacharacters ride inside the quotes.
+    assert "^&" not in spec and "a^^3" not in spec
+
+
+def test_launch_spec_force_quotes_space_free_metacharacter_args(monkeypatch):
+    # The exact regression scripts/verify_cli_launch.py caught on a real .cmd: a space-free metachar
+    # arg must STILL be quoted (not left bare), else cmd splits on & or eats ^ after the shim's %*
+    # re-expansion. Force-quoting fixes it; this pins the fix.
+    monkeypatch.setattr(_cli, "sys", types.SimpleNamespace(platform="win32"))
+    monkeypatch.setenv("COMSPEC", r"C:\Windows\System32\cmd.exe")
+    spec = _launch_spec(["x.cmd", "a^3", "a&b|c", "lt<gt>"])
+    assert '"a^3"' in spec and '"a&b|c"' in spec and '"lt<gt>"' in spec
+    assert "a^^3" not in spec and "^&" not in spec          # no carets at all
 
 
 def test_launch_spec_leaves_exe_and_posix_as_unchanged_list(monkeypatch):

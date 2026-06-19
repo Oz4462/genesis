@@ -53,23 +53,27 @@ def resolve_binary(name: str) -> str:
 
 # --- Windows command-line quoting for the .cmd/.bat route ----------------------------------------
 # A native .exe and every POSIX binary are launched from an argv LIST: subprocess builds the command
-# line with the MSVCRT convention, no shell — safe. But a Windows .cmd/.bat shim (npm's claude.CMD)
+# line itself (CreateProcess/execvp), no shell — safe. A Windows .cmd/.bat shim (npm's claude.CMD)
 # cannot be launched by CreateProcess directly; it must go through the command processor (cmd /c).
-# cmd.exe then applies its OWN metacharacter parsing (^ & | < > ( )) to anything OUTSIDE a double-
-# quoted span. Plain list2cmdline only quotes args that contain spaces, so a prompt with an embedded
-# quote followed by a metacharacter would be silently corrupted (drop a caret -> "a^3" becomes "a3";
-# worse, act on a stray "&"). We therefore build the command line ourselves with the two-layer
-# convention used by Rust's std and .NET: first MSVCRT-quote each argument (for the child's own argv
-# parser), then caret-escape cmd metacharacters that fall outside quoted spans (for cmd.exe), and pass
-# the whole thing as a precise STRING via ``cmd /d /s /c "<line>"`` (/s makes the outer-quote handling
-# deterministic). This kills the silent prompt-corruption class that list2cmdline leaves open.
-_CMD_META = frozenset("()<>&|^")  # cmd /c specials. NOT '%' (^-escaping it is wrong) nor '!' (only
-#                                   special with delayed expansion, off under cmd /c) nor '"' (tracked).
+#
+# The decisive subtlety, confirmed against the real npm claude.CMD (it forwards `"<exe>" %*`) and by
+# scripts/verify_cli_launch.py: the argument list is parsed by cmd.exe TWICE — once to invoke the
+# .cmd, then AGAIN when the shim re-expands %* to call the underlying .exe. Caret-escaping (^&, ^^)
+# only survives the FIRST parse; the %* re-expansion leaves the metacharacters naked for the SECOND
+# parse, which then splits on a stray & or eats a ^. DOUBLE QUOTES, by contrast, are preserved by %*
+# and keep protecting across both parses. So we FORCE-QUOTE every argument (always wrap in "...", with
+# the backslash/quote escaping the child .exe's MSVCRT parser needs) and do NOT caret-escape. A prompt
+# holding ^ & | < > ( ) and spaces then survives the shim's %* double-parse intact — the silent-
+# corruption class that plain list2cmdline (quotes only on spaces) and a naive caret pass both leave
+# open. Residual (documented): an embedded " immediately followed by a cmd metacharacter can still
+# expose it; GENESIS prompts don't contain that adjacency (JSON quotes are followed by :{letters).
 
 
-def _msvcrt_quote(arg: str) -> str:
-    """Quote one argument for the MSVCRT / CommandLineToArgvW parser the child re-parses with."""
-    if arg and not any(c in arg for c in ' \t\n\v"'):
+def _msvcrt_quote(arg: str, *, force: bool = False) -> str:
+    """Quote one argument for the MSVCRT / CommandLineToArgvW parser the child re-parses with. With
+    ``force`` the argument is ALWAYS wrapped in double quotes — required on the cmd.exe route so the
+    quotes survive a shim's ``%*`` re-parse; without it, a space/quote-free arg is left bare."""
+    if not force and arg and not any(c in arg for c in ' \t\n\v"'):
         return arg
     out = ['"']
     backslashes = 0
@@ -89,32 +93,14 @@ def _msvcrt_quote(arg: str) -> str:
     return ''.join(out)
 
 
-def _cmd_caret_escape(line: str) -> str:
-    """Caret-escape cmd.exe metacharacters that fall OUTSIDE double-quoted spans, mirroring cmd's own
-    quote tracking (every ``"`` toggles the span — exactly how cmd reads the MSVCRT ``\\"`` escapes)."""
-    out: list[str] = []
-    in_quotes = False
-    for ch in line:
-        if ch == '"':
-            in_quotes = not in_quotes
-            out.append(ch)
-        elif not in_quotes and ch in _CMD_META:
-            out.append('^')
-            out.append(ch)
-        else:
-            out.append(ch)
-    return ''.join(out)
-
-
 def _launch_spec(argv: list[str]) -> list[str] | str:
-    """What to hand ``subprocess.run``: a STRING command line on the Windows .cmd/.bat route (so we
-    control cmd.exe quoting exactly), else the argv LIST unchanged (no shell, no injection surface).
-
-    The .exe / POSIX path stays a LIST -> subprocess uses CreateProcess/execvp directly, no cmd.exe
-    in the loop, so the single MSVCRT quoting layer it applies is already correct."""
+    """What to hand ``subprocess.run``: a STRING command line on the Windows .cmd/.bat route (every
+    argument force-quoted so it survives cmd.exe — including a shim's ``%*`` double-parse, see above),
+    else the argv LIST unchanged (no shell, no injection surface). The .exe / POSIX path stays a LIST,
+    so the single MSVCRT layer subprocess applies is already correct."""
     if sys.platform == "win32" and argv and argv[0].lower().endswith((".cmd", ".bat")):
         comspec = os.environ.get("COMSPEC", "cmd.exe")
-        inner = _cmd_caret_escape(' '.join(_msvcrt_quote(a) for a in argv))
+        inner = ' '.join(_msvcrt_quote(a, force=True) for a in argv)
         # /s + the outer quotes: cmd strips exactly the first and last char, then runs <inner> verbatim.
         return f'"{comspec}" /d /s /c "{inner}"'
     return argv
@@ -129,9 +115,10 @@ async def default_cli_run(argv: list[str], *, timeout: float = 300.0) -> tuple[i
         pipe issues that hang on Windows;
       * ``stdin=DEVNULL`` so a CLI that probes for an interactive terminal gets EOF instead of
         blocking forever waiting on input;
-      * a ``.cmd``/``.bat`` shim is launched as a precisely-quoted ``cmd /d /s /c "<line>"`` STRING
-        (see ``_launch_spec`` / ``_cmd_caret_escape``) — else Windows cannot launch it at all, and the
-        two-layer quoting stops cmd.exe silently mangling a prompt that holds ``^``/``"``/``&``;
+      * a ``.cmd``/``.bat`` shim is launched as a force-quoted ``cmd /d /s /c "<line>"`` STRING
+        (see ``_launch_spec``) — else Windows cannot launch it at all, and force-quoting every argument
+        stops cmd.exe silently mangling a prompt that holds ``^``/``"``/``&`` even across the shim's
+        ``%*`` double-parse (proven end-to-end by ``scripts/verify_cli_launch.py``);
       * a hard timeout that kills the child and returns a sentinel code, so a stuck CLI surfaces as a
         loud ``LLMTransportError`` (the adapter raises on non-zero), never a silent empty answer;
       * stdout/stderr decoded UTF-8 with ``errors="replace"`` — a stray non-UTF-8 byte from a Windows
