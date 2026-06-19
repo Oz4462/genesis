@@ -41,7 +41,7 @@ from fractions import Fraction
 
 import numpy as np
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from ..verification.derivation import within_tolerance
 from ..verification.symbolic import cross_check_power_law
@@ -49,6 +49,7 @@ from ..verification.units import Dimension, parse_unit
 
 if TYPE_CHECKING:
     from .concept_utility import ConceptUtility
+    from .separability import SeparabilityResult
 
 #: Default fit-quality bar for a ``bestaetigt`` verdict (R² ≥ this, δ-raised per candidate).
 DEFAULT_R2_THRESHOLD = 0.999
@@ -144,6 +145,11 @@ class DiscoveryResult:
     validated: tuple[DiscoveryVerdict, ...]
     all_records: tuple[DiscoveryVerdict, ...]
     run_id: str | None = None
+    #: Optional AI-Feynman separability annotation: when ``discover_new_formulas`` is given a queryable
+    #: ``target_fn``, the additive/multiplicative decomposition of the target into independent variable
+    #: groups — structural provenance toward the declared multi-term/composition extension. ``None`` when
+    #: no ``target_fn`` was supplied. Purely informational; NEVER a discovery verdict.
+    separability: "SeparabilityResult | None" = None
 
 
 def _exponent_vector(dim: Dimension, bases: list[str]) -> np.ndarray:
@@ -372,6 +378,28 @@ def _judge(candidate: Candidate, y: np.ndarray, y_hat: np.ndarray, *, r2_thresho
                             gates=gates, delta_to_consensus=delta)
 
 
+def _target_separability(problem: DiscoveryProblem, target_fn: "Callable[..., float] | None"):
+    """Annotate the AI-Feynman separability of a queryable target, or ``None`` — best-effort, never fatal.
+
+    Multiplicative separability is the power-law-native question (does the law factor into independent
+    variable groups the engine could represent?); it is used when the target is positive on the data,
+    else additive. The input variables are the axes; the caller bakes any constants into ``target_fn``.
+    Any failure (signature mismatch, non-positive log, overflow) yields ``None`` — a missing structure,
+    never a fabricated one or a crashed discovery. Deterministic (separability uses a fixed seed).
+    """
+    if target_fn is None or len(problem.inputs) < 2:
+        return None
+    from .separability import analyze_separability
+
+    names = [v.name for v in problem.inputs]
+    ranges = {v.name: (float(min(v.values)), float(max(v.values))) for v in problem.inputs}
+    mode = "multiplicative" if min(problem.target.values) > 0.0 else "additive"
+    try:
+        return analyze_separability(target_fn, names, ranges, mode=mode)
+    except (ValueError, TypeError, ArithmeticError):
+        return None
+
+
 def discover_new_formulas(
     problem: DiscoveryProblem,
     *,
@@ -379,6 +407,7 @@ def discover_new_formulas(
     r2_threshold: float = DEFAULT_R2_THRESHOLD,
     prior: "ConceptUtility | None" = None,
     refine_with_search: bool = False,
+    target_fn: "Callable[..., float] | None" = None,
 ) -> DiscoveryResult:
     """The Phase-1 core loop (Anhang B): idea+data → candidate formulas → gated validation.
 
@@ -399,6 +428,12 @@ def discover_new_formulas(
     e.g. an under-determined free π-group the SR cannot pin. It walks from the SR's best guess and can
     only ADD gate-passing laws; it never removes or overrides a verdict. Default ``False`` is
     byte-identical to the bare loop.
+
+    `target_fn` is an OPTIONAL queryable form of the target — ``f(**input_vars) -> float`` with any
+    constants baked in by the caller (synthetic/benchmark problems have it; raw-data problems do not).
+    When supplied, the result is annotated with the target's AI-Feynman separability (does the law factor
+    into independent variable groups?), structural provenance toward the declared multi-term extension.
+    It is purely informational and NEVER changes a verdict; default ``None`` leaves the result unchanged.
     """
     known = known_laws or {}
     y = np.asarray(problem.target.values, dtype=float)
@@ -433,7 +468,8 @@ def discover_new_formulas(
         validated = tuple(sorted((r for r in records if r.passed), key=_key))
 
     return DiscoveryResult(problem_idea=problem.idea, validated=validated,
-                           all_records=tuple(records), run_id=problem.run_id)
+                           all_records=tuple(records), run_id=problem.run_id,
+                           separability=_target_separability(problem, target_fn))
 
 
 def judge_candidate(
