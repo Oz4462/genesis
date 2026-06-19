@@ -10,4 +10,6 @@ and ``evolve_engine`` (in-house MAP-Elites / external evolutionary engine). The 
 loop/novelty/safety modules land in the I/N/E/S phases.
 """
 
-__all__: list[str] = []
+from .brief import Invention, InventionBrief
+
+__all__ = ["InventionBrief", "Invention"]
