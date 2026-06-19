@@ -85,7 +85,10 @@ BOM, feuert auch die Compute-Achse) → `out/humanoid_robot/` (8 STLs). **Formel
 `mechanics_formulas.py` (kanonische achsen-benannte Formeln, single source of truth) + `dimensional_guard.py`
 (Skalierungs-Invarianz fängt Dimensionsfehler automatisch) — disjunkte Fehlerklassen. `future_ideas.py`
 = 5 zukunftsorientierte Ideen (Drohne/Energiespeicher/Ernteroboter/Hydraulik/Exoskelett) je
-physics_verified + Artefakte (`gen --mode ideas`). Volle Suite offline **1460 passed / 0 failed / 9 skipped**.
+physics_verified + Artefakte (`gen --mode ideas`). `visionary_ideas.py` = 3 von **grok-build als Visionär
+entschiedene** Konzepte, die es noch nicht gibt (SkyClaw fliegender Manipulator / ResoStrider
+Resonanz-Vierbeiner / ForgeHydra abwerfbare Hydraulik), GENESIS-geerdet + physics_verified
+(`gen --mode dream`); grok prüfte die Erdung KEIN DRIFT. Volle Suite offline **1470 passed / 0 failed / 9 skipped**.
 
 ---
 

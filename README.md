@@ -7,7 +7,7 @@
 > Open-Source-Infrastruktur, damit Menschen — privat wie Unternehmen — aus einer kleinen Idee etwas Vollständiges erschaffen können: mit Quellen statt Behauptungen, mit nachgerechneter Physik statt geratener Zahlen, und mit ehrlichen Lücken statt erfundener Antworten.
 
 ```
-1460 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
+1470 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
 ```
 
 ---
@@ -211,7 +211,7 @@ pip install -e .[full]      # alles inkl. Dev-Tools (pytest, ruff, httpx)
 Ohne die optionalen Pakete bleibt alles funktionsfähig — die betreffenden Features/Tests **skippen ehrlich**, statt zu raten.
 
 ```bash
-python -m pytest tests/ -q          # 1460 passed, 9 skipped — ohne LLM-Token, ohne Netz
+python -m pytest tests/ -q          # 1470 passed, 9 skipped — ohne LLM-Token, ohne Netz
 ```
 
 ## 8 · Nutzung: CLI
