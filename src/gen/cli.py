@@ -737,7 +737,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol",
                            "assess", "print", "bundle", "ideas", "dream", "humanoid", "council",
-                           "feynman", "campaign", "realize", "breakthrough", "research"),
+                           "feynman", "campaign", "section", "realize", "breakthrough", "research"),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
              "spec = Phase γ build specification; capstone = a complete, fully "
@@ -1016,6 +1016,29 @@ def main(argv: list[str] | None = None) -> int:
         for cand in rep.archive.elites():
             print(f"    {cand.expression}  (R²={cand.r_squared:.5f})")
         return 0
+
+    if args.mode == "section":
+        # Generative-Design-Adoption: ein Minimal-Material-Querschnitts-VORSCHLAG, geerdet in einem
+        # belegten Material, vom unabhängigen Streckgrenzen-Gate nachgeprüft — der Optimierer schlägt
+        # vor, das deterministische Gate entscheidet (kein zertifizierter Teil ohne Gate-Zustimmung).
+        from .materials import MATERIALS
+        from .section_optimizer import propose_and_verify
+
+        force, arm, sf = 100.0, 50.0, 2.0
+        print("GENESIS — Querschnitts-Optimierer (Vorschlag → unabhängiges Streckgrenzen-Gate entscheidet)\n")
+        print(f"  Last: F={force:.0f} N am Hebel L={arm:.0f} mm · Sicherheitsfaktor {sf:.1f}\n")
+        all_passed, source = True, ""
+        for name in MATERIALS:
+            vs = propose_and_verify(material_name=name, force=force, arm=arm, safety_factor=sf)
+            all_passed = all_passed and vs.gate_passed
+            source = vs.material.source
+            mark = "OK " if vs.gate_passed else "XX "
+            z3 = "z3 ✓" if vs.machine_proved else "z3 —"
+            print(f"  {mark}{vs.material.name:5s} b×h = {vs.design.breadth:6.2f}×{vs.design.depth:6.2f} mm  "
+                  f"σ={vs.design.stress:6.1f} ≤ {vs.sigma_allow:6.1f} MPa  "
+                  f"SF={vs.design.safety_factor:.2f}  {z3}")
+        print(f"\n  Streckgrenzen-Quelle: {source}")
+        return 0 if all_passed else 3
 
     if args.mode == "humanoid":
         # The two COMPLETE whole-body humanoids built (with grok) to beat the 2026 state of the art:

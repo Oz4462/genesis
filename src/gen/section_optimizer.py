@@ -17,6 +17,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .materials import Material, get_material
+from .verification.cegis import cantilever_yield_check
+from .verification.smt import prove_cantilever_within_yield
+
 
 @dataclass(frozen=True)
 class SectionDesign:
@@ -73,3 +77,72 @@ def optimize_cantilever_section(
     if best is None:
         return SectionDesign(min_wall, min_wall, float("inf"), float("inf"), 0.0, False)
     return best
+
+
+@dataclass(frozen=True)
+class VerifiedSection:
+    """A material-grounded section PROPOSAL together with an INDEPENDENT gate verdict.
+
+    ``gate_passed`` is the closed-form yield gate (``verification.cegis.cantilever_yield_check``) re-
+    checking that the proposed ``(b, h)`` actually satisfies ``σ ≤ σ_allow`` — a path separate from the
+    optimiser's own accept/reject, so an optimiser search/margin bug surfaces here. ``machine_proved`` is
+    the z3 ∀-proof (``verification.smt``) clearing the same bound via a representation-independent
+    polynomial rewrite; it is ``False`` (not a pass) when z3 is unavailable. The optimiser proposes, the
+    gate disposes — a section is certified only when the gate agrees (CLAUDE.md §1/§2)."""
+
+    material: Material
+    sigma_allow: float
+    design: SectionDesign
+    gate_passed: bool
+    machine_proved: bool
+    detail: str
+
+
+def propose_and_verify(
+    *,
+    material_name: str,
+    force: float,
+    arm: float,
+    safety_factor: float = 1.0,
+    min_wall: float = 1.0,
+    max_aspect: float = 4.0,
+    h_steps: int = 400,
+) -> VerifiedSection:
+    """Propose the lightest cantilever section for a load and a GROUNDED material, then verify it.
+
+    ``sigma_allow`` is the material's yield strength (a sourced fact via ``materials.get_material``)
+    divided by ``safety_factor`` — never an anonymous constant. The proposed section is then re-checked
+    by an INDEPENDENT closed-form yield gate and, when z3 is present, machine-proved. The optimiser's own
+    ``feasible`` flag is NOT trusted as the verdict: ``gate_passed`` comes from the separate gate.
+
+    Raises ``ValueError`` for an unknown material (via ``get_material``), a non-positive
+    ``safety_factor``, or non-positive ``force``/``arm`` (via ``optimize_cantilever_section``).
+    """
+    if safety_factor <= 0:
+        raise ValueError("safety_factor must be positive")
+    material = get_material(material_name)            # raises on an unknown material — no guessed property
+    sigma_allow = material.yield_strength_mpa / safety_factor
+    design = optimize_cantilever_section(
+        force=force, arm=arm, sigma_allow=sigma_allow,
+        min_wall=min_wall, max_aspect=max_aspect, h_steps=h_steps,
+    )
+    if not design.feasible:
+        return VerifiedSection(
+            material, sigma_allow, design, gate_passed=False, machine_proved=False,
+            detail=f"no section within bounds keeps σ ≤ {sigma_allow:.4g} MPa for {material.name}",
+        )
+    # INDEPENDENT verification: the gate, not the optimiser, decides whether the proposal is certified.
+    counterexample = cantilever_yield_check(
+        {"F": force, "L": arm, "b": design.breadth, "h": design.depth}, sigma_allow
+    )
+    gate_passed = counterexample is None
+    proof = prove_cantilever_within_yield(
+        force=force, arm=arm, breadth=design.breadth, depth=design.depth, sigma_allow=sigma_allow
+    )
+    machine_proved = proof.available and proof.proved
+    detail = (
+        f"{material.name}: σ={design.stress:.4g} ≤ {sigma_allow:.4g} MPa, SF={design.safety_factor:.3g}; "
+        + ("gate PASS" if gate_passed else f"gate FAIL ({counterexample.detail if counterexample else ''})")
+        + ("; z3 proved" if machine_proved else ("; z3 unavailable" if not proof.available else "; z3 refuted"))
+    )
+    return VerifiedSection(material, sigma_allow, design, gate_passed, machine_proved, detail)

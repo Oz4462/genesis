@@ -7,7 +7,12 @@ bounds, and invalid inputs are rejected. Offline, deterministic.
 
 import pytest
 
-from gen.section_optimizer import optimize_cantilever_section
+from gen.materials import MATERIALS, get_material
+from gen.section_optimizer import (
+    VerifiedSection,
+    optimize_cantilever_section,
+    propose_and_verify,
+)
 from gen.verification.smt import cantilever_stress
 
 _F, _L, _SA = 100.0, 50.0, 600.0
@@ -44,3 +49,51 @@ def test_is_deterministic():
     a = optimize_cantilever_section(force=_F, arm=_L, sigma_allow=_SA)
     b = optimize_cantilever_section(force=_F, arm=_L, sigma_allow=_SA)
     assert (a.breadth, a.depth, a.volume) == (b.breadth, b.depth, b.volume)
+
+
+# --- propose_and_verify: the proposer/gate loop closed over a GROUNDED material ------------------
+
+def test_proposed_section_clears_the_independent_gate_for_every_material():
+    # The strong correctness property: the optimiser never emits a section that fails the SEPARATE
+    # yield gate — for every grounded material in the registry.
+    for name in MATERIALS:
+        vs = propose_and_verify(material_name=name, force=_F, arm=_L, safety_factor=2.0)
+        assert isinstance(vs, VerifiedSection)
+        assert vs.design.feasible
+        assert vs.gate_passed, f"{name}: optimiser proposal failed the independent gate — {vs.detail}"
+
+
+def test_sigma_allow_is_grounded_in_the_material_yield_not_an_anonymous_constant():
+    vs = propose_and_verify(material_name="petg", force=_F, arm=_L, safety_factor=2.0)
+    material = get_material("PETG")
+    assert vs.sigma_allow == pytest.approx(material.yield_strength_mpa / 2.0)
+    assert vs.material.source                                   # the property carries provenance
+    # and the proposal genuinely sits under that grounded allowable
+    assert cantilever_stress(_F, _L, vs.design.breadth, vs.design.depth) <= vs.sigma_allow + 1e-6
+
+
+def test_machine_proof_is_honest_about_z3_availability():
+    # z3 may or may not be importable in this process. Either it proved the bound, or the verdict is
+    # honestly reported as unavailable — never a silent pass.
+    vs = propose_and_verify(material_name="PLA", force=_F, arm=_L)
+    assert vs.machine_proved or "z3 unavailable" in vs.detail
+    if vs.machine_proved:
+        assert vs.gate_passed                                   # a machine proof implies the gate passes
+
+
+def test_unknown_material_raises():
+    with pytest.raises(ValueError):
+        propose_and_verify(material_name="unobtanium", force=_F, arm=_L)
+
+
+def test_nonpositive_safety_factor_raises():
+    with pytest.raises(ValueError):
+        propose_and_verify(material_name="PLA", force=_F, arm=_L, safety_factor=0.0)
+
+
+def test_propose_and_verify_is_deterministic():
+    a = propose_and_verify(material_name="ABS", force=_F, arm=_L, safety_factor=1.5)
+    b = propose_and_verify(material_name="ABS", force=_F, arm=_L, safety_factor=1.5)
+    assert (a.design.breadth, a.design.depth, a.gate_passed) == (
+        b.design.breadth, b.design.depth, b.gate_passed,
+    )
