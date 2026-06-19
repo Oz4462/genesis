@@ -387,8 +387,8 @@ Real package dir: {pkg_root}
             "fertigungs": manifest.get("fertigungs"),
         }
         save_fragment(package_summary, key=f"realization_package_{run_id or 'latest'}", source="realize", quelle="GENESIS_TODO Realisierungspaket complete + PLAN §1")
-    except Exception:
-        pass
+    except Exception as e:
+        print("Wissensbasis package-summary persist skipped:", e)
 
     # B item: Better visualization - generate self-contained dashboard.html from existing artifacts (JSONs, STLs, kicad, transient, multi-domain)
     try:
@@ -398,10 +398,9 @@ Real package dir: {pkg_root}
 
     # B5: generate standalone general viewer for export/viz (besides dashboard)
     try:
-        tdata = None
-        if 'elec_pieces' in locals() and elec_pieces and elec_pieces.get('simulation_result'):
-            tdata = getattr(elec_pieces['simulation_result'], 'transient_history', None) or elec_pieces['simulation_result'].get('transient_history') if isinstance(elec_pieces.get('simulation_result'), dict) else None
-        # Pass richer data for new internalized features (DRC, placement, harness, bio actuators)
+        # richer data for the internalized features (DRC, placement, harness, bio actuators); the
+        # parenthesised ``... or (... if isinstance ... else None)`` is deliberate — without the parens
+        # the ternary would bind only the right operand of ``or`` and mis-handle the dict case.
         tdata = None
         if 'elec_pieces' in locals() and elec_pieces and elec_pieces.get('simulation_result'):
             tdata = getattr(elec_pieces['simulation_result'], 'transient_history', None) or (elec_pieces['simulation_result'].get('transient_history') if isinstance(elec_pieces.get('simulation_result'), dict) else None)
@@ -1036,8 +1035,8 @@ def realize(ideas: list[str], package_name: str = "Genesis Realization Package",
     try:
         from gen.lernmaschine.engine import run_8_step_learning_cycle
         lern_res = run_8_step_learning_cycle(ideas[0] if ideas else "generic", run_id=run_id)
-    except Exception:
-        pass
+    except Exception as e:
+        print("Lern cycle skipped:", e)
     return {
         "package_dir": pkg,
         "lern_persisted": getattr(lern_res, "persisted_key", None) if lern_res else None,
