@@ -20,6 +20,8 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 
+from .mechanics_formulas import rod_inertia_about_center
+
 
 @dataclass(frozen=True)
 class Segment:
@@ -116,10 +118,11 @@ def _branch(robot: ET.Element, *, joint: str, parent: str, child: str,
     ET.SubElement(j, "axis", {"xyz": f"{axis[0]:g} {axis[1]:g} {axis[2]:g}"})
     ET.SubElement(j, "limit", {"lower": "-2", "upper": "2", "effort": "150", "velocity": "12"})
     link = ET.SubElement(robot, "link", {"name": child})
-    # uniform-rod inertia ABOUT THE COM (m·L²/12) — the URDF tensor is COM-referenced and the
-    # simulator re-applies the parallel-axis shift m·(L/2)² from the joint, recovering m·L²/3 about
-    # the joint (the value the dynamics SCREEN uses). Writing m·L²/3 here would double-count that shift.
-    _inertial(link, mass, mass * length * length / 12.0, com_z=com_z)
+    # uniform-rod inertia ABOUT THE COM — the URDF tensor is COM-referenced and the simulator
+    # re-applies the parallel-axis shift m·(L/2)² from the joint, recovering m·L²/3 about the joint
+    # (the value the dynamics SCREEN uses). The canonical, axis-named formula prevents the m·L²/3
+    # (about-end) value from being written here by mistake.
+    _inertial(link, mass, rod_inertia_about_center(mass, length), com_z=com_z)
     _shape(link, "collision", length, radius, com_z=com_z)
     _shape(link, "visual", length, radius, com_z=com_z)
 
@@ -150,7 +153,9 @@ def humanoid_urdf(
 
     robot = ET.Element("robot", {"name": name})
     pelvis = ET.SubElement(robot, "link", {"name": "pelvis"})
-    _inertial(pelvis, 4.0, 4.0 * 0.12 * 0.12 / 12.0 * 2.0, com_z=0.0)
+    # stubby root link — diagonal placeholder inertia from the canonical rod formula (no inline magic
+    # number); the simulator/user refines the true cuboid tensor.
+    _inertial(pelvis, 4.0, rod_inertia_about_center(4.0, 0.12), com_z=0.0)
     _shape(pelvis, "collision", 0.12, pelvis_width / 2.0, com_z=0.0)
     _shape(pelvis, "visual", 0.12, pelvis_width / 2.0, com_z=0.0)
 

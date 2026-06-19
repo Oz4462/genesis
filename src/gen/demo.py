@@ -31,6 +31,7 @@ from .tolerance import (
     iso2768_medium_linear_tolerance,
     worst_case_min_clearance_formula,
 )
+from .mechanics_formulas import rod_inertia_about_end
 from .structural import (
     BOLT_SHEAR_COEFFICIENT_88,
     BOLT_UTS_CLASS_88_MPA,
@@ -936,8 +937,8 @@ def leg_assembly_spec() -> Specification:
         _dm("q_sway", "CoM-Schwankungsamplitude", 0.04, "m", "seitliche Gang-Schwankung",
             "gait.com_amplitude"),
         _dm("q_step_f", "Schrittfrequenz", 0.45, "Hz", "Gang-Kadenz", "gait.step_frequency"),
-        _dm("q_limb_I", "Schenkel-Trägheit um das Gelenk", 0.0216, "kg*m^2",
-            "≈ m·L²/3 (gleichförmiger Stab um die Hüfte) — geometrie-konsistent zu q_limb_m/q_l1",
+        _dm("q_limb_I", "Schenkel-Trägheit um das Gelenk", rod_inertia_about_end(2.0, 0.18), "kg*m^2",
+            "m·L²/3 (gleichförmiger Stab um die Hüfte, kanonische Formel) — konsistent zu q_limb_m/q_l1",
             "limb.inertia"),
         _dm("q_limb_m", "Schenkel-Masse", 2.0, "kg", "Glied+Motor", "limb.mass"),
         _dm("q_limb_d", "Schenkel-Schwerpunktabstand", 0.09, "m", "Gelenk→CoM", "limb.com_distance"),
@@ -1238,8 +1239,8 @@ def humanoid_spec() -> Specification:
         _dm("q_sway", "CoM-Schwankungsamplitude", 0.04, "m", "seitliche Gang-Schwankung",
             "gait.com_amplitude"),
         _dm("q_step_f", "Schrittfrequenz", 0.45, "Hz", "Gang-Kadenz", "gait.step_frequency"),
-        _dm("q_limb_I", "Schenkel-Trägheit um das Gelenk", 0.0216, "kg*m^2",
-            "≈ m·L²/3 (gleichförmiger Stab um die Hüfte) — geometrie-konsistent zu q_limb_m/q_l1",
+        _dm("q_limb_I", "Schenkel-Trägheit um das Gelenk", rod_inertia_about_end(2.0, 0.18), "kg*m^2",
+            "m·L²/3 (gleichförmiger Stab um die Hüfte, kanonische Formel) — konsistent zu q_limb_m/q_l1",
             "limb.inertia"),
         _dm("q_limb_m", "Schenkel-Masse", 2.0, "kg", "Glied+Motor", "limb.mass"),
         _dm("q_limb_d", "Schenkel-Schwerpunktabstand", 0.09, "m", "Gelenk→CoM", "limb.com_distance"),
