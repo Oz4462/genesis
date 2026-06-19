@@ -350,3 +350,13 @@ class LLMTransportError(GenesisError):
 
     def __init__(self, model: str, reason: str) -> None:
         super().__init__(f"LLM backend for {model!r} failed: {reason}")
+
+
+class ToolError(GenesisError):
+    """A capability (Tool) could not complete: transport failure, a server error envelope, or an
+    error result. Raised loudly per the ``core.interfaces.Tool`` contract — a tool that cannot
+    complete returns a typed failure, never a fabricated result that downstream would treat as data.
+    """
+
+    def __init__(self, tool: str, reason: str) -> None:
+        super().__init__(f"Tool {tool!r} failed: {reason}")
