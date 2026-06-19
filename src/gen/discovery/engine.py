@@ -42,6 +42,7 @@ from fractions import Fraction
 import numpy as np
 
 from ..verification.derivation import within_tolerance
+from ..verification.symbolic import cross_check_power_law
 from ..verification.units import Dimension, parse_unit
 
 #: Default fit-quality bar for a ``bestaetigt`` verdict (R² ≥ this, δ-raised per candidate).
@@ -111,6 +112,10 @@ class Candidate:
     complexity: int
     dimension_ok: bool
     dimension_residual: float
+    #: Independent SymPy cross-engine verdict: True = both engines agree the dimensions are consistent,
+    #: False = they disagree (fail-closed -> dimension_ok is forced False), None = SymPy could not
+    #: corroborate (opaque unit) so only the lstsq solve spoke. Provenance for the anti-hallucination gate.
+    dimension_corroborated: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -238,6 +243,17 @@ def _build_candidate(problem: DiscoveryProblem, names: list[str], arrays: list[n
     r2 = _r_squared(y, y_hat)
     rmse = float(np.sqrt(np.mean((y - y_hat) ** 2)))
     complexity = sum(1 for p in exponents.values() if abs(p) >= 1e-9)
+    # Independent SymPy cross-check ONLY on candidates the lstsq solve calls consistent (where a false
+    # positive would be dangerous): two disjoint dimensional engines must AGREE to claim consistency.
+    # SymPy opaque on a unit -> None (cannot corroborate; fall back to the lstsq verdict honestly);
+    # SymPy disagreeing -> fail-closed (dimension_ok forced False). See verification/symbolic.py.
+    lstsq_ok = dim_residual < DIMENSION_TOLERANCE
+    corroborated: bool | None = None
+    if lstsq_ok:
+        source_units = {v.name: v.unit for v in problem.inputs}
+        source_units.update({c.name: c.unit for c in problem.constants})
+        xcheck = cross_check_power_law(problem.target.unit, source_units, exponents)
+        corroborated = xcheck.agrees if xcheck.available else None
     return Candidate(
         expression=_render_expression(problem.target.name, coefficient, exponents),
         exponents=exponents,
@@ -245,8 +261,9 @@ def _build_candidate(problem: DiscoveryProblem, names: list[str], arrays: list[n
         r_squared=r2,
         rmse=rmse,
         complexity=complexity,
-        dimension_ok=dim_residual < DIMENSION_TOLERANCE,
+        dimension_ok=lstsq_ok and corroborated is not False,
         dimension_residual=dim_residual,
+        dimension_corroborated=corroborated,
     )
 
 

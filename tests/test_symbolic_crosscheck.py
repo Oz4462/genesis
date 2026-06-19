@@ -78,6 +78,19 @@ def test_sympy_base_exponents_independent_reduction():
     assert sympy_base_exponents("widget") is None                 # opaque -> None, never a guess
 
 
+def test_corroboration_flows_through_the_discovery_engine():
+    # End-to-end: rediscovering Kepler through the real engine must carry the SymPy corroboration,
+    # i.e. two independent dimensional engines agreed before the law was accepted.
+    from gen.discovery.benchmark import kepler_case
+    from gen.discovery.engine import discover_new_formulas
+
+    res = discover_new_formulas(kepler_case().problem)
+    assert res.validated                                   # Kepler is rediscovered
+    best = res.validated[0].candidate
+    assert best.dimension_ok
+    assert best.dimension_corroborated is True             # SymPy independently corroborated the dims
+
+
 def test_recover_exact_constant_is_conservative():
     assert recover_exact_constant(2.0 * math.pi) == "2*pi"
     assert recover_exact_constant(math.pi) == "pi"
