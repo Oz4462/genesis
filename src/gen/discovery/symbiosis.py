@@ -30,7 +30,7 @@ import asyncio
 from dataclasses import dataclass
 
 from ..llm.base import LLMClient
-from ..llm.parsing import extract_json
+from ..llm.schemas import parse_proposals
 from ..verification.cross_model import model_family
 from .engine import (
     Candidate,
@@ -103,22 +103,12 @@ class GrokProposer:
         not trusted. Never raises on a bad hypothesis — the gate handles correctness."""
         system, user = self._prompt(problem, n)
         resp = await self._client.complete(system=system, user=user)
-        try:
-            data = extract_json(resp.text, agent="grok-proposer")
-        except Exception:
-            return []
-        items = data if isinstance(data, list) else [data]
-        out: list[Proposal] = []
-        for item in items:
-            if not isinstance(item, dict) or "exponents" not in item:
-                continue
-            try:
-                exps = {str(k): float(v) for k, v in item["exponents"].items()}
-            except (TypeError, ValueError):
-                continue
-            out.append(Proposal(exponents=exps, rationale=str(item.get("rationale", "")),
-                                source=self.model))
-        return out
+        # Validated parse (llm.schemas): the whole payload unparseable -> []; a shape-invalid item is
+        # skipped (honest abstention), never trusted. The gate still judges every surviving proposal.
+        return [
+            Proposal(exponents=dict(m.exponents), rationale=m.rationale, source=self.model)
+            for m in parse_proposals(resp.text, agent="grok-proposer")
+        ]
 
 
 def _gate_proposals(problem: DiscoveryProblem, proposals: list[Proposal], *,
