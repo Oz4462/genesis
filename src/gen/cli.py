@@ -737,8 +737,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol",
                            "assess", "print", "bundle", "ideas", "dream", "humanoid", "council",
-                           "feynman", "campaign", "section", "training", "realize", "breakthrough",
-                           "research"),
+                           "feynman", "campaign", "section", "training", "chip", "realize",
+                           "breakthrough", "research"),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
              "spec = Phase γ build specification; capstone = a complete, fully "
@@ -1086,6 +1086,30 @@ def main(argv: list[str] | None = None) -> int:
         print("\n  Ehrliche Grenze: GENESIS ratifiziert die GELIEFERTEN Zahlen gegen vorab gesetzte Schranken — "
               "es trainiert nicht, schätzt keine Datenmenge, validiert keine Mess-Provenienz (Leakage/Kalibrierung).")
         return 0 if (completeness["ok"] and result["ok"]) else 3
+
+    if args.mode == "chip":
+        # Chip-Auswahl-nach-Anforderung (Robot-δ-Tour 5): der Katalog ist der Vorschlagsraum, compute.py's
+        # drei Checks (Throughput/Power/Latenz) sind das Gate — ein Chip wird nie gewählt, bevor er sie
+        # besteht; passt keiner, ist die ehrliche Antwort „keiner passt" (kein fabrizierter Chip).
+        from .chip_selection import select_chip
+
+        req = dict(workload_tops=30.0, power_budget_w=40.0, inference_ops=50e9, control_period_s=0.01)
+        res = select_chip(**req, prefer="price")
+        print("GENESIS — Chip-Auswahl-nach-Anforderung (Vorschlag: Katalog → Gate: compute.py)\n")
+        print(f"  Anforderung: {req['workload_tops']:.0f} TOPS · ≤ {req['power_budget_w']:.0f} W · "
+              f"{req['inference_ops']/1e9:.0f} GOps/Inferenz · Regelperiode {req['control_period_s']*1000:.0f} ms\n")
+        for e in res.evaluated:
+            mark = "OK " if e.feasible else "XX "
+            why = "passt" if e.feasible else f"limitiert: {e.limiting}"
+            print(f"  {mark}{e.chip.name:22s} {e.chip.peak_tops:6.1f} TOPS  P={e.power['power_w']:5.1f} W  "
+                  f"SF_min={e.min_safety_factor:5.2f}  {why}")
+        if res.selected:
+            s = res.selected
+            print(f"\n  Gewählt (günstigster passender): {s.chip.name} — {s.chip.price_eur:.0f} EUR")
+            print(f"  Quelle: {s.chip.source}")
+            return 0
+        print("\n  Kein Chip im Katalog erfüllt die Anforderung (ehrlich: keiner passt — kein fabrizierter Chip).")
+        return 3
 
     if args.mode == "humanoid":
         # The two COMPLETE whole-body humanoids built (with grok) to beat the 2026 state of the art:
