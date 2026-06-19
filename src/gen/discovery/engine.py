@@ -378,6 +378,7 @@ def discover_new_formulas(
     known_laws: dict[str, dict[str, float]] | None = None,
     r2_threshold: float = DEFAULT_R2_THRESHOLD,
     prior: "ConceptUtility | None" = None,
+    refine_with_search: bool = False,
 ) -> DiscoveryResult:
     """The Phase-1 core loop (Anhang B): idea+data → candidate formulas → gated validation.
 
@@ -392,6 +393,12 @@ def discover_new_formulas(
     candidates of EQUAL fit and parsimony (best-fit-first is never overridden by a heuristic), so a
     historically-passing concept structure is preferred only when the gate could not separate them.
     Default ``None`` reproduces the bare gate ordering exactly. Deterministic.
+
+    `refine_with_search` opts into a best-first exponent search (AI-Scientist-v2 tree search, the
+    deterministic gate as the node oracle) that runs ONLY when the single-shot SR confirmed nothing —
+    e.g. an under-determined free π-group the SR cannot pin. It walks from the SR's best guess and can
+    only ADD gate-passing laws; it never removes or overrides a verdict. Default ``False`` is
+    byte-identical to the bare loop.
     """
     known = known_laws or {}
     y = np.asarray(problem.target.values, dtype=float)
@@ -410,6 +417,21 @@ def discover_new_formulas(
         return (-r.candidate.r_squared, r.candidate.complexity, -utility)
 
     validated = tuple(sorted((r for r in records if r.passed), key=_key))
+
+    # Opt-in rescue: when the cheap single-shot SR confirmed nothing (e.g. an under-determined free
+    # π-group it could not pin), a best-first exponent search walks from the SR's best guess, scored by
+    # the SAME gate. It can only ADD gate-passing laws — the gate stays the sole authority, and a
+    # problem SR already solved is left untouched (default off → byte-identical to the bare loop).
+    if refine_with_search and not validated and records:
+        from .tree_search import directed_search
+
+        best_sr = max(records, key=lambda r: r.candidate.r_squared)
+        start = {name: float(best_sr.candidate.exponents.get(name, 0.0)) for name in names}
+        for node in directed_search(problem, start).passing:
+            rescued = candidate_from_exponents(problem, dict(zip(names, node.state)))
+            records.append(judge_candidate(problem, rescued, known_laws=known, r2_threshold=r2_threshold))
+        validated = tuple(sorted((r for r in records if r.passed), key=_key))
+
     return DiscoveryResult(problem_idea=problem.idea, validated=validated,
                            all_records=tuple(records), run_id=problem.run_id)
 
