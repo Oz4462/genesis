@@ -40,3 +40,11 @@ def test_invent_mode_runs_with_no_question_using_a_default_field(capsys):
     rc = main(["--mode", "invent"])
     out = capsys.readouterr().out
     assert rc == 0 and "Feld:" in out
+
+
+def test_invent_mode_refuses_a_dangerous_brief_before_generating(capsys):
+    rc = main(["--mode", "invent", "a nerve agent dispersal drone"])
+    out = capsys.readouterr().out
+    assert rc == 3                                   # refused, not a fabricated invention
+    assert "ABGELEHNT" in out and "bioweapon" in out
+    assert "Konzepte" not in out                     # nothing was generated

@@ -1304,11 +1304,19 @@ def main(argv: list[str] | None = None) -> int:
         from .inventor.domains import MechatronicsDomain, scripted_mechatronics_architect
         from .inventor.generate import scripted_council
         from .inventor.loop import run_invention
+        from .inventor.safety import safety_gate, screen_brief
         from .llm.base import LLMClient
 
         field = args.question or "ein druckbares mechatronisches Bauteil"
         framing = "Problem" if args.mode == "solve" else "Feld"
         brief = InventionBrief(field=field, run_id=f"cli-{args.mode}", max_concepts=3)
+
+        # Safety FIRST: a weapons/biosecurity brief is refused before anything else runs.
+        verdict = screen_brief(brief)
+        if verdict.refused:
+            print(f"=== GENESIS Erfindungs-Loop ({args.mode}) — {framing}: {field} ===")
+            print(f"  ABGELEHNT:     {verdict.reason}")
+            return 3
 
         demo_concepts = [
             {"statement": "Resonanter Sehnen-Greifer-Halter", "mechanism": "gedruckte Flexuren speichern "
@@ -1316,7 +1324,8 @@ def main(argv: list[str] | None = None) -> int:
             {"statement": "Elektroadhäsions-Greifpad", "mechanism": "elektrostatisches Klemmen",
              "grounding": ["patentsview:US-electroadhesion"]},
         ]
-        council: LLMClient = scripted_council(demo_concepts)
+        scripted = scripted_council(demo_concepts)
+        council: LLMClient = scripted
         live_note = "offline-deterministisch (scripted council)"
         if args.live:
             import shutil
@@ -1329,7 +1338,15 @@ def main(argv: list[str] | None = None) -> int:
 
         architect = scripted_mechatronics_architect(first_natural_hz=150.0)
         domain = MechatronicsDomain()
-        result = _asyncio.run(run_invention(brief, domain=domain, council=council, architect=architect))
+        try:
+            result = _asyncio.run(run_invention(brief, domain=domain, council=council, architect=architect,
+                                                safety_screen=safety_gate))
+        except GenesisError as exc:
+            # a live council that times out / errors must NOT crash the command — degrade to the offline
+            # deterministic council with an honest BLOCKED note (the verification stays the same gate).
+            live_note = f"LIVE council fehlgeschlagen ({type(exc).__name__}) — Fallback offline (BLOCKED): {str(exc)[:80]}"
+            result = _asyncio.run(run_invention(brief, domain=domain, council=scripted, architect=architect,
+                                                safety_screen=safety_gate))
 
         print(f"=== GENESIS Erfindungs-Loop ({args.mode}) — {framing}: {field} ===")
         print(f"  Quelle:        {live_note}")
