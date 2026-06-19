@@ -13,6 +13,12 @@ Offline-first: the in-house deterministic default is always the test backbone; a
 opt-in seam, never a hard core dependency.
 """
 
+from .oracle import (
+    ExternalOracle,
+    OracleClaim,
+    oracle_claim_to_ledger,
+    record_oracle_claim,
+)
 from .registry import (
     ExternalBinding,
     IntegrationMode,
@@ -33,4 +39,8 @@ __all__ = [
     "classify_license",
     "external_binding",
     "record_binding",
+    "ExternalOracle",
+    "OracleClaim",
+    "oracle_claim_to_ledger",
+    "record_oracle_claim",
 ]
