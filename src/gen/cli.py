@@ -736,8 +736,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--demo", action="store_true", help="run the offline deterministic demo")
     parser.add_argument(
         "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol",
-                           "assess", "print", "bundle", "ideas", "dream", "realize", "breakthrough",
-                           "research"),
+                           "assess", "print", "bundle", "ideas", "dream", "humanoid", "realize",
+                           "breakthrough", "research"),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
              "spec = Phase γ build specification; capstone = a complete, fully "
@@ -935,6 +935,33 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {spec.idea}")
             print(f"  Verdikt:      {m.overall}  physics_ok={m.physics_ok}")
             print(f"  Physik:       {', '.join(m.physics_checks) or '—'}")
+            print(f"  Druck-Anteil: {len(m.printed_parts)}/{n_parts} gedruckt — "
+                  f"Kaufteile: {', '.join(m.bought_parts) or '—'}")
+            print(f"  geschrieben:  {', '.join(m.written)}")
+            print(f"  fehlt:        {', '.join(m.missing) if m.missing else '—'}\n")
+            all_ok = all_ok and m.files_complete and m.physics_ok
+        return 0 if all_ok else 3
+
+    if args.mode == "humanoid":
+        # The two COMPLETE whole-body humanoids built (with grok) to beat the 2026 state of the art:
+        # a maximally-printed class and a real-component flagship. Each emits a complete, buildable
+        # package to out/competitive/<run_id>/ — 9 STLs + manual + fully-priced BOM + laid-out SCAD.
+        from pathlib import Path
+
+        from .bundle import emit_bundle
+        from .competitive_humanoid import ALL_COMPETITIVE_HUMANOIDS
+
+        all_ok = True
+        for spec_fn, _claims_fn in ALL_COMPETITIVE_HUMANOIDS:
+            spec = spec_fn()
+            out_dir = Path("out") / "competitive" / spec.run_id
+            m = emit_bundle(spec, out_dir)
+            n_parts = len(m.printed_parts) + len(m.bought_parts)
+            print(f"=== Humanoid: {spec.run_id} -> {out_dir} ===")
+            print(f"  {spec.idea}")
+            print(f"  Verdikt:      {m.overall}  physics_ok={m.physics_ok}")
+            print(f"  Physik:       {', '.join(m.physics_checks) or '—'}")
+            print(f"  Kosten:       {m.cost_summary}")
             print(f"  Druck-Anteil: {len(m.printed_parts)}/{n_parts} gedruckt — "
                   f"Kaufteile: {', '.join(m.bought_parts) or '—'}")
             print(f"  geschrieben:  {', '.join(m.written)}")

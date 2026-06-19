@@ -130,7 +130,30 @@ def test_specification_export_has_header_and_skips_non_geometry():
     assert out.startswith("// GENESIS — Phase γ CSG export (OpenSCAD)")
     assert "// idea: a bracket" in out
     assert "module c_bracket()" in out
-    assert "c_screw" in out and "no geometry — skipped" in out
+    # purchased part surfaced as an inventory comment (not silently dropped)
+    assert "c_screw" in out and "purchased/abstract" in out
+    # the printed part is placed in the parts-tray layout (a translate call), not left implicit
+    assert "PARTS TRAY" in out and "translate([0, 0, 0]) c_bracket();" in out
+
+
+def test_multi_part_spec_lays_every_part_out_without_overlap():
+    """The owner's requirement — opening the .scad must show ALL parts at once: each printed component
+    is defined as a module and then CALLED inside a distinct translate (a grid), so two parts never
+    render stacked at the origin. Without the layout, every cube(center=true) would sit at (0,0,0)."""
+    geom = _bracket_geometry()
+    spec = Specification(
+        run_id="r2", idea="two parts",
+        quantities=list(_bracket_quantities().values()),
+        components=[Component(id="c_a", name="A", geometry=geom),
+                    Component(id="c_b", name="B", geometry=geom)],
+    )
+    out = specification_to_openscad(spec)
+    assert "module c_a()" in out and "module c_b()" in out          # both defined
+    calls = [ln for ln in out.splitlines() if ln.strip().startswith("translate(") and "();" in ln]
+    assert len(calls) == 2                                          # both placed
+    positions = {ln.split("translate([")[1].split("])")[0] for ln in calls}
+    assert len(positions) == 2                                      # at DISTINCT positions (no overlap)
+    assert "0, 0, 0" in positions                                   # first part at the origin
 
 
 def test_empty_geometry_spec_is_explicit():

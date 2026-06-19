@@ -116,30 +116,76 @@ def component_to_openscad(component: Component, quantities: dict[str, Quantity])
     return "\n".join(lines)
 
 
-def specification_to_openscad(spec: Specification) -> str:
-    """Render every fabricated component of a spec as OpenSCAD source.
+def _footprint(node: GeometryNode | None, quantities: dict[str, Quantity]) -> tuple[float, float]:
+    """Best-effort (width_x, depth_y) of a component's outer envelope, for laying parts out without
+    overlap. Walks to the root primitive: a box gives its size_x/size_y, a cylinder/sphere its
+    diameter; an operation/transform recurses into its first child. Unknown/None → a safe default."""
+    if node is None:
+        return (120.0, 120.0)
+    try:
+        if node.kind == "box":
+            return (float(quantities[node.params["size_x"]].value),
+                    float(quantities[node.params["size_y"]].value))
+        if node.kind in ("cylinder", "sphere"):
+            r = float(quantities[node.params["radius"]].value)
+            return (2.0 * r, 2.0 * r)
+        if node.children:
+            return _footprint(node.children[0], quantities)
+    except (KeyError, AttributeError, TypeError, ValueError):
+        pass
+    return (120.0, 120.0)
 
-    A fabricated component is one carrying geometry. Components without geometry
-    (purchased/abstract parts) are skipped with a comment. Returns a single
-    OpenSCAD document with a header tying it back to the idea and the run.
+
+def specification_to_openscad(spec: Specification) -> str:
+    """Render every fabricated component of a spec as OpenSCAD source — AS A LAID-OUT PARTS TRAY.
+
+    Each fabricated component (one carrying geometry) becomes an OpenSCAD ``module`` DEFINITION, then
+    a single assembly section calls every module inside a ``translate`` onto a non-overlapping grid, so
+    opening the .scad shows EVERY printed part side by side (not all stacked at the origin) — each
+    labelled with its name and how many to print. Purchased parts (no geometry) are listed as comments
+    with their BOM count, so the script also reads as a complete parts inventory. Returns one
+    deterministic OpenSCAD document tied back to the idea and the run.
     """
     quantities = {q.id: q for q in spec.quantities}
+    counts = {b.component_id: b.count for b in spec.bom if b.component_id is not None}
     header = [
-        "// GENESIS — Phase γ CSG export (OpenSCAD)",
+        "// GENESIS — Phase γ CSG export (OpenSCAD) — full parts tray",
         f"// idea: {spec.idea}",
         f"// run_id: {spec.run_id}",
-        "// Every dimension is annotated with its originating quantity id.",
+        "// Every printed part is laid out on a grid so ALL parts are visible at once;",
+        "// every dimension is annotated with its originating quantity id.",
         "",
     ]
-    blocks: list[str] = []
-    for comp in spec.components:
-        if comp.geometry is None:
-            blocks.append(f"// component {comp.id!r} ({comp.name}) has no geometry — skipped")
-            continue
-        blocks.append(component_to_openscad(comp, quantities))
-    if not blocks:
-        blocks.append("// no fabricated geometry in this specification")
-    return "\n".join(header) + "\n\n".join(blocks) + "\n"
+
+    geom_comps = [c for c in spec.components if c.geometry is not None]
+    modules: list[str] = []
+    for comp in geom_comps:
+        geom = comp.geometry
+        assert geom is not None  # guaranteed by the geom_comps filter
+        module = _module_name(comp.id)
+        body = _emit(geom, quantities, depth=1)
+        modules.append("\n".join([f"module {module}() {{", *body, "}"]))
+
+    # purchased / abstract parts (no geometry) — surfaced as an inventory comment, never silently dropped
+    purchased = [c for c in spec.components if c.geometry is None]
+    for comp in purchased:
+        modules.append(f"// component {comp.id!r} ({comp.name}) has no geometry — purchased/abstract")
+
+    if not geom_comps:
+        return "\n".join(header) + "\n".join(modules or ["// no fabricated geometry in this specification"]) + "\n"
+
+    # assembly layout: a square-ish grid, pitch = the largest part + margin (so nothing overlaps)
+    footprints = [_footprint(c.geometry, quantities) for c in geom_comps if c.geometry is not None]
+    pitch = max(max(w, d) for w, d in footprints) + 60.0
+    cols = max(1, int((len(geom_comps) - 1) ** 0.5) + 1)
+    layout = ["", "// ---- PARTS TRAY: every printed part laid out so all are visible at once ----"]
+    for i, comp in enumerate(geom_comps):
+        x = _fmt((i % cols) * pitch)
+        y = _fmt(-(i // cols) * pitch)
+        n = counts.get(comp.id, 1)
+        layout.append(f"translate([{x}, {y}, 0]) {_module_name(comp.id)}();  // {comp.name} — {n}x drucken")
+
+    return "\n".join(header) + "\n\n".join(modules) + "\n" + "\n".join(layout) + "\n"
 
 
 def _module_name(component_id: str) -> str:
