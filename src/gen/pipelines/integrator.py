@@ -265,6 +265,11 @@ def build_full_mini_realization_package(ideas: list[str], package_name: str = "J
         "assembly": asm.manifest,
         "advanced_dfm": dfm_reports,
         "fertigungs": fertigungs_reports,
+        # Honest gate status: this idea/fragment-based bundle is the MANUFACTURING package (DFM, drawings,
+        # BOM, costs). It has no Specification, so the deterministic δ-physics gate is NOT run here — the
+        # gated δ-verdict needs a built Specification (bundle.emit_bundle(spec) / --mode bundle / assess).
+        # "complete" therefore means complete ARTIFACTS, never physics-validated (GENESIS: no silent gap).
+        "physics_gate": "not run (artifact bundle, no Specification) — δ-verdict via --mode bundle / --mode assess",
     }
     (pkg_root / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
@@ -272,6 +277,12 @@ def build_full_mini_realization_package(ideas: list[str], package_name: str = "J
     summary = f"""# Full Mini Realisierungspaket for {package_name}
 
 Includes {len(fragments)} parts and assembly (real STLs + manifest + DFM + Lern feedback).
+
+> **Physik-Gate: in diesem Paket NICHT gelaufen.** Dies ist das Fertigungs-/Artefakt-Bündel (DFM,
+> Zeichnungen, BOM, Kosten) aus Idee-Strings — es trägt keine gegatete Specification. Der deterministische
+> δ-Physik-Verdikt (Statik/Thermik/Kinematik/Aktuator/Compute/…) braucht eine gebaute Specification:
+> `--mode bundle` (emit_bundle) bzw. `--mode assess`. „complete" heißt hier vollständige ARTEFAKTE,
+> nicht physikalisch validiert.
 
 ## Artifacts
 - manifest.json (BOM, costs, test_plan, advanced_dfm, drawings, regulatorik, open_gaps, assembly)

@@ -74,6 +74,13 @@ def test_packager_produces_richer_package_with_bom_and_assembly():
     assert "open_gaps" in manifest
     assert "fertigungs" in manifest  # Naht from Fertigungs first stone
 
+    # Honesty (2026-06-19): the idea/fragment bundle is NOT physics-gated (it has no Specification),
+    # and it must SAY so instead of letting "complete" read as validated — pointing to the gated path.
+    assert "physics_gate" in manifest
+    assert "not run" in manifest["physics_gate"].lower()
+    summary = (pkg_path / "SUMMARY.md").read_text(encoding="utf-8")
+    assert "Physik-Gate" in summary and "--mode bundle" in summary
+
     drawings = (pkg_path / "DRAWINGS.md").read_text(encoding="utf-8")
     assert "Zeichnungen" in drawings or "drawings" in drawings.lower()
     assert "Gap" in drawings  # honest gap
