@@ -736,7 +736,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--demo", action="store_true", help="run the offline deterministic demo")
     parser.add_argument(
         "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol",
-                           "assess", "print", "bundle", "ideas", "realize", "breakthrough", "research"),
+                           "assess", "print", "bundle", "ideas", "dream", "realize", "breakthrough",
+                           "research"),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
              "spec = Phase γ build specification; capstone = a complete, fully "
@@ -931,6 +932,31 @@ def main(argv: list[str] | None = None) -> int:
             m = emit_bundle(spec, out_dir)
             n_parts = len(m.printed_parts) + len(m.bought_parts)
             print(f"=== Idee: {spec.run_id} -> {out_dir} ===")
+            print(f"  {spec.idea}")
+            print(f"  Verdikt:      {m.overall}  physics_ok={m.physics_ok}")
+            print(f"  Physik:       {', '.join(m.physics_checks) or '—'}")
+            print(f"  Druck-Anteil: {len(m.printed_parts)}/{n_parts} gedruckt — "
+                  f"Kaufteile: {', '.join(m.bought_parts) or '—'}")
+            print(f"  geschrieben:  {', '.join(m.written)}")
+            print(f"  fehlt:        {', '.join(m.missing) if m.missing else '—'}\n")
+            all_ok = all_ok and m.files_complete and m.physics_ok
+        return 0 if all_ok else 3
+
+    if args.mode == "dream":
+        # The three concepts grok-build (as visionary) DECIDED, then GENESIS grounded: each fires its
+        # signature δ-physics axis to an honest verdict + a real bundle in out/visionary_ideas/<run_id>/.
+        from pathlib import Path
+
+        from .bundle import emit_bundle
+        from .visionary_ideas import ALL_VISIONARY_IDEAS
+
+        all_ok = True
+        for spec_fn, _claims_fn in ALL_VISIONARY_IDEAS:
+            spec = spec_fn()
+            out_dir = Path("out") / "visionary_ideas" / spec.run_id
+            m = emit_bundle(spec, out_dir)
+            n_parts = len(m.printed_parts) + len(m.bought_parts)
+            print(f"=== Vision (grok): {spec.run_id} -> {out_dir} ===")
             print(f"  {spec.idea}")
             print(f"  Verdikt:      {m.overall}  physics_ok={m.physics_ok}")
             print(f"  Physik:       {', '.join(m.physics_checks) or '—'}")
