@@ -88,7 +88,13 @@ BOM, feuert auch die Compute-Achse) → `out/humanoid_robot/` (8 STLs). **Formel
 physics_verified + Artefakte (`gen --mode ideas`). `visionary_ideas.py` = 3 von **grok-build als Visionär
 entschiedene** Konzepte, die es noch nicht gibt (SkyClaw fliegender Manipulator / ResoStrider
 Resonanz-Vierbeiner / ForgeHydra abwerfbare Hydraulik), GENESIS-geerdet + physics_verified
-(`gen --mode dream`); grok prüfte die Erdung KEIN DRIFT. Volle Suite offline **1470 passed / 0 failed / 9 skipped**.
+(`gen --mode dream`); grok prüfte die Erdung KEIN DRIFT. `competitive_humanoid.py` = 2 komplette
+Ganzkörper-Humanoide gegen den 2026-Weltstand (`gen --mode humanoid`): **printed_humanoid** (schlägt
+Hobby-Klasse) + **flagship_humanoid** (schlägt Atlas/Optimus/Unitree H2: 407 Nm >360, 2.5 m >2.3,
+2400 TOPS >2000), je 9 druckbare Teile + voll bepreiste BOM, „fehlt: —". **Output-Vollständigkeit
+gefixt:** OpenSCAD legt alle Teile als PARTS-TRAY aus (vorher überlappt am 0-Punkt); `costing` bepreist
+gedruckte Teile aus Filament (Kosten vollständig); MISSING.md durch Einbau in GENESIS (Bolt-Scher-Gate,
+Greifhände) auf 2 ehrlich-reframte Grenzen reduziert. Volle Suite offline **1477 passed / 0 failed / 9 skipped**.
 
 ---
 
