@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 
+from .archive import EliteArchive
 from .engine import DiscoveryProblem, discover_new_formulas, judge_candidate
 from .graph import DiscoveryGraph
 from .tournament import evolve
@@ -93,6 +94,9 @@ class ControllerResult:
     completed: tuple[str, ...]
     deferred_to_resume: tuple[str, ...]
     state: ExplorationState
+    #: MAP-Elites quality-diversity archive of this run's gate-confirmed laws (a convenience over the
+    #: graph; on resume it holds the resumed portion — the graph stays the complete, lossless record).
+    archive: EliteArchive = field(default_factory=EliteArchive)
 
 
 def _problem_id(problem: DiscoveryProblem, index: int) -> str:
@@ -132,6 +136,7 @@ class ExplorationController:
         # resume: rebuild the live graph from the checkpoint's records (lossless round-trip),
         # so the final graph contains the pre-checkpoint nodes exactly as an uninterrupted run.
         graph = DiscoveryGraph.from_records(state.graph_records)
+        archive = EliteArchive()  # quality-diversity collection of this run's confirmed laws
 
         done = set(state.problems_done)
         completed: list[str] = list(state.problems_done)
@@ -163,9 +168,11 @@ class ExplorationController:
                         verdict = judge_candidate(problem, report.best, known_laws=known_laws)
                         graph.add_verdict(verdict, idea=problem.idea, target_name=problem.target.name,
                                           provenance=("controller", f"tier:{self.tier.name}", "tournament"))
+                        archive.add(verdict.candidate, passed=verdict.passed)
 
             graph.add_result(result, target_name=problem.target.name,
                              provenance=("controller", f"tier:{self.tier.name}"))
+            archive.add_result(result)  # only gate-passing laws enter the diversity archive
             done.add(pid)
             completed.append(pid)
             fresh += 1
@@ -174,4 +181,4 @@ class ExplorationController:
             tier=self.tier.name, base_seed=self.base_seed, budget=self.budget,
             problems_done=completed, graph_records=graph.to_ledger_records(), budget_spent=spent)
         return ControllerResult(graph=graph, budget_spent=spent, completed=tuple(completed),
-                                deferred_to_resume=tuple(skipped), state=new_state)
+                                deferred_to_resume=tuple(skipped), state=new_state, archive=archive)
