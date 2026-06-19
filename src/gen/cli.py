@@ -737,7 +737,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol",
                            "assess", "print", "bundle", "ideas", "dream", "humanoid", "council",
-                           "feynman", "campaign", "section", "realize", "breakthrough", "research"),
+                           "feynman", "campaign", "section", "training", "realize", "breakthrough",
+                           "research"),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
              "spec = Phase γ build specification; capstone = a complete, fully "
@@ -1039,6 +1040,52 @@ def main(argv: list[str] | None = None) -> int:
                   f"SF={vs.design.safety_factor:.2f}  {z3}")
         print(f"\n  Streckgrenzen-Quelle: {source}")
         return 0 if all_passed else 3
+
+    if args.mode == "training":
+        # Die ehrliche Grenze zu ML: GENESIS trainiert NICHT und sagt keine Genauigkeit voraus. Es
+        # erzwingt, den Erfolg VOR dem Training zu deklarieren (Vollständigkeit), und ratifiziert die
+        # GEMESSENEN Zahlen gegen die vorab gesetzte Schranke (δ-Asymmetrie) — „gut genug" wird nie
+        # nach dem Ergebnis entschieden.
+        from .training_plan import (
+            TrainingPlan,
+            acceptance_gate,
+            training_plan_completeness_check,
+        )
+
+        plan = TrainingPlan(
+            task="humanoid flat-ground walking policy",
+            eval_metric="task_success_rate",
+            acceptance_threshold=0.9,
+            held_out_eval_set="200 unseen gait episodes on held-out terrain",
+            sim2real_strategy="domain randomization + 50 real-robot calibration rollouts",
+            data_source="2000 sim-hours",
+        )
+        completeness = training_plan_completeness_check(plan)
+        print("GENESIS — Trainings-Plan-Gate (ehrliche Grenze: spezifizieren + ratifizieren, NICHT trainieren)\n")
+        print(f"  Aufgabe: {plan.task}")
+        print(f"  Erfolg vorab deklariert: {plan.eval_metric} ≥ {plan.acceptance_threshold:g} · "
+              f"Held-out={plan.held_out_eval_set!r} · Sim2Real={plan.sim2real_strategy!r}")
+        if completeness["ok"]:
+            print("  Vollständigkeit: OK (Erfolg vor dem Training festgelegt — kein nachträgliches Goalpost-Schieben)\n")
+        else:
+            print(f"  Vollständigkeit: LÜCKEN = {', '.join(completeness['missing'])}\n")
+
+        incomplete = TrainingPlan(task="x", eval_metric="", acceptance_threshold=0.0,
+                                  held_out_eval_set="", sim2real_strategy="")
+        miss = training_plan_completeness_check(incomplete)["missing"]
+        print(f"  Gegenprobe (unvollständiger Plan): LÜCKEN = {', '.join(miss)}\n")
+
+        # Akzeptanz-Gate: gemessene Zahlen gegen die VOR dem Training gesetzte Schranke (Schranke zuerst,
+        # Evidenz danach) — ratifiziert die gelieferten Zahlen, nie deren Provenienz.
+        result = acceptance_gate(measured_success_rate=0.95, required_success_rate=plan.acceptance_threshold,
+                                 n_eval_episodes=200, measured_safety_violations=0, max_safety_violations=0,
+                                 sim2real_gap=0.05, max_sim2real_gap=0.10)
+        verdict = "RATIFIZIERT" if result["ok"] else "ABGELEHNT"
+        print(f"  Akzeptanz-Gate (gemessen 0.95 über 200 Episoden): {verdict} "
+              f"(Marge={result['success_margin']:+.3f}, sample_ok={result['sample_ok']})")
+        print("\n  Ehrliche Grenze: GENESIS ratifiziert die GELIEFERTEN Zahlen gegen vorab gesetzte Schranken — "
+              "es trainiert nicht, schätzt keine Datenmenge, validiert keine Mess-Provenienz (Leakage/Kalibrierung).")
+        return 0 if (completeness["ok"] and result["ok"]) else 3
 
     if args.mode == "humanoid":
         # The two COMPLETE whole-body humanoids built (with grok) to beat the 2026 state of the art:
