@@ -75,6 +75,18 @@ measurand-Tags → ehrliches Gate-Verdikt (pass/fail/gap, live bewiesen). 26 neu
 grok-build KEIN DRIFT. Memory: [[project-genesis-robot-axes]]. Offen: Tour 5 electronics-digital,
 Tour 6 training-plan. Volle Suite offline **1355 passed / 0 failed / 19 skipped**.
 
+**Artefakte + Simulation + Ganzkörper + Formel-Fix + 5 Ideen (2026-06-19, autonom, je grok KEIN DRIFT):**
+`bundle.emit_bundle` (Bauanleitung+SCAD+watertight-STL-je-Bauteil+BOM+MANIFEST+MISSING); zwei
+unabhängige Dynamik-Pfade `simulation/multibody.py` (RK4) + `simulation/pybullet_sim.py` (Voll-Kontakt,
+inverse Dynamik == `m·g·(L/2)·sinθ` maschinengenau). `urdf_bridge.humanoid_urdf` = verzweigter
+Ganzkörper-Baum (10 DOF, Kopf auf eigenem Hals-Gelenk, bewegt sich in PyBullet, isolations-getestet).
+`demo.humanoid_spec()` = Ganzkörper als EINE gegatete Spec (8 druckbare Teile + Chip/Motoren/Elektronik-
+BOM, feuert auch die Compute-Achse) → `out/humanoid_robot/` (8 STLs). **Formel-Fehler-Wurzelursache:**
+`mechanics_formulas.py` (kanonische achsen-benannte Formeln, single source of truth) + `dimensional_guard.py`
+(Skalierungs-Invarianz fängt Dimensionsfehler automatisch) — disjunkte Fehlerklassen. `future_ideas.py`
+= 5 zukunftsorientierte Ideen (Drohne/Energiespeicher/Ernteroboter/Hydraulik/Exoskelett) je
+physics_verified + Artefakte (`gen --mode ideas`). Volle Suite offline **1460 passed / 0 failed / 9 skipped**.
+
 ---
 
 **Phase α + β + γ abgeschlossen + δ voll ausgebaut + Quality-Engine verdrahtet**

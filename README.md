@@ -7,7 +7,7 @@
 > Open-Source-Infrastruktur, damit Menschen — privat wie Unternehmen — aus einer kleinen Idee etwas Vollständiges erschaffen können: mit Quellen statt Behauptungen, mit nachgerechneter Physik statt geratener Zahlen, und mit ehrlichen Lücken statt erfundener Antworten.
 
 ```
-1329 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
+1460 Tests offline bewiesen · deterministisch · läuft komplett lokal · kein Cloud-Zwang
 ```
 
 ---
@@ -143,6 +143,8 @@ Eine deterministische, LLM-freie Engineering-Validierungs-Engine (`docs/phases/P
 
 **Humanoid-Roboter-Achsen** (`kinematics`, `actuation`, `compute`, `digital_bus` — aus einer Pipeline-Lücken-Analyse mit dem Beispiel „humanoider Roboter"): GENESIS verifizierte schon den Körper (Struktur/Thermik/Elektronik/Energie), aber nicht Bewegung, Aktuation und Gehirn. Die 10 neuen Closed-Form-Validatoren schließen das — **Kinematik** (DH-Vorwärts, analytische 2R-Inverse, statisches Gelenk-Drehmoment, ZMP-Balance), **Aktuation** (Motor-Drehmoment-Drehzahl durch Getriebe; Hydraulik `F=p·A`, `Q=A·v`, Hagen-Poiseuille), **Compute** (TOPS-Budget, Inferenz-Leistung → speist `thermal`, Regelschleifen-Latenz) und **Daten-Bus** (Durchsatz + Poll-Zyklus-Latenz). Alle gegen exakte Anker verifiziert, in denselben Auto-Select-Gate verdrahtet: eine Humanoid-Bein-`Specification` feuert ihre Checks selbst → ehrliches Verdikt (gut dimensioniert = pass, untersizter Knie-Aktuator = honest fail, fehlende Motor-Angabe = Lücke). Begleitet von `training_plan` — der **ehrlichen ML-Grenze**: GENESIS trainiert nicht und sagt keine Genauigkeit voraus, es erzwingt die Akzeptanz-Kriterien *vorher* und ratifiziert das gemessene Ergebnis *danach* (gegen Goalpost-Verschiebung).
 
+**Vom Verdikt zum Artefakt — und zur Bewegung.** Eine gegatete `Specification` wird zu echten Liefer­objekten: `bundle.emit_bundle` schreibt Bauanleitung + OpenSCAD + **ein wasserdichtes STL je gedrucktem Bauteil** + Stückliste (gedruckt vs. gekauft) + MANIFEST + ehrliche MISSING-Liste (`gen --mode bundle`). Der Ganzkörper-Humanoid (`demo.humanoid_spec` — acht druckbare Teile + komplettes BOM samt Onboard-Chip, feuert auch die Compute-Achse) kommt so als acht STLs samt Anleitung aus dem Gate. Zwei **unabhängige Dynamik-Pfade** prüfen die Closed-Form-Screens gegen, statt sie nur zu behaupten: ein eigener RK4-Integrator (`simulation/multibody.py`) und eine Voll-Kontakt-Simulation in PyBullet (`simulation/pybullet_sim.py`), deren inverse Dynamik den Gravitations-Halteterm `m·g·(L/2)·sinθ` maschinengenau reproduziert; der verzweigte Ganzkörper-URDF (`urdf_bridge.humanoid_urdf`, 10 Gelenke, Kopf auf eigenem Hals-Gelenk) artikuliert real. **Gegen Formel-Fehler** wachen zwei disjunkte Schichten: `mechanics_formulas` (kanonische, *achsen-benannte* Starrkörper-Formeln als einzige Wahrheitsquelle — `m·L²/12` um den COM vs. `m·L²/3` ums Ende kann nicht mehr verwechselt werden) und `dimensional_guard` (Skalierungs-Invarianz — ein dimensionsloser Sicherheitsfaktor *muss* unter kohärentem Einheitenwechsel invariant bleiben, sonst ist ein Term dimensional inkonsistent). Fünf zukunftsorientierte Ideen (Lieferdrohne, Heim-Energiespeicher, Ernteroboter-Arm, Hydraulik-Baumodul, Exoskelett-Knie) laufen end-to-end durch dieselbe Maschinerie (`gen --mode ideas`) — jede `physics_verified` mit echten Artefakten, zusammen die ganze δ-Achsen-Bibliothek über fünf Domänen.
+
 ## 6 · Die Quality-Engine
 
 Um die Gates herum sitzt eine verdrahtete Produktions-Schicht — komponiert zu **einem ehrlichen Gesamt-Verdikt** (`pipeline.assess_specification`), das eine Lücke nie als Pass maskiert:
@@ -209,7 +211,7 @@ pip install -e .[full]      # alles inkl. Dev-Tools (pytest, ruff, httpx)
 Ohne die optionalen Pakete bleibt alles funktionsfähig — die betreffenden Features/Tests **skippen ehrlich**, statt zu raten.
 
 ```bash
-python -m pytest tests/ -q          # 1185 passed, 9 skipped — ohne LLM-Token, ohne Netz
+python -m pytest tests/ -q          # 1460 passed, 9 skipped — ohne LLM-Token, ohne Netz
 ```
 
 ## 8 · Nutzung: CLI
