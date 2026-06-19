@@ -737,7 +737,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol",
                            "assess", "print", "bundle", "ideas", "dream", "humanoid", "council",
-                           "realize", "breakthrough", "research"),
+                           "feynman", "campaign", "realize", "breakthrough", "research"),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
              "spec = Phase γ build specification; capstone = a complete, fully "
@@ -988,6 +988,34 @@ def main(argv: list[str] | None = None) -> int:
                       f"(R²={best.candidate.r_squared:.5f})")
             print("")
         return 0 if any_ok else 3
+
+    if args.mode == "feynman":
+        # The honest external SOTA-comparison number: GENESIS's discovery arm on the Feynman SRDB,
+        # reported as TWO rates -- recovery on the power-law family AND honest abstention on the rest.
+        from .discovery.feynman import feynman_benchmark
+
+        rep = feynman_benchmark()
+        print("GENESIS — Feynman-SRDB-Benchmark (ehrliche Zwei-Raten-Zahl)\n")
+        print(f"  Recovery (Potenzgesetz-Familie):        "
+              f"{rep.recoverable_recovered}/{rep.recoverable_total} = {rep.recovery_rate:.0%}")
+        print(f"  Honest Abstention (nicht-Potenzgesetz): "
+              f"{rep.nonrecoverable_abstained}/{rep.nonrecoverable_total} = {rep.abstention_rate:.0%}\n")
+        for cr in rep.results:
+            print(f"  {'OK ' if cr.success else 'XX '}{cr.name:18s} {cr.verdict:14s} {cr.detail}")
+        return 0 if (rep.recovery_rate == 1.0 and rep.abstention_rate == 1.0) else 3
+
+    if args.mode == "campaign":
+        # A composed discovery campaign: MAP-Elites archive (diversity) + a learned concept prior over
+        # the accumulated pass/fail ledger; the deterministic gate decides every verdict.
+        from .discovery.benchmark import ideal_gas_case, kepler_case, pendulum_case
+        from .discovery.campaign import run_campaign
+
+        rep = run_campaign([kepler_case().problem, ideal_gas_case().problem, pendulum_case().problem])
+        print("GENESIS — Discovery-Kampagne (MAP-Elites-Archiv + gelernter Prior, das Gate entscheidet)\n")
+        print(f"  validierte Verdikte: {rep.validated_count}   Archiv-Diversität (Zellen): {rep.coverage}\n")
+        for cand in rep.archive.elites():
+            print(f"    {cand.expression}  (R²={cand.r_squared:.5f})")
+        return 0
 
     if args.mode == "humanoid":
         # The two COMPLETE whole-body humanoids built (with grok) to beat the 2026 state of the art:
