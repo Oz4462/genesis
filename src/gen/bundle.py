@@ -147,6 +147,29 @@ def emit_bundle(spec: Specification, out_dir: str | Path, *, tolerance: float = 
             "es gibt kein druckbares Teil zu erzeugen"
         )
 
+    # ASSEMBLED-product view — the finished robot, parts in place (not the flat tray): an OpenSCAD
+    # assembly script + a 3D image. Only when the spec declares assembly placements. The PNG needs
+    # matplotlib; its absence is recorded honestly (never a fake image).
+    if spec.assembly:
+        from .export.assembly import assembly_scad, render_assembly_png
+
+        try:
+            asm = assembly_scad(spec)
+            if asm is not None:
+                (out / f"{base}_assembly.scad").write_text(asm, encoding="utf-8")
+                written.append(f"{base}_assembly.scad")
+        except Exception as exc:
+            missing.append(f"{base}_assembly.scad: Montage-Export fehlgeschlagen — {type(exc).__name__}: {exc}")
+        try:
+            if render_assembly_png(spec, out / f"{base}_assembly.png"):
+                written.append(f"{base}_assembly.png")
+            else:
+                missing.append(
+                    f"{base}_assembly.png: 3D-Montagebild nicht erzeugt (matplotlib fehlt) — "
+                    "die Montage-OpenSCAD-Ansicht ist die Bildquelle, bis matplotlib installiert ist")
+        except Exception as exc:
+            missing.append(f"{base}_assembly.png: Render fehlgeschlagen — {type(exc).__name__}: {exc}")
+
     # print-ready watertight STL — ONE file per printed component (an assembly prints part-by-part,
     # so each component gets its own mesh); needs the OCCT kernel, whose absence is reported honestly.
     if has_geometry:

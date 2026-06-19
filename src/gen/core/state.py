@@ -1017,6 +1017,11 @@ class Specification:
     gaps: list[str] = field(default_factory=list)
     claim_ids_used: list[str] = field(default_factory=list)
     produced_by: str = ""
+    #: Optional ASSEMBLY placements for rendering the finished product (not just the flat parts tray):
+    #: each is ``(component_id, x_mm, y_mm, z_mm, rot_x_deg, rot_y_deg, rot_z_deg)`` in the body frame.
+    #: A component may appear multiple times (e.g. two legs). When present, the bundle renders the
+    #: assembled robot as a 3D image + an OpenSCAD assembly view. Empty = no assembled view.
+    assembly: list[tuple[str, float, float, float, float, float, float]] = field(default_factory=list)
     model: str = ""
 
 

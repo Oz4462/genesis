@@ -89,6 +89,29 @@ def test_flagship_beats_the_2026_benchmark():
     assert a.overall == "physics_verified"
 
 
+def test_bundle_renders_the_assembled_robot_not_only_the_parts_tray():
+    """The owner's new requirement — an output that shows how the FINISHED robot looks: the spec
+    declares 15 anatomical assembly placements, emit_bundle writes an OpenSCAD ASSEMBLY view (every
+    part placed via translate+rotate) and, when matplotlib is present, a 3D PNG image of the assembled
+    standing humanoid. Absence of matplotlib is recorded honestly, never a fake image."""
+    import importlib.util as _il
+
+    from gen.export.assembly import assembly_scad
+    spec = flagship_humanoid_spec()
+    assert len(spec.assembly) == 15                          # the whole body placed (incl. both limbs)
+    scad = assembly_scad(spec)
+    assert scad is not None and "ASSEMBLY" in scad
+    placements = [ln for ln in scad.splitlines() if ln.strip().startswith("translate(") and "rotate(" in ln]
+    assert len(placements) == 15                             # 15 part instances positioned
+
+    out = Path(__file__).resolve().parents[1] / "out" / "_test_assembly"
+    m = emit_bundle(spec, out)
+    assert f"{spec.run_id}_assembly.scad" in m.written
+    if _il.find_spec("matplotlib") is not None:
+        assert f"{spec.run_id}_assembly.png" in m.written     # a real 3D image of the finished robot
+        assert (out / f"{spec.run_id}_assembly.png").stat().st_size > 5000
+
+
 def test_printed_beats_the_hobby_class():
     """The 3D-print humanoid's gate-verified knee torque beats the printable/hobby field (<100 N·m
     servos): the actuator delivers well over 100 N·m available at the joint."""

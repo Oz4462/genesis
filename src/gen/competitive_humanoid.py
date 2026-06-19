@@ -107,6 +107,30 @@ def _link(sx, sy, sz, r1, off1, r2, off2) -> GeometryNode:
     ])
 
 
+#: Anatomical assembly placements of the standing humanoid (body frame: z up, x forward, y left; mm,
+#: degrees). Each printed part is placed at its real position — a fabricated part appears twice for the
+#: left/right limbs — so the bundle renders the FINISHED robot (a 3D image + an OpenSCAD assembly view),
+#: not only the flat parts tray. Parts are boxes whose size_x is the length, so a 90°-about-y rotation
+#: stands a limb upright.
+HUMANOID_ASSEMBLY: list[tuple[str, float, float, float, float, float, float]] = [
+    ("c_pelvis", 0.0, 0.0, 1000.0, 0.0, 0.0, 90.0),    # hip block, width along y
+    ("c_torso", 0.0, 0.0, 1110.0, 0.0, 90.0, 0.0),     # trunk, upright above pelvis
+    ("c_head", 0.0, 0.0, 1255.0, 0.0, 0.0, 0.0),       # head sitting on the torso top
+    ("c_thigh", 0.0, 75.0, 910.0, 0.0, 90.0, 0.0),     # left thigh, upright under the hip
+    ("c_thigh", 0.0, -75.0, 910.0, 0.0, 90.0, 0.0),    # right thigh
+    ("c_shank", 0.0, 75.0, 730.0, 0.0, 90.0, 0.0),     # left shank
+    ("c_shank", 0.0, -75.0, 730.0, 0.0, 90.0, 0.0),    # right shank
+    ("c_foot", 35.0, 75.0, 632.0, 0.0, 0.0, 0.0),      # left foot, pointing forward
+    ("c_foot", 35.0, -75.0, 632.0, 0.0, 0.0, 0.0),     # right foot
+    ("c_uarm", 0.0, 135.0, 1110.0, 0.0, 90.0, 0.0),    # left upper arm, hanging at the side
+    ("c_uarm", 0.0, -135.0, 1110.0, 0.0, 90.0, 0.0),   # right upper arm
+    ("c_farm", 0.0, 135.0, 950.0, 0.0, 90.0, 0.0),     # left forearm
+    ("c_farm", 0.0, -135.0, 950.0, 0.0, 90.0, 0.0),    # right forearm
+    ("c_hand", 0.0, 135.0, 835.0, 0.0, 90.0, 0.0),     # left hand
+    ("c_hand", 0.0, -135.0, 835.0, 0.0, 90.0, 0.0),    # right hand
+]
+
+
 def build_humanoid(cfg: HumanoidConfig) -> Specification:
     """Build a COMPLETE whole-body humanoid Specification from `cfg`: eight printable structural parts
     (pelvis, torso, head, thigh, shank, upper arm, forearm, foot) with real CSG geometry, the full
@@ -456,7 +480,7 @@ def build_humanoid(cfg: HumanoidConfig) -> Specification:
     return Specification(
         run_id=cfg.run_id, idea=cfg.idea, approach_id="ap_" + cfg.run_id,
         quantities=quantities, components=components, bom=bom, steps=steps,
-        constraints=constraints, decisions=decisions,
+        constraints=constraints, decisions=decisions, assembly=HUMANOID_ASSEMBLY,
         gaps=[
             "Der volle GELERNTE Ganzkörper-Gang mit Bodenkontakt ist empirisch (RL-Training) und kein "
             "Closed-Form-Gate — das ist eine physikalische Grenze, kein fehlendes Lieferobjekt. GENESIS "
