@@ -772,6 +772,12 @@ def main(argv: list[str] | None = None) -> int:
         "--realize-package-name", default="Genesis Realization Package",
         help="for realize mode: name of the output package",
     )
+    parser.add_argument(
+        "--live", action="store_true",
+        help="council mode only: shell out to the REAL grok + claude CLIs (non-deterministic, needs "
+             "network). Default is the offline deterministic council (real proposals replayed) so the "
+             "suite and demo never depend on a live CLI.",
+    )
     args = parser.parse_args(argv)
 
     if getattr(args, "mode", None) == "realize" or (args.question and "realize" in (args.question or "").lower()):
@@ -947,25 +953,30 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if all_ok else 3
 
     if args.mode == "council":
-        # The LIVE cross-model council: grok AND Claude (the strong CLIs, not the weak local Ollama)
-        # propose candidate formulas for real physics problems; GENESIS's deterministic gate decides
-        # what survives. This is grok + Claude working INSIDE GENESIS — proposing what GENESIS may not
-        # find alone — with the anti-hallucination gate as the final authority. Live (needs the grok +
-        # claude CLIs + network); non-deterministic by nature.
+        # The cross-model council: grok AND Claude propose candidate formulas for real physics
+        # problems; GENESIS's deterministic gate — never a model — decides what survives. This is
+        # grok + Claude working INSIDE GENESIS (proposing what GENESIS may not find alone) with the
+        # anti-hallucination gate as the final authority. DEFAULT is OFFLINE/deterministic (the real
+        # grok + claude proposals, captured 2026-06-19, replayed) so the demo never depends on a live
+        # CLI; pass --live to shell out to the actual CLIs (non-deterministic, needs network).
         from .discovery.benchmark import kepler_case, pendulum_case
-        from .discovery.symbiosis import council_discover, default_council
+        from .discovery.symbiosis import (CAPTURED_PROPOSALS, council_discover,
+                                          default_council, scripted_council)
 
-        council = default_council()   # grok-build (xAI) + claude-opus (anthropic) — real CLIs
-        print("GENESIS — Cross-Model-Council (grok + Claude live IN GENESIS, das Gate entscheidet)\n")
-        any_live = False
+        live = bool(getattr(args, "live", False))
+        mode_note = ("grok + Claude LIVE IN GENESIS" if live else
+                     "offline: echte grok+Claude-Vorschläge vom 2026-06-19 gegated — --live für die echten CLIs")
+        print(f"GENESIS — Cross-Model-Council ({mode_note}, das Gate entscheidet)\n")
+        any_ok = False
         for case in (pendulum_case(), kepler_case()):
             print(f"=== {case.name}: {case.problem.idea} ===")
+            proposers = default_council() if live else scripted_council(CAPTURED_PROPOSALS[case.name])
             try:
-                res = council_discover(case.problem, proposers=council, known_laws=case.known_laws)
-            except Exception as exc:   # CLI/network failure is reported, never a fake result
+                res = council_discover(case.problem, proposers=proposers, known_laws=case.known_laws)
+            except Exception as exc:   # only the --live path can fail here; never a fake result
                 print(f"  LIVE-CLI nicht erreichbar: {type(exc).__name__}: {exc}\n")
                 continue
-            any_live = True
+            any_ok = True
             print(f"  cross_model={res.cross_model}  Familien={', '.join(res.families)}")
             print(f"  GENESIS eigen (ohne Modell): {len(res.own.validated)} validierte Formel(n)")
             for model, judged in res.judged_by_model.items():
@@ -976,7 +987,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  beste validierte Formel: {best.candidate.expression} "
                       f"(R²={best.candidate.r_squared:.5f})")
             print("")
-        return 0 if any_live else 3
+        return 0 if any_ok else 3
 
     if args.mode == "humanoid":
         # The two COMPLETE whole-body humanoids built (with grok) to beat the 2026 state of the art:

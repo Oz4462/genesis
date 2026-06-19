@@ -240,8 +240,8 @@ def default_council(*, grok_model: str = "grok-build",
                     claude_model: str = "claude-opus-4-8") -> list[GrokProposer]:
     """Build the LIVE cross-model council: a grok proposer (xAI family) AND a Claude proposer
     (anthropic family), each a real CLI. Opt-in and non-deterministic (it shells out to the
-    installed ``grok`` and ``claude`` CLIs); for offline/reproducible runs pass ScriptedLLM-backed
-    proposers to ``council_discover`` instead."""
+    installed ``grok`` and ``claude`` CLIs); for offline/reproducible runs use ``scripted_council``
+    (the default everywhere) instead."""
     from ..llm.claude_cli import ClaudeCLI
     from ..llm.grok_cli import GrokCLI
 
@@ -249,3 +249,41 @@ def default_council(*, grok_model: str = "grok-build",
         GrokProposer(client=GrokCLI(model=grok_model), model=grok_model),
         GrokProposer(client=ClaudeCLI(model=claude_model), model=claude_model),
     ]
+
+
+# Real proposals captured LIVE from the grok and claude CLIs (2026-06-19), verbatim. Replaying them
+# lets the OFFLINE council demonstrate the gate on genuinely model-authored hypotheses — reproducibly
+# and with no network — which is exactly why it is the default: the grok + claude CLIs are always
+# implemented as the live runtime brain, but the suite and the default council run offline (owner
+# directive). Keyed by benchmark-case name -> {model_id: proposals_json}. Each model offers the
+# correct law plus dimensionally-wrong rivals, so the gate visibly rejects bad breadth.
+CAPTURED_PROPOSALS: dict[str, dict[str, str]] = {
+    "Pendulum period": {
+        "grok-build": '[{"exponents":{"L":0.5,"g":-0.5},"rationale":"T=2pi sqrt(L/g)"},'
+                      '{"exponents":{"L":1,"g":-0.5},"rationale":"falsche lineare L-Abhaengigkeit"},'
+                      '{"exponents":{"L":1,"g":-1},"rationale":"falsch"}]',
+        "claude-opus-4-8": '[{"exponents":{"L":0.5,"g":-0.5},"rationale":"Dimensionsanalyse T=2pi sqrt(L/g)"},'
+                           '{"exponents":{"L":1.0,"g":-0.5},"rationale":"dimensional inkonsistent, Rivale"},'
+                           '{"exponents":{"L":0.5,"g":-1.0},"rationale":"dimensional inkonsistent, Kontrast"}]',
+    },
+    "Kepler III": {
+        "grok-build": '[{"exponents":{"a":1.5,"mu":-0.5},"rationale":"Kepler III T=2pi sqrt(a^3/mu)"},'
+                      '{"exponents":{"a":1.5},"rationale":"mu konstant, in C absorbiert"},'
+                      '{"exponents":{"a":3,"mu":-1},"rationale":"Fehler: gilt fuer T^2"}]',
+        "claude-opus-4-8": '[{"exponents":{"a":1.5,"mu":-0.5},"rationale":"Kepler 3 exakt, Dimension s"},'
+                           '{"exponents":{"a":1.5,"mu":0},"rationale":"ohne mu, dimensional unvollstaendig"},'
+                           '{"exponents":{"a":2.0,"mu":-0.5},"rationale":"steilere Bahnabhaengigkeit, Rivale"}]',
+    },
+}
+
+
+def scripted_council(proposals: dict[str, str]) -> list[GrokProposer]:
+    """Build an OFFLINE, deterministic council from already-captured proposals: one ``GrokProposer``
+    per ``{model_id: proposals_json}`` entry, each backed by a ``ScriptedLLM`` (no network, no live
+    CLI). Same gate, same cross-model audit as the live path — only the breadth source is replayed,
+    so the run is fully reproducible. This is the default for ``gen --mode council`` and the council
+    tests; ``default_council()`` (``--live``) swaps in the real grok + claude CLIs."""
+    from ..llm.base import ScriptedLLM
+
+    return [GrokProposer(client=ScriptedLLM(model, text), model=model)
+            for model, text in proposals.items()]

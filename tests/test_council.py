@@ -58,3 +58,18 @@ def test_council_runs_with_no_proposers_genesis_alone():
     res = council_discover(case.problem, proposers=[], known_laws=case.known_laws)
     assert not res.cross_model and res.judged_by_model == {}
     assert res.own is not None                                 # GENESIS's own discovery still ran
+
+
+def test_captured_proposals_gate_offline_for_every_benchmark_case():
+    """The canonical CAPTURED_PROPOSALS (real grok + Claude proposals replayed) — the OFFLINE default
+    that `gen --mode council` and the live_council_run script use — gate to a validated law for every
+    case, cross-model, with no network. This pins the default council as a reproducible offline run."""
+    from gen.discovery.benchmark import kepler_case
+    from gen.discovery.symbiosis import CAPTURED_PROPOSALS, scripted_council
+
+    for case in (pendulum_case(), kepler_case()):
+        assert case.name in CAPTURED_PROPOSALS                  # every benchmark case has captured breadth
+        proposers = scripted_council(CAPTURED_PROPOSALS[case.name])
+        res = council_discover(case.problem, proposers=proposers, known_laws=case.known_laws)
+        assert res.cross_model and len(res.families) == 2       # grok (xAI) + Claude (anthropic)
+        assert res.validated and all(v.passed for v in res.validated)   # only gate-passed laws survive
