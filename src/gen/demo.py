@@ -1264,6 +1264,12 @@ def humanoid_spec() -> Specification:
             "compute.throughput_ops_per_s"),
         _dm("q_ctrl_period", "Regelschleifen-Periode", 1.0e-3, "s", "1 kHz Ganzkörper-Regelung",
             "control.period"),
+        # --- sensor data bus: the digital nervous system (joint encoders + IMUs + F/T over CAN-FD) ---
+        _dm("q_bus_n", "Bus-Teilnehmer (Encoder+IMU+F/T)", 30.0, "1",
+            "≈30 Echtzeit-Sensoren am seriellen Bus", "bus.n_devices"),
+        _dm("q_bus_bytes", "Bytes je Sensor-Sample", 8.0, "1", "Position+Status-Wort", "bus.bytes_per_sample"),
+        _dm("q_bus_rate", "Sensor-Abtastrate", 1000.0, "1/s", "1 kHz Sensor-Schleife", "bus.sample_rate"),
+        _dm("q_bus_bitrate", "Bus-Bitrate (CAN-FD)", 5.0e6, "1/s", "CAN-FD 5 Mbit/s", "bus.bitrate"),
     ]
 
     components = [
