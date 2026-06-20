@@ -100,6 +100,17 @@ __all__ = [
     "RobustDecisionSpec",
     "discover_correction",
     "CompositionResult",
+    "gp_fit",
+    "gp_discover",
+    "GPConfig",
+    "SymbolicModel",
+    "GPVerdict",
+    "open_form_benchmark",
+    "OpenFormReport",
+    "OpenFormCaseResult",
+    "additive_freefall_problem",
+    "transcendental_sine_problem",
+    "gp_noise_redteam_problem",
 ]
 
 
@@ -179,9 +190,18 @@ def __getattr__(name: str):
         globals()["evolve"] = _m.evolve
         globals()["TournamentReport"] = _m.TournamentReport
         return globals()[name]
-    if name in ("rediscovery_benchmark", "BenchmarkCase", "kepler_case", "ideal_gas_case", "pendulum_case"):
+    if name in ("rediscovery_benchmark", "BenchmarkCase", "kepler_case", "ideal_gas_case", "pendulum_case",
+                "open_form_benchmark", "OpenFormReport", "OpenFormCaseResult", "additive_freefall_problem",
+                "transcendental_sine_problem", "gp_noise_redteam_problem"):
         from . import benchmark as _m
-        for n in ("rediscovery_benchmark", "BenchmarkCase", "kepler_case", "ideal_gas_case", "pendulum_case"):
+        for n in ("rediscovery_benchmark", "BenchmarkCase", "kepler_case", "ideal_gas_case", "pendulum_case",
+                  "open_form_benchmark", "OpenFormReport", "OpenFormCaseResult", "additive_freefall_problem",
+                  "transcendental_sine_problem", "gp_noise_redteam_problem"):
+            globals()[n] = getattr(_m, n)
+        return globals()[name]
+    if name in ("gp_fit", "gp_discover", "GPConfig", "SymbolicModel", "GPVerdict"):
+        from . import symbolic_search as _m
+        for n in ("gp_fit", "gp_discover", "GPConfig", "SymbolicModel", "GPVerdict"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     if name in ("discover_multiterm", "candidate_term_exponents", "Term", "MultiTermLaw",

@@ -193,3 +193,88 @@ def rediscovery_benchmark(cases: list[BenchmarkCase] | None = None) -> Benchmark
         rediscovery_rate=(sum(1 for r in real if r.success) / len(real)) if real else 1.0,
         redteam_catch_rate=(sum(1 for r in red if r.success) / len(red)) if red else 1.0,
     )
+
+
+# --- open-form benchmark: the GP proposer's reason to exist (Roadmap B0) ------------------
+# These targets are NON-power-law: the dimensional engine returns 'unentschieden' on them, while the
+# open-form GP (discovery/symbolic_search) recovers them - judged through the SAME honesty gates. A pure
+# noise red-team is included to prove the hygiene gate still rejects Schein-Entdeckung.
+
+def additive_freefall_problem() -> DiscoveryProblem:
+    """v = g*t + v0 - free fall WITH an initial velocity. The additive v0 is OUTSIDE a single power law
+    (``discover_new_formulas`` -> 'unentschieden'); the open-form GP recovers it exactly."""
+    g = 9.80665
+    t = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    v = g * t + 40.0
+    return DiscoveryProblem(
+        idea="Freier Fall mit Anfangsgeschwindigkeit (additiv, kein Potenzgesetz).",
+        target=Variable("v", "m/s", tuple(v)),
+        inputs=(Variable("t", "s", tuple(t)),),
+        constants=(Constant("g", g, "m/s^2"),))
+
+
+def transcendental_sine_problem() -> DiscoveryProblem:
+    """y = 2*sin(x) + 1 over a NON-monotonic range (0.5..3.0) - transcendental, neither linear nor a power
+    law. A power law cannot represent it; the open-form GP recovers ``sin`` exactly."""
+    x = np.linspace(0.5, 3.0, 12)
+    y = 2.0 * np.sin(x) + 1.0
+    return DiscoveryProblem(
+        idea="y = 2*sin(x) + 1 (transzendent).",
+        target=Variable("y", "1", tuple(y)),
+        inputs=(Variable("x", "1", tuple(x)),))
+
+
+def gp_noise_redteam_problem(seed: int = 123) -> DiscoveryProblem:
+    """Pure positive noise vs an unrelated input - a Schein-Entdeckung the hygiene gate must REJECT (a high
+    in-sample fit must collapse out-of-sample)."""
+    rng = np.random.default_rng(seed)
+    x = np.linspace(1.0, 5.0, 14)
+    z = np.abs(rng.standard_normal(14) * 3.0 + 5.0)
+    return DiscoveryProblem(
+        idea="Reines Rauschen (Red-Team).",
+        target=Variable("z", "1", tuple(z)),
+        inputs=(Variable("x", "1", tuple(x)),))
+
+
+@dataclass(frozen=True)
+class OpenFormCaseResult:
+    """One open-form case. ``powerlaw_validated`` = did the OLD dimensional engine confirm it? ``gp_verdict``
+    is the open-form GP's gated verdict. ``success`` for a real case = GP confirms AND the power-law engine
+    did NOT (a genuine gap closed); for a red-team = the GP does NOT confirm (hygiene held)."""
+
+    name: str
+    powerlaw_validated: bool
+    gp_verdict: str
+    gp_expression: str
+    gp_r2: float
+    is_redteam: bool
+    success: bool
+
+
+@dataclass(frozen=True)
+class OpenFormReport:
+    results: tuple[OpenFormCaseResult, ...]
+    n_pass: int
+    n_total: int
+
+
+def open_form_benchmark(*, seed: int = 0, cfg=None) -> OpenFormReport:
+    """Contrast the power-law engine with the open-form GP proposer on NON-power-law targets, plus a noise
+    red-team the hygiene gate must reject. Deterministic. ``cfg`` is an optional ``GPConfig`` (smaller =
+    faster); the default is the engine's standard search."""
+    from .symbolic_search import GPConfig, gp_discover
+    cfg = cfg if cfg is not None else GPConfig()
+    cases = [
+        ("additive freefall", additive_freefall_problem(), False),
+        ("transcendental sine", transcendental_sine_problem(), False),
+        ("red-team noise", gp_noise_redteam_problem(), True),
+    ]
+    results: list[OpenFormCaseResult] = []
+    for name, prob, is_red in cases:
+        powerlaw_validated = len(discover_new_formulas(prob).validated) > 0
+        v = gp_discover(prob, seed=seed, cfg=cfg)
+        success = (v.verdict != "bestaetigt") if is_red else (v.verdict == "bestaetigt" and not powerlaw_validated)
+        results.append(OpenFormCaseResult(
+            name=name, powerlaw_validated=powerlaw_validated, gp_verdict=v.verdict,
+            gp_expression=v.model.expression, gp_r2=v.model.r_squared, is_redteam=is_red, success=success))
+    return OpenFormReport(tuple(results), sum(1 for r in results if r.success), len(results))
