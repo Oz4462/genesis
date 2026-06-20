@@ -21,7 +21,7 @@ from ..llm.base import LLMClient
 from ..llm.parsing import extract_json
 from ..tools.fetch import WebFetchTool, readable_text
 from ..tools.codata import load_codata_constants, make_codata_constant_claim
-from ..tools.dlmf import fetch_dlmf_entry, dlmf_latex_to_sympy, dlmf_source_ref
+from ..tools.dlmf import fetch_dlmf_entry, dlmf_latex_to_sympy
 
 _SYSTEM = (
     "You extract ATOMIC factual claims from a SOURCE TEXT that help answer a "

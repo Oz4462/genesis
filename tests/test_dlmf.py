@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-import pytest
 
 from gen.tools.dlmf import (
     DlmfEntry,
     fetch_dlmf_tex,
-    fetch_dlmf_entry,
     dlmf_source_ref,
     load_curated_dlmf,
-    DlmfError,
 )
 from gen.formulas.registry import FormulaRegistry, FormulaRecord
 

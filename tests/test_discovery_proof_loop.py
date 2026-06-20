@@ -6,9 +6,23 @@ SymPy would wrongly cancel is refuted by the z3 kernel with a counterexample; a 
 z3 cannot model is only "Kandidat", never "Satz". Offline, deterministic (z3 + sympy + mpmath).
 """
 
+import importlib.util
+
+import pytest
+
 from gen.discovery.proof_loop import IdentityClaim, prove_identity
 
+# Honest-skip (README §7): the two tests below assert the z3 QF_NRA kernel closed the goal
+# (kernel == "z3_qfnra"). Without the optional [smt] extra the loop honestly degrades to
+# "Kandidat", so those two are skipped — the four z3-independent tests (mpmath prefilter
+# refutation, honest "Kandidat" labelling, unsupported parse, determinism) always run.
+needs_z3 = pytest.mark.skipif(
+    importlib.util.find_spec("z3") is None,
+    reason="z3-solver (optional [smt] extra) required for the Z3 QF_NRA kernel (README §7 honest-skip)",
+)
 
+
+@needs_z3
 def test_true_polynomial_identity_is_certified_as_satz():
     v = prove_identity(IdentityClaim("(x+1)**2", "x**2 + 2*x + 1", {"x": "real"}, "R"))
     assert v.status == "Satz"
@@ -21,6 +35,7 @@ def test_numerically_false_identity_is_refuted_by_the_prefilter():
     assert not v.numeric_ok and v.kernel == "mpmath"        # caught at high precision before any solver
 
 
+@needs_z3
 def test_domain_hole_identity_is_refuted_by_the_kernel_with_a_counterexample():
     # SymPy would cancel (x^2+x)/x to x+1 and call it true; the z3 kernel finds the x=0 hole.
     v = prove_identity(IdentityClaim("(x**2 + x)/x", "x + 1", {"x": "real"}, "R"))

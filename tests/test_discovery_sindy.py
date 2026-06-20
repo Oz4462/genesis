@@ -27,7 +27,8 @@ def _noisy(traj, level=0.01, seed=7):
     """The same trajectory with relative Gaussian MEASUREMENT noise on θ and ω (sensor noise that the
     finite-difference target then amplifies)."""
     rng = np.random.default_rng(seed)
-    th = np.asarray(traj.theta); om = np.asarray(traj.omega)
+    th = np.asarray(traj.theta)
+    om = np.asarray(traj.omega)
     return Trajectory(t=traj.t,
                       theta=tuple(th + level * np.std(th) * rng.standard_normal(th.shape)),
                       omega=tuple(om + level * np.std(om) * rng.standard_normal(om.shape)),

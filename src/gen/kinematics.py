@@ -122,7 +122,7 @@ def static_joint_torques(
         raise ValueError("link_lengths, joint_angles, link_masses must be the same non-zero length")
     if g <= 0.0:
         raise ValueError("g must be positive")
-    if any(m < 0.0 for m in link_masses) or payload_mass < 0.0 or any(l < 0.0 for l in link_lengths):
+    if any(m < 0.0 for m in link_masses) or payload_mass < 0.0 or any(ln < 0.0 for ln in link_lengths):
         raise ValueError("masses and lengths must be non-negative")
 
     pts = _planar_joint_positions(link_lengths, joint_angles)

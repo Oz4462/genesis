@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 from typing import Optional, Dict, List, TYPE_CHECKING
 
 from ..tools.codata import PhysicalConstant, load_codata_constants

@@ -34,7 +34,8 @@ def test_nows_accepts_a_sufficient_guess_without_solving():
 
 
 def test_nows_falls_back_to_the_exact_solver_and_certifies_it():
-    solver = lambda guess: np.linalg.solve(_A, _B)        # the exact solve still produces the answer
+    def solver(guess):
+        return np.linalg.solve(_A, _B)        # the exact solve still produces the answer
     res = nows_warm_start(np.array([5.0, -2.0]), exact_solver=solver, residual_fn=_residual, tol=1e-9)
     assert not res.guess_was_sufficient
     assert res.answer_residual < 1e-9                      # the returned answer is certified, not the guess

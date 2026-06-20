@@ -14,8 +14,10 @@ MU_SUN = 1.32712440018e20
 
 
 def _coulomb_problem():
-    q1 = np.array([1.0, 2.0, 3.0, 1.0, 2.0]); q2 = np.array([2.0, 1.0, 1.0, 3.0, 2.0])
-    r = np.array([1.0, 2.0, 1.0, 0.5, 1.5]); k = 8.99e9
+    q1 = np.array([1.0, 2.0, 3.0, 1.0, 2.0])
+    q2 = np.array([2.0, 1.0, 1.0, 3.0, 2.0])
+    r = np.array([1.0, 2.0, 1.0, 0.5, 1.5])
+    k = 8.99e9
     Fe = k * q1 * q2 / r ** 2
     return DiscoveryProblem(idea="Elektrostatik", target=Variable("Fe", "N", tuple(Fe)),
                             inputs=(Variable("q1", "Ah", tuple(q1)), Variable("q2", "Ah", tuple(q2)),

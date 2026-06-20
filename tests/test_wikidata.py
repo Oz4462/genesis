@@ -1,13 +1,10 @@
 """Offline tests for Wikidata SPARQL thin client."""
 
-import pytest
 
 from gen.tools.wikidata import (
     sparql_query,
     search_physical_law,
-    get_formula_for,
     WikidataLawHit,
-    WikidataError,
 )
 from gen.formulas.registry import FormulaRegistry, FormulaRecord
 

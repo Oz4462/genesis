@@ -41,8 +41,10 @@ def test_selects_the_boundary_candidate():
 
 def test_active_loop_finds_a_pass_within_budget_with_gate_as_oracle():
     pool = list(range(10))
-    gate = lambda x: 4 <= x <= 6                                # the (unknown to the policy) passing region
-    feature = lambda x: (float(x),)
+    def gate(x):
+        return 4 <= x <= 6                                # the (unknown to the policy) passing region
+    def feature(x):
+        return (float(x),)
     res = active_select(pool, gate, feature, budget=6)
     assert res.gate_calls == 6                                  # spent exactly the budget
     assert res.passing                                          # found at least one passing candidate
@@ -51,8 +53,10 @@ def test_active_loop_finds_a_pass_within_budget_with_gate_as_oracle():
 
 def test_active_loop_is_deterministic():
     pool = list(range(10))
-    gate = lambda x: 4 <= x <= 6
-    feature = lambda x: (float(x),)
+    def gate(x):
+        return 4 <= x <= 6
+    def feature(x):
+        return (float(x),)
     a = active_select(pool, gate, feature, budget=6)
     b = active_select(pool, gate, feature, budget=6)
     assert a.gated == b.gated

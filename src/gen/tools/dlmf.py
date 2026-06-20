@@ -23,7 +23,6 @@ import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 from urllib.request import Request, urlopen
 
 from ..core.state import SourceRef

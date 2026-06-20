@@ -135,11 +135,14 @@ def select_chip(
     feasible = tuple(e for e in evaluated if e.feasible)
 
     if prefer == "price":
-        key = lambda e: (e.chip.price_eur, e.chip.name)
+        def key(e):
+            return (e.chip.price_eur, e.chip.name)
     elif prefer == "power":
-        key = lambda e: (e.power["power_w"], e.chip.name)
+        def key(e):
+            return (e.power["power_w"], e.chip.name)
     else:  # headroom
-        key = lambda e: (-e.min_safety_factor, e.chip.name)
+        def key(e):
+            return (-e.min_safety_factor, e.chip.name)
 
     selected = min(feasible, key=key) if feasible else None
     return SelectionResult(selected=selected, feasible=feasible, evaluated=evaluated, prefer=prefer)

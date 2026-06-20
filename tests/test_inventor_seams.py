@@ -27,7 +27,8 @@ _CANDS = [
     {"name": "C", "cost": 12.0, "mass": 3.0},   # dominated by A (dearer AND heavier)
     {"name": "D", "cost": 6.0, "mass": 4.0},
 ]
-_VOF = lambda c: {"cost": c["cost"], "mass": c["mass"]}
+def _VOF(c):
+    return {"cost": c["cost"], "mass": c["mass"]}
 
 
 # --- optimize ---------------------------------------------------------------

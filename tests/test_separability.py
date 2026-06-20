@@ -46,7 +46,8 @@ def test_invalid_mode_rejected():
 
 
 def test_is_deterministic():
-    f = lambda a, b, c: a * b + c
+    def f(a, b, c):
+        return a * b + c
     r1 = analyze_separability(f, ["a", "b", "c"], _R, mode="additive")
     r2 = analyze_separability(f, ["a", "b", "c"], _R, mode="additive")
     assert r1.groups == r2.groups

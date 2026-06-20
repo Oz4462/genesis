@@ -31,6 +31,7 @@ __all__ = [
     "fetch_dlmf_entry",
     "dlmf_source_ref",
     "load_curated_dlmf",
+    "dlmf_latex_to_sympy",
     "WikidataLawHit",
     "search_physical_law",
     "get_formula_for",

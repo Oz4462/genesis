@@ -33,7 +33,6 @@ from .core.state import (
     Constraint,
     Decision,
     GeometryNode,
-    Sourcing,
     Specification,
     Step,
 )

@@ -28,10 +28,13 @@ import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from urllib.request import Request, urlopen
 
 from ..core.state import SourceRef
+
+if TYPE_CHECKING:  # only for the "Claim" return annotation below; the runtime import is
+    from ..core.state import Claim  # kept local in the function body to avoid an import cycle
 
 DEFAULT_URL = "https://physics.nist.gov/cuu/Constants/Table/allascii.txt"
 CACHE_DIR = Path("out/codata")
