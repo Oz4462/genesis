@@ -428,6 +428,14 @@ Freibrief). Das `external_oracle()` umfasst drei Quell-Typen: **Foundation-Model
 - CAD/Design: **CadQuery · build123d** (schon teils in GENESIS) · inverses Design **Modulus/DeepXDE** (PINNs).
 - **⭐ AiiDA (MIT)** — provenance-getrackte automatisierte Simulations-Kampagnen; **Backbone-Kandidat** für den Entdeckungs-Loop, weil es Input→Output-Provenance querybar hält (deckungsgleich mit GENESIS' Ledger-Prinzip).
 
+**H · Kosten-Politik (Owner-Direktive 2026-06-20: NUR kostenlos).** GENESIS nutzt ausschließlich
+kostenlose, offene APIs/Werkzeuge. Konkrete Swaps gegen zahlungspflichtige Wege:
+- **Daten:** statt **Google BigQuery** (Query-Compute kostet) → **PatentsView-API** (Patente, frei) + **OpenAlex** (Literatur, CC0). Statt **AWS requester-pays/Egress** → freie Direkt-APIs/FTP (EBI für AlphaFold-DB, **CDS-API** für ERA5, Zenodo/gdb.unibe.ch für GDB). Alle Kern-Quellen (OpenAlex · PubChem · RCSB PDB · UniProt · Materials Project · Wikidata · die Bio-MCPs) sind frei.
+- **Optimierung:** statt Gurobi/CPLEX/Mosek (kommerziell) → **OR-Tools (CP-SAT) · HiGHS · CVXPY mit OSQP/SCS/ECOS** (frei).
+- **Experiment-Tracking:** statt Weights&Biases (SaaS) → **MLflow / DVC** (self-host, frei).
+- **Simulatoren/Modelle:** alle gewählten sind frei herunterladbar (Compute lokal, kein API-Entgelt); GPL nur als Prozess-Orakel.
+- **LLM-Gehirn (ENTSCHIEDEN 2026-06-20):** Owner behält **Claude + Grok** (bezahltes Abo) als Erfinder/Verifizierer — die Erfinder-Qualität ist es wert. Die „nur kostenlos"-Direktive gilt damit für **Daten-, Tool-, Simulator- und Modell-APIs** (oben), **nicht** für das LLM-Gehirn. Lokales **Ollama** + offene Gewichte (Qwen/DeepSeek/Llama/Gemma) bleiben als **kostenloser, reproduzierbarer Fallback** verdrahtet (deterministische/offline Läufe).
+
 ---
 
 ## 11 · Build-Plan in Phasen (jede mit Abnahme-Gate, kein Push ohne Owner)
