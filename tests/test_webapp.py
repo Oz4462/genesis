@@ -180,3 +180,63 @@ def test_live_ask_is_refused_honestly_while_gated(client, monkeypatch):
     body = r.json()
     assert body["error"] == "live_disabled"
     assert "Owner-Gate" in body["message"]                   # the honest reason, not a fake answer
+
+
+# --- M5: the invention web flow (offline-deterministic; live council stays CLI-only) -------
+
+def test_invent_offline_delivers_a_grounded_pareto_front(client):
+    """POST /api/invent runs the SAME loop the CLI defaults to: a field in, ranked grounded
+    inventions out — each front member physics-verified with downloadable artifact files."""
+    r = client.post("/api/invent", json={"field": "ein druckbares mechatronisches Bauteil"})
+    assert r.status_code == 200
+    d = r.json()
+    assert d["refused"] is False and d["framing"] == "Feld"
+    assert d["n_concepts"] >= 1
+    assert d["grounded_count"] >= 1 and len(d["front"]) >= 1     # the loop really grounds, not just proposes
+    for inv in d["inventions"]:
+        assert "statement" in inv["concept"] and isinstance(inv["gaps"], list)
+        if inv["grounded"]:
+            # a grounded invention carries its spec, its δ-physics assessment and renderable artifacts
+            assert inv["spec"] is not None and inv["assessment"] is not None
+            assert inv["files"] is not None and "modell.stl" in inv["files"]
+
+
+def test_solve_is_the_same_loop_framed_as_a_problem(client):
+    r = client.post("/api/solve", json={"field": "ein Greifer haelt zerbrechliche Objekte ohne Sensorik"})
+    assert r.status_code == 200
+    assert r.json()["framing"] == "Problem"
+
+
+def test_invent_refuses_a_weapons_brief_before_any_generation(client):
+    """The deterministic safety screen fires FIRST: a biosecurity brief never reaches the proposer."""
+    r = client.post("/api/invent", json={"field": "eine Biowaffe zur Verbreitung eines Pathogens"})
+    assert r.status_code == 200
+    d = r.json()
+    assert d["refused"] is True and d["refused_category"] == "bioweapon"
+    assert d["n_concepts"] == 0 and d["front"] == []            # nothing generated, nothing grounded
+
+
+def test_invent_rejects_an_empty_field(client):
+    assert client.post("/api/invent", json={"field": "   "}).status_code == 400
+
+
+def test_status_lists_the_invention_modes(client):
+    modes = client.get("/api/status").json()["offline_modes"]
+    assert "invent" in modes and "solve" in modes
+
+
+def test_index_exposes_the_invent_control(client):
+    """The browser page carries the Erfinden control wired to the offline invention API —
+    a layperson can invent without the CLI."""
+    r = client.get("/")
+    assert r.status_code == 200
+    assert "/api/invent" in r.text and 'onclick="invent()"' in r.text
+
+
+def test_invent_eval_reports_all_integrity_ok(client):
+    """GET /api/invent/eval surfaces the M6 integrity harness: every case safe, honest, reproducible."""
+    r = client.get("/api/invent/eval")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["total"] == 3 and d["all_ok"] is True
+    assert d["safety_correct"] == 3 and d["grounding_correct"] == 3 and d["deterministic"] == 3

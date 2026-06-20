@@ -271,6 +271,7 @@
       <button type="button" class="chip" onclick="demo('spec')">✨ Demo-Bauplan ansehen</button>
       <button type="button" class="chip" onclick="demo('capstone')">🏗 LED-Halter, komplett geprüft</button>
       <button type="button" class="chip" onclick="demo('report')">📚 Demo-Recherche</button>
+      <button type="button" class="chip" onclick="invent()">✦ Erfinden (geerdet, offline)</button>
     </div>
 
     <div class="promises r5">
@@ -587,6 +588,37 @@ async function demo(kind){
     else if(kind==="spec"){renderResult(await get("/api/spec/demo"));}
     else{const r=await get("/api/capstone");renderResult(r,{gates:r.gates});}
   }catch(e){$("#out").innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message)}</div>`}}
+
+// --- M5: open-topic / problem-driven invention (offline-deterministic; live council is CLI-only) ----
+let INVENTIONS=[];
+async function invent(){
+  show("result");
+  $("#out").innerHTML=working("GENESIS erfindet — Konzepte vorschlagen, erden, δ-Physik prüfen");
+  try{
+    const field=($("#idea").value||"").trim()||"ein druckbares mechatronisches Bauteil";
+    const r=await fetch("/api/invent",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({field})});
+    const d=await r.json();
+    if(!r.ok){throw new Error(d.detail||("HTTP "+r.status));}
+    if(d.refused){
+      $("#out").innerHTML=`<div class="verdict v-bad"><div class="icon">⛔</div><div>
+        <h2>Sicherheits-Gate hat abgelehnt</h2><p>${esc(d.refused_reason)}</p></div></div>`;
+      return;
+    }
+    const front=d.front||[];INVENTIONS=front;
+    let banner=`<div class="verdict ${d.grounded_count?"v-ok":""}"><div class="icon">${d.grounded_count?"✦":"🧭"}</div>
+      <div><h2>${d.grounded_count} geerdete Erfindung(en) · Pareto-Front: ${front.length}</h2>
+      <p>${esc(d.framing)}: ${esc(d.field)} — ${esc(d.source)}</p></div></div>`;
+    if(front.length){
+      banner+=`<div class="chips" style="margin:0 0 10px">`+front.map((inv,i)=>
+        `<button type="button" class="chip" onclick="showInvention(${i})">✦ ${esc(inv.concept.statement)} ${inv.grounded?"✅":""}</button>`).join("")+`</div>`;
+      renderResult(front[0]);
+      $("#out").insertAdjacentHTML("afterbegin",banner);
+    } else {
+      $("#out").innerHTML=banner+`<div class="gapbox">Leere Front — kein Konzept überlebte das δ-Physik-Gate. Ehrliche Lücke, keine Halluzination.</div>`;
+    }
+  }catch(e){$("#out").innerHTML=`<div class="gapbox"><b>Fehler:</b> ${esc(e.message||e)}</div>`}}
+function showInvention(i){const inv=INVENTIONS[i];if(inv)renderResult(inv);}
 
 async function ask(extra){
   const q=(extra??$("#idea").value).trim();

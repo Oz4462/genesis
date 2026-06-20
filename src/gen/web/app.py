@@ -232,6 +232,105 @@ def _printability_dict(spec: Specification) -> dict:
     }
 
 
+# --- invention loop serializers (INVENTOR §3: concept -> grounded spec -> Pareto front) ------
+
+def _possibility_dict(p) -> dict:
+    """A proposed concept (core.state.Possibility): a direction + the real mechanism it leans on +
+    the grounding claim ids. Asserts no new fact — the substance lives in the grounding."""
+    return {"id": p.id, "statement": p.statement, "mechanism": p.mechanism,
+            "grounding": list(p.grounding)}
+
+
+def _invention_dict(inv) -> dict:
+    """One concept carried through the loop, JSON-safe. A GROUNDED invention carries its spec +
+    δ-physics assessment + renderable artifact files; an honest gap (specification is None) carries
+    only the concept + the reasons it did not ground — never a fabricated pass."""
+    spec = inv.specification
+    if spec is not None:
+        try:
+            assessment = _assessment_dict(assess_specification(spec))
+        except Exception as exc:  # noqa: BLE001 - surface the gate failure, never crash the route
+            assessment = {"error": f"{type(exc).__name__}: {exc}"}
+        try:
+            printability = _printability_dict(spec) if inv.grounded else None
+        except Exception:  # noqa: BLE001 - printability is advisory; never crash the route
+            printability = None
+    else:
+        assessment = None
+        printability = None
+    return {
+        "concept": _possibility_dict(inv.concept),
+        "grounded": inv.grounded,
+        "physics_verified": inv.physics_verified,
+        "novelty_verdict": inv.novelty_verdict,
+        "safety_ok": inv.safety_ok,
+        "score": list(inv.score) if inv.score is not None else None,
+        "gaps": list(inv.gaps),
+        "prior_art": list(inv.prior_art),
+        "spec": _spec_dict(spec) if spec is not None else None,
+        "assessment": assessment,
+        "printability": printability,
+        "files": _files_dict(spec) if (spec is not None and inv.grounded) else None,
+    }
+
+
+def _invent_run_dict(run, framing: str, field: str, goal: str, source: str) -> dict:
+    return {
+        "framing": framing, "field": field, "goal": goal, "source": source,
+        "refused": run.refused,
+        "n_concepts": len(run.concepts),
+        "grounded_count": run.grounded_count,
+        "concepts": [_possibility_dict(c) for c in run.concepts],
+        "inventions": [_invention_dict(i) for i in run.inventions],
+        "front": [_invention_dict(i) for i in run.front],
+    }
+
+
+#: The concepts the offline (scripted) council replays — identical to the CLI's invent path, so a browser
+#: run is byte-for-byte the same deterministic invention the CLI produces (an honest demo of the loop, not live).
+_INVENT_DEMO_CONCEPTS = [
+    {"statement": "Resonanter Sehnen-Greifer-Halter",
+     "mechanism": "gedruckte Flexuren speichern elastische Energie",
+     "grounding": ["https://openalex.org/W-actuator-mount"]},
+    {"statement": "Elektroadhäsions-Greifpad", "mechanism": "elektrostatisches Klemmen",
+     "grounding": ["patentsview:US-electroadhesion"]},
+]
+
+
+async def _run_invent(field: str, goal: str, constraints: list[str], mode: str) -> dict:
+    """Run the invention loop OFFLINE-DETERMINISTIC (scripted council + architect + δ-physics gate) — the same
+    path the CLI ``invent``/``solve`` default to. Safety screens FIRST: a weapons/biosecurity brief is refused
+    BEFORE any concept is generated. Live council generation stays CLI-only (``--live``) so a browser run never
+    hangs on a model call and never fabricates an answer — the web layer is deterministic by construction."""
+    from ..inventor import InventionBrief
+    from ..inventor.domains import MechatronicsDomain, scripted_mechatronics_architect
+    from ..inventor.generate import scripted_council
+    from ..inventor.loop import run_invention
+    from ..inventor.safety import safety_gate, screen_brief
+
+    framing = "Problem" if mode == "solve" else "Feld"
+    brief = InventionBrief(field=field, run_id=f"web-{mode}", goal=goal,
+                           constraints=tuple(constraints), max_concepts=3)
+    verdict = screen_brief(brief)
+    if verdict.refused:
+        return {"framing": framing, "field": field, "goal": goal, "refused": True,
+                "refused_reason": verdict.reason, "refused_category": verdict.category,
+                "source": "Safety-Gate (deterministisch, vor jeder Konzept-Erzeugung)",
+                "n_concepts": 0, "grounded_count": 0, "concepts": [], "inventions": [], "front": []}
+
+    council = scripted_council(_INVENT_DEMO_CONCEPTS)
+    architect = scripted_mechatronics_architect(first_natural_hz=150.0)
+    domain = MechatronicsDomain()
+    run = await run_invention(brief, domain=domain, council=council, architect=architect,
+                              safety_screen=safety_gate)
+    out = _invent_run_dict(run, framing, field, goal,
+                           "offline-deterministisch (scripted council + δ-Physik-Gate)")
+    out["live_note"] = ("Live-Erzeugung (echter Claude/Grok-Council) läuft über die CLI "
+                        "`genesis --mode invent --live` auf der Owner-Maschine; die Web-Schicht "
+                        "bleibt deterministisch.")
+    return out
+
+
 # --- request bodies ---------------------------------------------------------------
 
 class SignOffBody(BaseModel):
@@ -266,6 +365,12 @@ class ResearchBody(BaseModel):
     domain_id: str = "R"
 
 
+class InventBody(BaseModel):
+    field: str                     # the field to invent in (mode=invent) or the problem to solve (mode=solve)
+    goal: str = ""                 # optional explicit goal/success property
+    constraints: list[str] = []    # hard constraints the result must respect
+
+
 # --- the app ------------------------------------------------------------------------
 
 def create_app() -> FastAPI:
@@ -290,7 +395,7 @@ def create_app() -> FastAPI:
                 "sich nur mit GENESIS_ALLOW_LIVE=1. Generator und Verifizierer müssen "
                 "verschiedene Modellfamilien sein — das erzwingt der Code."
             ),
-            "offline_modes": ["report", "spec", "capstone", "assess", "eval", "ratification", "research"],
+            "offline_modes": ["report", "spec", "capstone", "assess", "eval", "ratification", "research", "invent", "solve"],
             "note": ("Live-Läufe sind deaktiviert (Owner-Gate). Alle anderen Ansichten "
                      "sind deterministisch und offline."),
         }
@@ -462,6 +567,41 @@ def create_app() -> FastAPI:
         except Exception as exc:  # noqa: BLE001 - surface the gate failure honestly, never a fake pass
             raise HTTPException(status_code=422, detail=f"assessment failed: {exc}")
         return _research_dict(art, free, relation)
+
+    @app.post("/api/invent")
+    async def invent(body: InventBody) -> dict:
+        # Open-topic invention (INVENTOR §3/§5): a field in, ranked grounded inventions out. Offline-
+        # deterministic (scripted council + δ-gate); a weapons brief is refused before generation.
+        if not body.field.strip():
+            raise HTTPException(status_code=400, detail="field darf nicht leer sein")
+        return await _run_invent(body.field, body.goal, list(body.constraints), "invent")
+
+    @app.post("/api/solve")
+    async def solve(body: InventBody) -> dict:
+        # Problem-driven invention: the SAME loop, framed as "solve P under constraints R".
+        if not body.field.strip():
+            raise HTTPException(status_code=400, detail="field (das Problem) darf nicht leer sein")
+        return await _run_invent(body.field, body.goal, list(body.constraints), "solve")
+
+    @app.get("/api/invent/eval")
+    async def invent_eval() -> dict:
+        # M6 integrity harness: safety refusal + grounding honesty + determinism, offline-deterministic.
+        from ..inventor.eval import default_eval_cases, evaluate_inventions
+
+        rep = await evaluate_inventions(default_eval_cases())
+        return {
+            "total": rep.total, "safety_correct": rep.safety_correct,
+            "grounding_correct": rep.grounding_correct, "deterministic": rep.deterministic_count,
+            "all_ok": rep.all_ok,
+            "note": ("Integritaets-Eval (Sicherheit / Erdungs-Ehrlichkeit / Determinismus) — "
+                     "offline-deterministisch. Neuheits-/Wert-Qualitaet braucht den Live-Council (CLI --live)."),
+            "verdicts": [
+                {"name": v.name, "refused": v.refused, "n_concepts": v.n_concepts,
+                 "grounded_count": v.grounded_count, "deterministic": v.deterministic,
+                 "safety_ok": v.safety_ok, "grounding_ok": v.grounding_ok, "ok": v.ok}
+                for v in rep.verdicts
+            ],
+        }
 
     @app.post("/api/ask")
     async def ask(body: AskBody):
