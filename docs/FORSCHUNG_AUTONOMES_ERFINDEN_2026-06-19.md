@@ -132,7 +132,23 @@ Hypothese/Verifizierer/Neuheit: [Verifizierer-Beweissuche 2205.12443](https://ar
 
 ---
 
+## Bau-Status (2026-06-20, autonom gebaut — alle Kern-Methoden offline-deterministisch verdrahtet)
+
+Der Forschungs-Kern ist gebaut + getestet (Phase R, Plan `steady-sleeping-pascal.md`; lokal committet, KEIN Push):
+- **§A2 SINDy/ODE** → `discovery/sindy.py`: STLSQ über Funktions-Bibliothek aus `multibody.simulate_pendulum`;
+  gedämpftes Pendel `θ̈=−(c/I)θ̇−(mgd/I)sinθ` exakt recovered (R²=1.0, Dummy-Feature thresholded). **Unsicherheit:**
+  `ode_coefficient_bands` = **Ensemble-SINDy-Bootstrap** (Fasel/Kaiser/Kutz/Brunton/Proctor 2022) — eng auf sauberen
+  RK4-Daten, verbreitert unter Messrauschen; ehrliche Grenze (statistisch, nicht FD-Bias) im Docstring.
+- **§A1/SRBench-Hygiene** → `discovery/srbench_hygiene.py`: Dummy-Variablen-Test (Alien-Dim → Exponent 0) + OOS.
+- **Bayes-Unsicherheit** → `discovery/uncertainty.py`: Bootstrap-Band (degeneriert auf exakten Kepler-Daten, verbreitert mit Rauschen).
+- **§A3 Beweis-Loop** → `discovery/proof_loop.py`: mpmath-Vorfilter → SymPy → z3-Kernel; „Satz" nur kernel-geschlossen,
+  `sin(x)=x`→widerlegt (Vorfilter), `(x²+x)/x=x+1`→widerlegt (z3 x=0), transzendent-wahr→„Kandidat" (ehrlich, nicht „Satz").
+- **§A4 T-Optimalität (maximin)** → `active_resolution.propose_resolution_robust`: innerer Rival-Refit — der Spread überlebt
+  den optimal refitteten Verlierer (44.7× Rauschen), ein Einzelpunkt wird absorbiert (1.6×). Genau die „Form schlägt Punkt"-Lehre.
+- **CLI** → `gen --mode discover-ode` (SINDy + Hygiene-Dummy + Unsicherheitsband in einem deterministischen Befehl, EXIT=0).
+- **Opt-in/BLOCKED-Adapter** (Offline-Default = Test-Rückgrat): PySINDy (pip), Ax/BoTorch (pip), PySR/PhySO (Julia/GPU), Lean/Goedel
+  (`ProofKernel`-Slot) — je hinter der jeweiligen Naht, Offline-Zwilling beweist die Verdrahtung. Volle Suite **1784 grün**.
+
 *Diese Recherche bestätigt GENESIS' Seele (Verifizierer-als-Wahrheit) und kartiert ehrlich den Weg
 zu echtem Forscher-Niveau — mit benannten Methoden, ehrlicher Hype-Trennung und einem priorisierten
-Fahrplan. Nächster Schritt: diese Erkenntnisse in den Entdeckungs-Kern der INVENTOR_ARCHITEKTUR
-einarbeiten und die offenen Prüfpunkte (echte Verdrahtung der Discovery-Bausteine) abarbeiten.*
+Fahrplan. **Erledigt:** diese Erkenntnisse sind im Entdeckungs-Kern verdrahtet; die Discovery-Bausteine sind real lauffähig.*

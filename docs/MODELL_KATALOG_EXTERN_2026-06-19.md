@@ -155,7 +155,20 @@ Damit wird GENESIS' schwächste Erdung (Bio/Materialien/Klima) durch **Weltklass
 
 ---
 
+## Bau-Status (2026-06-20 — Integrations-Schicht gebaut, jede Anbindung lizenz-gegatet)
+
+Jedes Modell dieses Katalogs hat jetzt eine **gebaute Naht** + ein **hartes Lizenz-Gate** (Plan `steady-sleeping-pascal.md`,
+lokal committet, KEIN Push). Konkret:
+- **Lizenz-Disziplin im Code erzwungen** (`external/registry.py`): Permissiv (Apache/MIT/BSD/CC0/CC-BY) → Kern-linkbar;
+  Copyleft (GPL/AGPL, z. B. SevenNet) → **nur Separat-Prozess-Orakel**; **NC → strukturell verboten** (AlphaFold3/GNoME/
+  GraphCast-Gewichte sind nicht konstruierbar — durch Boltz-2/ORB/Aurora ersetzt); Unknown → Refusal. Jede Anbindung wird als
+  VERIFIED-Lizenz-Claim ins Ledger geschrieben.
+- **Foundation-Modelle** (Boltz-2/Chai-1/ORB/MatterSim/Aurora/…) → `external/oracle.py` `external_oracle()`: Output ist ein
+  **gegateter UNVERIFIED-Claim** mit Provenance+Unsicherheit, nie Roh-Wahrheit. Live = Owner-GPU (B5).
+- **Evolve/SR** (OpenEvolve/ShinkaEvolve/FunSearch · PySR/PhySO) → `inventor/evolve_engine.py` + Engine-Judge-Naht; Offline-Default
+  MAP-Elites/in-house-SR. **Beweis-Modelle** (Goedel/Kimina/LeanDojo) → `proof_kernels`-Lean-Slot (Offline-Zwilling z3).
+- **Vollständige Karte:** `docs/EXTERNAL_INTEGRATION.md` — alle ~80 Einträge → Naht + Lizenz + Status (🟢 live / 🟡 opt-in-pip / 🔴 BLOCKED).
+
 *Belege: alle Links inline. Diese Datei ergänzt `FORSCHUNG_AUTONOMES_ERFINDEN_2026-06-19.md` (Methoden)
-und `INVENTOR_ARCHITEKTUR.md` (Plan). Nächster Schritt: entscheiden, welche dieser Bausteine wir als
-erstes anbinden (Empfehlung: OpenEvolve-Loop + PySR/PySINDy zuerst, dann ein Bio- oder Materials-Verifizierer
-als erstes Domänen-Plugin).*
+und `INVENTOR_ARCHITEKTUR.md` (Plan). **Erledigt:** die Integrations-Schicht ist interface-first gebaut; die
+Empfehlung (OpenEvolve + PySR/PySINDy zuerst) ist als opt-in-Adapter hinter den Nähten realisiert.*

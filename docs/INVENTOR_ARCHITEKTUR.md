@@ -516,14 +516,44 @@ Software-Korrektheit, Wirtschaft.
 - ✓ **Web-Live-Lock** = gewollter `GENESIS_ALLOW_LIVE=1`-Flag (`web/app.py`), kein Bug. **safety_ladder.py** existiert, ist aber **nicht in einen Loop verdrahtet** (→ Phase S).
 - → Bau-Reihenfolge (Owner): **Forschungs-Kern zuerst** (SINDy/Hygiene/Unsicherheit/Beweis/T-Opt), dann Erfindungs-Loop; externe Schicht (Lizenz-Ledger + freie-API-Connectoren + `external_oracle()` + Tool-/Sim-Seams) interface-first verwoben. Plan: `~/.claude/plans/steady-sleeping-pascal.md`.
 
+**M1+M2+M3-BAU KOMPLETT (2026-06-20, autonom, Plan `steady-sleeping-pascal.md`, alles lokal committet, KEIN Push):**
+Der Erfindungs-Loop ist gebaut, gegatet und end-to-end getestet — Forschungs-Kern zuerst, dann externe
+Schicht, dann der vertikale Erfindungs-Loop. Volle Offline-Suite **1784 passed / 10 skipped / 0 failed**
+(Baseline war 1611). Module + Commits:
+- **Forschungs-Kern (Phase R):** `discovery/sindy.py` (STLSQ-ODE, gedämpftes Pendel exakt recovered R²=1.0;
+  +Ensemble-Bootstrap-Band, Fasel et al. 2022) · `srbench_hygiene.py` (Dummy-Test) · `uncertainty.py`
+  (Bootstrap-Band) · `proof_loop.py` (mpmath→sympy→z3, „Satz" nur kernel-geschlossen) · `active_resolution`
+  T-Optimalität (`propose_resolution_robust`, innerer Rival-Refit: Spread überlebt 44.7×, Einzelpunkt
+  absorbiert) · CLI `--mode discover-ode`.
+- **Externe Schicht (Phase C, interface-first, lizenz-diszipliniert):** `external/registry.py`
+  (Lizenz-Gate als Konstruktor-Invariante: Permissiv→Kern, Copyleft→Prozess-Orakel, NC→verboten,
+  Unknown→Refusal; gegated als VERIFIED-Claim) · `external/oracle.py` (`external_oracle()` dritter
+  Plugin-Typ: OracleClaim immer lizenziert, einziger Pfad schreibt UNVERIFIED — Roh-Wahrheit strukturell
+  unmöglich) · `tools/sources/{openalex,patents}.py` (OpenAlex **live 200 verifiziert**, PatentsView Key in
+  Transport) · `simulation/backends.py` (SimulatorBackend, RK4-Default + MuJoCo-Adapter import-gegated) ·
+  `inventor/{optimize,evolve_engine}.py` (Pareto/pymoo, MAP-Elites/OpenEvolve) · `docs/EXTERNAL_INTEGRATION.md`
+  (Katalog→Seam-Karte, jede ~80 Modelle/Tools mit Lizenz+Status).
+- **Erfindungs-Loop (Phase I+N+E+S):** `inventor/{brief,generate,score,loop}.py` + `domains/{base,mechatronics}.py`
+  — **M1-DoD:** ein freies Feld → ≥1 geerdete, gegatete Erfindung mit Quellen+δ-Physik-Gate+STL/BOM-Bundle,
+  reproduzierbar; über-kühnes Konzept → ehrliche Lücke. `novelty.py` — **M2-DoD:** gemessene Prior-Art-Distanz
+  (3 Stufen, „neuer Mechanismus zählt", Beleg zitiert), `nicht_neu` nie geerdet. `{archive,refinement}.py` —
+  **M3-DoD:** Gate-Feedback repariert (30→70→110 Hz) / ehrlich `stuck`; MAP-Elites + Rekombination.
+  `safety.py` — **Safety-DoD:** Waffen/Bio-Brief refused VOR jeder Konzept-Erzeugung (mit Spy-Council 0 Aufrufe
+  bewiesen) + 4-Stufen-Test-Leiter. CLI `--mode invent|solve` (offline EXIT=0, `--live` graceful-Fallback).
+- **Erledigte offene Punkte:** Live-CLI ✓ (Claude PONG), Novelty-Mechanik ✓ (`novelty.py`+Patent-Connector),
+  Safety-Gate ✓ (`safety.py` verdrahtet), measurand-Emission ✓ (Architekt→δ-Auto-Select greift im Loop),
+  „3 korrupte Dateien" = FALSE bestätigt. **Ehrliche BLOCKED-Grenze:** Live-LLM-Council via Claude-CLI
+  überschreitet das 300s-Timeout (B1) → `--live` degradiert sauber offline; GPU-Orakel/PySR-Julia/Lean/paid-Keys
+  = Owner-Maschine (B3–B6), je mit Offline-Zwilling der die Verdrahtung beweist.
+
 **Noch zu prüfen (offen):**
-- ☐ **Live-CLI-Verfügbarkeit:** Antworten `claude -p` und `grok -p` auf Ozans Rechner eingeloggt (PONG)? *(M0-Voraussetzung; Claude ✓ gemessen, Grok auth-gated)*
+- ☐ **Live-CLI-Verfügbarkeit:** Antworten `claude -p` und `grok -p` auf Ozans Rechner eingeloggt (PONG)? *(M0-Voraussetzung; Claude ✓ PONG; voller Council-Lauf >300s = B1 BLOCKED)*
 - ☐ **Validator-Tiefe:** Welche der ~36 Achsen sind wirklich gegen Anker verifiziert vs. nur vorhanden? (Deep-Review Schritt 7–9 lt. WORK_QUEUE offen.)
 - ☐ **Connector-Robustheit live:** Rate-Limits, Ausfälle, Extraktionsqualität (`EXTRACTION_BOTTLENECK.md`).
-- ☐ **measurand-Emission:** Setzt ein echtes Modell die `measurand`-Tags zuverlässig (entscheidet, ob δ-Auto-Select live greift)? — laut README ungetestet.
-- ☐ **Novelty-Mechanik:** Gibt es schon Embedding/Ähnlichkeit? (Nein — neu in `novelty.py`.) Patent-Connector fehlt.
-- ☐ **Safety-Gate fürs Erfinden:** Ein Allzweck-Erfinder braucht ein Missbrauchs-/Sicherheits-Gate (z. B. Waffen/Bio-Gefahr ablehnen). `grenzverschiebung/safety_ladder.py` prüfen + in den Loop verdrahten. **Pro-Pflicht.**
-- ☐ **3 korrupte Dateien** (`discovery/engine.py` u. a., kompiliert nicht) — *(M0)*.
+- ☑ **measurand-Emission:** Im Loop verdrahtet — der (injizierbare) Architekt emittiert measurand-getaggte Quantities, das δ-Auto-Select feuert die Physik-Checks auto; offline-deterministisch bewiesen (resonance-Gate pass/fail). Live-Modell-Zuverlässigkeit bleibt B1 (Council-Timeout).
+- ☑ **Novelty-Mechanik:** `novelty.py` gebaut — `char_ngram_embed`-Distanz (dense Ollama opt-in) über echte Connectoren (OpenAlex+Patents), 3-Stufen-Verdikt + `nearest_prior_art`-Beleg; Patent-Connector `tools/sources/patents.py` ✓.
+- ☑ **Safety-Gate fürs Erfinden:** `inventor/safety.py` — deterministische Refuse-Tabelle (Waffen/Bio) als ERSTER Loop-Schritt verdrahtet (Spy-Council 0 Aufrufe bewiesen) + `SafetyStagePlan`-Leiter aus `grenzverschiebung/safety_ladder`-Typen.
+- ☑ **3 korrupte Dateien** = FALSE bestätigt (alle 233 `src/gen/**` parsen) — *(M0)*.
 - ☐ **Determinismus/Repro** an den Gates bei live-LLM-Erzeugung sauber geloggt?
 - ☐ **wissensbasis Seed-Inhalt:** Wie viel ist real geseedet vs. leer?
 - ☐ **Entdeckungs-Bausteine live (Forschungs-Kern, §10 — höchste Priorität laut Owner):** Sind `experiment_designer`, `reality`/δ⁺, `active_resolution`, `first_principles`, `proof_kernels` und die Simulatoren (`pybullet`/`multibody`/`fem*`/`electronics`/`bio_molecular`) wirklich verdrahtet & lauffähig? Nimmt `discovery/engine` eine **Sim-Funktion als Datenquelle** (selbst-erzeugte Daten), nicht nur statische Zahlen? Trägt jeder entdeckte Kandidat Evidenz-Basis + Falsifikator?

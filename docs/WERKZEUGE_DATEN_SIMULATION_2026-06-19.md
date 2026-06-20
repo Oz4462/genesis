@@ -139,5 +139,19 @@
 
 ---
 
+## Bau-Status (2026-06-20 — Simulatoren/Daten/Tools an gebaute Nähte angebunden)
+
+Plan `steady-sleeping-pascal.md`, lokal committet, KEIN Push:
+- **Simulatoren** (MuJoCo/OpenMM/Cantera/ngspice) → `simulation/backends.py` `SimulatorBackend`-Naht: Offline-Default
+  `MultibodyPendulumBackend` (RK4, speist SINDy mit echter Trajektorie); **MuJoCo-Adapter** (Apache-2.0) import-gegated —
+  ohne Tool sauberer Skip (`SimulatorUnavailable`), nie fabrizierte Trajektorie. Xyce (GPL) nur Prozess-Orakel.
+- **Freie Daten-APIs** → `core.interfaces.SearchBackend`-Naht: **`tools/sources/openalex.py` (CC0, live 200 verifiziert,
+  echte Work-IDs)** + **`tools/sources/patents.py`** (USPTO PatentsView, Key in Transport gebacken — die §7/§13-Patent-Lücke
+  geschlossen). PubChem/RCSB/UniProt/MaterialsProject = gleiches Connector-Muster, opt-in.
+- **Dev-Tools** → `inventor/optimize.py` (pymoo, Apache) + `inventor/evolve_engine.py` (MAP-Elites); OR-Tools/Optuna/Ax gleiche Naht.
+  **AiiDA-Provenance** als dokumentierte Backbone-Option (passt zum Ledger-Ethos).
+- **Karte:** `docs/EXTERNAL_INTEGRATION.md` (Teil 2/3/7) — jede Anbindung mit Lizenz + Status.
+
 *Belege: alle Links in den Recherche-Digests; Lizenzen primärquellen-geprüft. Dieser Katalog +
-`MODELL_KATALOG_EXTERN` bilden den vollständigen externen Bau-Stack für die `INVENTOR_ARCHITEKTUR` (§10¾).*
+`MODELL_KATALOG_EXTERN` bilden den vollständigen externen Bau-Stack für die `INVENTOR_ARCHITEKTUR` (§10¾) —
+**jetzt interface-first gebaut.***
