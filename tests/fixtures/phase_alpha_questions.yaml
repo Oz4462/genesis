@@ -1,0 +1,33 @@
+# Phase α acceptance test set (PHASE_ALPHA §6).
+# Four question classes. We assert expected STATUS BEHAVIOUR, not exact wording.
+#
+# klass:  A = answerable/true | B = trap (false premise) | C = unverifiable | D = contested
+# expected:
+#   verified     -> at least one VERIFIED claim is asserted; gate passes
+#   trap_caught  -> the false-premise claim is NEVER asserted; surfaced as a gap
+#   abstain      -> nothing asserted; report says so; claim surfaced as a gap
+#   dissent      -> contested claim is NOT asserted one-sidedly; surfaced as a gap
+
+- id: A1
+  klass: A
+  expected: verified
+  question: "What CAD kernel underlies build123d and CadQuery?"
+  subject: "build123d and CadQuery are built on the Open Cascade (OCCT) kernel."
+
+- id: B1
+  klass: B
+  expected: trap_caught
+  question: "Why is Open Cascade the only CAD kernel usable from Python?"
+  subject: "Open Cascade is the only CAD kernel usable from Python."
+
+- id: C1
+  klass: C
+  expected: abstain
+  question: "Which CAD kernel will dominate the industry in the year 2100?"
+  subject: "Open Cascade will dominate the CAD industry in the year 2100."
+
+- id: D1
+  klass: D
+  expected: dissent
+  question: "Is FreeCAD more reliable than Fusion 360?"
+  subject: "FreeCAD is more reliable than Fusion 360."

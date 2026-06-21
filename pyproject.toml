@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "genesis-engine"
+version = "0.1.0"
+description = "GENESIS - anti-hallucination idea-to-verified-specification engine: every claim sourced, every derivation recomputed, honest gaps instead of invention."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=1.26",          # the delta physics engine (FEM, validators, assessment)
+    "sympy>=1.12",          # the math-research branch: symbolic identity fingerprint + proof (gen.identity_research)
+    "scipy>=1.11",          # numerical integration, special functions, linear algebra for formula verification & physics cross-checks
+    "mpmath>=1.3",          # high-precision & rigorous interval arithmetic (identity proving, enclosures)
+    "pydantic>=2",          # validated LLM-output schemas (gen.llm.schemas) + web request models (gen.web.app) — was imported but UNDECLARED (fresh install broke council/symbiosis/web)
+]
+
+[project.optional-dependencies]
+web = ["fastapi>=0.110", "uvicorn>=0.29"]      # the local UI (python -m gen.web / genesis-web)
+cad = ["cadquery>=2.4", "gmsh>=4.12"]          # exact BREP geometry (cadquery/OCP WITH vtk) + unstructured FEM meshes
+b123d = ["build123d>=0.8"]                      # build123d prototype builder (gen.cad.prototype_cad_builder) — SEPARATE env ONLY: its cadquery-ocp-novtk replaces cadquery's full OCP and breaks it, so never install alongside [cad]; run its tests in an isolated venv
+postgres = ["asyncpg>=0.29"]                   # persistent ledger (in-memory is the default)
+verify = ["trust-core>=0.1.0"]                 # conformal/FDR single-source + CCDD drift (gen.verification.trustcore_adapter / drift_monitor); core stays numpy-only
+smt = ["z3-solver>=4.13"]                       # global constraint feasibility (gen.verification.constraint_smt); closes the transitive-infeasibility gap
+sim = ["pybullet>=3.2"]                          # full-contact multibody dynamics cross-check (gen.simulation.pybullet_sim, headless DIRECT); core stays numpy-only, tests skip without it
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.4", "httpx>=0.27", "pyyaml>=6"]   # pytest-asyncio drives the async LLM-CLI adapter tests; pyyaml is needed by the config.load_yaml acceptance test (yaml stays an OPTIONAL runtime dep — the CLI default uses default_config())
+full = ["genesis-engine[web,cad,postgres,verify,smt,sim,dev]"]
+
+[project.scripts]
+genesis = "gen.cli:main"
+genesis-web = "gen.web.__main__:main"
+
+[tool.pytest.ini_options]
+# async LLM-CLI adapter tests use explicit @pytest.mark.asyncio markers; strict mode
+# keeps that explicit (and silences the "asyncio_mode unset" warning).
+asyncio_mode = "strict"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"gen.web" = ["static/*.html"]

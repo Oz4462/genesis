@@ -1,0 +1,88 @@
+- 2026-06-21T22:33:39.043656 | run_terminal_command | cmd: cd /home/genesis/genesis; PYTHONPATH=src python -m | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:33:41.851326 | run_terminal_command | cmd: cd /home/genesis/genesis; which python3; python3 - | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:33:49.758626 | run_terminal_command | cmd: cd /home/genesis/genesis; python3 -c "
+import sys
+ | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:33:58.735923 | run_terminal_command | cmd: cd /home/genesis/genesis; PYTHONPATH=src python3 - | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:34:04.635202 | run_terminal_command | cmd: cd /home/genesis/genesis; python3 -c "
+import sys
+ | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-21T22:34:06.619096 | run_terminal_command | cmd: cd /home/genesis/genesis && PYTHONPATH=src python  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:34:06.796053 | run_terminal_command | cmd: cd /home/genesis/genesis && PYTHONPATH=src python  | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-21T22:34:09.139634 | run_terminal_command | cmd: cd /home/genesis/genesis && python3 --version && w | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:34:09.344881 | run_terminal_command | cmd: cd /home/genesis/genesis; python3 -m pip install - | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:34:10.379991 | search_replace | /home/genesis/genesis/src/gen/pipeline.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-21T22:34:13.845639 | run_terminal_command | cmd: cd /home/genesis/genesis && python3 -c "
+import sy | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-21T22:34:16.986454 | search_replace | /home/genesis/genesis/src/gen/pipeline.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-21T22:34:17.092166 | run_terminal_command | cmd: cd /home/genesis/genesis; echo "=== EXACT CMD AS S | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-21T22:34:19.989194 | search_replace | /home/genesis/genesis/src/gen/pipeline.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-21T22:34:22.374680 | run_terminal_command | cmd: cd /home/genesis/genesis && ls -d .venv venv env 2 | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:34:24.600215 | search_replace | /home/genesis/genesis/src/gen/bundle.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-21T22:34:25.744064 | run_terminal_command | cmd: cd /home/genesis/genesis; echo "=== RETURN GATE: E | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:34:26.829990 | run_terminal_command | cmd: cd /home/genesis/genesis && PYTHONPATH=src python3 | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:34:27.735983 | run_terminal_command | cmd: cd /home/genesis/genesis && ls -d .venv venv env 2 | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:34:32.061639 | run_terminal_command | cmd: cd /home/genesis/genesis && PYTHONPATH=src python3 | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:34:36.547008 | run_terminal_command | cmd: cd /home/genesis/genesis && python3 -m pip install | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-21T22:34:40.768780 | search_replace | /home/genesis/genesis/src/gen/bundle.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-21T22:34:46.140864 | search_replace | /home/genesis/genesis/src/gen/web/app.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-21T22:34:46.352684 | run_terminal_command | cmd: cd /home/genesis/genesis; wc -l verification/verif | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:34:50.245287 | search_replace | /home/genesis/genesis/src/gen/cli.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-21T22:34:52.691662 | search_replace | /home/genesis/genesis/src/gen/pipelines/integrator.py | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-21T22:35:02.438663 | run_terminal_command | cmd: cd /home/genesis/genesis && python3 /tmp/smoke_del | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:35:11.709481 | search_replace | /home/genesis/genesis/docs/BUILD_LOG.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-21T22:35:12.125409 | search_replace | /home/genesis/genesis/verification/verification-log.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-21T22:35:15.919678 | search_replace | /home/genesis/genesis/src/gen/pipelines/integrator.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-21T22:35:16.160135 | search_replace | /home/genesis/genesis/verification/CodeKnowledge.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:35:20.376458 | run_terminal_command | cmd: cd /home/genesis/genesis; python -m ruff check src | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:35:20.479066 | search_replace | /home/genesis/genesis/WORK_QUEUE.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:35:22.856893 | run_terminal_command | cmd: cd /home/genesis/genesis; python3 -c "import sys;  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:35:26.447274 | run_terminal_command | cmd: cd /home/genesis/genesis; python3 -m pip install r | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:35:31.365487 | run_terminal_command | cmd: cd /home/genesis/genesis; ls -l /usr/local/bin/*py | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:35:35.277295 | run_terminal_command | cmd: cd /home/genesis/genesis; PYTHONPATH=src python3 - | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:35:41.339343 | run_terminal_command | cmd: cd /home/genesis/genesis; PYTHONPATH=src python3 - | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:35:50.449220 | run_terminal_command | cmd: cd /home/genesis/genesis; PYTHONPATH=src python3 - | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:35:53.455651 | run_terminal_command | cmd: cd /home/genesis/genesis; python3 -m py_compile sr | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-21T22:35:57.244842 | run_terminal_command | cmd: cd /home/genesis/genesis; PYTHONPATH=src python3 - | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:36:00.541149 | search_replace | verification/verification-log.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-21T22:36:08.987413 | search_replace | verification/CodeKnowledge.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:36:12.668432 | search_replace | WORK_QUEUE.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:36:20.127896 | search_replace | docs/BUILD_LOG.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:37:52.260139 | search_replace | verification/hermes-remaining-work-plan.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:37:55.515363 | search_replace | verification/autonomous-plan.md | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:38:17.288250 | search_replace | docs/BUILD_LOG.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-21T22:38:26.904516 | search_replace | verification/verification-log.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-21T22:38:30.973408 | search_replace | WORK_QUEUE.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-21T22:38:46.686474 | search_replace | /home/genesis/genesis/src/gen/electronics.py | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-21T22:38:48.747650 | search_replace | /home/genesis/genesis/src/gen/electronics.py | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-21T22:38:53.206411 | search_replace | /home/genesis/genesis/src/gen/electronics.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-21T22:38:55.366329 | search_replace | /home/genesis/genesis/src/gen/electronics.py | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-21T22:38:58.403936 | search_replace | /home/genesis/genesis/src/gen/electronics.py | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-21T22:39:03.393206 | search_replace | /home/genesis/genesis/docs/CAPABILITIES.md | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:39:14.049605 | search_replace | /home/genesis/genesis/WORK_QUEUE.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-21T22:39:16.239844 | run_terminal_command | cmd: tail -20 /home/genesis/genesis/verification/verifi | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:39:27.817753 | search_replace | /home/genesis/genesis/verification/verification-log.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-21T22:39:36.665207 | search_replace | /home/genesis/genesis/verification/CodeKnowledge.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:39:38.743787 | run_terminal_command | cmd: tail -5 /home/genesis/genesis/verification/CodeKno | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:39:44.753633 | search_replace | /home/genesis/genesis/verification/CodeKnowledge.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:39:47.039914 | run_terminal_command | cmd: tail -10 /home/genesis/genesis/docs/BUILD_LOG.md | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:39:51.069830 | search_replace | /home/genesis/genesis/docs/BUILD_LOG.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-21T22:39:59.435325 | run_terminal_command | cmd: cd /home/genesis/genesis; python -m pytest tests/t | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:40:01.636178 | run_terminal_command | cmd: cd /home/genesis/genesis; which python3; python3 - | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:40:04.436378 | run_terminal_command | cmd: cd /home/genesis/genesis; PYTHONPATH=src python3 - | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:40:08.145430 | run_terminal_command | cmd: cd /home/genesis/genesis; python3 -m pip install - | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:40:12.133123 | run_terminal_command | cmd: cd /home/genesis/genesis; PYTHONPATH=src python3 - | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:40:19.342504 | run_terminal_command | cmd: cd /home/genesis/genesis; PYTHONPATH=src python3 - | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:40:23.735826 | run_terminal_command | cmd: cd /home/genesis/genesis; python3 -m py_compile sr | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-21T22:40:26.937458 | run_terminal_command | cmd: cd /home/genesis/genesis; python3 -m ruff check sr | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-21T22:40:33.834823 | run_terminal_command | cmd: cd /home/genesis/genesis; python3 -c '
+import ast, | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:40:38.928955 | run_terminal_command | cmd: cd /home/genesis/genesis; python3 -c '
+import ast
+ | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:40:43.635908 | run_terminal_command | cmd: cd /home/genesis/genesis; python3 -c '
+import ast
+ | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:40:55.335825 | run_terminal_command | cmd: cd /home/genesis/genesis; PYTHONPATH=src python3 - | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:43:41.532581 | run_terminal_command | cmd: wc -l /home/genesis/genesis/verification/verificat | → /vibe-verify or RecoveryPlaybook
+- 2026-06-21T22:45:16.100039 | search_replace | /home/genesis/genesis/verification/verification-log.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook

@@ -1,0 +1,7 @@
+# Lint baseline (ruff defaults: E4/E7/E9 + F). Kept clean by the self-improvement
+# loop; run `ruff check src tests` — it must report zero findings.
+
+[lint.per-file-ignores]
+# `I` is the second moment of area — standard engineering notation in the beam
+# tests; renaming it would hurt the physics readability, not improve it.
+"tests/test_fem.py" = ["E741"]
