@@ -452,6 +452,8 @@ kostenlose, offene APIs/Werkzeuge. Konkrete Swaps gegen zahlungspflichtige Wege:
 | **M5 · Produkt** | Web-UI entsperrt + Erfinder-Flow (Idee→Pareto-Erfindungen→Artefakt-Download); Provenance/Gaps sichtbar | ein Laie erfindet über den Browser etwas Geerdetes, ohne CLI |
 | **M6 · Pro-Härtung** | Deep-Review der neuen Module (Cross-Model), Eval-Harness für Erfindungs-Qualität, Doku/Relabel, CI | neue Module review-sauber; Erfindungs-Eval misst Neuheit/Erdung/Wert; Doku ehrlich |
 
+**Status-Relabel (2026-06-20, autonom):** M0–M3 + M3⁺/M3⁺⁺ (Forschungs-Kern) gebaut, getestet, committet. **M5** (Web-Erfinder-Flow) und **M6** (Integritäts-Eval-Harness) **offline gebaut + getestet + committet** (`bbf7106`); ihr Live-Anteil (echter Council, Laien-Browserlauf gegen Live-Modelle) bleibt Owner-Maschine. **M4**: Orakel-Interface + ein konkreter Materialien-Orakel-Adapter (ORB-Klasse) + Offline-Zwilling gebaut (`2094827`); die echten GPU-Modelle (Boltz-2/ORB/Aurora) bleiben Owner-Maschine. Volle Offline-Suite grün.
+
 Reihenfolge ist bewusst: **erst ein echter Erfindungs-Lauf in der starken Domäne (M1) — der ehrliche
 Beweis, dass es wirklich erfindet** — dann Neuheit/Tiefe/Breite/Produkt. „Erst Plan" (deine Wahl) ist
 dieses Dokument; M0 beginnt nach deiner Freigabe.
@@ -554,21 +556,35 @@ Schicht, dann der vertikale Erfindungs-Loop. Volle Offline-Suite **1784 passed /
   überschreitet das 300s-Timeout (B1) → `--live` degradiert sauber offline; GPU-Orakel/PySR-Julia/Lean/paid-Keys
   = Owner-Maschine (B3–B6), je mit Offline-Zwilling der die Verdrahtung beweist.
 
+**M4 + M5 + M6 + Forschungs-Kern-Verifikation (2026-06-20, autonom; alles committet außer dieser Doku + `simulated_data`):**
+- **M5 — Web-Erfinder-Flow (offline):** `POST /api/invent` + `/api/solve` fahren den deterministischen Loop
+  (scripted Council + δ-Physik-Gate) → rangierte geerdete Erfindungen mit Artefakt-Download; Waffen-Brief
+  refused VOR Generierung; Frontend-„Erfinden"-Control (JS `node --check`-geprüft) verdrahtet. `web/app.py` +
+  `static/index.html` + 6 Web-Tests. Live-Council bleibt CLI-only (B1). **Commit `bbf7106`.**
+- **M6 — Integritäts-Eval-Harness:** `inventor/eval.py` misst Sicherheit + Erdungs-Ehrlichkeit (erdet wenn
+  machbar, schweigt ehrlich wenn zu kühn — kein Fake-Pass) + Determinismus; **diskriminiert** (eine falsche
+  Erwartung wird geflaggt, nicht durchgewunken). `GET /api/invent/eval`. 5 Tests. **Commit `bbf7106`.**
+- **M4 — Materialien-Energie-Orakel (import-gegatet):** `external/materials_oracle.py` — lizenz-disziplinierter
+  Apache-Binding (ORB), Offline-Zwilling → Antwort nur als **UNVERIFIED** gegateter Claim (nie Roh-Wahrheit),
+  echter Adapter skippt ehrlich ohne GPU-Dep. 4 Tests. **Commit `2094827`.** Echte GPU-Modelle = Owner-Maschine.
+- **Forschungs-Kern §10 verifiziert + Lücke geschlossen:** alle Bausteine importieren & sind verdrahtet
+  (engine, active_resolution, first_principles, proof_kernels, reality, reality_fork, sindy, uncertainty,
+  srbench_hygiene, validation, simulation.backends, fem, electronics); `experiment_designer` liegt in
+  `grenzverschiebung/`. `discovery/engine` nimmt einen callable (`target_fn`, informativ). **NEU
+  `discovery/simulated_data.py`** (`problem_from_simulation`/`discover_from_simulation`): erzeugt
+  SELBST-gesampelte Daten aus einer Sim-/Closed-Form-Funktion → dimensionale SR-Engine — **E=½·m·v² und die
+  Pendelperiode T=2π·√(L/g) exakt aus selbst-erzeugten Daten recovered** (Exponenten m=1/v=2 bzw. L=0.5,
+  R²=1.0, „bestaetigt"). Der SINDy←`simulate_pendulum`-Pfad (CLI `discover-ode`) deckt die Dynamik-Seite ab.
+  6 Tests. *(noch uncommitted — Commit-Befehl in der Übergabe.)* Evidenz-Basis = Gate-Detail + selbst-erzeugtes
+  Problem; Falsifikator = `active_resolution` (separater Zug, nicht ins Verdikt eingebettet — ehrlich offen).
+- **Validator-Tiefe:** 35 Prüfachsen (`physics_selection.RECIPES`), **35/35 mit dedizierter Test-Datei**, volle
+  Suite grün; je-Achse-Anker-Stichproben (Deep-Review) bleiben offen.
+- **Voll-Verifikation:** ruff sauber; Offline-Suite **1739 passed / 44 skipped / 0 failed** (+ neue Tests;
+  fastapi lokal installiert, damit die Web-Tests echt laufen statt zu skippen).
+
 **Noch zu prüfen (offen):**
 - ☐ **Live-CLI-Verfügbarkeit:** Antworten `claude -p` und `grok -p` auf Ozans Rechner eingeloggt (PONG)? *(M0-Voraussetzung; Claude ✓ PONG; voller Council-Lauf >300s = B1 BLOCKED)*
-- ☐ **Validator-Tiefe:** Welche der ~36 Achsen sind wirklich gegen Anker verifiziert vs. nur vorhanden? (Deep-Review Schritt 7–9 lt. WORK_QUEUE offen.)
+- ☑ **Validator-Tiefe:** 35 Prüfachsen (`physics_selection.RECIPES`), **35/35 mit dedizierter Test-Datei**, volle Suite grün — Breite verifiziert; je-Achse-Anker-Stichprobe (Deep-Review 7–9) bleibt offen.
 - ☐ **Connector-Robustheit live:** Rate-Limits, Ausfälle, Extraktionsqualität (`EXTRACTION_BOTTLENECK.md`).
 - ☑ **measurand-Emission:** Im Loop verdrahtet — der (injizierbare) Architekt emittiert measurand-getaggte Quantities, das δ-Auto-Select feuert die Physik-Checks auto; offline-deterministisch bewiesen (resonance-Gate pass/fail). Live-Modell-Zuverlässigkeit bleibt B1 (Council-Timeout).
-- ☑ **Novelty-Mechanik:** `novelty.py` gebaut — `char_ngram_embed`-Distanz (dense Ollama opt-in) über echte Connectoren (OpenAlex+Patents), 3-Stufen-Verdikt + `nearest_prior_art`-Beleg; Patent-Connector `tools/sources/patents.py` ✓.
-- ☑ **Safety-Gate fürs Erfinden:** `inventor/safety.py` — deterministische Refuse-Tabelle (Waffen/Bio) als ERSTER Loop-Schritt verdrahtet (Spy-Council 0 Aufrufe bewiesen) + `SafetyStagePlan`-Leiter aus `grenzverschiebung/safety_ladder`-Typen.
-- ☑ **3 korrupte Dateien** = FALSE bestätigt (alle 233 `src/gen/**` parsen) — *(M0)*.
-- ☐ **Determinismus/Repro** an den Gates bei live-LLM-Erzeugung sauber geloggt?
-- ☐ **wissensbasis Seed-Inhalt:** Wie viel ist real geseedet vs. leer?
-- ☐ **Entdeckungs-Bausteine live (Forschungs-Kern, §10 — höchste Priorität laut Owner):** Sind `experiment_designer`, `reality`/δ⁺, `active_resolution`, `first_principles`, `proof_kernels` und die Simulatoren (`pybullet`/`multibody`/`fem*`/`electronics`/`bio_molecular`) wirklich verdrahtet & lauffähig? Nimmt `discovery/engine` eine **Sim-Funktion als Datenquelle** (selbst-erzeugte Daten), nicht nur statische Zahlen? Trägt jeder entdeckte Kandidat Evidenz-Basis + Falsifikator?
-- ☐ *(weitere Punkte hier eintragen, während wir prüfen)*
-
----
-
-*Dies ist der Bauplan. Er nutzt ~70 % vorhandene, echte Bausteine und fügt die genuin neue Mitte
-hinzu: den Erfindungs-Loop, das gemessene Neuheits-Gate und das Domänen-Plugin-Modell. Er hält
-GENESIS' Versprechen — kühn erfinden, niemals lügen — und macht es zum ersten Mal zur Laufzeit wahr.*
+- ☑ **Novelty-Mechanik:** `novelty.py` gebaut — `char_ngram_embed`-Distanz (dense Ollama opt-in) über echte Connectoren (OpenAlex+Patents), 3-Stufen-Verdikt + `nearest_prior_art`-Beleg; Patent-Connector `
