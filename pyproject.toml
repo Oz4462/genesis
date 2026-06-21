@@ -25,7 +25,7 @@ postgres = ["asyncpg>=0.29"]                   # persistent ledger (in-memory is
 verify = ["trust-core>=0.1.0"]                 # conformal/FDR single-source + CCDD drift (gen.verification.trustcore_adapter / drift_monitor); core stays numpy-only
 smt = ["z3-solver>=4.13"]                       # global constraint feasibility (gen.verification.constraint_smt); closes the transitive-infeasibility gap
 sim = ["pybullet>=3.2"]                          # full-contact multibody dynamics cross-check (gen.simulation.pybullet_sim, headless DIRECT); core stays numpy-only, tests skip without it
-dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.4", "httpx>=0.27"]   # pytest-asyncio drives the async LLM-CLI adapter tests (gen.llm.claude_cli / grok_cli)
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.4", "httpx>=0.27", "pyyaml>=6"]   # pytest-asyncio drives the async LLM-CLI adapter tests; pyyaml is needed by the config.load_yaml acceptance test (yaml stays an OPTIONAL runtime dep — the CLI default uses default_config())
 full = ["genesis-engine[web,cad,postgres,verify,smt,sim,dev]"]
 
 [project.scripts]
