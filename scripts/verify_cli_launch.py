@@ -89,7 +89,7 @@ def main() -> int:
         print(f"   {'OK ' if match else 'XX '} sent={sent!r} got={recv!r}")
         quoting_ok &= match
     if len(got) != len(cases):
-        print(f"   !! arg COUNT mismatch: a metacharacter split an argument")
+        print("   !! arg COUNT mismatch: a metacharacter split an argument")
         quoting_ok = False
     ok_all &= quoting_ok
 
