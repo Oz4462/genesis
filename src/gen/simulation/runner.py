@@ -10,7 +10,6 @@ Completes the simulation hardening (Punkt 4):
 
 δ+ elaboration: build_simulation_report + generate now also exercise guarded evaluate_reality
 (from sim cases) + reviewed_failure_modes pop (sim grounded) + runtime attach on report (lumen pattern).
-"""
 
 First hardened version focuses on mechanical prototypes (structural + modal).
 Can be extended to thermal, fatigue, buckling etc. without changing the contract.
