@@ -40,9 +40,14 @@ _SYSTEM = (
 
 
 def approach_id(run_id: str, name: str, grounding: list[str], tradeoffs: list[str] | None = None) -> str:
-    """Deterministic id from (run, name, grounding, tradeoffs) — includes secondary to prevent
-    D13(a) collision (two approaches same name/grounding but diff tradeoffs/mech were dropped).
-    Secondary folded in for id stability within run."""
+    """Deterministic id from (run, name, grounding, tradeoffs).
+
+    This is the dedup identity: two approaches collide iff they share name AND the
+    same grounding AND the same tradeoffs. The secondary (tradeoffs) is folded in so
+    two approaches with the same name/grounding but different tradeoffs are NOT
+    treated as one (D13(a) collision). Callers pass the approach's PRESENTED
+    distinguishing fields here so a genuinely-different proposal keeps a distinct id;
+    grounding/tradeoffs are order-insensitive (sorted before hashing)."""
     key = name + "|" + "|".join(sorted(grounding))
     if tradeoffs:
         key += "|t:" + "|".join(sorted(tradeoffs))
@@ -62,8 +67,11 @@ class Synthesizer:
     Produces no facts of its own; every approach is anchored in existing VERIFIED
     claims. Rebuilds ``state.approaches`` from scratch on each call so it is
     idempotent across the conductor's refine rounds.
-    D13 notes (low, smallest): secondary fields now in id; grounding deduped pre-emit;
-    cap applied; non-dict filter count not logged (honest note only).
+    D13 notes (low, smallest): dedup identity uses the PRESENTED distinguishing fields
+    (name + presented grounding + presented tradeoffs), so a proposal differing only by
+    a presented-but-unverified id survives; emitted approaches still carry only verified
+    ids. Grounding deduped pre-emit; cap applied; non-dict filter count not logged
+    (honest note only).
     """
 
     name = "synthesizer"
@@ -112,7 +120,18 @@ class Synthesizer:
                     f"synthesizer: drop approach {name!r} (no verified grounding)"
                 )
                 continue
-            ap_id = approach_id(run_id, name, grounding, tradeoffs)
+            # Dedup identity is the approach AS THE MODEL PRESENTED IT — name plus the
+            # presented grounding plus the presented tradeoffs — NOT the verified-filtered
+            # fields. Why: a proposal that differs only by a presented-but-unverified
+            # tradeoff id (e.g. "c-extra" that the verifier strips) is a genuinely distinct
+            # alternative the model offered; keying the dedup on the post-strip identity
+            # would silently collapse it into an earlier approach and lose a real option.
+            # The presented ids feed the hash only (order-insensitive, deduped) — the
+            # emitted Approach below still carries ONLY verified ids, so no unverified id
+            # is ever surfaced and grounding validation is not weakened.
+            presented_g = list(dict.fromkeys(raw_g))
+            presented_t = list(dict.fromkeys(raw_t))
+            ap_id = approach_id(run_id, name, presented_g, presented_t)
             if ap_id in seen:
                 state.log.append(f"synthesizer: drop duplicate approach {name!r}")
                 continue
