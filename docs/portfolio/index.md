@@ -6,21 +6,23 @@
 
 | Status | Count |
 | --- | --- |
-| done | 2 |
+| done | 3 |
 
 ```mermaid
 kanban
   done
-    nT01[T01: Unit tests for dimensional_guard scale-invariance API]
-    nT02[T02: Unit tests for config defaults, hash determinism, and round-trip]
+    nT01[T01: Unit tests for reality.py (GATE δ⁺ reality proof)]
+    nT02[T02: Unit tests for memory_fabric.py (GATE ζ shared-memory fabric)]
+    nT03[T03: Unit tests for frontier.py (GATE χ frontier map)]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | Unit tests for dimensional_guard scale-invariance API | done | claude | feature |
-| T02 | Unit tests for config defaults, hash determinism, and round-trip | done | claude | feature |
+| T01 | Unit tests for reality.py (GATE δ⁺ reality proof) | done | claude | feature |
+| T02 | Unit tests for memory_fabric.py (GATE ζ shared-memory fabric) | done | claude | feature |
+| T03 | Unit tests for frontier.py (GATE χ frontier map) | done | claude | feature |
 
 ## Decisions
 
@@ -43,6 +45,24 @@ kanban
 - (2026-06-22) For dimensional_guard, drive the API with tiny in-test functions returning {'safety_factor': ...}: a homogeneous ratio fn (allowable/actual, same dimension) must report invariant=True; a non-homogeneous fn (adds a length term to a mass term via mismatched unit strings) must report invariant=False AND make assert_scale_invariant raise DimensionalInconsistencyError — no dependency on any real validator, keeping the task self-contained.
 - (2026-06-22) For config, assert config_hash is a stable 64-char hex SHA-256 equal across two independent default Config() builds (determinism) and DIFFERENT after from_dict mutates a field, and that Config().to_dict()/from_dict round-trips to an equal frozen dataclass — testing the documented A5 reproducibility contract, not implementation details.
 - (2026-06-22) Edge cases stay scoped to genuine public-API behavior (zero/non-finite base result comparing by exact equality in scale_invariance_report; from_dict's str→1-tuple search_backends coercion; default factory independence), not blanket feature-creep, per the no-silent-defaults convention.
+- (2026-06-22) Split strictly by module (reality vs frontier): the two source files share no imports beyond core.state, and each gets its own brand-new test file, so parallel worktrees never write the same path — zero collision risk.
+- (2026-06-22) Keep each module's test in the SAME task as the module it imports; both tasks add ONLY a new test file under tests/ and edit no source, satisfying the 'pass using only this task's files plus pre-existing repo files' isolation rule (the transitive deps core/state.py, core/errors.py, core/interfaces.py, verification/units.py already exist in the repo).
+- (2026-06-22) For reality, exercise all four evaluate_reality verdicts (CORROBORATED within tolerance, REFUTED outside, INCONCLUSIVE on dimension mismatch / non-retrieved provenance / non-finite / unparseable unit) plus the unit-scale conversion path (measured value rescaled into the predicted unit), and gate_delta_plus's four codes (GROUNDING_UNKNOWN_CLAIM, EXPERIMENT_MISMATCH, UNSOURCED/DEAD source) — testing the documented HORIZON §2B contract, not implementation details.
+- (2026-06-22) For frontier, assert build_frontier_map emits one KnownRegion only for VERIFIED claims with confidence >= threshold that are actually USED (report/solution/spec), produces FrontierEdges for non-empty surfaced gaps and for REFUTED/UNSUPPORTED claims while skipping whitespace-only gaps, and is deterministic (same RunState -> identical FrontierMap) per the A5 reproducibility contract.
+- (2026-06-22) Builders must construct state objects through the real constructors in core/state.py (reading actual field/enum names rather than inventing them) and abstain from any new dependency — stdlib + the project's declared deps only.
+- (2026-06-22) Edge cases stay scoped to genuine public-API behavior (zero/exact-boundary residual == tolerance, empty claim/gap lists, confidence exactly at threshold, unretrieved source rejection), not blanket feature-creep, per the no-silent-defaults convention.
+- (2026-06-22) Excluded reality.py and frontier.py despite being untested on main: the 2026-06-22 team decision log already planned brand-new test files for both, so re-planning them would collide with in-flight work — picked three modules absent from that log instead.
+- (2026-06-22) Split strictly by module (memory_fabric vs coverage vs inverse_design); the three source files share no mutual imports (only common lightweight internals core.state/core.interfaces) and each gets a distinct new test file, so parallel worktrees never write the same path — zero collision risk.
+- (2026-06-22) Each task adds ONLY a new tests/test_<module>.py and edits no src/ file; all transitive deps (core.state, core.interfaces, core.errors, physics_selection, verification.constraint_smt, pipeline, verification.units/derivation/gates) already exist in the repo, satisfying the 'pass using only this task's files plus pre-existing repo files' isolation rule.
+- (2026-06-22) Builders must construct state/spec objects through the REAL constructors and enum names in src/gen/core/state.py (read them, never invent fields), and use only stdlib + the project's declared deps — no new dependency.
+- (2026-06-22) Tests must exercise both the happy path AND the documented fail-loud guards (ValueError/gate-failure codes), asserting the exact GateFailure.code strings and ValueError messages so a regression in the guard fails the test — per the no-silent-defaults principle and 'a gate without a test does not exist'.
+- (2026-06-22) For coverage, the z3-dependent constraint path is optional: tests target the always-available mechanical paths (empty-spec → empty requirements, physics-recipe measurand filtering, complete-certificate gate, UNDECLARED_FAILURE_MODE) and treat the SMT/UNTESTABLE branch as an accepted fallback rather than requiring z3-solver to be installed.
+- (2026-06-22) Edge cases stay scoped to genuine public-API behavior (empty inputs, boundary confidence/tolerance equal-to-threshold, duplicate detection, unit mismatch, run-id mismatch, non-finite values), not blanket feature-creep guards — matching the project's existing test conventions.
+- (2026-06-22) Determinism is asserted where the contract promises it (build_memory_fabric_certificate / build_pareto_front produce identical output for identical input; certificate.run_id == state.question.run_id), upholding the A5 reproducibility principle.
+- (2026-06-22) Picked reality.py, memory_fabric.py, frontier.py because they are pure/deterministic, have NO dedicated test_<module>.py, are individually important (they implement GATE δ⁺/ζ/χ), and have rich branch logic (multiple distinct failure codes + verdict paths) that rewards thorough unit testing.
+- (2026-06-22) Excluded infra modules (llm/* adapters, tools/http) — they need network/subprocess mocking and would be brittle; the chosen modules are deterministic and test cleanly with hand-built core.state objects.
+- (2026-06-22) One module ⇒ one new test file ⇒ one task: each task's tests import only its target module plus pre-existing src/gen + core.state, so it passes standalone in its own worktree with zero cross-task dependency.
+- (2026-06-22) Builders must NOT modify any file under src/gen/; tests construct inputs via the existing core.state dataclasses (read their real field names from src/gen/core/state.py).
 
 ### Architecture Decision Records
 
@@ -50,20 +70,23 @@ kanban
 - 0002. Deep-review campaign — next modules. Carefully review these
 - 0003. semgrep nicht installierbar  du kannst es installieren
 - 0004. Add focused pytest unit tests for two currently-untested mod
+- 0005. Add focused pytest unit tests for two currently-untested mod
+- 0006. Improve test coverage across the genesis engine: pick 3 impo
+- 0007. Improve test coverage across the genesis engine: pick 3 impo
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 1 |
-| Tasks (total) | 2 |
-| Done | 1 |
+| Runs | 2 |
+| Tasks (total) | 4 |
+| Done | 3 |
 | Blocked | 0 |
-| Resolved rate | 50% |
+| Resolved rate | 75% |
 | Blocked rate | 0% |
-| Merges | 0 |
-| Avg duration | 553.5m |
-| Total cost | 3.52 |
+| Merges | 1 |
+| Avg duration | 296.1m |
+| Total cost | 7.89 |
 
 ## Architecture
 
@@ -79,6 +102,14 @@ graph TD
 
 Recent commits:
 
+- `cc63f28 Merge branch 'crew/T03-claude' into crew/integration`
+- `228a904 Merge branch 'crew/T02-claude' into crew/integration`
+- `9ea0cac crew(claude): T02 Unit tests for memory_fabric.py (GATE ζ shared-memory fabric) [round 1]`
+- `069999a crew(claude): T03 Unit tests for frontier.py (GATE χ frontier map) [round 1]`
+- `880be4b crew(claude): T01 Unit tests for reality.py (GATE δ⁺ reality proof) [round 1]`
+- `71ac19c Remove inappropriate Docker/deploy scaffolding (genesis is a research library/CLI, not a deployable web service)`
+- `acadfe9 Merge branch 'crew/integration'`
+- `ebf66f9 crew: scaffold CI/CD + project config`
 - `acf71f3 Merge branch 'crew/T02-claude' into crew/integration`
 - `a0e3038 crew(claude): T02 Unit tests for config defaults, hash determinism, and round-trip [round 2]`
 - `3515729 crew(claude): T02 Unit tests for config defaults, hash determinism, and round-trip [round 1]`
