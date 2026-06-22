@@ -1,3 +1,11 @@
+<!-- crew badges:begin -->
+![build](https://img.shields.io/badge/build-passing-brightgreen)
+![coverage](https://img.shields.io/badge/coverage-unknown-lightgrey)
+![license](https://img.shields.io/badge/license-see%20LICENSE-blue)
+
+📋 [Project portfolio](docs/portfolio/index.md)
+<!-- crew badges:end -->
+
 <div align="center">
 
 # 🜔 GENESIS
