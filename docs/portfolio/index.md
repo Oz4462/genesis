@@ -6,23 +6,27 @@
 
 | Status | Count |
 | --- | --- |
-| done | 3 |
+| done | 5 |
 
 ```mermaid
 kanban
   done
-    nT01[T01: Unit tests for reality.py (GATE δ⁺ reality proof)]
-    nT02[T02: Unit tests for memory_fabric.py (GATE ζ shared-memory fabric)]
-    nT03[T03: Unit tests for frontier.py (GATE χ frontier map)]
+    nT01[T01: lumencrucible: make hammer_omega_certificate + self_improvement real]
+    nT02[T02: lernmaschine: make the 8-step lern chain genuinely real]
+    nT03[T03: inventor loop: make γ+ bridge derive + attach to RunState]
+    nT04[T04: synthesizer: make duplicate-approach dedup correct + logged]
+    nT05[T05: fem3d: prove deflection/stress scale with load + geometry]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | Unit tests for reality.py (GATE δ⁺ reality proof) | done | claude | feature |
-| T02 | Unit tests for memory_fabric.py (GATE ζ shared-memory fabric) | done | claude | feature |
-| T03 | Unit tests for frontier.py (GATE χ frontier map) | done | claude | feature |
+| T01 | lumencrucible: make hammer_omega_certificate + self_improvement real | done | claude | feature |
+| T02 | lernmaschine: make the 8-step lern chain genuinely real | done | claude | feature |
+| T03 | inventor loop: make γ+ bridge derive + attach to RunState | done | claude | feature |
+| T04 | synthesizer: make duplicate-approach dedup correct + logged | done | claude | feature |
+| T05 | fem3d: prove deflection/stress scale with load + geometry | done | claude | feature |
 
 ## Decisions
 
@@ -63,6 +67,28 @@ kanban
 - (2026-06-22) Excluded infra modules (llm/* adapters, tools/http) — they need network/subprocess mocking and would be brittle; the chosen modules are deterministic and test cleanly with hand-built core.state objects.
 - (2026-06-22) One module ⇒ one new test file ⇒ one task: each task's tests import only its target module plus pre-existing src/gen + core.state, so it passes standalone in its own worktree with zero cross-task dependency.
 - (2026-06-22) Builders must NOT modify any file under src/gen/; tests construct inputs via the existing core.state dataclasses (read their real field names from src/gen/core/state.py).
+- (2026-06-22) Split strictly by module across two disjoint facade-risk layers (grenzverschiebung/* boundary modules and pipelines/* domain pipelines); the chosen source files share no mutual imports beyond lightweight core.state/core.interfaces, and each task adds a uniquely-named tests/test_<module>.py plus docs/audit/DEPTH_AUDIT_<module>.md — zero path collision across worktrees.
+- (2026-06-22) Each task adds ONLY a new test file and a new audit doc; it edits its OWN single source module ONLY if it independently confirms a genuine defect (silent wrong/constant value, missing documented guard, dead input that never affects output) — never blanket feature-creep — upholding the project's 'change nothing if correct' and 'keine stillen Defaults' conventions.
+- (2026-06-22) Every test must be a real facade-detector, not a smoke test: at minimum assert (a) output changes meaningfully when a driving input changes — proving the input is actually consumed, and (b) the documented fail-loud path raises the exact error/gate code — proving guards exist; per 'a gate without a test does not exist'.
+- (2026-06-22) Picked technology_builder, experiment_designer, safety_ladder, milestone_builder (grenzverschiebung) and ingenieur, elektriker (pipelines) because all six lack a dedicated test_<module>.py on main, are named in the platform-plan backlog as boundary/domain capabilities, and are the highest facade-risk (claimed 'built' but unverified for real input-depth).
+- (2026-06-22) Builders MUST construct inputs through the REAL constructors/enum names in src/gen/core/state.py and the module's real signatures (read them, never invent fields), and use only stdlib + the project's already-declared deps — no new dependency — keeping each task self-contained and deterministic.
+- (2026-06-22) The DEPTH_AUDIT doc per module must state an explicit verdict (REAL / PARTIAL-FACADE / FACADE) with concrete evidence (which inputs are genuinely consumed, which outputs are computed vs hardcoded, which backlog .md item it satisfies or leaves open), so the loop produces a cumulative honest map of what truly works.
+- (2026-06-22) Split strictly by module: the five source files share no mutual imports beyond pre-existing core/* helpers, and each task adds a uniquely-named tests/test_*_<aspect>.py — zero path collision across worktrees.
+- (2026-06-22) Each task creates a NEW characterization test rather than editing the existing deselected test, so the new test is the authoritative pass/fail signal the builder drives to green while leaving the legacy test files untouched (no churn).
+- (2026-06-22) Tests call the real upstream collaborators (build_full_mini_realization_package, scripted_council/architect, evaluate_reality, build_pareto_front, real ScriptedLLM payloads) as pre-existing repo files — these are allowed because the rule forbids mocking only the module UNDER test, and importing pre-existing modules is permitted under the isolation rule.
+- (2026-06-22) Source edits are confined to the module's own files; if a failure's true root cause lies in a cross-module collaborator (e.g. lernmaschine's e2e depends on integrator STL emission), the builder fixes only the wiring it owns and documents the external remainder under docs/audit/ rather than touching another module.
+- (2026-06-22) fem3d's core tet solver is already real (uniform-stress exact tests pass); its task's value is a public load+geometry helper plus a scaling-law characterization test (linearity in load, L/A geometry scaling) that proves the numbers are computed, not canned — a real improvement on top of a real solver.
+- (2026-06-22) synthesizer's dedup already logs drops, but the deselected test exposes a real bug: a third proposal whose only distinguishing tradeoff id ('c-extra') is unverified gets its tradeoffs stripped, collapsing its dedup id into the first → only 1 approach instead of 2; the fix must make the dedup identity reflect the approach's presented distinguishing fields so a genuinely-different proposal survives, without weakening grounding validation.
+- (2026-06-22) preferredBuilder=claude on the cleanly-deterministic test-centric tasks (fem3d, synthesizer, inventor_loop) per the test→claude routing; left null on the two large debugging-surface tasks (lumencrucible, lernmaschine) where no clear leader applies.
+- (2026-06-22) Split strictly by module across 5 disjoint source paths (grenzverschiebung/lumencrucible.py, lernmaschine/engine.py, inventor/loop.py, agents/synthesizer.py, fem3d.py); they share no mutual imports beyond lightweight core/* helpers, and each task adds a uniquely-named tests/test_*_characterization.py + docs/audit/DEPTH_AUDIT_<module>.md — zero path collision across worktrees.
+- (2026-06-22) Note the real path of the inventor task is src/gen/inventor/loop.py (NOT src/gen/inventor_loop.py as the brief abbreviates) — the loop lives in the inventor package.
+- (2026-06-22) Each task creates a NEW characterization test rather than editing the existing deselected legacy test, so the new file is the authoritative pass/fail signal the builder drives to green while leaving legacy test files untouched (no churn) — consistent with the 2026-06-22 team decision.
+- (2026-06-22) Tests may call pre-existing upstream collaborators (build_full_mini_realization_package, scripted_council/architect, evaluate_reality, build_pareto_front, ScriptedLLM payloads, solve_elasticity) as real wiring — the isolation rule forbids mocking only the module UNDER test; importing pre-existing repo modules is allowed.
+- (2026-06-22) synthesizer dedup root cause is confirmed: the third proposal's only distinguishing field is an UNVERIFIED tradeoff id ('c-extra') that gets stripped, collapsing its dedup id into the first → 1 approach instead of 2; the fix must make the dedup identity reflect the approach's PRESENTED distinguishing fields (so a genuinely-different proposal survives) while the emitted Approach still carries only VERIFIED grounding/tradeoffs — never weaken grounding validation.
+- (2026-06-22) fem3d's tet solver is already real (uniform-stress exact tests pass on main), so its task's value is a scaling-law characterization test proving deflection/stress scale linearly with load and with L/A geometry (numbers are computed, not canned), plus any minimal public load/geometry helper needed to drive it.
+- (2026-06-22) lernmaschine's e2e transitively depends on integrator STL emission (a different module); the builder fixes ONLY the lern-chain wiring engine.py owns (8 real steps, real delta, persisted_key, apply-to-frontier/realization) and documents any external STL remainder under docs/audit/ rather than touching integrator.
+- (2026-06-22) Source edits are confined to each module's own files; if a complete fix is too large for one task, ship a real verifiable improvement with the new test proving the new behavior and record what remains under docs/audit/.
+- (2026-06-22) preferredBuilder=claude on the cleanly-deterministic test-centric tasks (fem3d, synthesizer, inventor_loop) per test→claude routing; left null on the two large debugging-surface tasks (lumencrucible, lernmaschine) where no clear leader applies.
 
 ### Architecture Decision Records
 
@@ -73,20 +99,23 @@ kanban
 - 0005. Add focused pytest unit tests for two currently-untested mod
 - 0006. Improve test coverage across the genesis engine: pick 3 impo
 - 0007. Improve test coverage across the genesis engine: pick 3 impo
+- 0008. /home/genesis/genesis wir arbeiten an genesis wir prüfen ob
+- 0009. Depth-audit AND FIX — wave 2. For each module below the job
+- 0010. Depth-audit AND FIX — wave 2. For each module below the job
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 2 |
-| Tasks (total) | 4 |
-| Done | 3 |
+| Runs | 3 |
+| Tasks (total) | 7 |
+| Done | 6 |
 | Blocked | 0 |
-| Resolved rate | 75% |
+| Resolved rate | 86% |
 | Blocked rate | 0% |
-| Merges | 1 |
-| Avg duration | 296.1m |
-| Total cost | 7.89 |
+| Merges | 2 |
+| Avg duration | 206.7m |
+| Total cost | 13.83 |
 
 ## Architecture
 
@@ -102,6 +131,18 @@ graph TD
 
 Recent commits:
 
+- `81931a4 Merge branch 'crew/T05-claude' into crew/integration`
+- `d75d4a2 Merge branch 'crew/T04-claude' into crew/integration`
+- `93148fe Merge branch 'crew/T03-claude' into crew/integration`
+- `f0c3ae0 Merge branch 'crew/T02-claude' into crew/integration`
+- `66b6c33 crew(claude): T02 lernmaschine: make the 8-step lern chain genuinely real [round 1]`
+- `57c261a crew(claude): T01 lumencrucible: make hammer_omega_certificate + self_improvement real [round 1]`
+- `d5f3aed crew(claude): T05 fem3d: prove deflection/stress scale with load + geometry [round 1]`
+- `6a57326 crew(claude): T04 synthesizer: make duplicate-approach dedup correct + logged [round 1]`
+- `5ae9af2 crew(claude): T03 inventor loop: make γ+ bridge derive + attach to RunState [round 1]`
+- `6ac5f62 fix(simulation): repair broken module docstring in runner.py (SyntaxError blocked all imports)`
+- `629c43e Merge branch 'crew/integration'`
+- `6452ac5 crew: scaffold CI/CD + project config`
 - `cc63f28 Merge branch 'crew/T03-claude' into crew/integration`
 - `228a904 Merge branch 'crew/T02-claude' into crew/integration`
 - `9ea0cac crew(claude): T02 Unit tests for memory_fabric.py (GATE ζ shared-memory fabric) [round 1]`
@@ -110,11 +151,6 @@ Recent commits:
 - `71ac19c Remove inappropriate Docker/deploy scaffolding (genesis is a research library/CLI, not a deployable web service)`
 - `acadfe9 Merge branch 'crew/integration'`
 - `ebf66f9 crew: scaffold CI/CD + project config`
-- `acf71f3 Merge branch 'crew/T02-claude' into crew/integration`
-- `a0e3038 crew(claude): T02 Unit tests for config defaults, hash determinism, and round-trip [round 2]`
-- `3515729 crew(claude): T02 Unit tests for config defaults, hash determinism, and round-trip [round 1]`
-- `284ef5e crew(claude): T01 Unit tests for dimensional_guard scale-invariance API [round 1]`
-- `335c4ca Snapshot before crew run (git init: project was unversioned)`
 
 
 ---
