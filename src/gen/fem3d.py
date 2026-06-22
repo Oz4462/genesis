@@ -29,6 +29,8 @@ structural (Kt bound), HORIZON δ, sim/inventor via modal quantities.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 
 # the 6-tetrahedron (Freudenthal) split of a hex with local corner order
@@ -144,6 +146,75 @@ def solve_elasticity(
     for e, (b, dofs) in enumerate(b_cache):
         stresses[e] = d @ b @ u[dofs]
     return u.reshape(-1, 3), stresses
+
+
+@dataclass(frozen=True)
+class PrismaticBarResponse:
+    """Axial response of a force-controlled prismatic bar.
+
+    ``axial_stress`` is the volume-mean σ_xx and ``axial_deflection`` is the
+    mean x-displacement of the loaded end face. Both are READ OUT of
+    ``solve_elasticity`` — they are not canned. They only happen to match the
+    closed forms σ = F/A (exact, by equilibrium) and δ ≈ F·L/(A·E) because the
+    constant-strain tet reproduces the uniform axial field.
+    """
+
+    axial_stress: float
+    axial_deflection: float
+
+
+def prismatic_bar_axial_response(
+    length: float,
+    width: float,
+    height: float,
+    e_modulus: float,
+    nu: float,
+    force: float,
+    nx: int = 6,
+    ny: int = 2,
+    nz: int = 2,
+) -> PrismaticBarResponse:
+    """Drive a parametric axial-tension case through :func:`solve_elasticity`.
+
+    Builds a ``length×width×height`` prismatic bar, locks the symmetry faces
+    (ux on x=0, uy on y=0, uz on z=0), spreads ``force`` evenly over the
+    ``x=length`` end-face nodes, solves, and returns the mean axial stress and
+    the mean end-face axial deflection.
+
+    This is the single driver behind the scaling-law characterization: because
+    σ_xx and u_x emerge from the solver as functions of ``force`` and the
+    geometry, a test that pins σ ∝ F/A and δ ∝ F·L/(A·E) proves the FEM
+    genuinely consumes load and geometry rather than returning constants.
+
+    Cross-section area A = width·height. Raises ``ValueError`` on a non-positive
+    dimension/modulus or a Poisson ratio outside (-1, 0.5) — either would make
+    the elasticity matrix or the mesh degenerate and yield a silent wrong value
+    instead of failing loud (no silent defaults on factual outputs).
+    """
+    if min(length, width, height, e_modulus) <= 0.0:
+        raise ValueError("length, width, height and e_modulus must be > 0")
+    # nu = 0.5 makes (1 - 2nu) = 0 → the Lamé constant diverges (incompressible
+    # limit); nu <= -1 makes the shear/bulk moduli non-physical. Guard both.
+    if not -1.0 < nu < 0.5:
+        raise ValueError("nu must satisfy -1 < nu < 0.5 for a valid isotropic D")
+
+    nodes, tets = structured_box_mesh(length, width, height, nx, ny, nz)
+    fixed: dict[int, float] = {}
+    for n, (x, y, z) in enumerate(nodes):
+        if abs(x) < 1e-9:
+            fixed[3 * n] = 0.0          # x=0 face: ux = 0
+        if abs(y) < 1e-9:
+            fixed[3 * n + 1] = 0.0      # y=0 face: uy = 0
+        if abs(z) < 1e-9:
+            fixed[3 * n + 2] = 0.0      # z=0 face: uz = 0
+
+    end = [n for n, (x, y, z) in enumerate(nodes) if abs(x - length) < 1e-9]
+    loads = {3 * n: force / len(end) for n in end}
+    u, sig = solve_elasticity(nodes, tets, e_modulus, nu, fixed, loads)
+    return PrismaticBarResponse(
+        axial_stress=float(sig[:, 0].mean()),
+        axial_deflection=float(u[end, 0].mean()),
+    )
 
 
 def von_mises(stress6: np.ndarray) -> float:
