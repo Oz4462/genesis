@@ -50,8 +50,9 @@ class InventionRun:
     (grounded or an honest gap), the non-dominated grounded ``front``, the emitted ``artifact_dirs``, and
     whether the run was ``refused`` by the safety screen before generation.
     γ+ bridge: optional ``pareto_front`` (full InverseDesignGoal + build_pareto_front + gate_gamma_plus over
-    real derived objectives from δ-grounded specs; attached also to RunState when passed). Proxy front (INVENTION_GOAL)
-    remains primary; this is additive HORIZON γ+ integration (conditional on evaluated>0)."""
+    real derived objectives from δ-grounded specs; attached also to RunState when passed — an empty front is an
+    honest abstention carrying its reasons in ``gaps``). Proxy front (INVENTION_GOAL) remains primary; this is
+    additive HORIZON γ+ integration."""
 
     brief: InventionBrief
     concepts: tuple[Possibility, ...]
@@ -87,8 +88,8 @@ async def run_invention(
 
     γ+/δ+ integration (guarded smallest, additive): after proxy score, if grounded specs present, uses
     derive_goal_from_spec (real q from δ-ground) + DesignCandidate + build_pareto_front + gate_gamma_plus
-    (full γ+ validated over δ assess). Bridges INVENTION_GOAL proxy → ParetoFront. Attaches to passed state
-    (conditional only if evaluated>0) and to InventionRun.pareto_front.
+    (full γ+ validated over δ assess). Bridges INVENTION_GOAL proxy → ParetoFront. Attaches the real front to
+    a passed ``state`` (always, even on honest abstention) and to ``InventionRun.pareto_front``.
 
     Pragmatic enhancement (INVENTOR_ARCHITEKTUR ❶ Prior-Art & Frontier):
     If no frontier_context is supplied, we inject a basic one so generation is at least frontier-aware.
@@ -142,7 +143,7 @@ async def run_invention(
     # Uses derive_goal if possible on real δ-grounded specs (from domain.ground / evaluate_spec_physics).
     # Proxy INVENTION_GOAL + pareto_inventions (5-axis) kept unchanged for M1 semantics.
     # Full: DesignCandidate + build_pareto_front (δ assess + gamma + nondom) + gate_gamma_plus.
-    # Conditional attach to RunState ONLY if evaluated>0 (CRITICAL requirement); also on InventionRun.
+    # Attach the real front to RunState when state= is passed (even an honest empty abstention); also on InventionRun.
     # Additive: no effect on callers that omit state= or on ungrounded/empty cases.
     pf: "ParetoFront | None" = None
     try:
@@ -161,11 +162,20 @@ async def run_invention(
             rs = state or RunState(question=Question(raw=brief.field or brief.goal or "inventor-run", run_id=brief.run_id))
             pf = build_pareto_front(rs, goal, cands)
             if state is not None:
-                if (pf.evaluated_candidates or pf.candidates):  # conditional only if evaluated >0
-                    state.pareto_front = pf
-                    state.log.append(
-                        f"inventor: γ+ pareto_front attached (evaluated={len(pf.evaluated_candidates)}, cands={len(pf.candidates)})"
-                    )
+                # Attach the REAL γ+ ParetoFront to the RunState. We attach unconditionally
+                # (not only when evaluated>0): an empty front here is an HONEST abstention, and
+                # its `gaps` carry the reason (e.g. the inventor's δ-grounded spec is not
+                # γ-complete because its prior-art claims were never skeptic-verified into the
+                # run ledger, so GATE γ legitimately rejects every candidate). Gating the attach
+                # on evaluated>0 silently dropped that honest result, making the bridge a facade.
+                # Forcing evaluated>0 by fabricating VERIFIED claims would violate core principle
+                # #1 (no factual output without a sourced, verified ledger entry) — so surfacing
+                # the abstention is the correct behavior, not a reason to hide the front.
+                state.pareto_front = pf
+                state.log.append(
+                    f"inventor: γ+ pareto_front attached (evaluated={len(pf.evaluated_candidates)}, "
+                    f"front={len(pf.candidates)}, gaps={len(pf.gaps)})"
+                )
             # validate gate (as architect/lumen); ignore result for non-blocking
             try:
                 _ = gate_gamma_plus(rs, pf)
