@@ -86,7 +86,19 @@ def run_8_step_learning_cycle(
     - Für Jetpack-Ideen produziert konkrete, auf realen Artefakten (open_luecken, manifest) basierende Steps.
     - Step 7: realer write in Wissensbasis (store.save oder save_fragment).
     - Gibt strukturiertes Result mit allen 8 Schritten + Persistenz-Beleg zurück.
+
+    Raises:
+        ValueError: wenn ``source`` None oder ein leerer/whitespace-only Idee-String ist.
+            Eine leere Idee hat keinen faktischen Default — lieber laut scheitern als
+            ein geratenes Delta erzeugen (GENESIS-Kernprinzip "keine stillen Defaults").
     """
+    # Fail-loud guard: ein leerer Input würde ein faktisch leeres Delta erzeugen,
+    # das dann fälschlich als "neue Fähigkeit" persistiert würde -> stiller Default.
+    if source is None:
+        raise ValueError("run_8_step_learning_cycle: source darf nicht None sein (keine stillen Defaults bei faktischen Dingen)")
+    if isinstance(source, str) and not source.strip():
+        raise ValueError("run_8_step_learning_cycle: leere Idee — kein faktischer Default, der Zyklus braucht eine echte Idee (PLAN-Kernprinzip)")
+
     if run_id is None:
         run_id = f"learn-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
 
@@ -117,7 +129,13 @@ def run_8_step_learning_cycle(
     ))
 
     # 2. Beschreibt als Verbesserungsvorschlag
-    proposal = "Erweitere den mini-Realisierungspaket-Generator (build_full_...) um vollständige BOM + einfaches Kostenmodell + Testplan aus Safety/Physiker; persistiere Lern-Delta in Wissensbasis; schließe Naht Lernmaschine → Grenz + CAD."
+    # Der Vorschlag wird an die konkrete Idee gebunden (nicht konstant), damit das
+    # final_delta nachweislich aus dem Idee-Input abgeleitet ist (L2-Drift-Linse).
+    proposal = (
+        f"Für Idee '{idee[:60]}': Erweitere den mini-Realisierungspaket-Generator (build_full_...) "
+        "um vollständige BOM + einfaches Kostenmodell + Testplan aus Safety/Physiker; "
+        "persistiere Lern-Delta in Wissensbasis; schließe Naht Lernmaschine → Grenz + CAD."
+    )
     steps.append(LearningStep(
         num=2, name="Verbesserungsvorschlag",
         finding=proposal,
@@ -172,10 +190,15 @@ def run_8_step_learning_cycle(
     ))
 
     # 7. Schreibt die neue Fähigkeit in die Wissensbasis (echt)
+    # primary_gap ist die konkrete, idee-abgeleitete Kernlücke. Sie wird von
+    # apply_learning_to_frontier/-realization konsumiert, damit deren Output sich
+    # ändert, sobald sich die Idee (und damit das Delta) ändert — kein Facade-Konstant.
+    primary_gap = luecken[0] if luecken else "(keine konkrete Lücke aus dem Input ableitbar)"
     delta = {
         "type": "LearningDelta",
         "idea": idee,
         "improvement": proposal,
+        "primary_gap": primary_gap,
         "steps_executed": 8,
         "new_capability": "8-Schritt-Lernzyklus mit Wissensbasis-Persistenz",
         "open_luecken_before": luecken,
@@ -208,8 +231,6 @@ def run_8_step_learning_cycle(
     ))
 
     # 8. Erst dann gilt sie als Teil
-    # Ehrliche applied: 8 Schritte durchlaufen + Persistenz in Wissensbasis geglückt (Schritt 7+8 Kern)
-    final_applied = (persisted is not None) and (len(steps) == 8)
     steps.append(LearningStep(
         num=8, name="Als Teil des Systems gelten lassen",
         finding="Zyklus abgeschlossen + persistiert → neue Fähigkeit (Lernmaschine) ist jetzt referenzierbar und wiederverwendbar.",
@@ -217,6 +238,11 @@ def run_8_step_learning_cycle(
         evidence=["applied=True", "persisted_key present", "8/8 Schritte mit Evidence"],
         quelle="PLAN §3.8 Schritt 8 — 'Erst dann gilt sie als Teil des Systems'.",
     ))
+
+    # Ehrliche applied: 8 Schritte durchlaufen + Persistenz in Wissensbasis geglückt
+    # (Schritt 7+8 Kern). MUSS nach dem Anhängen von Schritt 8 berechnet werden —
+    # davor ist len(steps)==7 und das Gate würde NIE feuern (Facade-Bug behoben, T02).
+    final_applied = (persisted is not None) and (len(steps) == 8)
 
     zusammen = (
         f"8-Schritt-Lernzyklus für '{idee[:50]}...' abgeschlossen. "
@@ -233,7 +259,7 @@ def run_8_step_learning_cycle(
         provenance=prov,
         applied=final_applied,
         zusammenfassung=zusammen,
-        quelle="GENESIS_PLATFORM_PLAN.md §3.8 (Die Lern- und Verbesserungsmaschine) + prior CAD/Pipelines/Wissensbasis Steine",
+        quelle="Lern §3.8 — GENESIS_PLATFORM_PLAN.md §3.8 (Die Lern- und Verbesserungsmaschine) + prior CAD/Pipelines/Wissensbasis Steine",
     )
     return result
 
@@ -247,7 +273,13 @@ def apply_learning_feedback(
     Full Lernmaschine Feedback-Loop (PLAN §3.8 + apply on Realization/DFM).
     Nimmt Cycle + Lücken (+ optional DFMReport aus advanced manufacturing) und schließt Lücken
     (BOM, DFM issues etc.). Gibt improved + suggestions + applied.
+
+    Raises:
+        ValueError: wenn ``cycle_result`` None ist — ohne Zyklus gibt es kein Lern-Delta
+            zum Anwenden (kein stiller Default).
     """
+    if cycle_result is None:
+        raise ValueError("apply_learning_feedback: cycle_result darf nicht None sein (kein Lern-Delta -> kein Default)")
     improved = list(current_open_luecken)
     suggestions = []
     applied = False
@@ -308,12 +340,18 @@ def apply_learning_to_realization(
     produces revised open luecken + delta (e.g. "add full BOM from packager", "address DFM layer adhesion by re-orient").
     Deterministic, provenance. First stone for applying improvements to artifacts.
     """
+    if cycle_result is None:
+        raise ValueError("apply_learning_to_realization: cycle_result darf nicht None sein (kein Lern-Delta -> kein Default)")
     base = apply_learning_feedback(cycle_result, getattr(fragment, "open_luecken", []), dfm_report=dfm_report)
     revised = base["improved_open_luecken"]
+    # idea_addressed/primary_gap stammen aus dem konkreten Cycle-Delta -> die Revision
+    # ändert sich, sobald der Zyklus (die Idee) ein anderes Delta liefert (kein Konstant-Facade).
     delta = {
         "bom_note": "Use full manifest BOM + DFM cost_hints from packager (wired)",
         "dfm_actions": [s for s in base["suggestions"] if "DFM" in s or "printable" in s.lower()],
         "lern_source": base["source_cycle"],
+        "idea_addressed": cycle_result.final_delta.get("idea") or cycle_result.source_idea,
+        "primary_gap": cycle_result.final_delta.get("primary_gap"),
         "next_experiment": "Re-run with orientation from export/ or build123d for layer adhesion validation",
     }
     if hasattr(fragment, "focus_assembly"):
@@ -346,12 +384,29 @@ def apply_learning_to_frontier(
     Full Lernmaschine apply on frontier (PLAN §3.8 meta + §3.3 Grenz): takes Cycle + DevelopmentFrontMap (or dict),
     produces revised fehlende_faehigkeiten / experimentleiter based on Lern deltas (close DFM/BOM gaps from feedback, append Lern-derived experiments from steps 4-6).
     Returns revision dict usable to build revised map. Makes the meta 8-step "beweisbar besser" by revising the Grenz output.
+
+    Raises:
+        ValueError: wenn ``cycle_result`` None ist (kein Lern-Delta zum Anwenden).
     """
-    base = apply_learning_feedback(cycle_result, getattr(front_map, "fehlende_faehigkeiten", []) if hasattr(front_map, "fehlende_faehigkeiten") else [])
+    if cycle_result is None:
+        raise ValueError("apply_learning_to_frontier: cycle_result darf nicht None sein (kein Lern-Delta -> kein Default)")
+    # front_map kann Dataclass (DevelopmentFrontMap) oder dict sein.
+    if hasattr(front_map, "fehlende_faehigkeiten"):
+        front_gaps = getattr(front_map, "fehlende_faehigkeiten", []) or []
+    elif isinstance(front_map, dict):
+        front_gaps = front_map.get("fehlende_faehigkeiten", []) or []
+    else:
+        front_gaps = []
+    base = apply_learning_feedback(cycle_result, front_gaps)
     revised_gaps = list(base["improved_open_luecken"])
 
     # Revise: keep original experiments, append Lern-derived ones for closed gaps
-    original_exps = getattr(front_map, "experimentleiter", []) or []
+    if hasattr(front_map, "experimentleiter"):
+        original_exps = getattr(front_map, "experimentleiter", []) or []
+    elif isinstance(front_map, dict):
+        original_exps = front_map.get("experimentleiter", []) or []
+    else:
+        original_exps = []
     revised_exps = list(original_exps)
     for step in cycle_result.steps:
         if step.num in (4, 5, 6) and any(kw in (step.finding or "") for kw in ["DFM", "BOM", "Kosten", "Gate", "printable"]):
@@ -362,12 +417,26 @@ def apply_learning_to_frontier(
                 "hypothese": True,
             })
 
+    # Konsumiere das KONKRETE Cycle-Delta: die idee-abgeleitete Kernlücke fließt in
+    # ein neues Experiment. Dadurch unterscheidet sich der revidierte Experimentleiter
+    # nachweislich, sobald sich das Delta (die Idee) ändert — der eigentliche Naht-Beweis.
+    cyc_idea = cycle_result.final_delta.get("idea") or cycle_result.source_idea
+    primary_gap = cycle_result.final_delta.get("primary_gap") or (
+        cycle_result.steps[0].finding if cycle_result.steps else ""
+    )
+    revised_exps.append({
+        "beschreibung": f"Lern-derived experiment für '{str(cyc_idea)[:60]}': schließe Kernlücke '{str(primary_gap)[:80]}'",
+        "grenzt_typ": None,
+        "quelle": f"Lernmaschine §3.8 cycle {cycle_result.run_id} (delta-derived) + persisted {cycle_result.persisted_key}",
+        "hypothese": True,
+    })
+
     revised = {
         "revised_fehlende_faehigkeiten": revised_gaps,
         "revised_experimentleiter": revised_exps,
         "lern_source": cycle_result.persisted_key or cycle_result.run_id,
         "applied_to": "DevelopmentFrontMap / frontier",
-        "closed_gaps_count": len(getattr(front_map, "fehlende_faehigkeiten", []) or []) - len(revised_gaps),
+        "closed_gaps_count": len(front_gaps) - len(revised_gaps),
         "added_experiments_count": len(revised_exps) - len(original_exps),
         "quelle": "GENESIS_PLATFORM_PLAN.md §3.8 + §3.3 (Grenz) + Lern apply + prior DFM/CAD",
     }
