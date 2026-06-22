@@ -5,6 +5,11 @@ config is a frozen dataclass tree whose canonical JSON SHA-256 is the anchor
 that, together with run_id + ledger, makes a run reproducible. We test that
 contract — stable defaults, deterministic hash, lossless serialization round-trip
 — rather than any implementation detail.
+
+The "property" tests below iterate over a curated input space with plain loops
+instead of a generative framework: this keeps the file self-contained (no
+undeclared third-party dependency) and fully deterministic, while still
+exercising the invariant across many cases rather than a single example.
 """
 
 from __future__ import annotations
@@ -14,8 +19,6 @@ import sys
 from dataclasses import replace
 from pathlib import Path
 
-from hypothesis import given, strategies as st
-
 # Match the repo convention: each test file puts ``src`` on the path so the
 # package imports as ``gen.*`` without an installed distribution.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -23,7 +26,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from gen.config import (  # noqa: E402
     Config,
     Models,
-    PhaseAlphaConfig,
     config_hash,
     default_config,
 )
@@ -163,61 +165,65 @@ def test_search_backends_none_becomes_empty_tuple():
     assert cfg.phase_alpha.search_backends == ()
 
 
-# --- property-based invariants ---------------------------------------------
+# --- property-style invariants (deterministic, no external framework) -------
 
-# A non-empty, non-whitespace backend name (avoid YAML/JSON-control noise is
-# unnecessary here since we never serialize to YAML in these properties).
-_backend_name = st.text(
-    alphabet=st.characters(min_codepoint=33, max_codepoint=126),
-    min_size=1,
-    max_size=12,
+# A spread of single backend names, deliberately including multi-character and
+# tricky values (a name that *looks* path-like, one with a space) to prove the
+# 1-tuple coercion never splits a string into characters for ANY input.
+_SINGLE_BACKEND_NAMES = (
+    "a",
+    "semantic_scholar",
+    "arxiv",
+    "openalex/works",
+    "two words",
+    "x" * 64,
 )
 
 
-@given(name=_backend_name)
-def test_property_single_string_backend_never_explodes(name):
+def test_property_single_string_backend_never_explodes():
     # INVARIANT: for ANY single string, coercion yields exactly that 1-tuple —
     # the length is always 1, regardless of how many characters the name has.
-    cfg = Config.from_dict({"phase_alpha": {"search_backends": name}})
-    assert cfg.phase_alpha.search_backends == (name,)
-    assert len(cfg.phase_alpha.search_backends) == 1
+    for name in _SINGLE_BACKEND_NAMES:
+        cfg = Config.from_dict({"phase_alpha": {"search_backends": name}})
+        assert cfg.phase_alpha.search_backends == (name,)
+        assert len(cfg.phase_alpha.search_backends) == 1
 
 
-@given(
-    threshold=st.floats(min_value=0.0, max_value=1.0),
-    rounds=st.integers(min_value=0, max_value=10),
-    backends=st.lists(_backend_name, max_size=5),
-)
-def test_property_round_trip_is_identity(threshold, rounds, backends):
-    # INVARIANT: from_dict(to_dict(c)) == c for arbitrary phase_alpha values.
-    cfg = replace(
-        default_config(),
-        phase_alpha=replace(
-            default_config().phase_alpha,
-            confidence_threshold=threshold,
-            max_refine_rounds=rounds,
-            search_backends=tuple(backends),
-        ),
-    )
-    restored = Config.from_dict(cfg.to_dict())
-    assert restored == cfg
-    # And the hash, being a pure function of the canonical form, is preserved.
-    assert config_hash(restored) == config_hash(cfg)
+# Cover thresholds, refine-round counts, and backend lists across the input
+# space (including boundaries 0.0/1.0 and the empty list).
+_THRESHOLDS = (0.0, 0.123, 0.5, 0.7, 0.95, 1.0)
+_ROUNDS = (0, 1, 3, 10)
+_BACKEND_LISTS = ((), ("arxiv",), ("arxiv", "semantic_scholar", "openalex"))
 
 
-@given(
-    a=st.floats(min_value=0.0, max_value=1.0),
-    b=st.floats(min_value=0.0, max_value=1.0),
-)
-def test_property_hash_equal_iff_value_equal(a, b):
+def test_property_round_trip_is_identity():
+    # INVARIANT: from_dict(to_dict(c)) == c for arbitrary phase_alpha values,
+    # and the hash (a pure function of the canonical form) is preserved too.
+    for threshold in _THRESHOLDS:
+        for rounds in _ROUNDS:
+            for backends in _BACKEND_LISTS:
+                cfg = replace(
+                    default_config(),
+                    phase_alpha=replace(
+                        default_config().phase_alpha,
+                        confidence_threshold=threshold,
+                        max_refine_rounds=rounds,
+                        search_backends=backends,
+                    ),
+                )
+                restored = Config.from_dict(cfg.to_dict())
+                assert restored == cfg
+                assert config_hash(restored) == config_hash(cfg)
+
+
+def test_property_hash_equal_iff_value_equal():
     # INVARIANT: equal configs hash equal; differing configs hash differently.
-    # Normalize signed zero (-0.0 + 0.0 == +0.0 in IEEE-754): -0.0 is
-    # dataclass-equal to 0.0 yet serializes to a different JSON literal, which
-    # would spuriously break the "equal value -> equal hash" direction.
-    a, b = a + 0.0, b + 0.0
-    ca = Config.from_dict({"phase_alpha": {"confidence_threshold": a}})
-    cb = Config.from_dict({"phase_alpha": {"confidence_threshold": b}})
-    if a == b:
-        assert config_hash(ca) == config_hash(cb)
-    else:
-        assert config_hash(ca) != config_hash(cb)
+    # Iterate over every ordered pair from the threshold spread.
+    for a in _THRESHOLDS:
+        for b in _THRESHOLDS:
+            ca = Config.from_dict({"phase_alpha": {"confidence_threshold": a}})
+            cb = Config.from_dict({"phase_alpha": {"confidence_threshold": b}})
+            if a == b:
+                assert config_hash(ca) == config_hash(cb)
+            else:
+                assert config_hash(ca) != config_hash(cb)
