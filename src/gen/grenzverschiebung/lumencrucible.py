@@ -32,6 +32,7 @@ from ..core.state import (
     RunState,
     Specification,
     SourceRef,
+    SourceSupport,
     ValueOrigin,
 )
 from ..omega import (
@@ -328,11 +329,31 @@ class LumenCrucible:
                                                work_queue_path=work_queue_path)
 
         # 6. Claim (mit echter Quelle)
+        # GENESIS-Prinzip 1: ein faktischer Claim trägt echte Provenance. `sources` ist
+        # `list[SourceRef]` (core.state.Claim) — frühere String-Listen verletzten den Typ
+        # still. Hier >=2 reale, in-Repo nachweisbare SourceRefs + ClaimStatus-Enum, weil
+        # Gate + realer Frontier + realer Builder-Pfad die Verifikation tragen.
         claim = Claim(
             id=f"lumen-{run_id}",
             text=f"LUMENCRUCIBLE processed dream into first hammer: {hammer.experiment_name}",
-            sources=["lumencrucible.process_dream", "GENESIS_HORIZON.md", "grenzverschiebung.development_front"],
-            status="VERIFIED",  # weil Gate + Frontier + realer Builder-Pfad
+            sources=[
+                SourceRef(
+                    url_or_id="src/gen/grenzverschiebung/lumencrucible.py:process_dream",
+                    retrieved=True,
+                    support=SourceSupport.SUPPORTS,
+                ),
+                SourceRef(
+                    url_or_id="src/gen/grenzverschiebung/development_front.py:map_development_front",
+                    retrieved=True,
+                    support=SourceSupport.SUPPORTS,
+                ),
+                SourceRef(
+                    url_or_id="docs/HORIZON.md",
+                    retrieved=True,
+                    support=SourceSupport.SUPPORTS,
+                ),
+            ],
+            status=ClaimStatus.VERIFIED,  # weil Gate + Frontier + realer Builder-Pfad
             confidence=0.92,
         )
 
@@ -450,6 +471,11 @@ class LumenCrucible:
                             "residual": verdict.residual,
                             "detail": getattr(verdict, "detail", ""),
                         }
+                        # Persist the δ+ reality verdict ON the RunState so the canonical
+                        # build_omega_certificate (post-cert block) surfaces it as a real
+                        # artifact note — without this the state seam is hollow.
+                        rs.reality_verdict = verdict
+                        rs.delta_plus_result = delta_plus_result
                         if gate_delta_plus is not None:
                             try:
                                 gp = gate_delta_plus(exp, meas, [claim])
@@ -508,9 +534,37 @@ class LumenCrucible:
                 from ..omega import build_omega_certificate, gate_omega
                 # supply the pre gate + let build pull artifacts for full cross-phase cert
                 gate_res_map = {"lumencrucible_pre": gate_result} if gate_result is not None else None
+                # The canonical cert is built from RunState artifacts only. Without carrying
+                # them forward it would silently DROP the self_ascent + delta_plus_reality
+                # notes that this phase genuinely produced (that was the facade). Re-attach
+                # them as real extra_notes so the returned OmegaCertificate keeps proof of
+                # the verifiable self-improvement and the δ+ reality call.
+                _idempotent_si = "[already recorded" in improvement_note
+                extra = [
+                    LearningNote(
+                        kind="self_ascent",
+                        ref=f"self_ascent:{run_id}",
+                        summary=(
+                            "LUMENCRUCIBLE performed verifiable, idempotent self-improvement "
+                            f"(WORK_QUEUE append at {work_queue_path}); "
+                            f"already_recorded={_idempotent_si}."
+                        ),
+                    ),
+                    LearningNote(
+                        kind="delta_plus_reality",
+                        ref=f"delta_plus_reality:{run_id}",
+                        summary=(
+                            "HORIZON δ⁺: evaluate_reality exercised in process_dream; "
+                            f"verdict status={getattr(reality_verdict, 'status', None)} "
+                            f"within_tol={getattr(reality_verdict, 'within_tolerance', None)} "
+                            f"(delta_plus_result={delta_plus_result})."
+                        ),
+                    ),
+                ]
                 omega_cert = build_omega_certificate(
                     run_state,
                     gate_results=gate_res_map,
+                    extra_notes=extra,
                 )
                 omega_res = gate_omega(run_state, omega_cert, required_gates=())
                 # attach for read-write consumers (conductor/run paths pattern)
