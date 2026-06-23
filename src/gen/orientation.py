@@ -168,6 +168,13 @@ def _mesh(node: GeometryNode, quantities: dict[str, Quantity],
     normal, area, centroid height, min vertex height."""
     _require_cadquery()
     solid = csg_to_solid(node, quantities)
+    # An empty/degenerate boolean (e.g. A − B with B ⊇ A) yields a face-less shape
+    # whose OCCT bounding box is VOID — reading it raises an opaque kernel failure
+    # before tessellation. Surface the documented error up front instead, so the
+    # "tessellation produced no triangles" contract holds for every degenerate input
+    # (a valid solid always has ≥1 face, so this is a no-op for real geometry).
+    if not solid.Faces():
+        raise ValueError("tessellation produced no triangles")
     bb = solid.BoundingBox()
     extent = max(bb.xmax - bb.xmin, bb.ymax - bb.ymin, bb.zmax - bb.zmin)
     eps = extent * 1e-3 + 1e-9
