@@ -80,3 +80,15 @@ Eingabe == Konstante) kollabierte still auf eine Spalte und korrumpierte den dim
 Minimaler Eindeutigkeits-Guard in `problem_from_simulation` → lautes `ValueError` („keine stillen
 Defaults"). Öffentliche Signaturen + Sampling unverändert; vorbestehende Tests grün (27 passed).
 Details: `docs/audit/DEPTH_AUDIT_simulated_data.md`.
+
+## 2026-06-23 — Depth-Audit T05: discovery/symbolic_search.py (VERDICT: REAL)
+Tiefen-Audit des Open-Form-GP-Symbolic-Regression-Suchers. Charakterisierungstest
+(`tests/discovery/test_symbolic_search_characterization.py`, 9 Tests grün) beweist ECHTE Suche,
+kein Lookup: Rediscovery der transzendenten `y = 3·sin(x)+2` (exakte Struktur + Koeffizienten,
+R² ≈ 1 out-of-sample — eine Form, die die enge Power-Law-`engine.py` nicht darstellen kann),
+strikt steigende + monoton nicht-fallende Fitness über Generationen (reale Optimierung, kein
+Einmal-Rate), reines Rauschen → ehrliches `unentschieden` (Out-of-Sample-Gate kollabiert),
+fehlende/inkonsistente Daten → dokumentierter `ValueError`. Hypothesis-Property: Seed-Determinismus
++ Recovery beliebiger Affin-Gesetze. KEINE Verhaltensänderung nötig (Modul war bereits korrekt);
+nur Modul-Docstring-Audit-Notiz ergänzt. 4 Linsen angewendet. Details:
+`docs/audit/symbolic_search.md`.
