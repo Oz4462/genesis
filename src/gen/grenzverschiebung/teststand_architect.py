@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .milestone_builder import MilestoneLadder
+    from .milestone_builder import Milestone, MilestoneLadder
 
 
 @dataclass(frozen=True)
@@ -45,6 +45,35 @@ class TestStandPlan:
     quelle: str | None = None
 
 
+def _messungen_from_milestone(milestone: "Milestone") -> list[str]:
+    """Leite messbare Prüf-Grössen aus dem Meilenstein ab.
+
+    Die ``definition_of_done`` IST das messbare Erfolgskriterium des Meilensteins;
+    jeder Eintrag wird zu einer Messung am Prüfstand. Whitespace-Einträge sind kein
+    Signal und werden verworfen. Hat der Meilenstein KEINE prüfbare DoD, wird die
+    Lücke ehrlich markiert statt eine Messung zu erfinden (keine stillen Defaults).
+    """
+    dod = [d.strip() for d in milestone.definition_of_done if d.strip()]
+    if not dod:
+        return [f"LÜCKE: Meilenstein '{milestone.name}' hat keine messbare Definition of Done — nicht prüfbar"]
+    return [f"Messe: {d} (Meilenstein '{milestone.name}')" for d in dod]
+
+
+def _sicherheit_from_milestone(milestone: "Milestone") -> list[str]:
+    """Leite Sicherheitsmassnahmen aus den Risiken des Meilensteins ab.
+
+    Jedes deklarierte Risiko begründet eine konkrete Absicherung am Prüfstand.
+    Whitespace-Risiken werden verworfen. Ohne benanntes Risiko wird KEINE Pseudo-
+    Massnahme erfunden — nur die generische Boden-/Abbruch-Absicherung bleibt ehrlich.
+    """
+    risiken = [r.strip() for r in milestone.risiken if r.strip()]
+    measures = [f"Absicherung gegen Risiko '{r}'" for r in risiken]
+    # Jeder Prüfstand bleibt am Boden gegen genau das Risiko des Meilensteins;
+    # diese Baseline gilt auch ohne benanntes Risiko (ehrliches Minimum, kein Fake).
+    measures.append("Kontrollierter Abbruch + keine unbeteiligten Personen im Gefahrenbereich")
+    return measures
+
+
 def build_test_stand(
     ladder: "MilestoneLadder",
     *,
@@ -56,6 +85,17 @@ def build_test_stand(
     Für das Jetpack-Beispiel (PLAN) erzeugt sie zu den relevanten Meilensteinen
     konkrete, sichere Prüfstand-Specs (tethered + Wasser + Scale + Bench), die
     die Annahmen ohne unnötiges Risiko für Menschen prüfen können.
+
+    Im generischen Pfad wird zu JEDEM realen Meilenstein der Leiter ein eigener
+    ``TestStandSpec`` abgeleitet (``definition_of_done`` → ``messungen``,
+    ``risiken`` → ``sicherheitsmassnahmen``, Provenance verweist auf den
+    Meilenstein) — die Eingabe wird also wirklich konsumiert, nicht ein Stub.
+
+    Fehlerfälle / Edge-Cases:
+    - ``ladder.milestones`` leer → ``stands == []`` und ``zusammenfassung`` sagt
+      explizit, dass keine Meilensteine geliefert wurden (kein erfundener Stand).
+    - Meilenstein ohne messbare ``definition_of_done`` → die Lücke wird ehrlich
+      als nicht-prüfbar markiert statt eine Messung zu fabrizieren.
     """
     traum = ladder.source_traum
 
@@ -121,18 +161,41 @@ def build_test_stand(
             "wirklich prüfen können, ohne unnötiges Risiko für Menschen. Jeder Stand ist auf einen "
             "oder mehrere Meilensteine/Experimente abgestimmt und hat klare Sicherheitsmassnahmen + Messungen."
         )
+    elif not ladder.milestones:
+        # Ehrliche Abstinenz: ohne Meilensteine gibt es nichts abzuleiten — kein
+        # fabrizierter Stub (Kernprinzip „keine stillen Defaults bei faktischen Dingen").
+        stands = []
+        zusammenfassung = (
+            "Keine Prüfstände — die MilestoneLadder enthält keine Meilensteine, "
+            "aus denen sich messbare Prüfstände ableiten liessen."
+        )
     else:
-        stands = [
-            TestStandSpec(
-                name="T0 — Frontier Mapping Validation Rig",
-                beschreibung="Einfacher Bench + Scale-Setup zur Validierung der aktuellen FrontierMap und Gap-Analyse.",
-                sicherheitsmassnahmen=["Keine bemannte oder riskante Phase"],
-                messungen=["Anzahl identifizierter Grenzen/Gaps", "Abdeckung der PLAN-Kategorien"],
-                dauer_aufwand="1–2 Wochen",
-                quelle="GENESIS_PLATFORM_PLAN.md §3.3",
-            ),
-        ]
-        zusammenfassung = "Minimaler Prüfstand für noch nicht detailliert analysierte Idee."
+        # Generischer Pfad: zu JEDEM realen Meilenstein einen eigenen Prüfstand
+        # ableiten. So fliesst die Eingabe (Name, DoD, Risiken, Provenance) wirklich
+        # ein; zwei verschiedene Leitern ergeben verschiedene Pläne (keine Facade).
+        for index, milestone in enumerate(ladder.milestones):
+            stands.append(
+                TestStandSpec(
+                    name=f"T{index} — Prüfstand für {milestone.name}",
+                    beschreibung=(
+                        f"Sicherer Prüfstand, der den Meilenstein '{milestone.name}' "
+                        f"messbar prüft: {milestone.beschreibung}"
+                    ),
+                    sicherheitsmassnahmen=_sicherheit_from_milestone(milestone),
+                    messungen=_messungen_from_milestone(milestone),
+                    dauer_aufwand=f"Abgestimmt auf nächstes Experiment: {milestone.naechstes_experiment}",
+                    # Provenance verweist explizit auf den treibenden Meilenstein.
+                    quelle=(
+                        f"teststand_architect ← Meilenstein '{milestone.name}'"
+                        + (f" ({milestone.quelle})" if milestone.quelle else "")
+                    ),
+                )
+            )
+        zusammenfassung = (
+            f"{len(stands)} Prüfstand-Spec(s), je einer pro Meilenstein der Leiter; "
+            "jede Definition of Done wird zu einer Messung, jedes Risiko zu einer "
+            "Sicherheitsmassnahme."
+        )
 
     return TestStandPlan(
         source_traum=traum,
