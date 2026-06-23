@@ -138,10 +138,14 @@ def test_removing_an_input_changes_which_checks_an_answer_unblocks() -> None:
     q_all = next(q for q in clarifying_questions(spec_all) if q.measurand == shared)
     assert set(q_all.unblocks) == {_BUCKLING.name, _VESSEL.name}
 
-    # remove one buckling-only input -> buckling now misses 2 -> shared no longer sole-unblocks it
+    # remove one NON-TRIGGER buckling-only input -> buckling STAYS indicated (its trigger is still
+    # present) but now misses TWO inputs -> shared no longer ALONE unblocks it. Excluding the
+    # trigger is essential: dropping it would de-indicate buckling entirely and exercise a
+    # different (trigger-absent) path than the sole-unblock-shrinks path this test documents.
     buckling_only = sorted(_measurands(_BUCKLING) - _measurands(_VESSEL) - {shared})
-    dropped = buckling_only[0]
+    dropped = next(m for m in buckling_only if m != _BUCKLING.trigger)
     spec_dropped = _spec([q for q in spec_all.quantities if q.measurand != dropped])
+    assert _BUCKLING.trigger in {q.measurand for q in spec_dropped.quantities}  # still indicated
     q_dropped = next(q for q in clarifying_questions(spec_dropped) if q.measurand == shared)
     assert set(q_dropped.unblocks) == {_VESSEL.name}
     assert q_dropped.unblocks != q_all.unblocks
