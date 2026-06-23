@@ -6,27 +6,25 @@
 
 | Status | Count |
 | --- | --- |
-| done | 5 |
+| done | 4 |
 
 ```mermaid
 kanban
   done
-    nT01[T01: lumencrucible: make hammer_omega_certificate + self_improvement real]
-    nT02[T02: lernmaschine: make the 8-step lern chain genuinely real]
-    nT03[T03: inventor loop: make γ+ bridge derive + attach to RunState]
-    nT04[T04: synthesizer: make duplicate-approach dedup correct + logged]
-    nT05[T05: fem3d: prove deflection/stress scale with load + geometry]
+    nT01[T01: omega.py — make the e2e cert chain a REAL gate]
+    nT02[T02: integrator.py — make the richer BOM/assembly package real]
+    nT03[T03: cross_model.py — fix codex family detection]
+    nT04[T04: discovery/benchmark.py — prove rediscovery is honest, not rigged]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | lumencrucible: make hammer_omega_certificate + self_improvement real | done | claude | feature |
-| T02 | lernmaschine: make the 8-step lern chain genuinely real | done | claude | feature |
-| T03 | inventor loop: make γ+ bridge derive + attach to RunState | done | claude | feature |
-| T04 | synthesizer: make duplicate-approach dedup correct + logged | done | claude | feature |
-| T05 | fem3d: prove deflection/stress scale with load + geometry | done | claude | feature |
+| T01 | omega.py — make the e2e cert chain a REAL gate | done | grok | feature |
+| T02 | integrator.py — make the richer BOM/assembly package real | done | claude | feature |
+| T03 | cross_model.py — fix codex family detection | done | claude | feature |
+| T04 | discovery/benchmark.py — prove rediscovery is honest, not rigged | done | claude | feature |
 
 ## Decisions
 
@@ -89,6 +87,15 @@ kanban
 - (2026-06-22) lernmaschine's e2e transitively depends on integrator STL emission (a different module); the builder fixes ONLY the lern-chain wiring engine.py owns (8 real steps, real delta, persisted_key, apply-to-frontier/realization) and documents any external STL remainder under docs/audit/ rather than touching integrator.
 - (2026-06-22) Source edits are confined to each module's own files; if a complete fix is too large for one task, ship a real verifiable improvement with the new test proving the new behavior and record what remains under docs/audit/.
 - (2026-06-22) preferredBuilder=claude on the cleanly-deterministic test-centric tasks (fem3d, synthesizer, inventor_loop) per test→claude routing; left null on the two large debugging-surface tasks (lumencrucible, lernmaschine) where no clear leader applies.
+- (2026-06-23) Split strictly by module (omega.py / pipelines/integrator.py / verification/cross_model.py / discovery/benchmark.py); these four sources share no mutual imports, and each task adds a uniquely-named tests/test_*_characterization.py — parallel worktrees never write the same path, zero collision risk.
+- (2026-06-23) Keep each module and ITS new test in the SAME task (the test imports the module under audit) so each task is independently verifiable in its own worktree using only its own files plus pre-existing repo files (core.state, cad.*, discovery.engine already exist on main).
+- (2026-06-23) cross_model facade is confirmed and minimal: _FAMILY_KEYWORDS checks ('gpt',...) before ('codex',) so 'gpt-5.5-codex' matches openai first → returns 'openai' but the contract demands 'codex'; the honest fix is to make any id containing 'codex' resolve to the codex family (precedence over the gpt match) while plain 'gpt-4o' still → openai and every other parametrized case is unchanged.
+- (2026-06-23) integrator richer-package must be REAL, not constant: the test must assert that BOM entries, assembly manifest, and the manufacturing docs are DERIVED from the input ideas (changing/adding an idea changes the part count and BOM length), upholding 'keine stillen Defaults' — a constant stub that ignores its input is the facade to kill.
+- (2026-06-23) omega cert-chain must be a genuine gate over real upstream certs: drive build_omega_certificate/gate_omega from real δ⁺/γ⁺/ε/ζ/χ/φ certs built by their real builders on one RunState, and assert gate_omega FAILS (exact GateFailure.code) when any required upstream receipt is missing or its run_id mismatches — 'a gate without a test does not exist'.
+- (2026-06-23) rediscovery honesty: the answer is NOT leaked today (known_laws=None is passed to discover_new_formulas; expected_exponents is used only for the post-hoc match check), so the task PROVES this rather than rewrites it — a held-out/perturbed-data check (recover exponents from a different/noisier sample of the same law) plus a negative control (mismatched data → not rediscovered) makes the ~100% claim honest and falsifiable; ground the dimensional symbolic-regression honesty in Buckingham-π exactness vs the closed-form dispersion baselines (cf. arXiv:1210.6607 exact relations as the kind of closed form the benchmark must recover, not echo).
+- (2026-06-23) Each task edits its module's source ONLY where the new test exposes a genuine defect (cross_model is a real fix; the other three fix only if the characterization test fails — never blanket feature-creep), per 'change nothing if correct'.
+- (2026-06-23) Builders construct all state/spec/problem inputs through the REAL constructors and enum names in src/gen/core/state.py and the module's real signatures (read them, never invent fields), and use only stdlib + already-declared deps — no new dependency; numpy is already a declared dep for the discovery task.
+- (2026-06-23) preferredBuilder=claude on the two cleanly-deterministic test-centric tasks (cross_model, rediscovery) per test→claude routing; left null on the two large debugging-surface tasks (omega cert chain, integrator package/artifact emission) where no clear leader applies.
 
 ### Architecture Decision Records
 
@@ -102,20 +109,21 @@ kanban
 - 0008. /home/genesis/genesis wir arbeiten an genesis wir prüfen ob
 - 0009. Depth-audit AND FIX — wave 2. For each module below the job
 - 0010. Depth-audit AND FIX — wave 2. For each module below the job
+- 0011. Depth-audit AND FIX — wave 3 (continuous). Same rules as bef
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 3 |
-| Tasks (total) | 7 |
-| Done | 6 |
+| Runs | 4 |
+| Tasks (total) | 12 |
+| Done | 11 |
 | Blocked | 0 |
-| Resolved rate | 86% |
+| Resolved rate | 92% |
 | Blocked rate | 0% |
-| Merges | 2 |
-| Avg duration | 206.7m |
-| Total cost | 13.83 |
+| Merges | 3 |
+| Avg duration | 165.9m |
+| Total cost | 32.47 |
 
 ## Architecture
 
@@ -131,6 +139,16 @@ graph TD
 
 Recent commits:
 
+- `7524d64 Merge branch 'crew/T04-claude' into crew/integration`
+- `b831da2 Merge branch 'crew/T03-claude' into crew/integration`
+- `6833983 Merge branch 'crew/T02-claude' into crew/integration`
+- `4bd711b crew(claude): T02 integrator.py — make the richer BOM/assembly package real [round 1]`
+- `343fd5d crew(grok): T01 omega.py — make the e2e cert chain a REAL gate [round 2]`
+- `d5611be crew(claude): T04 discovery/benchmark.py — prove rediscovery is honest, not rigged [round 1]`
+- `6e18918 crew(claude): T03 cross_model.py — fix codex family detection [round 1]`
+- `1ae6202 crew(grok): T01 omega.py — make the e2e cert chain a REAL gate [round 1]`
+- `f41d0e4 Merge branch 'crew/integration'`
+- `b6be5d6 crew: scaffold CI/CD + project config`
 - `81931a4 Merge branch 'crew/T05-claude' into crew/integration`
 - `d75d4a2 Merge branch 'crew/T04-claude' into crew/integration`
 - `93148fe Merge branch 'crew/T03-claude' into crew/integration`
@@ -141,17 +159,7 @@ Recent commits:
 - `6a57326 crew(claude): T04 synthesizer: make duplicate-approach dedup correct + logged [round 1]`
 - `5ae9af2 crew(claude): T03 inventor loop: make γ+ bridge derive + attach to RunState [round 1]`
 - `6ac5f62 fix(simulation): repair broken module docstring in runner.py (SyntaxError blocked all imports)`
-- `629c43e Merge branch 'crew/integration'`
-- `6452ac5 crew: scaffold CI/CD + project config`
-- `cc63f28 Merge branch 'crew/T03-claude' into crew/integration`
-- `228a904 Merge branch 'crew/T02-claude' into crew/integration`
-- `9ea0cac crew(claude): T02 Unit tests for memory_fabric.py (GATE ζ shared-memory fabric) [round 1]`
-- `069999a crew(claude): T03 Unit tests for frontier.py (GATE χ frontier map) [round 1]`
-- `880be4b crew(claude): T01 Unit tests for reality.py (GATE δ⁺ reality proof) [round 1]`
-- `71ac19c Remove inappropriate Docker/deploy scaffolding (genesis is a research library/CLI, not a deployable web service)`
-- `acadfe9 Merge branch 'crew/integration'`
-- `ebf66f9 crew: scaffold CI/CD + project config`
 
 
 ---
-_Generated by [crew](https://github.com/) on 2026-06-22. Regenerated each integration._
+_Generated by [crew](https://github.com/) on 2026-06-23. Regenerated each integration._
