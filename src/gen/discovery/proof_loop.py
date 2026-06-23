@@ -64,7 +64,13 @@ def numeric_prefilter(claim: IdentityClaim, *, n_samples: int = 40, prec_dps: in
     """High-precision numeric check: sample the variables in their box and compare ``lhs`` vs ``rhs`` at
     ~``prec_dps`` digits. Returns ``(agrees, worst_abs_diff)`` — ``agrees`` is False (a sound refutation)
     when the worst |lhs-rhs| exceeds the precision tolerance. Points that fail to evaluate (e.g. a sampled
-    pole) are skipped; if none evaluate, it abstains (agrees=True) and leaves the verdict to the kernel."""
+    pole) are skipped; if none evaluate, it abstains (agrees=True) and leaves the verdict to the kernel.
+
+    Raises ValueError if for any variable the effective lo (after the >=1e-6 clamp for "positive" vars)
+    is not < sample_hi. This guarantees a valid sampling interval and makes the documented "fail loud on
+    bad range" contract independent of the underlying RNG (some numpy versions may otherwise silently
+    reverse the interval, producing a wrong numeric verdict).
+    """
     mp.mp.dps = prec_dps
     tol = mp.mpf(10) ** (-(prec_dps // 2))
     try:
@@ -79,11 +85,29 @@ def numeric_prefilter(claim: IdentityClaim, *, n_samples: int = 40, prec_dps: in
     rng = np.random.default_rng(seed)
     worst = mp.mpf(0)
     evaluated = 0
+    # Validate variable types here (prefilter) to match kernel and avoid silent
+    # treatment of garbage types as non-positive (pre-existing asymmetry fixed).
+    # Unknown type -> abstain (like parse failure), let kernel decide if reached.
+    valid_types = {"real", "positive", "integer"}
+    if any(t not in valid_types for t in claim.variables.values()):
+        return True, 0.0
     for _ in range(n_samples):
         point = []
         for name in names:
-            lo = max(claim.sample_lo, 1e-6) if claim.variables[name] == "positive" else claim.sample_lo
-            point.append(mp.mpf(float(rng.uniform(lo, claim.sample_hi))))
+            t = claim.variables[name]
+            lo = max(claim.sample_lo, 1e-6) if t == "positive" else claim.sample_lo
+            hi = claim.sample_hi
+            if lo >= hi:
+                # Explicit guard (independent of numpy.uniform's check_constraint) so that
+                # hi<lo (or positive-clamp making effective lo >= hi) always fails loud with
+                # clear message. Prevents potential silent reversed-interval sampling that
+                # would compute a wrong "worst" diff and thus a wrong numeric_ok / verdict.
+                # Mirrors the lo<hi contract enforced in simulated_data.InputSpec.
+                raise ValueError(
+                    f"sample_hi must be > effective lo for variable {name!r} "
+                    f"(got effective_lo={lo}, hi={hi}; positive vars clamp low end to 1e-6)"
+                )
+            point.append(mp.mpf(float(rng.uniform(lo, hi))))
         try:
             diff = abs(f_lhs(*point) - f_rhs(*point))
         except Exception:  # noqa: BLE001 - skip a sampled pole / undefined point
@@ -96,11 +120,15 @@ def numeric_prefilter(claim: IdentityClaim, *, n_samples: int = 40, prec_dps: in
     return worst < tol, float(worst)
 
 
-def prove_identity(claim: IdentityClaim, *, kernels: Sequence[ProofKernel] = (Z3IdentityKernel(),),
+def prove_identity(claim: IdentityClaim, *, kernels: Sequence[ProofKernel] | None = None,
                    n_samples: int = 40, prec_dps: int = 50, seed: int = 0) -> ProofVerdict:
     """Run the certification loop. **"Satz"** only when a kernel proves it; **"widerlegt"** on numeric or
     kernel refutation; **"Kandidat"** on numeric+heuristic agreement without a kernel close; **"unsupported"**
     on a parse failure. Deterministic."""
+    # Avoid mutable default at def-time (shared instance anti-pattern).
+    # Z3IdentityKernel is stateless, but fresh instance per call is cleaner.
+    if kernels is None:
+        kernels = (Z3IdentityKernel(),)
     try:
         lhs = sp.sympify(claim.lhs)
         rhs = sp.sympify(claim.rhs)
