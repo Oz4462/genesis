@@ -80,3 +80,17 @@ Eingabe == Konstante) kollabierte still auf eine Spalte und korrumpierte den dim
 Minimaler Eindeutigkeits-Guard in `problem_from_simulation` → lautes `ValueError` („keine stillen
 Defaults"). Öffentliche Signaturen + Sampling unverändert; vorbestehende Tests grün (27 passed).
 Details: `docs/audit/DEPTH_AUDIT_simulated_data.md`.
+
+---
+
+## 2026-06-23 — Depth-Audit + Fix: `discovery/symbiosis.py` (Grok Cross-Model-Symbiose) [T04]
+
+**Verdikt: REAL (nach gezielter Ergänzung).** Die bestehenden `symbiosis_discover`/`council_discover`
+nutzten als Verifikator den deterministischen Gate (echt, aber nicht die *wörtliche*
+Modell-gegen-Modell-Drift-Prüfung aus CLAUDE.md §3). Neu: `cross_model_drift_check(...) -> DriftReport`
+lässt ein **zweites, anders-familiges** Modell (dependency-injizierter `LLMClient`, offline via
+`ScriptedLLM`) dieselbe Frage unabhängig beantworten. `verified=True` nur bei echter
+Cross-Model-Korroboration; Widerspruch ⇒ `drift` (kein stiller Pass); Verifikator-Fehler/Timeout ⇒
+ehrliche `abstention`; gleiche Familie ⇒ `ModelConflictError` (Selbstcheck verweigert). 6 neue Tests
+inkl. zwei Negativtests + ein Hypothesis-Property (falsches Zweiturteil kann nie fälschlich
+verifizieren), alle offline grün. 4 Linsen + Details: `docs/audit/symbiosis.md`.
