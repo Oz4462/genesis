@@ -1,11 +1,12 @@
 # Depth-Audit: `src/gen/geometry_verification.py` (BREP-vs-analytic cross-check)
 
-**Verdikt: REAL (mit minimalem gezielten Fix).** `verify_geometry` ist ein echter Cross-Check:
+**Verdikt: REAL (mit minimalem gezielten Fix, iterativ gehärtet).** `verify_geometry` ist ein echter Cross-Check:
 es baut den exakten OpenCASCADE-BREP-Solid und vergleicht gegen die unabhängige analytische
 Schicht (volume_of / aabb_of). Die Headline (Erkennen einer vom deklarierten Maß abweichenden
-Geometrie) wird durch den Test nachgewiesen. Ein echter Defekt wurde gefunden und behoben
-(siehe unten): extent_ok verwendete isclose gegen conservative AABB → falsches Fail bei
-legitimen Shrinking-Ops (Difference). Fix + Test + Audit sind in Scope.
+Geometrie) wird durch den Test nachgewiesen. Echter Defekt (extent isclose vs. conservative AABB
+für Shrinking) + Folgefehler im L4-Guard (ließ (-abs_tol,0] und 0 durch) behoben. Guard jetzt
+`e <= 0.0` (fängt negatives/zero auf nonzero_volume ab); Property + Negative-Tests erweitert
+um Band-Probing und explizite Guard-Coverage. Fix/Test/Audit in Scope.
 
 ## Beweis-Strategie (Facade-Killer)
 Eine Fassade könnte einen konstanten "ok=True" oder gecachten Wert zurückgeben. Der Test
@@ -40,9 +41,16 @@ schließt das aus:
    Vorher: extent_ok=False trotz korrekter Geometrie. Jetzt (bound check): ok=True, während
    Volume-Upper und Schrumpfung nachgewiesen werden. Das schließt die "trim vs declared envelope"-Lücke.
 
-5. **Determinismus:** identischer Node+Quantities → identisches Ergebnis-Dict (A5-Vertrag).
+6. **Determinismus:** identischer Node+Quantities → identisches Ergebnis-Dict (A5-Vertrag).
 
-6. **Fail-loud Guards:** fehlende Quantity-Id → GeometryError (laut, nie geratener Wert 0).
+7. **L4 Guard für negative/zero Extent (Round-3 Review):** Guard gehärtet (`e <= 0.0` statt `< -abs_tol`);
+   fängt nun auch Werte in (-abs_tol,0] und exakt 0 auf nonzero_volume Solids ab (würden sonst
+   vom <=-Check akzeptiert, obwohl geometrisch widersprüchlich zu vol>tol). Property-Sweep (mit
+   kleinen Werten ~1e-8) + dedizierter Guard-Test + Asserts in allen Positivfällen prüfen, dass
+   nonzero_volume immer positive Extents liefert und bad cases ok=False erzwingen. Kein stilles
+   Akzeptieren von widersprüchlichen Werten.
+
+8. **Fail-loud Guards:** fehlende Quantity-Id → GeometryError (laut, nie geratener Wert 0).
 
 ## 4-Linsen-Notiz
 - **L1 Wahrheit:** Zwei unabhängige Wege (exakter OCCT-BREP-Volumen + analytische Formel
@@ -50,39 +58,40 @@ schließt das aus:
   Anker (4/3 π r³, box-Volumen) und gegen die reale Kernel-Antwort — keine Halluzination.
 - **L2 Drift:** Degenerate-Pfad vermeidet explizit den crashenden BoundingBox-Aufruf auf
   void-Shape; Volumen-Upper-Bound erlaubt nur <= (mit tol); extent jetzt ebenfalls
-  bound-check (nie größer als declared AABB) statt isclose; zusätzlich finite-Guard nach
-  nonzero. Kein stiller Default. Trimming-Diff (kleineres Extent) liefert jetzt korrekt ok=True.
+  bound-check (nie größer als declared AABB) statt isclose; Guard `e <= 0` (Round-3) fängt
+  explizit (-tol,0] und 0 auf nonzero ab (würden sonst akzeptiert). Kein stiller Default.
+  Trimming-Diff (kleineres Extent) liefert jetzt korrekt ok=True.
 - **L3 Vollständigkeit/Naht:** Positivfälle (Box, Sphere, rotate-cylinder, trimming-Diff mit
-  schrumpfendem Extent) + Upper-Bound-Diff + Degenerate + Property (inkl. Cylinder) decken
-  Primitive/Transform/Operationen + exact-vs-bound + die Schrumpfungs-Naht (AABB als Upper
-  für Diff). Der nonzero-Guard + neue finite-Extent-Guard schließen pathologische Solids.
+  schrumpfendem Extent) + Upper-Bound-Diff + Degenerate + Property (inkl. Cylinder + near-zero
+  Sweep + positive-extent-Assert bei nonzero) + dedizierter Guard-Test decken alle Pfade
+  + Schrumpfungs-Naht + die Zero/Neg-Extent-Kontradiktion. 
 - **L4 Realisierbarkeit:** Der Test respektiert die ehrliche Grenze (cadquery optional;
-  nur echte silent-wrong-Defekte führen zu Änderung). Die extent-Änderung ist minimal und
-  gezielt (keine blanket NaN/Inf, nur wo ein realer falscher ok-Wert bei Shrinking-Op entstand).
-  Zusätzlich defensiver finite-Guard für BB nach nonzero.
+  nur echte silent-wrong-Defekte führen zu Änderung). Guard-Update + Test-Coverage gezielt
+  für die vom Review identifizierten Lücken (keine blanket; defensiv für kernel pathology).
 
 ## Geänderte Quelldateien
-- `src/gen/geometry_verification.py`: minimaler Fix der extent_ok-Logik. AABB ist immer
-  ein *sound upper bound* (difference liefert stets den Minuend-Box; rotate ist konservativ).
-  Bidirektionales isclose hat legitime Schrumpfungen durch trimming-Difference fälschlich als
-  Mismatch gewertet (extent_ok=False → ok=False trotz korrekter Geometrie). Geändert auf
-  `brep <= analytic + tol` (wie der non-exact Volume-Pfad) + finite/>=0 Guard gegen pathologische
-  nonzero Solids. Dazu erklärender Kommentar. Keine anderen Änderungen (keine blanket Guards,
-  keine Verhaltensänderung für korrekte exakte Primitive).
+- `src/gen/geometry_verification.py`: 
+  - extent_ok-Logik (upper-bound <= statt isclose für conservative AABB / Shrinking-Ops).
+  - L4-Guard gehärtet (Round-3): `if any(... or e <= 0.0 ...)` (statt `< -abs_tol`) + erweiterter
+    Kommentar. Verhindert Akzeptanz von (-abs_tol,0] und 0 auf nonzero_volume Solids (würden
+    vom <=-Check sonst true ergeben). Keine blanket-Änderungen.
 
-- `tests/test_geometry_verification_characterization.py`: neue Tests + Erweiterung:
-  trimming-difference-Fall (Box minus überlappenden Tool am Rand) der jetzt ok=True liefert
-  (schrumpft Extent, Volumen-Upper-Bound), Property-Sweep jetzt mit Cylinder, explizite
-  Asserts auf legitimately smaller brep_extent.
+- `tests/test_geometry_verification_characterization.py`: 
+  - trimming-difference (exercises shrink → ok=True).
+  - Property-Sweep erweitert (kleine Werte ~1e-8 zum Band-Probing; + asserts `nonzero_volume => all brep_extent > 0`).
+  - Neuer dedizierter Test `test_extent_guard_on_nonzero_volume_rejects_non_positive_extents` (erklärt
+    warum kernel keine bad-Extent-Solids produziert, deckt Guard-Contract + zero-input-Fälle).
+  - Positive-Tests (box/sphere/trim/contained) + zero-dim-Test ergänzt um positive-extent- und
+    Guard-Assertions.
 
-- `docs/audit/DEPTH_AUDIT_geometry_verification.md`: aktualisiert (honest narrative).
+- `docs/audit/DEPTH_AUDIT_geometry_verification.md`: aktualisiert (Round-3 Guard-Härtung + Coverage).
 
 ## Test
-`tests/test_geometry_verification_characterization.py` — neue Charakterisierung (10+ Tests;
-cadquery-optional via importorskip inside numeric bodies; unter cad-venv-Python laufen alle
-Assertions grün, inkl. Box/Sphere pass (ok+volume_ok+extent_ok), trimming-Diff (legit shrink
-→ ok=True), degen ok=False, Consumption, Determinismus, Property (Sphere/Box/Cylinder),
-Missing-Quantity-Error + finite-Guard-Pfad).
-Legacy `test_geometry_verification.py` bleibt unberührt (no churn).
+`tests/test_geometry_verification_characterization.py` — neue Charakterisierung (erweitert auf
+Guard-Coverage); cadquery-optional via importorskip; unter cad-venv-Python alle Assertions grün
+(inkl. Box/Sphere/trim ok+positive-extents, trimming-shrink (ok=True trotz kleiner brep_extent),
+degen/zero-input → ok=False + extent<=0, Property mit near-zero-Sweep + nonzero=>ext>0 Asserts,
+dedizierter Guard-Test für non-positive auf nonzero, Consumption, Det, Missing-Q-Error).
+Legacy unverändert.
 
-Volle Charakterisierungs-Suite (neu) + manuelle Kernel-Proben + Trim-Fix-Verify: bestanden.
+Volle Charakterisierungs-Suite (neu) + Kernel-Proben (inkl. Guard-Edge-Probing): bestanden.

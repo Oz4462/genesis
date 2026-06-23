@@ -84,9 +84,17 @@ def verify_geometry(
     # would wrongly reject them (ok=False despite volume_ok). Use directional <= bound
     # (with tol) analogous to the non-exact volume path. For exact primitives the
     # volume isclose already enforces "not under-size", so overall check stays tight.
-    # Additionally guard against NaN/negative extent from a pathological nonzero solid
-    # (kernel oddity) — fail loud rather than produce misleading ok.
-    if any(not math.isfinite(e) or e < -abs_tol for e in brep_extent):
+    #
+    # L4 guard (defensive for kernel oddity / fp-broken BB on "nonzero" solid):
+    # a solid claiming brep_volume > abs_tol *must* report strictly positive finite
+    # extents (volume>0 geometrically requires this). Previously the guard used
+    # `e < -abs_tol`, allowing (-abs_tol, 0] through to the `b <= a+tol` check
+    # (which accepts them). Zero extent would also pass `0 <= a+tol`. Now we catch
+    # any non-positive or non-finite extent in the nonzero path and force
+    # extent_ok=False (hence ok=False). This matches the intent and the old
+    # isclose behaviour for bad cases, without weakening the shrink allowance for
+    # valid positive-but-smaller extents.
+    if any(not math.isfinite(e) or e <= 0.0 for e in brep_extent):
         extent_ok = False
     else:
         extent_ok = all(
