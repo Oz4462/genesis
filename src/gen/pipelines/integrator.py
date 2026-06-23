@@ -225,8 +225,12 @@ def build_full_mini_realization_package(ideas: list[str], package_name: str = "J
     if asm.combined_stl and os.path.exists(asm.combined_stl):
         shutil.copy(asm.combined_stl, pkg_root / "assembly_combined.stl")
 
-    # bom from frags specs
-    bom = [f.cad_artifact.spec.name for f in fragments]
+    # BOM derived per fragment: each line carries the part name AND the idea it was synthesized from.
+    # The part name alone is a constant ("Jetpack Tether / Harness") for every fragment, so a BOM built
+    # from names only repeats the same string N times and hides which idea produced which part — a
+    # content facade. Tying each line to its fragment's source_idea makes the bill genuinely reflect the
+    # input (different ideas -> different lines), while the length still tracks the fragment count.
+    bom = [f"{f.cad_artifact.spec.name} — aus Idee: {f.source_idea}" for f in fragments]
     # costs stub
     costs = "Estimated TBD based on material/size from specs and assembly manifest"
     # testplan from safety/physiker
@@ -318,8 +322,13 @@ def build_full_mini_realization_package(ideas: list[str], package_name: str = "J
             if mf:
                 cert_report["memory_fabric"] = {"num_deposits": len(getattr(mf, "deposits", []) or []), "health": getattr(getattr(mf, "health", None), "value", None)}
             if rs is not None:
-                cert_report["run_state"] = rs  # the full E2E populated RunState (read-write certs + omega called)
-                # pop additional from lum to rs if present (read-write additive)
+                # The live RunState carries the full E2E cert chain (δ+γ+εζΩ + omega), but it is NOT
+                # JSON-serializable and the manifest MUST serialize (it is written to manifest.json and
+                # consumed by web/cli/tests). Embedding the raw object here silently crashed json.dumps
+                # with "Object of type RunState is not JSON serializable". The manifest only needs a
+                # serializable SUMMARY of which receipts are present — the has_* booleans above already
+                # capture that — so we record a small attached-cert list instead of the live object.
+                # pop additional from lum to rs if present (read-write additive, keeps the in-memory rs whole)
                 for k in ("reality_verdict", "delta_plus_result", "coverage_certificate", "pareto_front"):
                     v = lum.get(k)
                     if v is not None:
@@ -327,6 +336,13 @@ def build_full_mini_realization_package(ideas: list[str], package_name: str = "J
                             setattr(rs, k, v)
                         except Exception:
                             pass
+                cert_report["run_state_certs"] = sorted(
+                    name for name in (
+                        "omega_certificate", "reality_verdict", "delta_plus_result",
+                        "coverage_certificate", "pareto_front",
+                    )
+                    if getattr(rs, name, None) is not None
+                )
     except Exception as e:
         cert_report = {"note": f"certs via LUMEN skipped (guarded): {type(e).__name__}: {e}"}
 
