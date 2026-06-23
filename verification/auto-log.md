@@ -611,3 +611,39 @@ import sys
  | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
 - 2026-06-23T23:20:22.793830 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
 - 2026-06-23T23:20:25.193900 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:49:11.689699 | run_terminal_command | cmd: wc -l "/home/genesis/.grok/sessions/%2Fhome%2Fgene | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:49:14.519199 | run_terminal_command | cmd: sed -n '101,200p' "/home/genesis/.grok/sessions/%2 | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:49:14.588817 | run_terminal_command | cmd: sed -n '1,100p' "/home/genesis/.grok/sessions/%2Fh | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:49:17.198962 | run_terminal_command | cmd: grep -n -i "kinematics" "/home/genesis/.grok/sessi | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:49:17.265726 | run_terminal_command | cmd: sed -n '400,500p' "/home/genesis/.grok/sessions/%2 | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:49:20.204132 | run_terminal_command | cmd: sed -n '500,586p' "/home/genesis/.grok/sessions/%2 | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:49:20.272752 | run_terminal_command | cmd: sed -n '260,320p' "/home/genesis/.grok/sessions/%2 | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:49:24.396601 | run_terminal_command | cmd: ls -l tests/ | grep -E 'kinematics|test_k' ; find  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:49:30.892958 | run_terminal_command | cmd: ls tests/test_kinematics* tests/test_*characteriza | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:49:44.596979 | run_terminal_command | cmd: python -c "
+import sys
+sys.path.insert(0, 'src')
+i | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:49:48.986512 | run_terminal_command | cmd: python3 -c '
+import sys
+sys.path.insert(0, "src")
+ | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-23T23:49:59.089900 | run_terminal_command | cmd: ls -l tests/test_kinematics* 2>/dev/null; ls -l do | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:50:13.091087 | run_terminal_command | cmd: python3 -c '
+import sys
+sys.path.insert(0,"src")
+i | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-23T23:50:16.589313 | run_terminal_command | cmd: python3 -c '
+import sys
+sys.path.insert(0,"src")
+i | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-23T23:50:25.288899 | run_terminal_command | cmd: python3 -c '
+import sys
+sys.path.insert(0,"src")
+f | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-23T23:50:56.501988 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:51:03.634334 | search_replace | tests/test_kinematics_characterization.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-23T23:51:07.087178 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:51:10.387471 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:51:31.289762 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:51:33.188228 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
