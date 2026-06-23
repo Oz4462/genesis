@@ -585,3 +585,19 @@ All state.log flow, Claim.verif list, Approach/Poss id deterministic. No cycles,
 **Proof steps followed:** Return Gate (re-read/grep/test/ruff), vibe verify (wiring greps, exec).
 **Cites:** See attached verif-log + WQ sections for full 4L + exact file:line.
 **Status:** Ready. No new debt. Suite will confirm. (Per structured loop.)
+
+## T02: Depth-audit + harden proof_loop.py (characterization) — 2026-06-23
+**Task:** Write NEW tests/test_proof_loop_characterization.py proving three layers (mpmath prefilter, sympy heuristic, kernel) run and only kernel close earns "Satz" (not sympy facade). Cover the four verdict tiers. Property tests. Then fix proof_loop.py ONLY on genuine defect. Append audit + short BUILD_LOG. Scope strictly 4 files.
+**Research (pre-edit):** read proof_loop (full), proof_kernels, test_discovery_proof_loop.py + test_proof_kernels, existing DEPTH_AUDIT_*.md, team decisions (2026-06-23 proof_loop cases + "REAL on inspection", "change nothing if correct", "Satz only kernel", "new test _characterization", "use real ctors"), hypothesis examples, edge probes via exec (bad range raises loud, domain-hole sympy accepts, n=0 defers, consts work, multi-kernel order).
+**Outcome:** 12-pass characterization test written exercising mpmath-refute, sympy→Kandidat, kernel-proved→Satz, kernel-refute on hole (with ce), unsupported, input-sensitivity, bad-range ValueError, zero-samples deferral + Hypothesis determinism + variation properties. All 4 required tiers + facade-killer assertions. Tests pass on CURRENT source.
+**Defect scan:** No genuine defect exposed. "Satz" is already impossible without kernel "proved" return (sympy path yields Kandidat with kernel="sympy"). mpmath early exit, parse gate, counterexample threading, numeric_ok, determinism all hold. No silent wrong value, no dead documented guard, no fabricated output. Per decisions + "keine stillen Defaults": NO edit to src/gen/discovery/proof_loop.py.
+**Files touched (strict scope):** tests/test_proof_loop_characterization.py (new), docs/audit/DEPTH_AUDIT_proof_loop.md (new), BUILD_LOG.md (short append). Legacy test_discovery_proof_loop.py untouched.
+**Test exec (green):** PYTHONPATH=src pytest tests/test_proof_loop_characterization.py -q → 12 passed; legacy discovery_proof + proof_kernels slice also green (7p+1s).
+**4 Linsen + Selbstkontrolle:**
+- L1: verdicts/labels from live execution of real layers + explicit sympy checks in test; no hallucinated proofs.
+- L2: status/kernel fields + docstring contract match runtime; determinism asserted.
+- L3: all branches (prefilter short, sympy fallback, kernel proved/ref/unsup, parse, multi-kernel) + negative covered; rich z3 path protected as regression.
+- L4: scoped edges (range error loud, n=0, unparseable, positive domain); hypothesis + real ctors; no new deps; offline.
+- DoD: new test is real facade-detector (a/b asserts), property test present, neg test present, audit verdict explicit (REAL), BUILD append, pre-behaviour preserved, isolation honoured.
+**Verdict:** T02 COMPLETE. proof_loop is REAL. No source change. (Short append; integrator will consolidate full narrative from per-task audit.)
+**Evidence:** new test file, audit md, this entry, pytest output above.
