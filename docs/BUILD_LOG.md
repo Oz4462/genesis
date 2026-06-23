@@ -601,3 +601,11 @@ All state.log flow, Claim.verif list, Approach/Poss id deterministic. No cycles,
 - DoD: new test is real facade-detector (a/b asserts), property test present, neg test present, audit verdict explicit (REAL), BUILD append, pre-behaviour preserved, isolation honoured.
 **Verdict:** T02 COMPLETE. proof_loop is REAL. Minimal source change for L4 guard only (to make claimed fail-loud reliable). (Short append; integrator will consolidate full narrative from per-task audit.)
 **Evidence:** new test file, audit md, this entry (corrected for pass count + source reality), pytest output above.
+
+## T02: Depth-audit + characterization PostgresLedgerStore (offline-pure paths) — 2026-06-23
+**Task:** Write tests/test_postgres_ledger_characterization.py for deterministic paths only (no asyncpg, no DB). Assert from_env/env resolution, connect_kwargs (dsn wins, socket/tcp, pw conditional), support roundtrips + None->supports, _check_dim/_to_pgvector, embed_dim, fresh-store _require_pool raises (e.g. ensure_run), add/update_claim Unsourced before pool. Hypothesis for roundtrip invariant. Fix source ONLY on genuine defect. Add DEPTH_AUDIT + BUILD_LOG.
+**Outcome (after round-1 fixes):** 17 tests green. Backward-compat `PostgresLedgerStore(dsn=...)` now exercised (used by scripts/postgres_smoke.py). Hypothesis import guarded via importorskip. Default user assert strengthened to exact "genesis". No defect in documented pure behaviours → no edit to postgres.py. BUILD_LOG + docs/BUILD_LOG appended; AUDIT states "BUILD_LOG and this AUDIT now consistent".
+**Files touched (per review scope + fixes):** tests/test_postgres_ledger_characterization.py, docs/audit/DEPTH_AUDIT_postgres.md, BUILD_LOG.md, docs/BUILD_LOG.md.
+**Verdict:** REAL. Pure helpers + guards are exactly as documented. Characterization only (no "harden" source change).
+**4 Linsen + Selbstkontrolle:** L1 (exact messages + live execution), L2 (deterministic roundtrips + ctor paths), L3 (offline contract + smoke-used ctor covered), L4 (scoped, real ctors, hypothesis, no feature creep). DoD met: new test facade-detector, neg tests, property test, explicit REAL verdict, BUILD appends.
+**Test:** PYTHONPATH=src python3 -m pytest tests/test_postgres_ledger_characterization.py -q → 17 passed.

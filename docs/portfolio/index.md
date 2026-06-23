@@ -11,22 +11,22 @@
 ```mermaid
 kanban
   done
-    nT01[T01: tournament.py — prove evolution beats single-shot on a free-π problem]
-    nT02[T02: transcendental.py — prove honest transcendental-vs-powerlaw verdicts]
-    nT03[T03: tree_search.py — prove the gate is the sole node-scoring oracle]
-    nT04[T04: uncertainty.py — prove bootstrap bands are degenerate on exact data and wid]
-    nT05[T05: universe_bridge.py — prove simulated data is rediscovered THROUGH the gates]
+    nT01[T01: Depth-audit + harden run_audit (signed tamper-evident run audit)]
+    nT02[T02: Depth-audit + harden PostgresLedgerStore (offline-pure paths)]
+    nT03[T03: Depth-audit + harden InMemoryLedgerStore (provenance + determinism)]
+    nT04[T04: Depth-audit + harden actuation (electric + hydraulic actuator screens)]
+    nT05[T05: Depth-audit + harden bolted_joint (preload load-sharing axis)]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | tournament.py — prove evolution beats single-shot on a free-π problem | done | claude | feature |
-| T02 | transcendental.py — prove honest transcendental-vs-powerlaw verdicts | done | grok | feature |
-| T03 | tree_search.py — prove the gate is the sole node-scoring oracle | done | claude | feature |
-| T04 | uncertainty.py — prove bootstrap bands are degenerate on exact data and widen with noise | done | claude | feature |
-| T05 | universe_bridge.py — prove simulated data is rediscovered THROUGH the gates | done | claude | feature |
+| T01 | Depth-audit + harden run_audit (signed tamper-evident run audit) | done | claude | feature |
+| T02 | Depth-audit + harden PostgresLedgerStore (offline-pure paths) | done | grok | feature |
+| T03 | Depth-audit + harden InMemoryLedgerStore (provenance + determinism) | done | claude | feature |
+| T04 | Depth-audit + harden actuation (electric + hydraulic actuator screens) | done | claude | feature |
+| T05 | Depth-audit + harden bolted_joint (preload load-sharing axis) | done | grok | feature |
 
 ## Decisions
 
@@ -169,6 +169,68 @@ kanban
 - (2026-06-23) Builders construct every input through the REAL constructors/field names in src/gen/discovery/engine.py (DiscoveryProblem/Variable/Constant/Candidate) and each module's real signatures — read them, never invent fields — and use only stdlib + already-declared deps (numpy, scipy are already declared for the discovery modules).
 - (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (per the standing 2026-06-23 team decision); each task's honest verdict + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<m>.md (the integrator consolidates at merge).
 - (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the historical test→claude routing.
+- (2026-06-23) Split strictly by module (validation / architect / conductor / forge / scholar): each task edits exactly ONE source file + adds ONE tests/test_<module>_characterization.py + ONE docs/audit/DEPTH_AUDIT_<module>.md — zero path collision across worktrees.
+- (2026-06-23) Keep each module and its new test in the SAME task (the test imports the module under audit) so each task is independently verifiable in its own worktree using only its own files plus pre-existing repo files (core/state.py, llm/base.py ScriptedLLM, discovery/engine.py already on main).
+- (2026-06-23) New test files take the _characterization suffix because every module already has a legacy test_<module>.py (test_discovery_validation/test_architect/test_conductor/test_forge/test_scholar) on main; the new file is the authoritative facade-detector and leaves legacy tests untouched (no churn).
+- (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (per the standing 2026-06-23 team decision); each task's honest verdict + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (the integrator consolidates at merge).
+- (2026-06-23) Universal facade-killer per module: assert (a) the headline output changes MEANINGFULLY when a driving input changes (proves the input is genuinely consumed, not a canned constant) AND (b) the documented fail-loud/abstention path fires exactly (the negative test: missing source / unparseable LLM / fabricated grounding / value not in claim text) — per 'keine stillen Defaults' and 'a gate without a test does not exist'.
+- (2026-06-23) All five modules read as REAL/honest on inspection, so each task edits its source ONLY where the new characterization test exposes a genuine defect (missing guard, silent wrong/constant value, dead input that never affects output) — never blanket feature-creep — upholding 'change nothing if correct'.
+- (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (Claim/ClaimStatus/RunState/Question/Spark/Approach/SourceRef) and discovery/engine.py (DiscoveryProblem/Variable) and use the existing ScriptedLLM + in-test stub Agents — never invent fields — and use only stdlib + already-declared deps (numpy is already declared for the discovery task).
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the historical test→claude routing.
+- (2026-06-23) Strict split by module (scout / skeptic / cegis / consensus / constraint_smt): the five sources live on disjoint paths and each gets a uniquely-named tests/test_<module>_characterization.py + docs/audit/DEPTH_AUDIT_<module>.md, so parallel worktrees never write the same path — zero collision risk.
+- (2026-06-23) Keep each module and ITS new test in the SAME task (the test imports the module under audit) so each task is independently verifiable in its own worktree using only its own files plus pre-existing repo files (core.state, llm.base ScriptedLLM, cross_model.py, tools.fetch already exist on main).
+- (2026-06-23) New test files take the _characterization suffix because every module already has a legacy test (test_scout/test_skeptic/test_cegis/test_consensus/test_constraint_smt) on main; the new file is the authoritative facade-detector and leaves legacy tests untouched (no churn).
+- (2026-06-23) Universal facade-killer per module: assert (a) the headline output changes MEANINGFULLY when a driving input changes — proving the input is genuinely consumed, not a canned constant — AND (b) the documented fail-loud/abstention path fires exactly (the mandatory NEGATIVE test: failing backend / same-family generator / unconverged repair / refuting judge / unknown solver) — per 'keine stillen Defaults' and 'a gate without a test does not exist'.
+- (2026-06-23) All five modules read as REAL on inspection, so each task edits its source ONLY where the new characterization test exposes a genuine defect (missing guard, silent wrong/constant value, dead input) — never blanket feature-creep — upholding 'change nothing if correct'.
+- (2026-06-23) constraint_smt depends on the optional z3 'smt' extra: its test must pytest.importorskip('z3') at the top so the full pytest gate stays green in environments without the extra, while still really exercising transitive infeasibility + unsat-core when z3 is present.
+- (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (RunState/Question/SubQuestion/Claim/ClaimStatus/SourceRef/Constraint) and cross_model.Judgment, and use the existing ScriptedLLM + in-test stub SearchBackend/WebFetchTool — never invent fields — and use only stdlib + already-declared deps.
+- (2026-06-23) The provided arXiv literature (legal RAG arXiv:2511.03563; QCD static-potential arXiv:0909.3411; lattice fermions arXiv:0907.2825) is tangential to these verification modules; ground decisions instead in each module's own cited pattern — scout/skeptic in retrieval-grounded no-fabrication (the RAG-grounding spirit of arXiv:2511.03563 is the nearest analogue), cegis in the counterexample-guided BarrierBench control-synthesis pattern named in its own docstring, consensus in the PoV-3 N-judge leak-reduction property, constraint_smt in z3 unsat-core feasibility.
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the historical test→claude routing.
+- (2026-06-23) Split strictly by module (derivation/gates/geometry/smt/symbolic): the five sources are disjoint paths and each gets a uniquely-named tests/test_<module>_characterization.py + docs/audit/DEPTH_AUDIT_<module>.md — parallel worktrees never write the same path, zero collision risk.
+- (2026-06-23) Keep each module and ITS new test in the SAME task (the test imports the module under audit) so each task is independently verifiable in its own worktree using only its own files plus pre-existing repo files (core.state, core.errors, verification.units already exist on main).
+- (2026-06-23) New test files take the _characterization suffix because every module already has a legacy test on main (test_derivation, test_gate_alpha/beta/gamma/delta, test_geometry, test_smt_gate, test_symbolic_crosscheck); the new file is the authoritative facade-detector and leaves legacy tests untouched (no churn).
+- (2026-06-23) No dependsOn edges although gates.py imports derivation.py + geometry.py: each worktree contains the unmodified pre-existing dependency, and the gates task must not rely on the other tasks' in-flight edits — it asserts against the current public API of its imports.
+- (2026-06-23) Universal facade-killer per module: assert (a) the headline output changes MEANINGFULLY when a driving input changes (proves the input is genuinely consumed, not a canned constant) AND (b) the documented fail-loud/abstention path fires exactly (the mandatory NEGATIVE test) — per 'keine stillen Defaults' and 'a gate without a test does not exist'.
+- (2026-06-23) All five modules read as REAL on inspection, so each task edits its source ONLY where the new characterization test exposes a genuine defect (missing guard, silent wrong/constant value, dead input) — never blanket feature-creep — upholding 'change nothing if correct'.
+- (2026-06-23) smt.py depends on the optional z3 'smt' extra and constraint paths; its test must pytest.importorskip('z3') at module top so the full pytest gate stays green where the extra is absent, while still really exercising the unsat-proof / sat-counterexample split when z3 is present.
+- (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (standing 2026-06-23 team decision); each task's honest verdict + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (integrator consolidates at merge).
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the historical test→claude routing.
+- (2026-06-23) Split strictly by module: each task edits exactly ONE src file + adds ONE tests/test_<module>_characterization.py + ONE docs/audit/DEPTH_AUDIT_<module>.md; the five sources share no mutual imports (kicad/assembly only import pre-existing core.state / prototype_cad_builder carried unmodified in each worktree), so parallel worktrees never write the same path.
+- (2026-06-23) Keep each module and its new test in the SAME task (the test imports the module under audit) so each task is independently verifiable in its own worktree using only its own files plus pre-existing repo files (core.state.Net/Component/Net, prototype_cad_builder, core.errors.UnitError all already on main).
+- (2026-06-23) New test files take the _characterization suffix because every module already has a legacy test on main (test_units, test_cad_assembly, test_cost_model, test_gcode, test_kicad); the new file is the authoritative facade-detector and leaves legacy tests untouched (no churn).
+- (2026-06-23) Universal facade-killer per module: assert (a) the headline output changes MEANINGFULLY when a driving input changes (proves the input is consumed, not a canned constant) AND (b) the documented fail-loud/abstention path fires exactly (the mandatory NEGATIVE test) — per 'keine stillen Defaults' and 'a gate without a test does not exist'.
+- (2026-06-23) assembly.py is the one confirmed PARTIAL-FACADE: combined_stl aliases part_files[0] as the whole assembly (a fabricated 'combined'), an identical elif branch (87-92) is dead code, and the temp fallback writes 0-byte STLs presented as parts; its task makes the real fix — combined_stl is set ONLY when a genuine compound is produced, else None with an explicit manifest gap, and each emitted part file must be a non-empty real STL.
+- (2026-06-23) The other four modules read as REAL on inspection, so each edits its source ONLY where its new characterization test exposes a genuine defect (missing guard, silent wrong/constant value, dead input) — never blanket feature-creep — upholding 'change nothing if correct'.
+- (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (standing 2026-06-23 team decision); each task's honest verdict (REAL/PARTIAL/FACADE + what was made real) + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (the integrator consolidates at merge).
+- (2026-06-23) Builders construct every input through the REAL constructors/field names (core.state.Net(name,pins=['REF.pin']) / Component / prototype_cad_builder.PrototypeSpec, units' parse_unit/unit_scale/formula_dimension signatures) — read them, never invent fields — and use only stdlib + already-declared deps (build123d stays an optional lazy import; assembly's test must pass whether or not build123d is installed).
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the historical test→claude routing.
+- (2026-06-23) (2026-06-23) Split strictly by module (manufacturing_check / prototype_cad_builder / errors / interfaces / state): each task edits exactly ONE src file + adds ONE tests/test_<module>_characterization.py + ONE docs/audit/DEPTH_AUDIT_<module>.md — zero path collision across worktrees.
+- (2026-06-23) (2026-06-23) interfaces.py imports state.py and manufacturing_check.py imports prototype_cad_builder.py, but NO dependsOn edges: each worktree carries the unmodified pre-existing dependency and each task asserts against the CURRENT public API of its imports, so no task relies on another's in-flight edits.
+- (2026-06-23) (2026-06-23) prototype_cad_builder is the one confirmed PARTIAL-FACADE: the generic else-branch returns constant volume_estimate_cm3=30.0 with fixed Rectangle(100,60) geometry regardless of spec.bounding_box_hint_mm/material/min_wall — the spec drives nothing; the fix makes the generic plate's geometry+volume DERIVE from the spec's bounding box, while the rich jetpack/tether/recovery branch stays byte-stable as a protected regression.
+- (2026-06-23) (2026-06-23) prototype_cad_builder must keep PrototypeSpec/BuildArtifact dataclass signatures byte-stable (manufacturing_check, demo, integrator import them) and keep the legacy test_prototype_cad_builder.py green (its generic case only checks 'from build123d import'/'BuildPart'/dfm_report>=1), so the fix preserves those tokens and adds the new degenerate-dims ValueError only for zero/negative extents.
+- (2026-06-23) (2026-06-23) manufacturing_check's test constructs BuildArtifact/PrototypeSpec DIRECTLY (real on-disk tmp_path STL) rather than via build_prototype_cad, so it is independent of the builder task's behavior at merge and isolates the DFM logic under audit.
+- (2026-06-23) (2026-06-23) The four REAL modules (manufacturing_check, errors, interfaces, state) follow 'change nothing if correct': each task edits source ONLY where its new characterization test exposes a genuine defect (missing guard, silent wrong/constant value, dead input), never blanket feature-creep.
+- (2026-06-23) (2026-06-23) Universal facade-killer per module: assert (a) the headline output changes MEANINGFULLY when a driving input changes (input is consumed, not a canned constant) AND (b) the documented fail-loud path fires exactly (the mandatory NEGATIVE test) — per 'keine stillen Defaults' and 'a gate without a test does not exist'.
+- (2026-06-23) (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (standing 2026-06-23 team decision); each task's honest verdict (REAL/PARTIAL/FACADE + what was made real) + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (the integrator consolidates at merge).
+- (2026-06-23) (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py and src/gen/cad/prototype_cad_builder.py (read them, never invent fields) and use only stdlib + already-declared deps — no new dependency.
+- (2026-06-23) (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the historical test→claude routing.
+- (2026-06-23) Split strictly by module: each task = one src file + one uniquely-named tests/test_<module>_characterization.py + one docs/audit/DEPTH_AUDIT_<module>.md; the five sources live on disjoint paths so parallel worktrees never write the same path — zero collision risk.
+- (2026-06-23) No dependsOn edges despite the external/* import chain (materials_oracle→oracle→registry): each worktree carries the unmodified pre-existing dependency and each task asserts against the current public API of its imports, so no task relies on another's in-flight edits.
+- (2026-06-23) external/registry (Task 5) MUST keep the public signatures of ExternalBinding / external_binding / classify_license / binding_claim byte-stable (oracle.py + materials_oracle.py import them) — only add behavior/guards if a genuine defect surfaces, so the post-merge gate stays green.
+- (2026-06-23) Universal facade-killer per module: assert (a) the headline output changes MEANINGFULLY when a driving input changes (proves the input is consumed, not a canned constant) AND (b) the documented fail-loud/abstention path fires exactly (the mandatory NEGATIVE test) — per 'keine stillen Defaults' and 'a gate without a test does not exist'.
+- (2026-06-23) breakthrough_bridge is the confirmed PARTIAL-FACADE: when build123d is absent, _build_diamagnetic_assist_plate's exec fails into a bare 'except: pass' and returns a hardcoded volume=48.5 with real_stl=None, yet challenge_impossible still emits a report/manifest asserting 'Real STL... export proven' and 'DFM PASSED' — a fabricated measured value + false artifact claim; the fix distinguishes a real measured STL from an estimate and emits an HONEST gap (cad_stl_path=None, explicit 'kein reales STL' marker, no false 'export proven') when no real export occurred, plus a ValueError guard on empty idea.
+- (2026-06-23) materials_oracle / oracle tests run their async query() via asyncio.run with an in-test fake store (matching the existing tests/test_external_oracle.py asyncio pattern); the orb-models import-gate path is exercised by asserting MaterialsOracleUnavailable is raised when orb-models is absent (the honest-abstention contract), and the test passes whether or not build123d/orb-models are installed.
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the historical test→claude routing; breakthrough_bridge stays claude because its work is still test-anchored (drive the honest-gap test to green), not doc-only.
+- (2026-06-23) Split strictly by module: each task = ONE src file + ONE tests/test_<module>_characterization.py + ONE docs/audit/DEPTH_AUDIT_<module>.md; the five sources share no mutual imports beyond pre-existing core.state/core.errors carried unmodified in each worktree, so parallel worktrees never write the same path (zero collision risk).
+- (2026-06-23) Keep each module and ITS new test in the SAME task (the test imports the module under audit) so each task is independently verifiable in its own worktree using only its own files plus pre-existing repo files (core.state, core.errors already on main).
+- (2026-06-23) New test files take the _characterization suffix because every module already has a legacy test on main (test_run_audit, test_ledger, test_actuation, test_bolted_joint, test_ledger_postgres_integration); the new file is the authoritative facade-detector and leaves legacy tests untouched (no churn).
+- (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (standing 2026-06-23 team decision); each task's honest verdict (REAL/PARTIAL/FACADE + what was made real) + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (integrator consolidates at merge).
+- (2026-06-23) postgres.py CANNOT touch a real DB offline, so its test targets ONLY the deterministic non-pool code paths (PostgresConfig.from_env env resolution, connect_kwargs dsn-override + socket-omits-port vs TCP-adds-port, _support_to_db/_support_from_db round-trip, _check_dim dimension-mismatch→GenesisError, _to_pgvector literal, _require_pool→GenesisError before connect(), add_claims/update_claim UnsourcedClaimError firing BEFORE _require_pool) — no asyncpg, no live server required.
+- (2026-06-23) run_audit.py hard-imports trust_core at module top (the optional 'verify' extra), so its test must pytest.importorskip('trust_core') at the top to keep the full pytest gate green where the extra is absent, while still really exercising sign→verify→tamper→wrong-key when present.
+- (2026-06-23) Universal facade-killer per module: assert (a) the headline output changes MEANINGFULLY when a driving input changes (proves the input is consumed, not a canned constant) AND (b) the documented fail-loud path fires exactly with the correct exception type/message (the mandatory NEGATIVE test) — per 'keine stillen Defaults' and 'a gate without a test does not exist'.
+- (2026-06-23) All five modules read as REAL on inspection, so each task edits its source ONLY where the new characterization test exposes a genuine defect (missing guard, silent wrong/constant value, dead input) — never blanket feature-creep — upholding 'change nothing if correct'.
+- (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (Claim/ClaimStatus/SourceRef/SourceSupport) and each module's real signatures — read them, never invent fields — and use only stdlib + already-declared deps (pytest-asyncio for the async store/postgres guards if the repo already uses it; otherwise drive coroutines via asyncio.run).
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the historical test→claude routing.
 
 ### Architecture Decision Records
 
@@ -192,20 +254,27 @@ kanban
 - 0018. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0019. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0020. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0021. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0022. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0023. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0024. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0025. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0026. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0027. Depth-audit AND FIX (genesis overnight loop). For each modul
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 13 |
-| Tasks (total) | 56 |
-| Done | 54 |
+| Runs | 20 |
+| Tasks (total) | 91 |
+| Done | 89 |
 | Blocked | 1 |
-| Resolved rate | 96% |
-| Blocked rate | 2% |
-| Merges | 12 |
-| Avg duration | 78.7m |
-| Total cost | 130.81 |
+| Resolved rate | 98% |
+| Blocked rate | 1% |
+| Merges | 13 |
+| Avg duration | 70.3m |
+| Total cost | 223.11 |
 
 ## Architecture
 
@@ -221,26 +290,26 @@ graph TD
 
 Recent commits:
 
+- `6946a69 crew: resolve merge conflict for crew/T05-grok`
+- `4d5061e Merge branch 'crew/T04-claude' into crew/integration`
+- `ea8e31d Merge branch 'crew/T03-claude' into crew/integration`
+- `dc9ae37 Merge branch 'crew/T02-grok' into crew/integration`
+- `d4e800a crew(grok): T05 Depth-audit + harden bolted_joint (preload load-sharing axis) [round 2]`
+- `5e3ce4b crew(grok): T05 Depth-audit + harden bolted_joint (preload load-sharing axis) [round 1]`
+- `2db4b4a crew(claude): T04 Depth-audit + harden actuation (electric + hydraulic actuator screens) [round 1]`
+- `c9ca79c crew(grok): T02 Depth-audit + harden PostgresLedgerStore (offline-pure paths) [round 4]`
+- `7447415 crew(claude): T03 Depth-audit + harden InMemoryLedgerStore (provenance + determinism) [round 1]`
+- `9c8f227 crew(grok): T02 Depth-audit + harden PostgresLedgerStore (offline-pure paths) [round 3]`
+- `0302dc2 crew(claude): T01 Depth-audit + harden run_audit (signed tamper-evident run audit) [round 2]`
+- `6f7e37a crew(grok): T02 autofix [round 2]`
+- `17c6827 crew(grok): T02 Depth-audit + harden PostgresLedgerStore (offline-pure paths) [round 2]`
+- `93da09c crew(claude): T01 Depth-audit + harden run_audit (signed tamper-evident run audit) [round 1]`
+- `cda496a crew(grok): T02 Depth-audit + harden PostgresLedgerStore (offline-pure paths) [round 1]`
+- `580a289 feat(tools): wire PostgreSQL/pgvector ledger, CadQuery BREP, KiCad, OpenFOAM CFD, OpenMDAO into genesis`
+- `164e957 feat(humanoids): real open-source humanoids + in-engine validation/balance/RL harness`
+- `466be1b Merge branch 'crew/integration'`
+- `473621c crew: scaffold CI/CD + project config`
 - `9d7b8e7 Merge branch 'crew/T05-claude' into crew/integration`
-- `b35681f Merge branch 'crew/T04-claude' into crew/integration`
-- `1ac9c4f Merge branch 'crew/T03-claude' into crew/integration`
-- `01451bb Merge branch 'crew/T02-grok' into crew/integration`
-- `672fd10 crew(claude): T05 universe_bridge.py — prove simulated data is rediscovered THROUGH the gates [round 1]`
-- `c7015be crew(grok): T02 transcendental.py — prove honest transcendental-vs-powerlaw verdicts [round 3]`
-- `543e9c7 crew(claude): T04 uncertainty.py — prove bootstrap bands are degenerate on exact data and widen with noise [round 1]`
-- `b8c3349 crew(claude): T03 tree_search.py — prove the gate is the sole node-scoring oracle [round 1]`
-- `80de8fb crew(grok): T02 transcendental.py — prove honest transcendental-vs-powerlaw verdicts [round 2]`
-- `283171a crew(grok): T02 transcendental.py — prove honest transcendental-vs-powerlaw verdicts [round 1]`
-- `bf3e44c crew(claude): T01 tournament.py — prove evolution beats single-shot on a free-π problem [round 1]`
-- `156518b Merge branch 'crew/integration'`
-- `71d6f3e crew: scaffold CI/CD + project config`
-- `bc0349f crew: resolve merge conflict for crew/T05-claude`
-- `94bb363 crew: resolve merge conflict for crew/T04-claude`
-- `15f6757 crew: resolve merge conflict for crew/T03-grok`
-- `9fcafdb Merge branch 'crew/T02-grok' into crew/integration`
-- `b3e58f0 crew(claude): T05 Depth-audit + fix: discovery/symbolic_search.py (symbolic regression search) [round 1]`
-- `89d3669 crew(grok): T03 Depth-audit + fix: discovery/surrogate.py (physics surrogate model) [round 3]`
-- `d4590f2 crew(claude): T04 Depth-audit + fix: discovery/symbiosis.py (Grok cross-model symbiosis) [round 2]`
 
 
 ---
