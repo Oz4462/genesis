@@ -27,9 +27,10 @@ from hypothesis import strategies as st
 from gen.discovery import (
     Constant, DiscoveryProblem, Variable,
     TranscendentalLaw, discover_transcendental, dimensionless_groups,
-    discover_rivals, evaluate_rival, RivalForm,
+    discover_rivals, evaluate_rival, refit_rival, RivalForm,
 )
-from gen.discovery.transcendental import refit_rival
+# NOTE: refit_rival now exercised via public package surface (gen.discovery) per facade-killer
+# and review finding (was direct submodule import, which hid the __init__ lazy export)
 
 
 # --------------------------------------------------------------------------------------------
@@ -307,3 +308,104 @@ def test_property_target_scaling_scales_C_only_preserves_r2_and_verdict(k: float
     c0 = law0.params.get("C", 0.0)
     c1 = law1.params.get("C", 0.0)
     assert abs(c1 - c0 * k) < 0.2 or abs(c1 - c0 * k) / max(abs(c0 * k), 1e-9) < 0.05
+
+
+# --------------------------------------------------------------------------------------------
+# additional coverage for review findings (bestaetigt rivals path, non-finite guards,
+# length consistency, grid boundary, public import surface for refit_rival)
+# --------------------------------------------------------------------------------------------
+
+def test_discover_rivals_exercises_bestaetigt_path():
+    """Rivals API must be exercised on bestaetigt case (transcendental rival exists and is
+    distinguishable from power rival); previous coverage only hit unentschieden/quadratic.
+    Use public surface import for refit_rival."""
+    prob = _exp_decay_trans()
+    t_rival, p_rival = discover_rivals(prob)
+    assert t_rival is not None
+    assert t_rival.form_name in ("exp", "sin", "tanh", "log")
+    assert p_rival is not None
+    assert p_rival.form_name == "pow"
+    # trans rival should evaluate to near-exact on its data (for bestaetigt)
+    yhat = evaluate_rival(t_rival, prob)
+    y = np.asarray(prob.target.values)
+    ss_res = np.sum((y - yhat)**2)
+    ss_tot = np.sum((y - np.mean(y))**2)
+    r2 = 1.0 if ss_tot <= 0 else 1.0 - ss_res / ss_tot
+    assert r2 > 0.999
+    # refit on same data via public symbol
+    refit = refit_rival(t_rival, prob)
+    assert refit is not None
+    assert refit.r_squared > 0.999
+
+
+def test_non_finite_data_raises_loud_valueerror():
+    """Non-finite (nan/inf) in target or inputs must raise loud ValueError (not produce
+    nan r2 -> silent widerlegt or curve_fit exception). Added per L4 review finding."""
+    # bad target y
+    prob = _exp_decay_trans()
+    bad_y = list(prob.target.values)
+    bad_y[0] = float("nan")
+    bad_prob = DiscoveryProblem(
+        prob.idea,
+        Variable(prob.target.name, prob.target.unit, tuple(bad_y)),
+        prob.inputs, prob.constants
+    )
+    with pytest.raises(ValueError, match="non-finite"):
+        discover_transcendental(bad_prob)
+
+    # bad input
+    t = np.array([1.0, 2.0, 3.0])
+    t[0] = float("inf")
+    bad_in = DiscoveryProblem(
+        "badinf",
+        Variable("y", "m", (1.,2.,3.)),
+        (Variable("t", "s", tuple(t)),),
+        (Constant("tau", 1.0, "s"),)
+    )
+    with pytest.raises(ValueError, match="non-finite"):
+        discover_transcendental(bad_in)
+    with pytest.raises(ValueError, match="non-finite"):
+        dimensionless_groups(bad_in)
+
+
+@given(
+    bad = st.floats(allow_nan=True, allow_infinity=True),
+)
+@settings(deadline=None, max_examples=10, suppress_health_check=[HealthCheck.filter_too_much])
+def test_property_non_finite_raises(bad: float):
+    """Property: any non-finite value in input array forces loud error (invariant for all such data)."""
+    # only test when actually non-finite
+    if not (np.isnan(bad) or np.isinf(bad)):
+        return
+    t = np.array([1.0, 2.0, 3.0])
+    t[1] = bad
+    p = DiscoveryProblem("p", Variable("y","m",(10.,20.,30.)), (Variable("t","s",tuple(t)),), ())
+    with pytest.raises(ValueError, match="non-finite|no samples"):
+        discover_transcendental(p)
+
+
+def test_length_mismatch_raises_early_structural_error():
+    """Length mismatch between target and inputs now caught early (like engine); prevents
+    surprising r2=0.0 or shape errors in _group_values/_r2 for degenerate cases."""
+    prob = DiscoveryProblem(
+        "mismatch",
+        Variable("y", "m", (1.0, 2.0, 3.0)),
+        (Variable("t", "s", (1.0, 2.0)),),  # len 2 != 3
+        (Constant("tau", 1.0, "s"),)
+    )
+    with pytest.raises(ValueError, match="samples, target has"):
+        discover_transcendental(prob)
+
+
+def test_dimensionless_groups_includes_exact_boundary_exponents():
+    """Grid construction (arange + round + eps) must include exact ±max_abs_exp values;
+    tests numeric boundary to protect against fp fragility in lattice enumeration."""
+    # simple ratio setup
+    prob = _exp_decay_trans(n=4)
+    # step=1.0 makes ±2 easy to hit exactly
+    groups = dimensionless_groups(prob, max_abs_exp=2.0, step=1.0)
+    t_exps = sorted({abs(g.get("t", 0.0)) for g in groups if "t" in g})
+    assert 2.0 in t_exps, f"expected boundary 2.0 in {t_exps}"
+    # also for negative
+    all_exps = [g.get("t", 0.0) for g in groups]
+    assert 2.0 in all_exps and -2.0 in all_exps

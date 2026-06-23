@@ -126,6 +126,9 @@ class TranscendentalLaw:
 
 
 def _r2(y: np.ndarray, y_hat: np.ndarray) -> float:
+    # zero-variance target (all y identical) after length guard: constant target has no
+    # explanatory variation from pi; return 1 only on exact match (via D/offset), else 0
+    # (leads to widerlegt -- honest, no overclaim for constant). Guarded upstream now.
     ss_res = float(np.sum((y - y_hat) ** 2))
     ss_tot = float(np.sum((y - float(np.mean(y))) ** 2))
     if ss_tot <= 0.0:
@@ -143,13 +146,23 @@ def _source_arrays(problem: DiscoveryProblem) -> tuple[list[str], list[np.ndarra
     arrs: list[np.ndarray] = []
     for v in problem.inputs:
         a = np.asarray(v.values, dtype=float)
+        if len(a) != n:
+            # match engine length check for early structural error; prevents shape mismatch in pi/y
+            # leading to surprising 0.0 R² or curve_fit failures (addresses degenerate + mismatch case)
+            raise ValueError(f"input {v.name!r} has {len(a)} samples, target has {n}")
+        if not np.all(np.isfinite(a)):
+            # non-finite inputs bypass <=0 (nan <=0 is False); would produce nan pi / nan r2 / widerlegt
+            # instead of loud error -- L4 correctness gap, 'fail loud on bad data'
+            raise ValueError(f"input {v.name!r} has non-finite values; a π-group needs finite positive magnitudes")
         if np.any(a <= 0.0):
             raise ValueError(f"input {v.name!r} has non-positive values; a π-group needs positive magnitudes")
         names.append(v.name)
         arrs.append(a)
     for c in problem.constants:
+        if not np.isfinite(c.value):
+            raise ValueError(f"constant {c.name!r} has non-finite value; a π-group needs finite positive magnitudes")
         if c.value <= 0.0:
-            raise ValueError(f"constant {c.name!r} must be positive")
+            raise ValueError(f"constant {c.name!r} must be positive for a π-group")
         names.append(c.name)
         arrs.append(np.full(n, float(c.value)))
     return names, arrs
@@ -169,8 +182,15 @@ def dimensionless_groups(
         # zero-sample problems are invalid for discovery; loud error matches engine + _source_arrays
         # (prevents surprising empty results or downstream misuse)
         raise ValueError("target has no samples")
+    # Call our _source_arrays (validates lengths, finite, positivity) to guarantee π-group error
+    # messages instead of the divergent 'power-law discovery' messages from engine.dimensional_system
+    # (which is called next). This keeps all error paths in transcendental consistent.
+    _source_arrays(problem)
     a_matrix, _b, names = dimensional_system(problem)
-    grid = np.round(np.arange(-max_abs_exp, max_abs_exp + step / 2, step), 6)
+    # arange + round(6) is known numeric-fragile for exact lattice inclusion at boundaries;
+    # + small eps + round ensures ±max_abs_exp are present when they should be; tested below.
+    eps = 1e-9
+    grid = np.round(np.arange(-max_abs_exp, max_abs_exp + step / 2 + eps, step), 6)
     if len(grid) ** len(names) > 200_000:
         raise ValueError("π-group lattice too large; reduce max_abs_exp or raise step")
     groups: list[dict[str, float]] = []
@@ -259,8 +279,12 @@ def discover_transcendental(
     (R² ≥ `r2_threshold`) AND the best power-of-the-group is NOT (so a power law does not explain
     the data equally well); ``unentschieden`` if both are essentially exact (indistinguishable on
     this data); ``widerlegt`` if no dimensionless argument exists or nothing fits. Raises ValueError
-    on target with no samples, non-positive magnitudes or an over-large lattice."""
+    on target with no samples, non-finite values, non-positive magnitudes or an over-large lattice."""
     y = np.asarray(problem.target.values, dtype=float)
+    if not np.all(np.isfinite(y)):
+        # non-finite y leads to nan in _r2 or curve_fit exceptions that become widerlegt/None
+        # (silent wrong factual); fail loud per review finding
+        raise ValueError("target contains non-finite values")
     names, arrs = _source_arrays(problem)
     groups = dimensionless_groups(problem, max_abs_exp=max_abs_exp, step=step)
 
@@ -348,6 +372,10 @@ def discover_rivals(
     ``unentschieden`` verdict cannot separate. Either is ``None`` if nothing fits or there is no
     dimensionless argument. Raises ValueError on target with no samples or non-positive magnitudes."""
     y = np.asarray(problem.target.values, dtype=float)
+    if not np.all(np.isfinite(y)):
+        # non-finite y leads to nan in _r2 or curve_fit exceptions that become widerlegt/None
+        # (silent wrong factual); fail loud per review finding
+        raise ValueError("target contains non-finite values")
     names, arrs = _source_arrays(problem)
     groups = dimensionless_groups(problem, max_abs_exp=max_abs_exp, step=step)
     if not groups:
@@ -375,6 +403,10 @@ def refit_rival(rival: RivalForm, problem: DiscoveryProblem) -> RivalForm | None
     names, arrs = _source_arrays(problem)
     pi = _group_values(rival.group, names, arrs)
     y = np.asarray(problem.target.values, dtype=float)
+    if not np.all(np.isfinite(y)):
+        # non-finite y leads to nan in _r2 or curve_fit exceptions that become widerlegt/None
+        # (silent wrong factual); fail loud per review finding
+        raise ValueError("target contains non-finite values")
     forms = {f.name: f for f in (*_form_library(), _baseline_form())}
     form = forms.get(rival.form_name)
     if form is None:
