@@ -6,7 +6,12 @@ loop finds a passing candidate within a budget smaller than the pool, with the g
 (no false passing). Offline, deterministic.
 """
 
+import sys
+from pathlib import Path
+
 import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from gen.discovery.active_search import (
     PassModel,
