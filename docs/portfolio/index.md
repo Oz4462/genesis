@@ -6,34 +6,27 @@
 
 | Status | Count |
 | --- | --- |
-| done | 4 |
-| blocked | 1 |
+| done | 5 |
 
 ```mermaid
 kanban
   done
-    nT01[T01: Depth-audit + fix bench_test_runner: make 'bewertet den Messlauf' real (inp]
-    nT02[T02: Depth-audit + fix boundary_reviser: evidence-driven revisions, no fabricate]
-    nT03[T03: Depth-audit + fix breakthrough_watch: FrontierItems tied to the real map's]
-    nT05[T05: Depth-audit + fix development_front: generic map genuinely derived from ide]
-  blocked
-    nT04[T04: Depth-audit + fix capability_gap_analyzer: actually CLASSIFY the map's type]
+    nT01[T01: learning_integrator: make generic LearningDelta derive from real SafetyStag]
+    nT02[T02: technology_roadmapper: derive generic TechnologyRoadmap from real TestStand]
+    nT03[T03: teststand_architect: derive generic TestStandPlan from real MilestoneLadder]
+    nT04[T04: architekt: make generic SystemConcept actually reflect the idea text]
+    nT05[T05: designer: make generic DesignerSpec derive from concept assemblies + ingeni]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | Depth-audit + fix bench_test_runner: make 'bewertet den Messlauf' real (input-derived results + honest verdict) | done | claude | feature |
-| T02 | Depth-audit + fix boundary_reviser: evidence-driven revisions, no fabricated no-op revision | done | grok | feature |
-| T03 | Depth-audit + fix breakthrough_watch: FrontierItems tied to the real map's gaps, honest-empty when none | done | claude | feature |
-| T04 | Depth-audit + fix capability_gap_analyzer: actually CLASSIFY the map's typed boundaries into GapCategories | blocked | grok | feature |
-| T05 | Depth-audit + fix development_front: generic map genuinely derived from idee + bekannte_grenzen | done | claude | feature |
-
-### Blocked / risks
-
-- **T04** Depth-audit + fix capability_gap_analyzer: actually CLASSIFY the map's typed boundaries into GapCategories
-  - merge conflict at integration vs base — code not integrated
+| T01 | learning_integrator: make generic LearningDelta derive from real SafetyStagePlan/RevisedFrontMap | done | claude | feature |
+| T02 | technology_roadmapper: derive generic TechnologyRoadmap from real TestStandPlan stands | done | grok | feature |
+| T03 | teststand_architect: derive generic TestStandPlan from real MilestoneLadder milestones | done | claude | feature |
+| T04 | architekt: make generic SystemConcept actually reflect the idea text | done | claude | feature |
+| T05 | designer: make generic DesignerSpec derive from concept assemblies + ingenieur failure_modes | done | claude | feature |
 
 ## Decisions
 
@@ -111,6 +104,14 @@ kanban
 - (2026-06-23) The universal facade-killer per module: assert (a) output changes meaningfully when a driving input field changes (proves the input is consumed, not a constant), and (b) an input with no actionable signal yields an honest empty/abstaining output rather than a fabricated canned result — per 'keine stillen Defaults'.
 - (2026-06-23) Every task keeps the rich jetpack branch as a protected regression (one test asserts it still returns its detailed map) so making the generic path real does not silently delete the existing demo behavior — completeness/L3 seam check.
 - (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-fix task with no network/subprocess, matching the test→claude routing; the fix surface is small and self-contained.
+- (2026-06-23) Shared root cause across all 5: the generic `else` branch returns a constant independent of input — the facade-killer test asserts (a) two different non-jetpack inputs produce MEANINGFULLY different output (input is consumed) and (b) a signal-free input yields honest abstention (empty/explicit-gap or ValueError), never a fabricated canned result, per 'keine stillen Defaults'.
+- (2026-06-23) Each task keeps the rich jetpack branch as a PROTECTED regression: one assertion proves the detailed jetpack output (3 rules / 5 assemblies / 3 stands etc.) is unchanged, so making the generic path real does not silently delete existing demo behavior (L3 seam check).
+- (2026-06-23) Strict split by module: each task edits ONE src file + adds ONE tests/test_<module>_characterization.py + ONE docs/audit/DEPTH_AUDIT_<module>.md — zero path collision; cross-module input types are imported as unmodified pre-existing repo files.
+- (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (per 2026-06-23 team decision); each task's honest verdict + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (integrator consolidates at merge).
+- (2026-06-23) Every task must add at least one NEGATIVE test (missing/contradictory input → documented ValueError, or signal-free input → honest empty/gap output) per the genesis DoD and 'a gate without a test does not exist'.
+- (2026-06-23) designer's jetpack branch triggers on `"jetpack" in idea or "flug" in idea`, so its generic-path test inputs must avoid both substrings — flagged so the builder's two distinct non-jetpack concepts actually hit the generic branch.
+- (2026-06-23) Builders construct all input dataclasses (SafetyStagePlan/SafetyStage, RevisedFrontMap, MilestoneLadder/Milestone, TestStandPlan/TestStandSpec, SystemConcept/AssemblyConcept, IngenieurSpec/FailureMode) via the REAL constructors/field names in their existing modules — never invent fields — and use only stdlib + already-declared deps.
+- (2026-06-23) Source edits confined to making the generic branch genuinely input-driven; the jetpack branch and all public dataclass signatures stay byte-stable so downstream importers (e.g. designer→architekt/ingenieur) keep compiling and the full pytest gate stays green.
 
 ### Architecture Decision Records
 
@@ -126,20 +127,21 @@ kanban
 - 0010. Depth-audit AND FIX — wave 2. For each module below the job
 - 0011. Depth-audit AND FIX — wave 3 (continuous). Same rules as bef
 - 0012. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0013. Depth-audit AND FIX (genesis overnight loop). For each modul
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 5 |
-| Tasks (total) | 16 |
-| Done | 15 |
-| Blocked | 0 |
-| Resolved rate | 94% |
-| Blocked rate | 0% |
-| Merges | 4 |
-| Avg duration | 140.1m |
-| Total cost | 41 |
+| Runs | 6 |
+| Tasks (total) | 21 |
+| Done | 19 |
+| Blocked | 1 |
+| Resolved rate | 90% |
+| Blocked rate | 5% |
+| Merges | 5 |
+| Avg duration | 123.4m |
+| Total cost | 52.41 |
 
 ## Architecture
 
@@ -155,26 +157,26 @@ graph TD
 
 Recent commits:
 
+- `8629b2b Merge branch 'crew/T05-claude' into crew/integration`
+- `db3e414 Merge branch 'crew/T04-claude' into crew/integration`
+- `f0e8d73 Merge branch 'crew/T03-claude' into crew/integration`
+- `6483bc3 Merge branch 'crew/T02-grok' into crew/integration`
+- `85db9b2 crew(claude): T05 designer: make generic DesignerSpec derive from concept assemblies + ingenieur failure_modes [round 1]`
+- `1ece34a crew(claude): T04 architekt: make generic SystemConcept actually reflect the idea text [round 1]`
+- `e691b4e crew(claude): T03 teststand_architect: derive generic TestStandPlan from real MilestoneLadder milestones [round 1]`
+- `e8d85fd crew(grok): T02 technology_roadmapper: derive generic TechnologyRoadmap from real TestStandPlan stands [round 3]`
+- `a560988 crew(grok): T02 technology_roadmapper: derive generic TechnologyRoadmap from real TestStandPlan stands [round 2]`
+- `f51d04f crew(claude): T01 learning_integrator: make generic LearningDelta derive from real SafetyStagePlan/RevisedFrontMap [round 1]`
+- `57c44d1 crew(grok): T02 technology_roadmapper: derive generic TechnologyRoadmap from real TestStandPlan stands [round 1]`
+- `e0a22f2 Merge branch 'crew/integration'`
+- `977112c crew: integration repair attempt 1`
+- `7f3b42d crew: scaffold CI/CD + project config`
 - `a6d6392 Merge branch 'crew/T05-claude' into crew/integration`
 - `f42d765 Merge branch 'crew/T03-claude' into crew/integration`
 - `e716e67 Merge branch 'crew/T02-grok' into crew/integration`
 - `f521464 crew(claude): T05 Depth-audit + fix development_front: generic map genuinely derived from idee + bekannte_grenzen [round 1]`
 - `0debe46 crew(claude): T03 Depth-audit + fix breakthrough_watch: FrontierItems tied to the real map's gaps, honest-empty when none [round 1]`
 - `1e04cd6 crew(grok): T02 Depth-audit + fix boundary_reviser: evidence-driven revisions, no fabricated no-op revision [round 2]`
-- `96dd19d crew(claude): T01 Depth-audit + fix bench_test_runner: make 'bewertet den Messlauf' real (input-derived results + honest verdict) [round 1]`
-- `e944d3e crew(grok): T02 Depth-audit + fix boundary_reviser: evidence-driven revisions, no fabricated no-op revision [round 1]`
-- `4d7a117 Merge branch 'crew/integration'`
-- `81d4630 crew: scaffold CI/CD + project config`
-- `7524d64 Merge branch 'crew/T04-claude' into crew/integration`
-- `b831da2 Merge branch 'crew/T03-claude' into crew/integration`
-- `6833983 Merge branch 'crew/T02-claude' into crew/integration`
-- `4bd711b crew(claude): T02 integrator.py — make the richer BOM/assembly package real [round 1]`
-- `343fd5d crew(grok): T01 omega.py — make the e2e cert chain a REAL gate [round 2]`
-- `d5611be crew(claude): T04 discovery/benchmark.py — prove rediscovery is honest, not rigged [round 1]`
-- `6e18918 crew(claude): T03 cross_model.py — fix codex family detection [round 1]`
-- `1ae6202 crew(grok): T01 omega.py — make the e2e cert chain a REAL gate [round 1]`
-- `f41d0e4 Merge branch 'crew/integration'`
-- `b6be5d6 crew: scaffold CI/CD + project config`
 
 
 ---
