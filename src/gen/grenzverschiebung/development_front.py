@@ -36,6 +36,47 @@ class Grenztyp(str, Enum):
     CONTRADICTS_CURRENT_MODEL = "contradicts_current_model"
 
 
+# --- Heuristische Typisierung bekannter Grenzen ---
+
+# Stichwort → Grenztyp. Bewusst rule-based, aber der Typ wird AUS dem Text der
+# Grenze abgeleitet (kein konstanter Default) — so spiegelt die Map die reale
+# Eingabe wider. Reihenfolge = Priorität (erste passende Gruppe gewinnt).
+_GRENZ_STICHWORTE: list[tuple[Grenztyp, tuple[str, ...]]] = [
+    (Grenztyp.CONTRADICTS_CURRENT_MODEL,
+     ("widerspricht", "verbietet", "unmöglich", "perpetuum", "thermodynamik", "kausalität")),
+    (Grenztyp.NEEDS_BREAKTHROUGH,
+     ("durchbruch", "breakthrough", "neue technologie", "energiedichte", "energie-dichte",
+      "supraleiter", "quanten")),
+    (Grenztyp.POSSIBLE_BUT_UNSAFE_DIRECTLY,
+     ("unsicher", "gefahr", "gefährlich", "risiko", "sicher", "safety", "mensch")),
+    (Grenztyp.MISSING_MODEL,
+     ("modell", "model", "theorie", "simulation", "regelung", "vorhersage")),
+    (Grenztyp.MISSING_COMPONENT,
+     ("bauteil", "material", "komponente", "akku", "batterie", "motor", "werkstoff")),
+    (Grenztyp.MISSING_TOOLING,
+     ("fertigung", "werkzeug", "prüfstand", "tooling", "messgerät", "prüfung",
+      "regulator", "zulassung")),
+    (Grenztyp.MISSING_MEASUREMENT,
+     ("messung", "messen", "messwert", "sensor", "daten", "kalibrier")),
+]
+
+
+def _klassifiziere_grenze(grenze: str) -> Grenztyp:
+    """Leitet den Grenztyp aus dem Text einer bekannten Grenze ab.
+
+    Was/Warum: Der Typ MUSS aus dem Inhalt folgen (L1/„keine stillen Defaults"),
+    damit die Map die echte Eingabe konsumiert statt eines konstanten Werts.
+    Trägt der Text kein erkennbares Signal, wird die Grenze ehrlich als
+    MISSING_MEASUREMENT typisiert (eine reale Messung fehlt noch) — das ist die
+    schwächste, am wenigsten anmaßende Aussage, kein optimistisches Raten.
+    """
+    text = grenze.lower()
+    for typ, stichworte in _GRENZ_STICHWORTE:
+        if any(s in text for s in stichworte):
+            return typ
+    return Grenztyp.MISSING_MEASUREMENT
+
+
 # --- Kern-Datenstrukturen (Experimentleiter + Map) ---
 
 @dataclass(frozen=True)
@@ -88,9 +129,25 @@ def map_development_front(
     - Typisiert Grenzen (nicht nur "unmöglich")
     - Startet die Experimentleiter mit sicheren Stufen
     - Markiert Lücken und Abbruchkriterien ehrlich
+
+    Args:
+        idee: Der menschliche „Traum"/das Problem. Darf nicht leer/whitespace sein.
+        bekannte_grenzen: Optional vorab bekannte Grenzen. Jede wird typisiert,
+            in `fehlende_faehigkeiten` referenziert und bekommt einen eigenen
+            Experimentleiter-Schritt (generischer Pfad).
+        run_id: Provenance/Reproduzierbarkeit (A5).
+
+    Raises:
+        ValueError: Wenn `idee` leer oder nur Whitespace ist (keine stille leere
+            Map — eine Grenze ohne Traum ist nicht kartierbar).
     """
     idee = idee.strip()
-    bekannte_grenzen = bekannte_grenzen or []
+    if not idee:
+        raise ValueError(
+            "idee darf nicht leer/whitespace sein — ohne Traum gibt es keine "
+            "Grenze zu kartieren (keine stille leere Map)."
+        )
+    bekannte_grenzen = [g.strip() for g in (bekannte_grenzen or []) if g and g.strip()]
 
     # Deterministische Analyse für das kanonische Jetpack-Beispiel (PLAN §3.2/3.3)
     # Später: Ersetzbar durch Wissensbasis + capability_gap_analyzer.
@@ -146,33 +203,89 @@ def map_development_front(
         ]
         naechste_stufe = "safety_ladder + experiment_designer für tethered public Demo + capability_gap_analyzer für Energie"
     else:
-        # Ehrlicher Fallback für beliebige Ideen (noch nicht reichhaltig analysiert)
+        # Generischer Pfad: echte Ableitung aus (idee + bekannte_grenzen).
+        # Jede bekannte Grenze wird typisiert, in fehlende_faehigkeiten referenziert
+        # und bekommt einen eigenen Experimentleiter-Schritt. Trägt die Eingabe kein
+        # Signal (keine bekannten Grenzen), bleibt die Map ehrlich abstinent statt
+        # eine kanonische Pseudo-Grenze zu erfinden (keine stillen Defaults).
         traum = idee
-        heutige_grenze = "Noch nicht detailliert kartiert für diese Idee — siehe Experimentleiter und offene Lücken. Volle Analyse erfordert Wissensbasis + capability_gap_analyzer (zukünftiger Stein)."
+
+        # heutige_grenze spiegelt die konkrete Idee → zwei Ideen ergeben zwei Maps.
+        kurz = idee if len(idee) <= 120 else idee[:117] + "..."
+        if bekannte_grenzen:
+            heutige_grenze = (
+                f"Für „{kurz}“ liegen {len(bekannte_grenzen)} bekannte Grenze(n) vor, "
+                "die unten typisiert und je in einen kleinsten sicheren Test überführt "
+                "werden. Eine vollständige quellenbasierte Kartierung erfordert zusätzlich "
+                "Wissensbasis + capability_gap_analyzer (zukünftiger Stein)."
+            )
+        else:
+            heutige_grenze = (
+                f"Für „{kurz}“ sind noch KEINE konkreten Grenzen benannt — die Map ist "
+                "daher ehrlich abstinent (keine erfundenen Grenzen). Nächster Schritt: "
+                "bekannte_grenzen liefern oder capability_gap_analyzer ausführen, um reale "
+                "Grenzen mit Quellen zu erzeugen."
+            )
+
+        # grenzen: jede bekannte Grenze AUS DEM TEXT typisiert (kein flacher Default).
+        grenzen = {g: _klassifiziere_grenze(g) for g in bekannte_grenzen}
+
+        # fehlende_faehigkeiten referenzieren jede bekannte Grenze explizit.
         fehlende_faehigkeiten = [
-            "Vollständige Grenz-Kartierung mit realen Quellen/Tests und Domänen-Wissen (zukünftiger Stein)",
-            "Sichere Demo-Varianten + SafetyStagePlan",
+            f"Schließen von „{g}“ (typisiert als {grenzen[g].value}) durch realen Test/Quelle"
+            for g in bekannte_grenzen
         ]
+        # Ohne benannte Grenzen bleibt eine ehrliche Meta-Lücke (kein leeres Versprechen).
+        if not fehlende_faehigkeiten:
+            fehlende_faehigkeiten = [
+                "Vollständige Grenz-Kartierung mit realen Quellen/Tests und Domänen-Wissen "
+                "(noch keine konkreten Grenzen benannt)",
+            ]
+
+        # Experimentleiter: feste Eröffnung + ein Schritt pro bekannter Grenze.
         experimentleiter = [
             ExperimentleiterSchritt(
-                beschreibung="Idee / Traum aufnehmen und emotionalen/technischen Kern extrahieren.",
+                beschreibung=f"Traum aufnehmen: „{kurz}“ — emotionalen/technischen Kern extrahieren.",
                 quelle="GENESIS_PLATFORM_PLAN.md §3.2 (Moonshot-Pipeline)",
             ),
             ExperimentleiterSchritt(
-                beschreibung="Heutige Grenze grob typisieren (was ist known_possible vs. needs_breakthrough etc.).",
+                beschreibung=(
+                    "Heutige Grenze grob typisieren (known_possible vs. needs_breakthrough etc.). "
+                    "Hypothese bis durch realen Test/Quelle bestätigt."
+                ),
                 hypothese=True,
             ),
-            ExperimentleiterSchritt(
-                beschreibung="Kleinster sicherer Test definieren, der echtes Wissen erzeugt.",
-                quelle="GENESIS_PLATFORM_PLAN.md §3.3 (Experimentleiter)",
-            ),
         ]
-        grenzen = {g: Grenztyp.MISSING_MEASUREMENT for g in bekannte_grenzen} or {
-            "generische Machbarkeit der Idee": Grenztyp.MISSING_MEASUREMENT
-        }
+        for g in bekannte_grenzen:
+            typ = grenzen[g]
+            experimentleiter.append(
+                ExperimentleiterSchritt(
+                    beschreibung=(
+                        f"Grenze „{g}“ ({typ.value}): kleinsten sicheren Test entwerfen, der "
+                        "diese Grenze gezielt prüft und einen Messwert → Entscheidung erzeugt."
+                    ),
+                    grenzt_typ=typ,
+                )
+            )
+        if not bekannte_grenzen:
+            experimentleiter.append(
+                ExperimentleiterSchritt(
+                    beschreibung="Kleinsten sicheren Test definieren, der echtes Wissen erzeugt.",
+                    quelle="GENESIS_PLATFORM_PLAN.md §3.3 (Experimentleiter)",
+                )
+            )
+
+        # Abbruchkriterien: für Grenzen, die einen Durchbruch/Widerspruch erfordern,
+        # ehrlich ein hartes Stopp-Kriterium ergänzen (aus den Typen abgeleitet).
         abbruchkriterien = [
             "Keine sichere Stufe definierbar ohne neue Technologie (needs_breakthrough)",
         ]
+        for g in bekannte_grenzen:
+            if grenzen[g] in (Grenztyp.NEEDS_BREAKTHROUGH, Grenztyp.CONTRADICTS_CURRENT_MODEL):
+                abbruchkriterien.append(
+                    f"„{g}“ verlangt {grenzen[g].value} → Abbruch und Technology-Roadmap "
+                    "statt unsicherem Direkt-Bau."
+                )
         naechste_stufe = "capability_gap_analyzer + milestone_builder (nächste Grenzverschiebungs-Module)"
 
     front_map = DevelopmentFrontMap(
