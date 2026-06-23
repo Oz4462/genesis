@@ -36,7 +36,6 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 
-from ..core.errors import ModelConflictError
 from ..llm.base import LLMClient
 from ..llm.schemas import parse_proposals
 from .canonical import dedupe_by_exponents
