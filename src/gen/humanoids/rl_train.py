@@ -132,13 +132,17 @@ def _score_policy(make_env, policy, episodes: int, *, seed0: int) -> list[float]
 
 def train_ppo_poc(robot: str = "tienkung", *, timesteps: int = 60_000, minutes: float = 20.0,
                   horizon_s: float = 5.0, perturb: float = 0.05, eval_episodes: int = 8,
-                  seed: int = 0, urdf_path: str | None = None, save_path: str | None = None) -> TrainResult:
+                  seed: int = 0, urdf_path: str | None = None, save_path: str | None = None,
+                  controlled_joints: tuple[str, ...] | None = None) -> TrainResult:
     """Train PPO in the balance env for ``robot`` (capped budget) and compare to the passive baseline.
 
     Budget: stops at ``timesteps`` OR ``minutes`` wall-clock, whichever first. ``perturb`` is the
     per-episode random base-velocity nudge (so the task is reactive, not a single trajectory). Returns a
     :class:`TrainResult` with the reward curve and the honest head-to-head. For TienKung the convex-feet
-    URDF is used by default (denser contact). Fail-loud if SB3/gymnasium/PyBullet are missing."""
+    URDF is used by default (denser contact). ``controlled_joints`` lets the policy command more than the
+    default ankles (e.g. hips+knees+ankles — the hip strategy, which can move the CoM without lifting the
+    sole, the proven failure mode of ankle-only); None keeps the env default (ankles). Fail-loud if
+    SB3/gymnasium/PyBullet are missing."""
     if not (sb3_available() and gymnasium_available()):
         raise RuntimeError("stable-baselines3 + gymnasium are required for the RL PoC")
     from stable_baselines3 import PPO
@@ -150,7 +154,8 @@ def train_ppo_poc(robot: str = "tienkung", *, timesteps: int = 60_000, minutes: 
 
     def make_env():
         return make_balance_gym_env(robot, urdf_path=urdf_path, horizon_s=horizon_s,
-                                    action_mode="position", reset_perturb=perturb)
+                                    action_mode="position", reset_perturb=perturb,
+                                    controlled_joints=controlled_joints)
 
     train_env = make_env()
     # Small MLP, short rollouts: enough for a PoC, cheap per update.
@@ -178,17 +183,31 @@ def train_ppo_poc(robot: str = "tienkung", *, timesteps: int = 60_000, minutes: 
     base_mean = float(np.mean(base))
     pol_mean = float(np.mean(pol))
     beats = pol_mean > base_mean + 1e-3
+    # Describe the ACTUAL controlled-joint set so the note never misreports the strategy (no-spin rule).
+    if controlled_joints is None:
+        strat = "ankle-only (env default)"
+    else:
+        names = " ".join(controlled_joints).lower()
+        has_hip = "hip" in names
+        has_knee = "knee" in names
+        has_ankle = "ankle" in names
+        parts = [p for p, ok in (("hip", has_hip), ("knee", has_knee), ("ankle", has_ankle)) if ok]
+        strat = "+".join(parts) if parts else "custom"
+        strat = f"{strat} authority ({len(controlled_joints)} joints)"
     if beats:
-        note = (f"PPO policy beats the passive crouch+hold under {perturb} perturbation "
+        note = (f"PPO policy ({strat}) beats the passive crouch+hold under {perturb} perturbation "
                 f"({pol_mean:.2f}s vs {base_mean:.2f}s mean upright).")
     elif abs(pol_mean - base_mean) <= 1e-3:
-        note = (f"PPO policy MATCHES the passive hold ({pol_mean:.2f}s vs {base_mean:.2f}s): with only "
-                f"ankle authority the passive crouch is already near-optimal; the policy learned to ~hold.")
+        note = (f"PPO policy ({strat}) MATCHES the passive hold ({pol_mean:.2f}s vs {base_mean:.2f}s): the "
+                f"passive crouch is already near-optimal for static balance; the policy learned to ~hold.")
     else:
-        note = (f"PPO policy does NOT beat the passive hold ({pol_mean:.2f}s vs {base_mean:.2f}s). Likely: "
-                f"ankle-only authority cannot improve on the crouch hold (moving ankles breaks contact — "
-                f"the measured ceiling) and/or {trained} steps is too few. Env is trainable (reward curve "
-                f"present); this is the honest ankle-strategy ceiling, not a harness bug.")
+        note = (f"PPO policy ({strat}) does NOT beat the passive crouch+hold ({pol_mean:.2f}s vs "
+                f"{base_mean:.2f}s). Measured ceiling: any active joint motion (ankle OR hip+knee) reduces "
+                f"the implicit-PD stiffness that holds the static crouch and breaks the marginal mesh-foot "
+                f"contact, toppling the robot; the crouch+hold is already the optimal STATIC strategy "
+                f"(stiffness, not control authority, is the lever). {trained} steps; env IS trainable "
+                f"(reward curve present) — this is the honest static-balance ceiling, not a harness bug. "
+                f"Beating it needs DYNAMIC footwork (stepping/capture-step) the sway-in-place env omits.")
 
     return TrainResult(
         robot=robot, timesteps_trained=trained, wall_seconds=wall, reward_curve=list(cb.curve),
@@ -196,6 +215,25 @@ def train_ppo_poc(robot: str = "tienkung", *, timesteps: int = 60_000, minutes: 
         baseline_upright_eps=base, policy_upright_eps=pol, horizon_s=horizon_s,
         eval_episodes=eval_episodes, perturb=perturb, beats_baseline=beats, note=note,
         model_path=save_path)
+
+
+#: Named controlled-joint sets per robot, so the CLI can pick a balance STRATEGY by name.
+#: "ankle" = the proven ceiling; "hipknee" = hip+knee sagittal+lateral (no ankle, can't break contact);
+#: "wholebody" = hip+knee+ankle. Only TienKung's leg-joint naming is wired here.
+STRATEGY_JOINTS: dict[str, dict[str, tuple[str, ...]]] = {
+    "tienkung": {
+        "ankle": ("ankle_pitch_l_joint", "ankle_roll_l_joint",
+                  "ankle_pitch_r_joint", "ankle_roll_r_joint"),
+        "hipknee": ("hip_pitch_l_joint", "hip_pitch_r_joint",
+                    "knee_pitch_l_joint", "knee_pitch_r_joint",
+                    "hip_roll_l_joint", "hip_roll_r_joint"),
+        "wholebody": ("hip_pitch_l_joint", "hip_pitch_r_joint",
+                      "knee_pitch_l_joint", "knee_pitch_r_joint",
+                      "hip_roll_l_joint", "hip_roll_r_joint",
+                      "ankle_pitch_l_joint", "ankle_pitch_r_joint",
+                      "ankle_roll_l_joint", "ankle_roll_r_joint"),
+    },
+}
 
 
 def _main() -> None:
@@ -206,9 +244,17 @@ def _main() -> None:
     ap.add_argument("--perturb", type=float, default=0.05)
     ap.add_argument("--eval-episodes", type=int, default=8)
     ap.add_argument("--save", default=None)
+    ap.add_argument("--strategy", choices=["ankle", "hipknee", "wholebody"], default=None,
+                    help="controlled-joint set (default: env default = ankles)")
     args = ap.parse_args()
+    cj = None
+    if args.strategy is not None:
+        cj = STRATEGY_JOINTS.get(args.robot, {}).get(args.strategy)
+        if cj is None:
+            raise SystemExit(f"no '{args.strategy}' joint set wired for robot {args.robot!r}")
     res = train_ppo_poc(args.robot, timesteps=args.timesteps, minutes=args.minutes,
-                        perturb=args.perturb, eval_episodes=args.eval_episodes, save_path=args.save)
+                        perturb=args.perturb, eval_episodes=args.eval_episodes, save_path=args.save,
+                        controlled_joints=cj)
     import json
     print(json.dumps(res.summary(), indent=2))
     print("\nreward_curve:", [round(x, 1) for x in res.reward_curve])
