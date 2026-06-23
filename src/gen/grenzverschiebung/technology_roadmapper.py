@@ -55,12 +55,20 @@ def build_technology_roadmap(
 
     Für das Jetpack-Beispiel (PLAN) erzeugt sie eine Roadmap der zentralen fehlenden
     Technologien, die aus den vorherigen Gaps, Meilensteinen und Prüfständen abgeleitet sind.
+
+    Für beliebige (non-jetpack) Eingaben leitet der generische Pfad die Gaps direkt aus
+    den TestStandSpec-Einträgen ab: pro Stand ein TechnologyGap, gap_referenz = stand.name,
+    beschreibung und abhaengigkeiten spiegeln die messungen/sicherheitsmassnahmen des Standes.
+    Bei leerer stands-Liste wird eine ehrliche leere gaps-Liste mit expliziter
+    Zusammenfassung "no stands were provided" (keine fabrizierte Lücke) zurückgegeben.
+    Der reiche Jetpack-Zweig wird verbatim als Regression erhalten.
     """
     traum = stand_plan.source_traum
 
     gaps: list[TechnologyGap] = []
 
     if "jetpack" in traum.lower() or ("mensch" in traum.lower() and "fliegen" in traum.lower()):
+        # Jetpack branch preserved VERBATIM per spec / team decisions (protected regression).
         gaps = [
             TechnologyGap(
                 name="Hochdichte portable Energie (Li-Metal / Solid-State / Wasserstoff)",
@@ -108,18 +116,52 @@ def build_technology_roadmap(
             "Die Roadmap ist direkt aus den identifizierten Gaps und Meilensteinen abgeleitet."
         )
     else:
-        gaps = [
-            TechnologyGap(
-                name="Grundlegende Technologie-Bewertung für die Idee",
-                beschreibung="Noch keine detaillierte Analyse der fehlenden Schlüsseltechnologien durchgeführt.",
-                gap_referenz="capability_gap MISSING_KNOWLEDGE",
-                moegliche_pfade=["Vollständige Wissensbasis-Integration + capability_gap_analyzer + milestone_builder"],
-                geschaetzter_aufwand="2–4 Wochen (Review)",
-                abhaengigkeiten=[],
-                quelle="GENESIS_PLATFORM_PLAN.md §3.3",
-            ),
-        ]
-        zusammenfassung = "Minimal-Roadmap für noch nicht detailliert analysierte Idee."
+        # Generic (non-jetpack) path: derive TechnologyGaps from the ACTUAL stands.
+        # This kills the facade (previously a single fixed gap regardless of stand_plan.stands).
+        # One gap per stand; gap_referenz points at stand.name; beschreibung/abhaengigkeiten
+        # reflect that stand's measurements and safety measures (L2 drift fix + L1 grounding).
+        # Empty stands -> honest empty list + explicit summary (no fabricated canned gap).
+        if not stand_plan.stands:
+            gaps = []
+            zusammenfassung = (
+                "Keine Prüfstände wurden bereitgestellt. "
+                "Es können keine Technologie-Gaps abgeleitet werden. "
+                "(keine fabrizierte Lücke)"
+            )
+        else:
+            for s in stand_plan.stands:
+                # WHY (non-obvious correctness): we deliberately 1:1 map stands -> gaps
+                # so that any change to a stand's name/messungen/sicherheitsmassnahmen
+                # produces an observably different roadmap (facade detector requirement).
+                # Abhaengigkeiten pull from the safety list (reflects input) with safe fallback.
+                ref = s.name
+                beschreibung = (
+                    f"Prüfstand '{s.name}' erfordert Technologie-Fortschritt für Messungen "
+                    f"{s.messungen} unter Sicherheitsmassnahmen {s.sicherheitsmassnahmen}. "
+                    f"Stand-Beschreibung: {s.beschreibung}"
+                )
+                abhaengigkeiten = (
+                    list(s.sicherheitsmassnahmen)[:3] if s.sicherheitsmassnahmen else ["safety_ladder", "bench_test_runner"]
+                )
+                gaps.append(
+                    TechnologyGap(
+                        name=f"Technologie-Lücke für {s.name}",
+                        beschreibung=beschreibung,
+                        gap_referenz=ref,
+                        moegliche_pfade=[
+                            "Entwicklung passend zu den Stand-Messungen und Sicherheitsanforderungen",
+                            "Kopplung an technology_builder + bench_test_runner",
+                        ],
+                        geschaetzter_aufwand=s.dauer_aufwand,
+                        abhaengigkeiten=abhaengigkeiten,
+                        quelle=s.quelle or "technology_roadmapper (generic) + TestStandSpec",
+                    )
+                )
+            zusammenfassung = (
+                f"{len(gaps)} Technologie-Gaps direkt aus den {len(stand_plan.stands)} "
+                "realen Prüfstand-Einträgen abgeleitet (gap_referenz = Stand-Name; "
+                "Beschreibung/Abhängigkeiten spiegeln Messungen + Sicherheit)."
+            )
 
     return TechnologyRoadmap(
         source_traum=traum,
