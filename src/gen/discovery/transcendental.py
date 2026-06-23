@@ -135,6 +135,10 @@ def _r2(y: np.ndarray, y_hat: np.ndarray) -> float:
 
 def _source_arrays(problem: DiscoveryProblem) -> tuple[list[str], list[np.ndarray]]:
     n = len(problem.target.values)
+    if n == 0:
+        # match engine.symbolic_regress exactly for consistent loud failure across discovery paths;
+        # prevents silent widerlegt or downstream curve_fit/ops on empty arrays
+        raise ValueError("target has no samples")
     names: list[str] = []
     arrs: list[np.ndarray] = []
     for v in problem.inputs:
@@ -161,6 +165,10 @@ def dimensionless_groups(
     with ``A·p = 0`` (the null space of the source dimensional matrix), excluding the trivial
     all-zero vector. Both orientations of a group (``t/τ`` and ``τ/t``) are kept — they are
     different functions of the data and the fit decides which one a transcendental needs."""
+    if len(problem.target.values) == 0:
+        # zero-sample problems are invalid for discovery; loud error matches engine + _source_arrays
+        # (prevents surprising empty results or downstream misuse)
+        raise ValueError("target has no samples")
     a_matrix, _b, names = dimensional_system(problem)
     grid = np.round(np.arange(-max_abs_exp, max_abs_exp + step / 2, step), 6)
     if len(grid) ** len(names) > 200_000:
@@ -251,7 +259,7 @@ def discover_transcendental(
     (R² ≥ `r2_threshold`) AND the best power-of-the-group is NOT (so a power law does not explain
     the data equally well); ``unentschieden`` if both are essentially exact (indistinguishable on
     this data); ``widerlegt`` if no dimensionless argument exists or nothing fits. Raises ValueError
-    on non-positive magnitudes or an over-large lattice."""
+    on target with no samples, non-positive magnitudes or an over-large lattice."""
     y = np.asarray(problem.target.values, dtype=float)
     names, arrs = _source_arrays(problem)
     groups = dimensionless_groups(problem, max_abs_exp=max_abs_exp, step=step)
@@ -338,7 +346,7 @@ def discover_rivals(
     """Fit the best transcendental rival AND the best power-of-a-group rival over the same
     dimensionless groups. Returns ``(transcendental, powerlaw)`` — the two forms an
     ``unentschieden`` verdict cannot separate. Either is ``None`` if nothing fits or there is no
-    dimensionless argument. Raises ValueError on non-positive magnitudes."""
+    dimensionless argument. Raises ValueError on target with no samples or non-positive magnitudes."""
     y = np.asarray(problem.target.values, dtype=float)
     names, arrs = _source_arrays(problem)
     groups = dimensionless_groups(problem, max_abs_exp=max_abs_exp, step=step)
@@ -352,7 +360,7 @@ def discover_rivals(
 
 def evaluate_rival(rival: RivalForm, problem: DiscoveryProblem) -> np.ndarray:
     """Evaluate a fitted rival on a problem's data — its π-group recomputed from the inputs/
-    constants, then the form applied. No refit. Raises ValueError on non-positive magnitudes."""
+    constants, then the form applied. No refit. Raises ValueError on target with no samples or non-positive magnitudes."""
     names, arrs = _source_arrays(problem)
     pi = _group_values(rival.group, names, arrs)
     return _apply_form(rival.form_name, rival.params, pi)
@@ -363,7 +371,7 @@ def refit_rival(rival: RivalForm, problem: DiscoveryProblem) -> RivalForm | None
     rival bend maximally to the new points. Returns a freshly-fitted ``RivalForm`` (new params + R²) or
     ``None`` if it cannot fit. This is the T-optimality move (FORSCHUNG §A4): a discriminating experiment
     must defeat the losing rival EVEN AFTER it re-fits optimally to the proposed data. Raises ValueError on
-    non-positive magnitudes."""
+    target with no samples or non-positive magnitudes."""
     names, arrs = _source_arrays(problem)
     pi = _group_values(rival.group, names, arrs)
     y = np.asarray(problem.target.values, dtype=float)

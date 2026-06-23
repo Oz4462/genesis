@@ -212,6 +212,44 @@ def test_non_positive_magnitudes_raises_documented_valueerror():
 
 
 # --------------------------------------------------------------------------------------------
+# zero-sample guard tests (covers all functions sharing the validation path + dimensionless_groups)
+# exact message to catch regressions; per 'a gate without a test does not exist'
+# --------------------------------------------------------------------------------------------
+
+def _empty_problem() -> DiscoveryProblem:
+    """Zero-sample target (and matching empty inputs) — must fail loud before any fit or group work."""
+    return DiscoveryProblem(
+        idea="empty",
+        target=Variable("y", "m", ()),
+        inputs=(Variable("t", "s", ()),),
+        constants=(Constant("tau", 5.0, "s"),),
+    )
+
+
+def test_zero_sample_target_raises_documented_valueerror_for_all_entry_points():
+    """All public entry points through _source_arrays (and dimensionless_groups) must raise
+    the exact 'target has no samples' (matching engine.symbolic_regress) on n==0.
+    Previously only discover_transcendental was covered by non-positive test."""
+    empty = _empty_problem()
+    # discover_transcendental
+    with pytest.raises(ValueError, match="target has no samples"):
+        discover_transcendental(empty)
+    # discover_rivals
+    with pytest.raises(ValueError, match="target has no samples"):
+        discover_rivals(empty)
+    # evaluate_rival (needs a dummy rival; guard fires first in _source_arrays)
+    dummy_rival = RivalForm(form_name="pow", group={"t": 1.0, "tau": -1.0}, params={"C": 1.0, "beta": 1.0, "D": 0.0}, r_squared=0.0)
+    with pytest.raises(ValueError, match="target has no samples"):
+        evaluate_rival(dummy_rival, empty)
+    # refit_rival
+    with pytest.raises(ValueError, match="target has no samples"):
+        refit_rival(dummy_rival, empty)
+    # dimensionless_groups (now guarded explicitly for consistency)
+    with pytest.raises(ValueError, match="target has no samples"):
+        dimensionless_groups(empty)
+
+
+# --------------------------------------------------------------------------------------------
 # determinism (A5 contract) and output consumption
 # --------------------------------------------------------------------------------------------
 
