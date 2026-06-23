@@ -505,3 +505,11 @@ from gen.discovery imp | → /vibe-verify or RecoveryPlaybook
 - 2026-06-23T14:57:05.181675 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok; | → /vibe-verify or RecoveryPlaybook
 - 2026-06-23T14:57:08.487644 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok; | → /vibe-verify or RecoveryPlaybook
 - 2026-06-23T15:03:39.303676 | search_replace | /home/genesis/genesis/.crew/worktrees/_integration/verification/auto-log.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-23T22:12:57.983011 | run_terminal_command | cmd: python -c "import gmsh; print('gmsh present:', gms | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T22:13:00.880094 | run_terminal_command | cmd: python3 -c "
+import sys
+print('python', sys.versio | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-23T22:13:30.187938 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T22:14:44.788381 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-23T22:14:48.187702 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-23T22:14:53.806525 | search_replace | tests/test_fem3d_quadratic_characterization.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
