@@ -9,17 +9,29 @@ leg's links, revolute joints and inertials as a standard URDF — the exact form
 real dynamic simulator for gait optimisation and sim2real, WITHOUT GENESIS taking on an un-gated
 simulation dependency. It is the handoff artifact, not a claim that GENESIS simulated the motion.
 
-Deterministic, offline, standard-library only (``xml.etree``). Honest boundary: the inertia is a
-diagonal placeholder built from the swing inertia; collision meshes, actuator/transmission models,
+Deterministic, offline, standard-library only (``xml.etree``) for the EMITTERS. Honest boundary:
+the inertia is a diagonal placeholder built from the swing inertia; actuator/transmission models,
 joint limits and contact/friction parameters are the simulator's (or the user's) to refine — this
 emits the rigid-body tree and the inertials, the part a kinematic/inertial spec actually determines.
+
+Collision upgrade (opt-in, heavier deps lazy-imported so the emitters stay stdlib-only):
+:func:`urdf_with_convex_collision` replaces the cylinder-PRIMITIVE ``<collision>`` blocks this module
+emits with a REAL CoACD convex decomposition of each link (a watertight trimesh cylinder, decomposed
+into convex hull pieces written as OBJ, referenced from the rewritten URDF) — the collision shape a
+contact simulator can use robustly. :func:`validate_urdf` then PARSES the emitted URDF with ``urchin``
+and runs forward kinematics (``link_fk``), proving the emitted tree is not just well-formed XML but a
+kinematically valid robot whose links place where the geometry says (and, with convex collision, whose
+collision meshes actually load). Both fail LOUD (no silent fallback to the broken/missing collision).
 """
 
 from __future__ import annotations
 
+import os
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
+from pathlib import Path
 
+from .core.errors import GeometryError
 from .mechanics_formulas import rod_inertia_about_center
 
 
@@ -188,3 +200,225 @@ def humanoid_urdf(
                 origin=(0.0, 0.0, -thl), length=shl, mass=shm, radius=0.04, extend=-1.0)
 
     return ET.tostring(robot, encoding="unicode")
+
+
+# --- Convex collision (CoACD) + urchin validation -----------------------------------
+#
+# The emitters above write a single cylinder PRIMITIVE as each link's <collision>. That
+# is enough for a primitive collider, but for a real contact simulation the standard
+# practice is a convex decomposition. These functions take a URDF this module EMITTED
+# (cylinder links) and replace each <collision> with a CoACD convex decomposition of
+# that cylinder, then validate the whole thing with urchin (parse + forward kinematics).
+# Heavy deps (trimesh / coacd / urchin) are lazy-imported so importing this module — and
+# the rest of GENESIS — never requires them; the emitters stay stdlib-only.
+
+
+def coacd_available() -> bool:
+    """True iff the ``coacd`` convex-decomposition package can be imported (optional)."""
+    try:
+        import coacd  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+def urchin_available() -> bool:
+    """True iff the ``urchin`` URDF parser/FK package can be imported (optional)."""
+    try:
+        import urchin  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+def _cylinder_collisions(link: ET.Element) -> list[ET.Element]:
+    """Every ``<collision>`` of ``link`` whose geometry is a ``<cylinder>`` (the shape
+    the emitters write). Used to find what to convex-decompose."""
+    out: list[ET.Element] = []
+    for coll in link.findall("collision"):
+        if coll.find("geometry/cylinder") is not None:
+            out.append(coll)
+    return out
+
+
+def _decompose_cylinder(length: float, radius: float, *, max_convex_hull: int,
+                        threshold: float, resolution: int):
+    """Convex-decompose a watertight trimesh cylinder of ``length``×``radius`` (axis
+    along z, centered at the origin) into a list of (vertices, faces) hulls. Deterministic
+    (CoACD ``seed=0``). A cylinder is convex, so this typically yields one clean hull —
+    the point is that the emitted collision becomes a real, simulator-robust convex mesh
+    rather than a primitive the engine must special-case."""
+    import coacd  # lazy
+    import numpy as np
+    import trimesh  # lazy
+
+    mesh = trimesh.creation.cylinder(radius=radius, height=length, sections=24)
+    if not mesh.is_watertight:
+        raise GeometryError(
+            f"cylinder mesh (l={length}, r={radius}) is not watertight — cannot make a "
+            f"sound convex collider from it"
+        )
+    try:
+        coacd.set_log_level("error")
+    except Exception:
+        pass
+    cmesh = coacd.Mesh(mesh.vertices, mesh.faces)
+    parts = coacd.run_coacd(
+        cmesh, threshold=threshold, max_convex_hull=max_convex_hull,
+        preprocess_mode="auto", preprocess_resolution=resolution, seed=0, merge=True,
+    )
+    hulls = []
+    for v, f in parts:
+        hull = trimesh.Trimesh(vertices=np.asarray(v), faces=np.asarray(f), process=True)
+        if not hull.is_empty and len(hull.vertices) >= 4:
+            hulls.append(hull)
+    if not hulls:
+        raise GeometryError(
+            f"CoACD produced no usable convex parts for cylinder (l={length}, r={radius})"
+        )
+    return hulls
+
+
+def urdf_with_convex_collision(
+    urdf_xml: str,
+    out_dir: str | Path,
+    *,
+    mesh_subdir: str = "collision",
+    max_convex_hull: int = 4,
+    threshold: float = 0.05,
+    resolution: int = 50,
+) -> str:
+    """Rewrite a URDF this module emitted so each cylinder ``<collision>`` becomes a REAL
+    CoACD convex-decomposed mesh collider.
+
+    For every link, each cylinder ``<collision>`` is replaced by one ``<collision>`` per
+    convex hull of that cylinder (same origin), the hulls written as OBJ under
+    ``{out_dir}/{mesh_subdir}/`` and referenced by relative path. The ``<visual>`` blocks
+    are left untouched, so the rendered robot is unchanged. The rewritten URDF is written
+    to ``{out_dir}/<robot_name>.urdf`` and its path returned.
+
+    This is the opt-in collision upgrade the module docstring describes: the emitted tree
+    keeps its inertials and joints, but its collision geometry becomes the convex meshes a
+    contact simulator (PyBullet / MuJoCo / Isaac) handles robustly, instead of primitives.
+
+    Raises:
+        GeometryError: CoACD/trimesh unavailable, no cylinder collisions found to upgrade
+            (a silently-unchanged URDF would defeat the purpose), or a degenerate mesh.
+    """
+    if not coacd_available():
+        raise GeometryError(
+            "convex collision needs the optional 'coacd' package (and 'trimesh'); install "
+            "them, or load the cylinder-primitive URDF as emitted."
+        )
+    out_dir = Path(out_dir)
+    mesh_dir = out_dir / mesh_subdir
+    mesh_dir.mkdir(parents=True, exist_ok=True)
+
+    root = ET.fromstring(urdf_xml)
+    robot_name = root.get("name", "robot")
+    n_upgraded = 0
+    for link in root.findall("link"):
+        link_name = link.get("name", "link")
+        for idx, coll in enumerate(_cylinder_collisions(link)):
+            cyl = coll.find("geometry/cylinder")
+            length = float(cyl.get("length"))
+            radius = float(cyl.get("radius"))
+            origin = coll.find("origin")
+            hulls = _decompose_cylinder(
+                length, radius, max_convex_hull=max_convex_hull,
+                threshold=threshold, resolution=resolution,
+            )
+            link.remove(coll)
+            for h, hull in enumerate(hulls):
+                obj_path = mesh_dir / f"{link_name}_coll{idx}_part{h}.obj"
+                hull.export(str(obj_path))
+                new_coll = ET.SubElement(link, "collision")
+                if origin is not None:
+                    o = ET.SubElement(new_coll, "origin")
+                    o.set("xyz", origin.get("xyz", "0 0 0"))
+                    o.set("rpy", origin.get("rpy", "0 0 0"))
+                geom = ET.SubElement(new_coll, "geometry")
+                rel = os.path.relpath(obj_path, out_dir).replace("\\", "/")
+                ET.SubElement(geom, "mesh", {"filename": rel})
+            n_upgraded += 1
+
+    if n_upgraded == 0:
+        raise GeometryError(
+            "no cylinder <collision> blocks found to convert — was this URDF emitted by "
+            "leg_urdf/humanoid_urdf? (refusing to write a silently-unchanged URDF)"
+        )
+    out_path = out_dir / f"{robot_name}.urdf"
+    ET.ElementTree(root).write(str(out_path))
+    return str(out_path)
+
+
+@dataclass(frozen=True)
+class UrdfValidation:
+    """Result of validating an emitted URDF with urchin (parse + forward kinematics)."""
+
+    robot_name: str
+    n_links: int
+    n_joints: int
+    n_actuated_joints: int
+    #: link name -> its 4×4 world transform at the zero configuration (FK output)
+    fk_link_count: int
+    #: how many links had a loadable collision MESH (0 if all collisions are primitives)
+    collision_mesh_links: int
+
+
+def validate_urdf(urdf_path: str | Path, *, load_collision_meshes: bool = True) -> UrdfValidation:
+    """Validate a URDF with ``urchin``: PARSE it and run forward kinematics.
+
+    A URDF can be well-formed XML yet not a valid robot (dangling joint parent/child,
+    inconsistent tree, unloadable mesh). urchin builds the kinematic tree and, via
+    :meth:`link_fk`, computes every link's world transform at the zero configuration —
+    so a successful call proves the emitted tree is kinematically consistent, not merely
+    syntactically valid. If ``load_collision_meshes`` and the URDF uses mesh colliders,
+    ``collision_trimesh_fk`` is also called, proving the convex-collision OBJs actually
+    load (the upgrade from :func:`urdf_with_convex_collision` is real, end to end).
+
+    Raises:
+        GeometryError: urchin is unavailable, or it rejects the URDF / a referenced mesh
+            (loud — a broken handoff artifact must fail, not pass silently).
+    """
+    if not urchin_available():
+        raise GeometryError(
+            "validating a URDF needs the optional 'urchin' package; install it with "
+            "`pip install urchin`."
+        )
+    from urchin import URDF  # lazy
+
+    urdf_path = Path(urdf_path)
+    if not urdf_path.is_file():
+        raise GeometryError(f"URDF file not found: {urdf_path}")
+    try:
+        robot = URDF.load(str(urdf_path), lazy_load_meshes=False)
+    except Exception as exc:  # noqa: BLE001 - any parse/build failure surfaced loudly
+        raise GeometryError(f"urchin rejected URDF {urdf_path.name}: {exc}") from exc
+
+    try:
+        fk = robot.link_fk()  # {Link: 4x4} at the zero configuration
+    except Exception as exc:  # noqa: BLE001
+        raise GeometryError(
+            f"urchin forward kinematics failed for {urdf_path.name}: {exc}"
+        ) from exc
+
+    collision_mesh_links = 0
+    if load_collision_meshes:
+        try:
+            cfk = robot.collision_trimesh_fk()  # {Trimesh: 4x4}; loads collision meshes
+            collision_mesh_links = len(cfk)
+        except Exception as exc:  # noqa: BLE001 - a referenced collision mesh failed to load
+            raise GeometryError(
+                f"urchin could not load the collision meshes of {urdf_path.name}: {exc}"
+            ) from exc
+
+    actuated = [j for j in robot.joints if j.joint_type != "fixed"]
+    return UrdfValidation(
+        robot_name=robot.name,
+        n_links=len(robot.links),
+        n_joints=len(robot.joints),
+        n_actuated_joints=len(actuated),
+        fk_link_count=len(fk),
+        collision_mesh_links=collision_mesh_links,
+    )

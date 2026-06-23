@@ -11,6 +11,10 @@ faithfully render raises ``ExportError`` rather than emitting a guessed number.
   stl       — an ASCII STL triangle mesh of the MESHABLE primitives (box exact;
               cylinder/sphere tessellated); CSG booleans are not mesh-evaluated
               (raises, pointing to openscad/build123d) — never a wrong mesh.
+  drawing   — a 2-D MANUFACTURING DRAWING: a planar DXF/SVG SECTION through a 3-D part
+              (the real cut profile + overall dimensions), produced via build123d's OCCT
+              ``section`` in an isolated subprocess (like cad/cadquery_bridge). Imported
+              lazily so the package never hard-depends on a build123d interpreter.
 
 The text back-ends resolve numbers from the same source (numfmt) so they never
 drift.
@@ -34,4 +38,23 @@ __all__ = [
     "specification_to_brep_stl",
     "component_to_brep_stl",
     "specification_to_markdown",
+    # drawing (2-D DXF/SVG section) — lazy (needs a build123d-venv interpreter)
+    "drawing_available",
+    "section_dxf",
+    "section_svg",
+    "section_info",
+    "write_section_dxf",
+    "specification_section_dxfs",
 ]
+
+
+def __getattr__(name: str):
+    # Lazy: the drawing exporter is a subprocess bridge; only import on demand.
+    if name in (
+        "drawing_available", "section_dxf", "section_svg", "section_info",
+        "write_section_dxf", "specification_section_dxfs", "component_section_dxf",
+        "SectionInfo",
+    ):
+        from . import drawing
+        return getattr(drawing, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
