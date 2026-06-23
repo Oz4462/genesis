@@ -11,22 +11,22 @@
 ```mermaid
 kanban
   done
-    nT01[T01: Depth-audit + fix fertigungs.py generic branch]
-    nT02[T02: Depth-audit + fix physiker.py generic branch]
-    nT03[T03: Depth-audit + fix regulatorik.py generic branch]
-    nT04[T04: Depth-audit + fix software.py generic branch]
-    nT05[T05: Depth-audit + fix techniker.py generic branch]
+    nT01[T01: Depth-audit + fix wirtschaft.py generic branch (make it input-driven)]
+    nT02[T02: Depth-audit + characterization test for active_resolution.py (discriminatin]
+    nT03[T03: Depth-audit + characterization test for active_search.py (information-gain]
+    nT04[T04: Depth-audit + characterization test for assumption_annihilator.py (all thre]
+    nT05[T05: Depth-audit + honesty test for benchmark.py (rediscovery is not leaked/echo]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | Depth-audit + fix fertigungs.py generic branch | done | claude | feature |
-| T02 | Depth-audit + fix physiker.py generic branch | done | grok | feature |
-| T03 | Depth-audit + fix regulatorik.py generic branch | done | grok | feature |
-| T04 | Depth-audit + fix software.py generic branch | done | claude | feature |
-| T05 | Depth-audit + fix techniker.py generic branch | done | grok | feature |
+| T01 | Depth-audit + fix wirtschaft.py generic branch (make it input-driven) | done | claude | feature |
+| T02 | Depth-audit + characterization test for active_resolution.py (discriminating-measurement is real) | done | grok | feature |
+| T03 | Depth-audit + characterization test for active_search.py (information-gain ordering is real) | done | grok | feature |
+| T04 | Depth-audit + characterization test for assumption_annihilator.py (all three δ-verdicts are real) | done | claude | feature |
+| T05 | Depth-audit + honesty test for benchmark.py (rediscovery is not leaked/echoed) | done | claude | feature |
 
 ## Decisions
 
@@ -120,6 +120,17 @@ kanban
 - (2026-06-23) Source edits confined to making the generic branch genuinely input-driven and adding the documented guard; public dataclass signatures and the jetpack branch stay byte-stable so downstream importers (architekt/ingenieur/physiker chain, realize/packager, regulatorik←software seam) keep compiling and the full pytest gate stays green.
 - (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (per the 2026-06-23 team decision); each task's honest verdict + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (the integrator consolidates into BUILD_LOG at merge).
 - (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-fix task with no network/subprocess, matching the test→claude routing; the fix surface is small and self-contained.
+- (2026-06-23) Strict split by module: each task edits exactly ONE src file + adds ONE tests/test_<module>_characterization.py + ONE docs/audit/DEPTH_AUDIT_<module>.md — the five sources share no mutual imports beyond pre-existing engine/architekt/ingenieur/transcendental helpers carried unmodified in each worktree, so parallel worktrees never write the same path.
+- (2026-06-23) Keep each module and its new test in the SAME task (the test imports the module under audit) so each task is independently verifiable in its own worktree using only its own files plus pre-existing repo files (engine.py, transcendental.py, architekt.py, ingenieur.py already exist on main).
+- (2026-06-23) wirtschaft.py is a confirmed PARTIAL-FACADE: the generic branch returns constant TBD/Lücke content (only the source_idea snippet varies), so the facade-killer asserts two DIFFERENT non-jetpack ideas yield MEANINGFULLY different KostenStruktur/Markt fields (input consumed) AND a signal-free/empty idea yields honest gaps or a documented ValueError, never a fabricated cost — per 'keine stillen Defaults'.
+- (2026-06-23) wirtschaft's jetpack branch triggers on `'jetpack' in idee_lower or 'flug' in idee_lower`, so generic-path test inputs MUST avoid both substrings; the jetpack branch and all public dataclass signatures (KostenStruktur/Markt/WirtschaftSpec) stay byte-stable as a protected regression so downstream importers keep compiling.
+- (2026-06-23) active_resolution.py is real numpy math: the test proves it by asserting the DecisionSpec changes with the rival pair/data (measure_at, max_divergence are computed not canned), the honest non-discriminating path returns discriminating=False with a 'mehr Daten'-style reason when rivals barely diverge, and the documented guards raise ValueError (None rival, >1 varying input, max_extrapolation<1, degenerate range) — fix source only if a guard is genuinely missing.
+- (2026-06-23) active_search.py is real uncertainty-sampling: the test proves selection ORDER is driven by binary entropy (most-uncertain candidate gated first, predict()==0.5 on empty history → entropy 1.0), budget is honored (gate_calls == min(budget,len), exhausted pool stops early), tie-break is the documented lowest-index, output is deterministic across two runs, and budget<0 raises ValueError.
+- (2026-06-23) assumption_annihilator.py genuinely re-runs discover_new_formulas with the constant promoted: the test exercises all three honest verdicts on constructed data — a constant that is REALLY a hidden variable → 'promoted', a true constant → 'assumption_held', a marginal gain below the δ-bar → 'insufficient_evidence' — plus the two documented ValueErrors (unknown constant_name, sample-count mismatch); fix source only if a branch is unreachable/wrong.
+- (2026-06-23) benchmark.py rediscovery honesty (per the 2026-06-23 team decision): the answer is NOT leaked today (known_laws=None to discover_new_formulas; expected_exponents only post-hoc), so the test PROVES this with a held-out/perturbed-data check (recover exponents from a different/noisier sample of the same law) PLUS a negative control (scrambled/mismatched data → NOT rediscovered), making the ~100% claim falsifiable; also assert red-team cases are caught (widerlegt/unentschieden, never false bestaetigt).
+- (2026-06-23) Each task edits its module's source ONLY where the new test exposes a genuine defect (wirtschaft is a real fix; the other four fix only if the characterization test fails — never blanket feature-creep), per 'change nothing if correct'.
+- (2026-06-23) Builders construct all state/spec/problem inputs through the REAL constructors and field/enum names in the existing modules (SystemConcept/IngenieurSpec from architekt.py/ingenieur.py; DiscoveryProblem/Variable/Constant from engine.py; RivalForm via transcendental.py's refit/evaluate) — never invent fields — and use only stdlib + already-declared deps (numpy is already declared for the discovery tasks).
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-fix task with no network/subprocess, matching the test→claude routing; the fix surface is small and self-contained.
 
 ### Architecture Decision Records
 
@@ -137,20 +148,21 @@ kanban
 - 0012. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0013. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0014. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0015. Depth-audit AND FIX (genesis overnight loop). For each modul
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 7 |
-| Tasks (total) | 26 |
-| Done | 24 |
+| Runs | 8 |
+| Tasks (total) | 31 |
+| Done | 29 |
 | Blocked | 1 |
-| Resolved rate | 92% |
-| Blocked rate | 4% |
-| Merges | 6 |
-| Avg duration | 110.5m |
-| Total cost | 63.29 |
+| Resolved rate | 94% |
+| Blocked rate | 3% |
+| Merges | 7 |
+| Avg duration | 100.8m |
+| Total cost | 71.35 |
 
 ## Architecture
 
@@ -166,6 +178,17 @@ graph TD
 
 Recent commits:
 
+- `ccb90c6 crew: resolve merge conflict for crew/T03-grok`
+- `907da1f Merge branch 'crew/T05-claude' into crew/integration`
+- `323da22 Merge branch 'crew/T04-claude' into crew/integration`
+- `5ca7b2d Merge branch 'crew/T02-grok' into crew/integration`
+- `60b19eb crew(claude): T05 Depth-audit + honesty test for benchmark.py (rediscovery is not leaked/echoed) [round 1]`
+- `e38f679 crew(claude): T04 Depth-audit + characterization test for assumption_annihilator.py (all three δ-verdicts are real) [round 1]`
+- `272b7d3 crew(grok): T03 Depth-audit + characterization test for active_search.py (information-gain ordering is real) [round 1]`
+- `c63aa91 crew(claude): T01 Depth-audit + fix wirtschaft.py generic branch (make it input-driven) [round 1]`
+- `ddb6e7c crew(grok): T02 Depth-audit + characterization test for active_resolution.py (discriminating-measurement is real) [round 1]`
+- `bb72f89 Merge branch 'crew/integration'`
+- `d866e28 crew: scaffold CI/CD + project config`
 - `1d0372f crew: resolve merge conflict for crew/T05-grok`
 - `eced7c3 crew: resolve merge conflict for crew/T03-grok`
 - `6de893b Merge branch 'crew/T04-claude' into crew/integration`
@@ -175,17 +198,6 @@ Recent commits:
 - `1f64d8b crew(grok): T03 Depth-audit + fix regulatorik.py generic branch [round 1]`
 - `eee5e1b crew(claude): T01 Depth-audit + fix fertigungs.py generic branch [round 1]`
 - `d64748a crew(grok): T02 Depth-audit + fix physiker.py generic branch [round 1]`
-- `009c493 Merge branch 'crew/integration'`
-- `6a6cd2c crew: scaffold CI/CD + project config`
-- `8629b2b Merge branch 'crew/T05-claude' into crew/integration`
-- `db3e414 Merge branch 'crew/T04-claude' into crew/integration`
-- `f0e8d73 Merge branch 'crew/T03-claude' into crew/integration`
-- `6483bc3 Merge branch 'crew/T02-grok' into crew/integration`
-- `85db9b2 crew(claude): T05 designer: make generic DesignerSpec derive from concept assemblies + ingenieur failure_modes [round 1]`
-- `1ece34a crew(claude): T04 architekt: make generic SystemConcept actually reflect the idea text [round 1]`
-- `e691b4e crew(claude): T03 teststand_architect: derive generic TestStandPlan from real MilestoneLadder milestones [round 1]`
-- `e8d85fd crew(grok): T02 technology_roadmapper: derive generic TechnologyRoadmap from real TestStandPlan stands [round 3]`
-- `a560988 crew(grok): T02 technology_roadmapper: derive generic TechnologyRoadmap from real TestStandPlan stands [round 2]`
 
 
 ---
