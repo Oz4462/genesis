@@ -2,7 +2,7 @@
 
 **Verdict: REAL.**
 
-`prove_identity` (and the `numeric_prefilter` it drives) genuinely executes the documented three-layer loop (mpmath high-precision numeric prefilter → sympy heuristic simplify → pluggable kernel) and **only a kernel returning "proved" earns status "Satz"**. SymPy alone (or numeric agree + sympy) yields only "Kandidat" — exactly as specified. No source change required.
+`prove_identity` (and the `numeric_prefilter` it drives) genuinely executes the documented three-layer loop (mpmath high-precision numeric prefilter → sympy heuristic simplify → pluggable kernel) and **only a kernel returning "proved" earns status "Satz"**. SymPy alone (or numeric agree + sympy) yields only "Kandidat" — exactly as specified. (Minimal source edits added only for exposed L4 robustness + review anti-patterns; core logic/behavior for valid cases unchanged.)
 
 ## Headline claim under audit (from module docstring + T02 spec)
 
@@ -32,7 +32,7 @@ The numeric range guard was added only because the characterization test (and re
 
 ## Änderungen (scope-respecting)
 
-- `src/gen/discovery/proof_loop.py`: **minimal targeted edit only for L4 guard defect** exposed by the new test + review. Added explicit `if lo >= hi: raise ValueError(...)` (after positive clamp) inside numeric_prefilter before the rng.uniform call. This makes "bad range fails loud" (and prevents possible silent reversed sampling that would yield wrong numeric verdict) a hard guarantee in the module. Matches the pre-existing test expectation, the module's own doc intent, simulated_data.py pattern, and "no silent factual" principle. No other logic changed.
+- `src/gen/discovery/proof_loop.py`: **minimal targeted edits** (L4 guard + review fixes): explicit `if lo >= hi: raise ValueError(...)` guard (after positive clamp) for reliable fail-loud (no reliance on numpy); changed default `kernels=(Z3IdentityKernel(),)` to `=None` + fresh inside (avoids shared def-time instance anti-pattern); added variable type validation in prefilter (prevent silent garbage-as-non-positive). All minimal, justified by tests/reviews. No other logic/behavior change for valid inputs.
 - `tests/test_proof_loop_characterization.py`: updated (authoritative characterization). Added/strengthened coverage for kernels=[], positive clamp paths, explicit kernel-independence on short-circuits, and real input→different-detail proof via Abs vs identity. Leaves legacy test files untouched.
 - `docs/audit/DEPTH_AUDIT_proof_loop.md`: this file (updated for the guard addition).
 - `BUILD_LOG.md`: prior short entry stands.
@@ -56,7 +56,7 @@ Satisfies the assigned T02 task: "Write a NEW characterization test ... that pro
 - **L3 (Vollständigkeit / Naht):** Covers prefilter short-circuit, sympy heuristic, kernel loop, all four status branches, multi-kernel precedence, domain-hole (the canonical sympy-unsound case), and documented error paths. Uses the same `IdentityClaim` + kernel protocol as production callers. Jetpack-rich (z3) behaviour is protected by leaving legacy tests + default path alone; the characterization proves the generic kernel path is real.
 - **L4 (Realisierbarkeit / Edge):** Scoped to genuine public-API edges (bad range → loud ValueError now enforced inside prefilter independent of numpy, n=0 deferral, unparseable, zero/positive domains via sampling incl. clamp, empty-vars const identities, kernels=[] empty Sequence). Added the guard only to kill potential silent-reversed-wrong-numeric (real defect per review). Direct numeric_prefilter calls exercise internal paths. No blanket NaN/inf. Property tests + new detail-variation assert. Offline, pure, stdlib+declared. Hypothesis guarded.
 
-**Selfkontrolle (DoD):** Interface unchanged (added documented guard); tests (char + legacy) green incl. the newly enforced range error + stronger property (detail differs on input); source edit minimal + justified (made fail-loud real, no silent wrong numeric); 4L applied; scoped only; pre-existing green. All rubberduck findings addressed (range robustness, kernels=[], short-circuit independence, property detail variation, Abs for inconclusive).
+**Selfkontrolle (DoD):** Interface updated only for documented guard + default-arg fix + type validation (to address review findings); tests (char + legacy) green (16 in char) incl. the newly enforced range error + stronger property (detail differs on input); source edit minimal + justified (made fail-loud real, no silent wrong numeric, fixed anti-patterns); 4L applied; scoped only; pre-existing green. BUILD_LOG and this AUDIT now consistent (no contradictory provenance). All rubberduck findings addressed (incl. doc consistency, 16 tests, default arg, prefilter type check, range robustness, kernels=[], etc.).
 
 ## Test Results (this task)
 

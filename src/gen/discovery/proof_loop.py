@@ -85,10 +85,17 @@ def numeric_prefilter(claim: IdentityClaim, *, n_samples: int = 40, prec_dps: in
     rng = np.random.default_rng(seed)
     worst = mp.mpf(0)
     evaluated = 0
+    # Validate variable types here (prefilter) to match kernel and avoid silent
+    # treatment of garbage types as non-positive (pre-existing asymmetry fixed).
+    # Unknown type -> abstain (like parse failure), let kernel decide if reached.
+    valid_types = {"real", "positive", "integer"}
+    if any(t not in valid_types for t in claim.variables.values()):
+        return True, 0.0
     for _ in range(n_samples):
         point = []
         for name in names:
-            lo = max(claim.sample_lo, 1e-6) if claim.variables[name] == "positive" else claim.sample_lo
+            t = claim.variables[name]
+            lo = max(claim.sample_lo, 1e-6) if t == "positive" else claim.sample_lo
             hi = claim.sample_hi
             if lo >= hi:
                 # Explicit guard (independent of numpy.uniform's check_constraint) so that
@@ -113,11 +120,15 @@ def numeric_prefilter(claim: IdentityClaim, *, n_samples: int = 40, prec_dps: in
     return worst < tol, float(worst)
 
 
-def prove_identity(claim: IdentityClaim, *, kernels: Sequence[ProofKernel] = (Z3IdentityKernel(),),
+def prove_identity(claim: IdentityClaim, *, kernels: Sequence[ProofKernel] | None = None,
                    n_samples: int = 40, prec_dps: int = 50, seed: int = 0) -> ProofVerdict:
     """Run the certification loop. **"Satz"** only when a kernel proves it; **"widerlegt"** on numeric or
     kernel refutation; **"Kandidat"** on numeric+heuristic agreement without a kernel close; **"unsupported"**
     on a parse failure. Deterministic."""
+    # Avoid mutable default at def-time (shared instance anti-pattern).
+    # Z3IdentityKernel is stateless, but fresh instance per call is cleaner.
+    if kernels is None:
+        kernels = (Z3IdentityKernel(),)
     try:
         lhs = sp.sympify(claim.lhs)
         rhs = sp.sympify(claim.rhs)
