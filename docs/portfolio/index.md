@@ -11,22 +11,22 @@
 ```mermaid
 kanban
   done
-    nT01[T01: engine.py: dimensional SR + discover_new_formulas really discovers, not gue]
-    nT02[T02: feynman.py: separate recovery vs honest-abstention rates, no blended score]
-    nT03[T03: first_principles.py: proof recompute catches tampering, derive only returns]
-    nT04[T04: graph.py: dedup fingerprint really collapses re-discoveries and emits the A]
-    nT05[T05: knowledge_graph.py: dimensional-type filter disposes spurious cross-domain]
+    nT01[T01: Depth-audit + harden multiterm.py (additive multi-term discovery)]
+    nT02[T02: Depth-audit + harden proof_loop.py (certification loop: prefilter → kernel)]
+    nT03[T03: Depth-audit + harden reality_fork.py (counterfactual physics sandbox)]
+    nT04[T04: Depth-audit + harden separability.py (additive/multiplicative separability)]
+    nT05[T05: Depth-audit + harden simulated_data.py (self-generated DiscoveryProblem)]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | engine.py: dimensional SR + discover_new_formulas really discovers, not guesses | done | claude | feature |
-| T02 | feynman.py: separate recovery vs honest-abstention rates, no blended score | done | grok | feature |
-| T03 | first_principles.py: proof recompute catches tampering, derive only returns verified proofs | done | grok | feature |
-| T04 | graph.py: dedup fingerprint really collapses re-discoveries and emits the Anhang-C record | done | claude | feature |
-| T05 | knowledge_graph.py: dimensional-type filter disposes spurious cross-domain groupings | done | grok | feature |
+| T01 | Depth-audit + harden multiterm.py (additive multi-term discovery) | done | claude | feature |
+| T02 | Depth-audit + harden proof_loop.py (certification loop: prefilter → kernel) | done | grok | feature |
+| T03 | Depth-audit + harden reality_fork.py (counterfactual physics sandbox) | done | claude | feature |
+| T04 | Depth-audit + harden separability.py (additive/multiplicative separability) | done | claude | feature |
+| T05 | Depth-audit + harden simulated_data.py (self-generated DiscoveryProblem) | done | claude | feature |
 
 ## Decisions
 
@@ -143,6 +143,18 @@ kanban
 - (2026-06-23) New test files use a *_audit.py / *_facade.py suffix distinct from the existing test_discovery_engine.py, test_feynman_benchmark.py, test_discovery_first_principles.py, test_discovery_graph.py, test_knowledge_graph.py so no existing test file is touched.
 - (2026-06-23) Acceptance criteria are framed as black-box outcomes of the anti-hallucination claim (dimension solve, recompute gate, dedup fingerprint, abstention) so 'green' means the headline really holds, plus a mandatory negative case per module.
 - (2026-06-23) Routing: characterization/test-heavy tasks lean claude; all are test+fix so claude is preferred, none are doc-only.
+- (2026-06-23) Split strictly by module (multiterm / proof_loop / reality_fork / separability / simulated_data): the five sources import only the pre-existing engine.py + proof_kernels.py and never each other, so parallel worktrees never write the same path — zero collision risk.
+- (2026-06-23) Name every new test file tests/test_<module>_characterization.py because each module already has a pre-existing tests/test_discovery_<module>.py (and test_separability.py) on main; the new file is the authoritative facade-detector and leaves legacy tests untouched (no churn).
+- (2026-06-23) Universal facade-killer per module: assert (a) the headline output changes MEANINGFULLY when a driving input changes (proves the input is consumed, not a canned constant) AND (b) the documented fail-loud path raises the exact ValueError / honest-abstention output (proves the guard exists) — per 'keine stillen Defaults' and 'a gate without a test does not exist'.
+- (2026-06-23) All five modules read as REAL on inspection, so each task edits its source ONLY where the new characterization test exposes a genuine defect (missing guard, silent wrong/constant value, dead input that never affects output) — never blanket feature-creep — upholding 'change nothing if correct'.
+- (2026-06-23) multiterm's real-math claim is testable as a recovery + parsimony property: kinematics s=v0·t+½·a·t² must come back as exactly 2 terms with the right coefficients, a pure power law as 1 term, and the held-out validator must catch a non-transferring (noise) fit — proving greedy selection, pruning, and out-of-sample R² all genuinely run.
+- (2026-06-23) proof_loop's three verdict tiers are the audit target: a kernel-provable polynomial identity → 'Satz', a numerically-false identity → 'widerlegt' caught at the mpmath prefilter, the (x²+x)/x=x+1 domain-hole case → NOT 'Satz' (only 'Kandidat'/'widerlegt'), and an unparseable claim → 'unsupported' — proving the kernel, not just sympy, decides.
+- (2026-06-23) reality_fork's grounding is Gauss's law arithmetic: D=3→r^-2 (base, counterfactual=False), D=4→r^-3 with the Ehrenfest note, fractional/zero D and non-positive constants → internally_consistent=False, and fork_constant's scale factor = (new/base)^exponent computed exactly — proving the forks are derived, never labelled with the real-data gate's authority.
+- (2026-06-23) separability's mixed-second-difference test is provable on known functions: an additive f=g(a)+h(b) must split a,b into separate groups, a multiplicative f=g(a)·h(b) must split under mode='multiplicative' (log path), a genuinely-coupled f=a·b under additive mode must keep a,b in ONE group, and a non-positive target under multiplicative mode must raise ValueError.
+- (2026-06-23) simulated_data's 'generates its own data' claim is testable end-to-end: sampling a known closed form (e.g. T=2π√(L/g)) self-generates a DiscoveryProblem whose discover_from_simulation recovers the law, the baked callable closes constants correctly, and the documented guards (empty inputs / n_samples<2 / non-positive-or-non-finite target sample / lo>=hi InputSpec) each raise ValueError.
+- (2026-06-23) Builders construct every input through the REAL constructors/field names in src/gen/discovery/engine.py (DiscoveryProblem/Variable/Constant) and each module's real signatures — read them, never invent fields — and use only stdlib + already-declared deps (numpy, sympy, mpmath, z3 are already declared for the discovery modules).
+- (2026-06-23) BUILD_LOG.md is appended by each task with a short honest entry, but the primary per-module verdict (REAL/PARTIAL/FACADE + what was made real) lives in its own docs/audit/DEPTH_AUDIT_<module>.md to keep the merge clean; the integrator consolidates at merge.
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the historical test→claude routing.
 
 ### Architecture Decision Records
 
@@ -163,20 +175,21 @@ kanban
 - 0015. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0016. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0017. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0018. Depth-audit AND FIX (genesis overnight loop). For each modul
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 10 |
-| Tasks (total) | 41 |
-| Done | 39 |
+| Runs | 11 |
+| Tasks (total) | 46 |
+| Done | 44 |
 | Blocked | 1 |
-| Resolved rate | 95% |
+| Resolved rate | 96% |
 | Blocked rate | 2% |
-| Merges | 9 |
-| Avg duration | 87.7m |
-| Total cost | 88.3 |
+| Merges | 10 |
+| Avg duration | 83.1m |
+| Total cost | 95.39 |
 
 ## Architecture
 
@@ -192,26 +205,26 @@ graph TD
 
 Recent commits:
 
+- `0f6475c crew: resolve merge conflict for crew/T05-claude`
+- `529ccca crew: resolve merge conflict for crew/T04-claude`
+- `f7df194 crew: resolve merge conflict for crew/T03-claude`
+- `0956d73 Merge branch 'crew/T02-grok' into crew/integration`
+- `ba88702 crew(claude): T05 Depth-audit + harden simulated_data.py (self-generated DiscoveryProblem) [round 1]`
+- `623791a crew(grok): T02 Depth-audit + harden proof_loop.py (certification loop: prefilter → kernel) [round 5]`
+- `95ebff3 crew(claude): T04 Depth-audit + harden separability.py (additive/multiplicative separability) [round 1]`
+- `6be175d crew(grok): T02 Depth-audit + harden proof_loop.py (certification loop: prefilter → kernel) [round 4]`
+- `b11fa14 crew(claude): T03 Depth-audit + harden reality_fork.py (counterfactual physics sandbox) [round 3]`
+- `5480fa3 crew(grok): T02 Depth-audit + harden proof_loop.py (certification loop: prefilter → kernel) [round 3]`
+- `0a8fe70 crew(claude): T03 Depth-audit + harden reality_fork.py (counterfactual physics sandbox) [round 2]`
+- `0407703 crew(claude): T03 Depth-audit + harden reality_fork.py (counterfactual physics sandbox) [round 1]`
+- `176078d crew(grok): T02 Depth-audit + harden proof_loop.py (certification loop: prefilter → kernel) [round 2]`
+- `a8d4a34 crew(claude): T01 Depth-audit + harden multiterm.py (additive multi-term discovery) [round 1]`
+- `51e65cb crew(grok): T02 Depth-audit + harden proof_loop.py (certification loop: prefilter → kernel) [round 1]`
+- `b61452b Merge branch 'crew/integration'`
+- `dc4c083 crew: scaffold CI/CD + project config`
 - `25b2035 crew: resolve merge conflict for crew/T05-grok`
 - `b61a957 crew: resolve merge conflict for crew/T03-grok`
 - `fcb2b59 Merge branch 'crew/T04-claude' into crew/integration`
-- `1b63c8c Merge branch 'crew/T02-grok' into crew/integration`
-- `4190bb5 crew(grok): T05 knowledge_graph.py: dimensional-type filter disposes spurious cross-domain groupings [round 1]`
-- `faeff2d crew(claude): T04 graph.py: dedup fingerprint really collapses re-discoveries and emits the Anhang-C record [round 1]`
-- `60cfee9 crew(grok): T03 first_principles.py: proof recompute catches tampering, derive only returns verified proofs [round 1]`
-- `3c07906 crew(claude): T01 engine.py: dimensional SR + discover_new_formulas really discovers, not guesses [round 1]`
-- `909b11f crew(grok): T02 feynman.py: separate recovery vs honest-abstention rates, no blended score [round 1]`
-- `2073e4f Merge branch 'crew/integration'`
-- `3d7b558 crew: scaffold CI/CD + project config`
-- `061cb7f crew: resolve merge conflict for crew/T03-grok`
-- `2dce3d7 Merge branch 'crew/T05-claude' into crew/integration`
-- `516fcd6 Merge branch 'crew/T04-claude' into crew/integration`
-- `61d2b3b Merge branch 'crew/T02-grok' into crew/integration`
-- `d72a215 crew(claude): T05 Depth-audit + harden cosmic_insight.py (cross-domain structural analogy) [round 1]`
-- `5c4b45d crew(claude): T04 Depth-audit + harden controller.py (budget/depth/checkpoint controller) [round 1]`
-- `8cde34b crew(grok): T03 Depth-audit + harden concept_utility.py (ledger-learned contrastive prior) [round 1]`
-- `d382a01 crew(claude): T01 Depth-audit + harden campaign.py (learned-prior + cross-domain composition) [round 1]`
-- `dae5a45 crew(grok): T02 Depth-audit + harden composition.py (minimal-correction discovery) [round 1]`
 
 
 ---
