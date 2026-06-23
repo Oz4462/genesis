@@ -81,9 +81,21 @@ def analyze_separability(
 ) -> SeparabilityResult:
     """Detect additive (``mode='additive'``) or multiplicative (``mode='multiplicative'``) separability
     of ``f`` over ``names``. For multiplicative mode ``f`` must be positive on the ranges (it is tested on
-    ``log f``). Returns the variable groups that must stay together."""
+    ``log f``). Returns the variable groups that must stay together.
+
+    Raises ``ValueError`` on an unknown ``mode``, on ``n_bases < 1`` (no base point would be sampled, so
+    the mixed difference is never evaluated and EVERY pair would be reported separable — a fabricated
+    "fully separable" verdict), and on ``tol < 0`` (a non-negative residual can never satisfy
+    ``interaction <= tol``, so EVERY pair would be reported coupled — a fabricated "all coupled" verdict).
+    Both are silent wrong factual values, so we fail loud instead of guessing (no silent defaults)."""
     if mode not in ("additive", "multiplicative"):
         raise ValueError("mode must be 'additive' or 'multiplicative'")
+    if n_bases < 1:
+        raise ValueError("n_bases must be >= 1: with no base points the mixed difference is never "
+                         "evaluated and every pair would falsely report as separable")
+    if tol < 0.0:
+        raise ValueError("tol must be >= 0: a negative tolerance can never be met by a non-negative "
+                         "relative interaction, so every pair would falsely report as coupled")
     if mode == "multiplicative":
         def g(**kw: float) -> float:
             value = float(f(**kw))

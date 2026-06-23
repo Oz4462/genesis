@@ -67,6 +67,13 @@ def problem_from_simulation(
         raise ValueError("need at least one input to sample")
     if n_samples < 2:
         raise ValueError("need at least 2 samples")
+    # Names are the engine's key space: it identifies every source (input OR constant) by name in one
+    # dict of exponents. A duplicate name would silently collapse two distinct quantities into one column
+    # (the dict comprehension below keeps only the last 'cols' entry) and corrupt the dimensional solve —
+    # a "keine stillen Defaults" bug. Fail loud instead of discovering on a silently corrupted problem.
+    source_names = [s.name for s in inputs] + [c.name for c in constants]
+    if len(set(source_names)) != len(source_names):
+        raise ValueError(f"input and constant names must be unique (got {source_names})")
     rng = np.random.default_rng(seed)
     cols = {s.name: np.exp(rng.uniform(math.log(s.lo), math.log(s.hi), size=n_samples)) for s in inputs}
     const_kwargs = {c.name: c.value for c in constants}

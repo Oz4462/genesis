@@ -167,7 +167,13 @@ def discover_multiterm(
     the dimensionally-valid power-law terms. A term enters only if it improves R² by more than
     `improvement_threshold` (parsimony), so a pure power law stays a single term and noise does
     not accrete terms. Coefficients are fitted by linear least squares (exact, deterministic).
-    Raises ValueError on non-positive magnitudes or an over-large lattice."""
+    Raises ValueError on non-positive magnitudes, an over-large lattice, or ``max_terms < 1``."""
+    # A model with < 1 term is meaningless: without this guard max_terms<=0 skips the greedy loop
+    # entirely and the `not selected` fallback silently returns a fabricated 1-term law (a wrong,
+    # input-independent result) instead of failing loud — exactly the kind of silent default the
+    # no-hallucination contract forbids. Reject the nonsensical request explicitly.
+    if max_terms < 1:
+        raise ValueError(f"max_terms must be >= 1, got {max_terms}")
     y = np.asarray(problem.target.values, dtype=float)
     if np.any(y <= 0.0):
         raise ValueError("target has non-positive values; additive power-law discovery needs positive magnitudes")
