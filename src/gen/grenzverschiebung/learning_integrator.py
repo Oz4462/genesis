@@ -79,8 +79,27 @@ def apply_learning_cycle(
     Wendet den 8-Schritt-Prozess (§3.8) auf die kumulierten Grenz-Outputs an.
     Für Jetpack: extrahiert konkrete Regeln/Failure-Modes aus den 6 Safety-Stufen + revised Tech + breakthrough.
     Produziert Delta, das später boundary_reviser / neue front / safety verbessern kann.
+
+    Generischer (nicht-Jetpack) Pfad: leitet das Delta ECHT aus dem Input ab —
+    je eine `LearningRule` pro realer `SafetyStage` (deren Gate als gelernte Invariante,
+    Name/Gate als Provenance) und je einen `FailureMode` pro `abbruch`-Kriterium der Stufe.
+    Ist nur `revised` gegeben, werden die Regeln aus dessen `revisions` abgeleitet.
+    Trägt der Input kein verwertbares Signal (z.B. SafetyStagePlan ohne Stufen, revised
+    ohne Revisionen), wird ehrlich abstrahiert (leere Regel-Liste + expliziter LÜCKE-Marker)
+    statt erfundener Inhalt zurückzugeben.
+
+    Raises:
+        ValueError: wenn sowohl `safety` als auch `revised` None sind — ohne irgendeine
+            Quelle gäbe es nur fabrizierten Inhalt ("keine stillen Defaults").
     """
-    traum = (safety.source_traum if safety else (revised.source_traum if revised else "unbekannt"))
+    # Fail loud instead of fabricating a "unbekannt" traum out of nothing (no silent default).
+    if safety is None and revised is None:
+        raise ValueError(
+            "apply_learning_cycle benötigt mindestens 'safety' oder 'revised'; "
+            "beide None würde fabrizierten Inhalt erzeugen."
+        )
+
+    traum = safety.source_traum if safety is not None else revised.source_traum
 
     rules: list[LearningRule] = []
     failures: list[FailureMode] = []
@@ -145,18 +164,86 @@ def apply_learning_cycle(
             "2 Failure-Modes (Single-Failure in Sim/Stand, Recovery >3s), 2 Wissens-Einträge, 4 Verbesserungsvorschläge. "
             "8-Schritt-Prozess (§3.8) angewendet: Lücken aus safety/revised erkannt → Delta mit Evidence → Vorschläge für nächsten Zyklus."
         )
+    elif safety is not None and safety.stages:
+        # Generic (non-jetpack) path, structured input: derive genuinely from the REAL
+        # SafetyStagePlan. WHY (L2-drift fix): the previous version returned exactly one
+        # canned LearningRule regardless of input — a facade. Now each concrete SafetyStage
+        # contributes a rule (its gate is the learned invariant) and a FailureMode per
+        # abbruch criterion, each referencing the stage's name/gate as provenance.
+        for stage in safety.stages:
+            rules.append(
+                LearningRule(
+                    regel=(
+                        f"Stufe '{stage.name}' verlangt Gate '{stage.gate}' "
+                        f"(safe_form: {stage.safe_form}) bevor die nächste Stufe beginnt."
+                    ),
+                    evidenz=(
+                        "Messkriterien: " + "; ".join(stage.messkriterien)
+                        if stage.messkriterien
+                        else "Keine Messkriterien deklariert (Lücke)."
+                    ),
+                    quelle=stage.quelle or "safety_ladder",
+                )
+            )
+            for kriterium in stage.abbruch:
+                failures.append(
+                    FailureMode(
+                        modus=kriterium,
+                        aus_stufe=stage.name,
+                        evidenz=f"Abbruchkriterium der Stufe '{stage.name}' (Gate: {stage.gate}).",
+                        quelle=stage.quelle or "safety_ladder",
+                    )
+                )
+        wissens.append(
+            WissensEintrag(
+                titel=f"Safety-Ladder Zusammenfassung ({len(safety.stages)} Stufen)",
+                inhalt=safety.zusammenfassung,
+                evidenz="Abgeleitet aus dem realen SafetyStagePlan (jede Stufe → Regel + Failure-Modes).",
+                quelle=safety.quelle or "safety_ladder",
+            )
+        )
+        vorschlaege.append(
+            f"Nächster Zyklus: die {len(rules)} abgeleiteten Stufen-Regeln und "
+            f"{len(failures)} Failure-Modes in boundary_reviser/front_mapper zurückspeisen."
+        )
+        zusammenfassung = (
+            f"Minimal-LearningDelta (generisch, nicht-Jetpack): aus {len(safety.stages)} "
+            f"Safety-Stufen abgeleitet → {len(rules)} Rules, {len(failures)} Failure-Modes, "
+            f"{len(wissens)} Wissens-Eintrag, {len(vorschlaege)} Vorschlag(e)."
+        )
+    elif revised is not None and revised.revisions:
+        # Only the revised front carries signal: derive one rule per real BoundaryRevision.
+        for rev in revised.revisions:
+            rules.append(
+                LearningRule(
+                    regel=(
+                        f"Grenze '{rev.changed_boundary}' verschoben: "
+                        f"{rev.old_typ} → {rev.new_typ}."
+                    ),
+                    evidenz=rev.reason,
+                    quelle=rev.quelle or "boundary_reviser",
+                )
+            )
+        vorschlaege.append(
+            "Nächster Zyklus: SafetyStagePlan aus dem revised Front bauen, "
+            "um Failure-Modes je Stufe zu gewinnen."
+        )
+        zusammenfassung = (
+            f"Minimal-LearningDelta (generisch): aus {len(rules)} Boundary-Revision(en) "
+            "des revised Fronts abgeleitet."
+        )
     else:
-        rules = [
-            LearningRule(
-                regel="Generische Idee → minimales Delta: mindestens eine Rule aus erster Safety-Stufe extrahieren.",
-                evidenz="S0 Gate 'Vollständige Coverage' als Basis.",
-                quelle="GENESIS_PLATFORM_PLAN.md §3.3 + safety_ladder generic",
-            ),
-        ]
-        failures = []
-        wissens = []
-        vorschlaege = ["Nächster Zyklus: volle Analyse mit breakthrough + bench erforderlich."]
-        zusammenfassung = "Minimal-LearningDelta für noch nicht detailliert analysierte Idee (8-Schritt nur angetippt)."
+        # Input present but no actionable signal (SafetyStagePlan without stages, or revised
+        # without revisions). Honest abstention with an explicit LÜCKE marker instead of a
+        # fabricated rule — "Ich weiß es nicht" ist ein gültiger Output (Kernprinzip 4).
+        vorschlaege.append(
+            "LÜCKE: Weder Safety-Stufen noch Boundary-Revisionen vorhanden; volle Analyse "
+            "(breakthrough + safety_ladder) erforderlich, bevor Regeln/Failure-Modes entstehen."
+        )
+        zusammenfassung = (
+            "Minimal-LearningDelta (generisch): Input ohne verwertbares Signal — "
+            "keine Regel ableitbar (Lücke, ehrliche Abstention)."
+        )
 
     return LearningDelta(
         source_traum=traum,
