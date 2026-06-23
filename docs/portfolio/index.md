@@ -11,22 +11,22 @@
 ```mermaid
 kanban
   done
-    nT01[T01: Depth-audit + fix chip_selection.py (requirement-driven chip selection over]
-    nT02[T02: Depth-audit + fix circuit.py (MNA DC/AC/transient/nonlinear solver)]
-    nT03[T03: Depth-audit + fix clarification.py (underspecification detection + targeted]
-    nT04[T04: Depth-audit + fix cli.py rendering surface (format_report/solution/specific]
-    nT05[T05: Depth-audit + fix competitive_humanoid.py (two cfg-driven whole-body humano]
+    nT01[T01: Depth-audit + characterization for fem.py (Euler-Bernoulli beam FEM)]
+    nT02[T02: Depth-audit + characterization for fem3d_quadratic.py (T10 quadratic tet)]
+    nT03[T03: Depth-audit + FIX for flight.py (multirotor closed-form axes)]
+    nT04[T04: Depth-audit + characterization for fracture.py (LEFM crack axis)]
+    nT05[T05: Depth-audit + characterization for frontier.py (Phase χ frontier map)]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | Depth-audit + fix chip_selection.py (requirement-driven chip selection over compute.py gate) | done | claude | feature |
-| T02 | Depth-audit + fix circuit.py (MNA DC/AC/transient/nonlinear solver) | done | claude | feature |
-| T03 | Depth-audit + fix clarification.py (underspecification detection + targeted questions) | done | claude | feature |
-| T04 | Depth-audit + fix cli.py rendering surface (format_report/solution/specification/render_spec) | done | claude | feature |
-| T05 | Depth-audit + fix competitive_humanoid.py (two cfg-driven whole-body humanoid specs) | done | claude | feature |
+| T01 | Depth-audit + characterization for fem.py (Euler-Bernoulli beam FEM) | done | claude | feature |
+| T02 | Depth-audit + characterization for fem3d_quadratic.py (T10 quadratic tet) | done | grok | feature |
+| T03 | Depth-audit + FIX for flight.py (multirotor closed-form axes) | done | claude | feature |
+| T04 | Depth-audit + characterization for fracture.py (LEFM crack axis) | done | claude | feature |
+| T05 | Depth-audit + characterization for frontier.py (Phase χ frontier map) | done | claude | feature |
 
 ## Decisions
 
@@ -250,6 +250,47 @@ kanban
 - (2026-06-23) competitive_humanoid reads REAL: build_humanoid is fully cfg-driven; its facade-killer asserts the printed vs flagship specs differ in the gate-relevant headline numbers that are actually consumed (q_avail_tau=420 N·m > H2's 360 for flagship vs 200 for printed; reach links; compute workload/chip TOPS) so the competitive claim is present in the spec, not just the docstring; the NEGATIVE test asserts a HumanoidConfig with an incomplete prices dict fails LOUD (raises) rather than silently producing an unpriced BOM — make it a clear error if it is currently a bare KeyError.
 - (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (Specification/Quantity/ValueOrigin/Component/Report/SolutionReport/Approach) and each module's real signatures (HumanoidConfig, Chip, Resistor/VoltageSource, RECIPES) — read them, never invent fields — and use only stdlib + already-declared deps (numpy is already declared for circuit).
 - (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the historical test→claude routing.
+- (2026-06-23) Split strictly by module (completeness/compute/config/constraint_consistency/contact): the five sources live on disjoint paths and each gets a uniquely-named tests/test_<module>_characterization.py + docs/audit/DEPTH_AUDIT_<module>.md, so parallel worktrees never write the same path.
+- (2026-06-23) Keep each module and ITS new test in the SAME task (the test imports the module under audit) so each task is independently verifiable in its own worktree using only its own files plus pre-existing repo files (core.state Specification/Quantity/Constraint/BomItem/GeometryNode, verification.derivation already on main).
+- (2026-06-23) New test files take the _characterization suffix to avoid clobbering any legacy test files; the new file is the authoritative facade-detector and leaves legacy tests untouched (no churn).
+- (2026-06-23) Universal facade-killer per module: assert (a) the headline output changes MEANINGFULLY when a driving input changes (proves the input is genuinely consumed, not a canned constant) AND (b) the documented fail-loud/abstention path fires exactly (the mandatory NEGATIVE test) — per 'keine stillen Defaults' and 'a gate without a test does not exist'.
+- (2026-06-23) All five modules read as REAL on inspection, so each task edits its source ONLY where the new characterization test exposes a genuine defect (missing guard, silent wrong/constant value, dead input) — never blanket feature-creep — upholding 'change nothing if correct'.
+- (2026-06-23) contact.py and compute.py are cross-checked against CLOSED FORMS (Hertz steel anchor a=0.1481mm/p0=2176.1MPa, sphere_on_flat==sphere_sphere in r2→inf limit, p0/p_mean ratios 3/2 and 4/pi, line identity p0=sqrt(F'·E*/(πR)); compute usable=chip·util, P=workload/eff+static, latency=ops/throughput) so the numbers are proven computed, not echoed.
+- (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (Specification/Quantity/Constraint/BomItem/BomRole/GeometryNode/Component) and each module's real signatures — read them, never invent fields — and use only stdlib + already-declared deps (no numpy needed; these modules are stdlib-only).
+- (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (standing 2026-06-23 team decision); each task's honest verdict + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md.
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the historical test→claude routing.
+- (2026-06-23) Split strictly by module: each task edits at most ONE src/gen/<m>.py + adds ONE tests/test_<m>_characterization.py + ONE docs/audit/DEPTH_AUDIT_<m>.md — the five sources share no mutual imports beyond pre-existing core.state/physics_selection/verification helpers carried unmodified in each worktree, so parallel worktrees never write the same path (zero collision risk).
+- (2026-06-23) Keep each module and ITS new test in the SAME task (the test imports the module under audit) so each task is independently verifiable in its own worktree using only its own files plus pre-existing repo files (core.state, physics_selection.RECIPES, verification.constraint_smt all already on main).
+- (2026-06-23) New test files take the _characterization suffix because costing/creep/dfm already have legacy tests (test_costing.py, test_creep.py, test_dfm.py) and coverage has test_phase_delta_plus_coverage.py; the new file is the authoritative facade-detector and leaves legacy tests untouched (no churn). demo has no legacy test, so its new file is also its first.
+- (2026-06-23) Universal facade-killer per module: assert (a) the headline output changes MEANINGFULLY when a driving input changes (proves the input is genuinely consumed, not a canned constant) AND (b) the documented fail-loud/abstention path fires exactly (the mandatory NEGATIVE test) — per 'keine stillen Defaults' and 'a gate without a test does not exist'.
+- (2026-06-23) All five modules read as REAL on inspection, so each task edits its source ONLY where the new characterization test exposes a genuine defect (missing guard, silent wrong/constant value, dead input) — never blanket feature-creep — upholding 'change nothing if correct'.
+- (2026-06-23) coverage.py depends on the optional z3 'smt' extra for the SMT feasibility path; its test targets the always-available mechanical paths (physics-recipe measurand filtering, complete-certificate gate, exact GateFailure.code strings) and treats the SMT/UNTESTABLE branch as an accepted fallback, so the full pytest gate stays green without z3.
+- (2026-06-23) dfm.py/creep.py are cross-checked against CLOSED FORMS so the numbers are proven computed not echoed: IPC-2221 inversion A=(I/(k·ΔT^0.44))^(1/0.725) with the mil→mm 0.0254 factor; Larson-Miller round-trip t_r→LMP→t_r exact and the pinned anchor T=811K,t_r=1e5h,C=20→LMP=20275, plus the Norton (σ2/σ1)^n and Arrhenius ratios.
+- (2026-06-23) demo.py is a scripted-world builder, so its facade-killer asserts the worlds are genuinely interlinked data (every grounded Quantity's grounding resolves to a real claim id in the same world; every derived Quantity's inputs resolve to real quantity ids; humanoid_spec yields non-empty coverage_requirements and bom_cost finds priced/fabricated items) — not a smoke test — and a negative case proves a broken cross-reference would be caught.
+- (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (standing 2026-06-23 team decision); each task's honest verdict (REAL/PARTIAL/FACADE + what was made real) + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (the integrator consolidates into BUILD_LOG at merge).
+- (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (Specification/Quantity/Component/GeometryNode/BomItem/BomRole/Sourcing/FailureMode/CoverageCertificate/CoverageStatus) and each module's real signatures — read them, never invent fields — and use only stdlib + already-declared deps.
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the historical test→claude routing.
+- (2026-06-23) Split strictly by module across five disjoint source paths (dimensional_guard / dynamics / electronics / evaluation / fatigue); the files share no mutual imports beyond pre-existing core.state + verification helpers carried unmodified in each worktree, so parallel worktrees never write the same path.
+- (2026-06-23) Keep each module and ITS new test in the SAME task (the test imports the module under audit) so each task is independently verifiable in its own worktree using only its own files plus pre-existing repo files (core.state, verification.units, verification.gates, physics_selection, demo all already on main).
+- (2026-06-23) New test files take the _characterization suffix because every module already has a legacy test on main (test_dimensional_guard, test_dynamics, test_electronics, test_evaluation, test_fatigue + test_notch_fatigue); the new file is the authoritative facade-detector and leaves legacy tests untouched (no churn).
+- (2026-06-23) electronics.py is the one confirmed PARTIAL-FACADE: synthesize_or_select_circuit's generic else-branch hardcodes PowerTree(total_budget_w=60.0) and a 12V/4.5A rail regardless of the caller's power_budget_w — the driving input is dead; the fix makes the generic power tree DERIVE its total budget and rail current budget from power_budget_w and adds a ValueError guard on non-positive budget, while the rich jetpack/flug/thrust branch stays byte-stable as a protected regression.
+- (2026-06-23) The other four modules read as REAL on inspection, so each task edits its source ONLY where the new characterization test exposes a genuine defect (missing guard, silent wrong/constant value, dead input) — never blanket feature-creep — upholding 'change nothing if correct' and 'keine stillen Defaults'.
+- (2026-06-23) Numeric modules (dynamics, fatigue) are cross-checked against CLOSED FORMS so the numbers are proven computed not echoed: pendulum point-mass T=2π√(L/g), ZMP dynamic_factor=1+(z/g)ω² growing with cadence, peak inertial torque=I·A·ω²; Basquin round-trip σ→N→σ exact, Goodman/Soderberg/Gerber endpoints (pure-alternating→S_e, pure-mean→UTS/S_y), the Soderberg≤Goodman≤Gerber ordering, and Miner D=1 at failure.
+- (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (Claim/ClaimStatus/RunState/Question/Quantity/Specification/SourceRef/SourceSupport) and each module's real signatures — read them, never invent fields — and use only stdlib + already-declared deps (no new dependency).
+- (2026-06-23) BUILD_LOG.md is out of every task's scope to avoid a shared-file merge collision (standing 2026-06-23 team decision); each task's honest verdict (REAL/PARTIAL/FACADE + what was made real) + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md.
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the historical test→claude routing.
+- (2026-06-23) Split strictly by module (fem / fem3d_quadratic / flight / fracture / frontier): the five sources live on disjoint paths and each gets a uniquely-named tests/test_<module>_characterization.py + docs/audit/DEPTH_AUDIT_<module>.md, so parallel worktrees never write the same path.
+- (2026-06-23) New test files take the _characterization suffix because every module already has a legacy test on main (test_fem, test_fem3d_quadratic, test_flight, test_fracture, test_frontier); the new file is the authoritative facade-detector and leaves legacy tests untouched (no churn).
+- (2026-06-23) Keep each module and ITS new test in the SAME task (the test imports the module under audit) so each task is independently verifiable in its own worktree using only its own files plus pre-existing repo files (fem3d.py, core.errors, core.state all already on main).
+- (2026-06-23) No dependsOn edges although fem3d_quadratic imports fem3d._elasticity_matrix and frontier imports core.state: each worktree carries the unmodified pre-existing dependency and each task asserts against the CURRENT public API of its import, so no task relies on another's in-flight edits.
+- (2026-06-23) flight is the one confirmed real-fix: rotor_hover_check's docstring promises 'Raises ValueError on ... a negative thrust' but max_total_thrust is never validated (induced_velocity only ever sees the always-positive per-rotor hover thrust weight/n_rotors), so a negative max_total_thrust silently yields a negative thrust_weight_ratio instead of failing loud — the fix is the minimal guard `if max_total_thrust < 0.0: raise ValueError(...)` plus a regression test, with 0.0 allowed (a meaningful evaluable case → ratio 0, ok False).
+- (2026-06-23) The other four modules read as REAL on inspection, so each task edits its source ONLY where the new characterization test exposes a genuine defect (missing guard, silent wrong/constant value, dead input) — never blanket feature-creep — upholding 'change nothing if correct'.
+- (2026-06-23) fem3d_quadratic depends on the optional gmsh kernel only for box_mesh_t10/_t10_from_gmsh; the element-level claims (t10_stiffness, _b_matrix, t10_mass, t10_nodal_stresses) need NO gmsh, so the characterization test exercises the linear patch test + uniform-tension exactness + mass-sums-to-rhoV on explicit hand-built single-element coords (gmsh-free), and pytest.importorskip('gmsh') guards only any meshing cross-check — keeping the full pytest gate green where gmsh is absent.
+- (2026-06-23) Numeric modules are cross-checked against CLOSED FORMS so the numbers are proven computed not echoed: fem's cantilever FEM == F·L^3/(3·E·I) and root moment == F·L mesh-independently across n_elements; fracture's a_c round-trips to K==K_IC and the Paris closed form matches a direct trapezoid integral of da/dN to ~1e-9; fem3d_quadratic's patch test recovers the exact imposed constant strain.
+- (2026-06-23) frontier is pure/LLM-free synthesis; its facade-killer drives build_frontier_map through the REAL core.state constructors and asserts a KnownRegion appears ONLY for a VERIFIED+confidence>=threshold claim that is actually USED (report/solution/spec), edges appear for non-empty gaps + REFUTED/UNSUPPORTED claims while whitespace-only gaps are skipped, and the same RunState yields an identical FrontierMap (A5 determinism).
+- (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (standing 2026-06-23 team decision); each task's honest verdict (REAL/PARTIAL/FACADE + what was made real) + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (the integrator consolidates into BUILD_LOG at merge).
+- (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (RunState/Question/Claim/ClaimStatus/Report/SolutionReport/Approach/Specification/FrontierMap/KnownRegion/FrontierEdge) and each module's real signatures — read them, never invent fields — and use only stdlib + already-declared deps (numpy is already declared for the FEM tasks).
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess in the always-run path, matching the historical test→claude routing.
 
 ### Architecture Decision Records
 
@@ -282,20 +323,24 @@ kanban
 - 0027. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0028. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0029. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0030. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0031. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0032. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0033. Depth-audit AND FIX (genesis overnight loop). For each modul
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 22 |
-| Tasks (total) | 101 |
-| Done | 99 |
+| Runs | 26 |
+| Tasks (total) | 121 |
+| Done | 119 |
 | Blocked | 1 |
 | Resolved rate | 98% |
 | Blocked rate | 1% |
-| Merges | 14 |
-| Avg duration | 73.9m |
-| Total cost | 249.06 |
+| Merges | 15 |
+| Avg duration | 72.1m |
+| Total cost | 305.02 |
 
 ## Architecture
 
@@ -311,26 +356,26 @@ graph TD
 
 Recent commits:
 
+- `9d91523 Merge branch 'crew/T05-claude' into crew/integration`
+- `e4e601f Merge branch 'crew/T04-claude' into crew/integration`
+- `7708c31 Merge branch 'crew/T03-claude' into crew/integration`
+- `03b1769 Merge branch 'crew/T02-grok' into crew/integration`
+- `038995e Merge branch 'crew/T01-claude' into crew/integration`
+- `c02eac2 crew(claude): T05 Depth-audit + characterization for frontier.py (Phase χ frontier map) [round 1]`
+- `aefe4c6 crew(grok): T02 Depth-audit + characterization for fem3d_quadratic.py (T10 quadratic tet) [round 3]`
+- `5df4a69 crew(claude): T04 Depth-audit + characterization for fracture.py (LEFM crack axis) [round 1]`
+- `2e4b369 crew(grok): T02 Depth-audit + characterization for fem3d_quadratic.py (T10 quadratic tet) [round 2]`
+- `e27d9fc crew(claude): T03 Depth-audit + FIX for flight.py (multirotor closed-form axes) [round 1]`
+- `379746d feat(humanoids): AETHON - our complete head-to-toe humanoid (39 DOF, dexterous hands, stands, full pipeline PASS)`
+- `c8becdb crew(grok): T02 Depth-audit + characterization for fem3d_quadratic.py (T10 quadratic tet) [round 1]`
+- `5d782a1 crew(claude): T01 Depth-audit + characterization for fem.py (Euler-Bernoulli beam FEM) [round 1]`
+- `b66feeb feat(tools): wire CAD easy-wins + integrate deferred tools (8/8)`
+- `f432835 Merge branch 'crew/integration'`
+- `a1a7067 crew: scaffold CI/CD + project config`
 - `6e799e9 Merge branch 'crew/T05-claude' into crew/integration`
 - `213078e Merge branch 'crew/T04-claude' into crew/integration`
 - `55025d0 Merge branch 'crew/T03-claude' into crew/integration`
 - `9fe7a88 Merge branch 'crew/T02-claude' into crew/integration`
-- `b1a7b73 Merge branch 'crew/T01-claude' into crew/integration`
-- `f6574bf crew(claude): T02 Depth-audit + fix circuit.py (MNA DC/AC/transient/nonlinear solver) [round 1]`
-- `9a3ad82 feat(humanoids): broaden roster to 6/7 engine-validated — Fourier-N1 + K-Bot acquired, N1 stands; AGILOped robust, Asimov improved`
-- `44817f1 crew(claude): T05 Depth-audit + fix competitive_humanoid.py (two cfg-driven whole-body humanoid specs) [round 1]`
-- `94a4cad crew(claude): T04 Depth-audit + fix cli.py rendering surface (format_report/solution/specification/render_spec) [round 1]`
-- `2ec0908 crew(claude): T03 Depth-audit + fix clarification.py (underspecification detection + targeted questions) [round 2]`
-- `3cc608d crew(claude): T03 Depth-audit + fix clarification.py (underspecification detection + targeted questions) [round 1]`
-- `0224103 fix: unblock campaign integration — ClaimStatus str-enum + lumencrucible techniker arg`
-- `be57c35 crew(claude): T01 Depth-audit + fix chip_selection.py (requirement-driven chip selection over compute.py gate) [round 1]`
-- `ac1a517 feat(humanoids): dynamic stepping env + capture-step + RL (honest negative result)`
-- `0e999f1 Merge branch 'crew/integration'`
-- `ef33b75 feat(humanoids): whole-body balance control + AGILOped flat-foot stand + Asimov actuators`
-- `bd6dd31 crew: scaffold CI/CD + project config`
-- `6946a69 crew: resolve merge conflict for crew/T05-grok`
-- `4d5061e Merge branch 'crew/T04-claude' into crew/integration`
-- `ea8e31d Merge branch 'crew/T03-claude' into crew/integration`
 
 
 ---
