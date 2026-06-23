@@ -713,3 +713,5 @@ f | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detecte
 - 2026-06-24T01:18:25.669414 | run_terminal_command | cmd: wc -l verification/auto-log.md; tail -5 verificati | → /vibe-verify or RecoveryPlaybook
 - 2026-06-24T01:18:28.865769 | run_terminal_command | cmd: grep -l -r --include='*.md' '^<<<<<<< ' . 2>/dev/n | → /vibe-verify or RecoveryPlaybook
 - 2026-06-24T01:18:31.870929 | run_terminal_command | cmd: set -o pipefail; if grep -l -r --include='*.md' '^ | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-24T01:43:26.744442 | run_terminal_command | cmd: wc -l "/home/genesis/.grok/sessions/%2Fhome%2Fgene | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:43:52.350419 | run_terminal_command | cmd: ls -l /home/genesis/genesis/.crew/worktrees/T02-gr | → /vibe-verify or RecoveryPlaybook
