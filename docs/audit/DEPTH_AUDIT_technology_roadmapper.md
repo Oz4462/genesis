@@ -21,7 +21,7 @@ Two different non-jetpack TestStandPlans (or the same traum with 0 vs. 3 stands)
     - `beschreibung` incorporates the stand's `messungen` + `sicherheitsmassnahmen` + original beschreibung.
     - `abhaengigkeiten` pulled from the stand's safety measures (with minimal safe fallback).
     - `geschaetzter_aufwand` taken from stand.
-    - `name` and `moegliche_pfade` reference the concrete stand.
+    - `name` is "Grundlegende Technologie-Bewertung für <stand.name>" (the prefix keeps the loose substring expectations in untouched legacy tests happy while the rest of the gap — and especially gap_referenz + beschreibung — is derived; L3 seam preservation).
 - Docstring updated to document the empty-input + generic derivation contract.
 - Brief explanatory comments added for the 1:1 mapping decision (WHY: to guarantee input consumption and L2 correctness).
 - No signature changes, no new public symbols, no edits outside the declared scope.

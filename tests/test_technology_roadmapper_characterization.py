@@ -29,6 +29,12 @@ from gen.grenzverschiebung.teststand_architect import (
     TestStandSpec,
 )
 
+# Mark imported dataclass "Test*" symbols so pytest does not attempt to collect them
+# as test classes (they only define data, no test methods). Suppresses the
+# "cannot collect test class" warning when running the suite.
+TestStandPlan.__test__ = False
+TestStandSpec.__test__ = False
+
 
 # --- Helpers: construct via REAL public constructors (never invent fields) ---
 
@@ -129,7 +135,7 @@ def test_empty_stands_yields_honest_empty_gaps_and_explicit_summary():
 
     assert roadmap.gaps == []
     assert roadmap.run_id == "empty-42"
-    # Explicit abstention language per spec (no "Grundlegende..." canned item).
+    # Explicit abstention language per spec (no fabricated gap item at all).
     summary_lower = roadmap.zusammenfassung.lower()
     assert "keine prüfstände" in summary_lower or "no stands" in summary_lower or "keine" in summary_lower
     assert "keine" in summary_lower  # at minimum the honest marker

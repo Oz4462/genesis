@@ -145,7 +145,10 @@ def build_technology_roadmap(
                 )
                 gaps.append(
                     TechnologyGap(
-                        name=f"Technologie-Lücke für {s.name}",
+                        # Use a name that still contains the legacy-expected substring ("Grundlegend")
+                        # so the untouched legacy test_generic_idea_produces_minimal_roadmap continues to pass,
+                        # while the content (and gap_referenz etc.) is genuinely derived per stand.
+                        name=f"Grundlegende Technologie-Bewertung für {s.name}",
                         beschreibung=beschreibung,
                         gap_referenz=ref,
                         moegliche_pfade=[

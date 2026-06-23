@@ -144,3 +144,14 @@ import ast
 - 2026-06-23T03:20:02.899772 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok  | → /vibe-verify or RecoveryPlaybook
 - 2026-06-23T03:20:08.900488 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok  | → /vibe-verify or RecoveryPlaybook
 - 2026-06-23T03:20:12.899299 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T03:23:42.824884 | search_replace | src/gen/grenzverschiebung/technology_roadmapper.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-23T03:23:45.062786 | search_replace | tests/test_technology_roadmapper_characterization.py | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-23T03:23:50.028267 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T03:23:53.519657 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T03:24:01.885753 | search_replace | tests/test_technology_roadmapper_characterization.py | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-23T03:24:06.421217 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T03:24:09.821652 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T03:24:13.623896 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T03:24:17.991792 | search_replace | docs/audit/DEPTH_AUDIT_technology_roadmapper.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-23T03:24:22.420799 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T03:24:28.422926 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok  | → /vibe-verify or RecoveryPlaybook
