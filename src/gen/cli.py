@@ -758,8 +758,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--demo", action="store_true", help="run the offline deterministic demo")
     parser.add_argument(
         "--mode", choices=("report", "solution", "spec", "capstone", "eval", "protocol",
-                           "assess", "print", "bundle", "ideas", "dream", "humanoid", "council",
-                           "feynman", "campaign", "section", "training", "chip", "realize",
+                           "assess", "print", "bundle", "ideas", "dream", "humanoid", "aethon",
+                           "council", "feynman", "campaign", "section", "training", "chip", "realize",
                            "breakthrough", "research", "discover-ode", "invent", "solve"),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
@@ -1137,6 +1137,45 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         print("\n  Kein Chip im Katalog erfüllt die Anforderung (ehrlich: keiner passt — kein fabrizierter Chip).")
         return 3
+
+    if args.mode == "aethon":
+        # AETHON — OUR OWN complete head-to-toe flagship humanoid, run through the full pipeline:
+        # GATE γ (C-1..C-18) + GATE δ (physics) + the buildable bundle (STL/BOM/SCAD) + the
+        # comparison vs the 7 references and the 2026 SOTA. Deterministic, offline.
+        from pathlib import Path
+
+        from .bundle import emit_bundle
+        from .humanoids.genesis_humanoid import (
+            aethon_spec,
+            aethon_state,
+            comparison_summary,
+            design_summary,
+            total_dof,
+        )
+        from .verification.gates import gate_delta, gate_gamma
+
+        st = aethon_state()
+        gg, gd = gate_gamma(st), gate_delta(st)
+        summ = design_summary()
+        print(f"=== AETHON — {summ['height_m']} m, {summ['mass_kg']} kg, {total_dof()} DOF "
+              f"({summ['body_dof']} Körper + {summ['hand_dof_total']} Hand) ===")
+        print(f"  GATE γ (C-1..C-18): {'PASS' if gg.passed else 'FAIL'} ({len(gg.failures)} Fehler)")
+        print(f"  GATE δ (Physik):    {'PASS' if gd.passed else 'FAIL'} ({len(gd.failures)} Fehler)")
+        out_dir = Path("out") / "aethon"
+        m = emit_bundle(aethon_spec(), out_dir)
+        n_parts = len(m.printed_parts) + len(m.bought_parts)
+        print(f"  Bündel -> {out_dir}: {m.overall}  physics_ok={m.physics_ok}  "
+              f"{len(m.printed_parts)}/{n_parts} gedruckt")
+        print(f"  Kosten: {m.cost_summary}")
+        print(f"  fehlt:  {', '.join(m.missing) if m.missing else '—'}")
+        cmp = comparison_summary()
+        print("  Vorteile vs. Referenzen + SOTA:")
+        for w in cmp["wins"]:
+            print(f"     + {w}")
+        print("  Ehrliche Vorbehalte:")
+        for c in cmp["honest_caveats"]:
+            print(f"     ~ {c}")
+        return 0 if (gg.passed and gd.passed and m.files_complete and m.physics_ok) else 3
 
     if args.mode == "humanoid":
         # The two COMPLETE whole-body humanoids built (with grok) to beat the 2026 state of the art:
