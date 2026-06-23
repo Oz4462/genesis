@@ -681,3 +681,35 @@ f | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detecte
 - 2026-06-24T00:09:37.924433 | run_terminal_command | cmd: git status --porcelain 2>/dev/null || true; echo ' | → /vibe-verify or RecoveryPlaybook
 - 2026-06-24T00:09:40.928250 | run_terminal_command | cmd: sed -n '610,680p' verification/auto-log.md | head  | → /vibe-verify or RecoveryPlaybook
 - 2026-06-24T00:09:42.526977 | run_terminal_command | cmd: grep -E 'T04-grok|mesh_integrity.py' verification/ | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:33:23.247677 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:33:26.347460 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:33:31.348644 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:33:35.550957 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:38:54.788436 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T03-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:38:57.891233 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T03-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:39:02.893511 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T03-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:39:08.593066 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T03-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:39:29.590480 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T03-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:39:35.095663 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T03-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:08:22.500001 | run_terminal_command | cmd: wc -l verification/auto-log.md && tail -20 verific | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:08:32.794181 | run_terminal_command | cmd: wc -c /home/genesis/.grok/sessions/%2Fhome%2Fgenes | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:08:36.804319 | run_terminal_command | cmd: tail -c +42000 /home/genesis/.grok/sessions/%2Fhom | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:08:38.893276 | run_terminal_command | cmd: tail -c 3000 /home/genesis/.grok/sessions/%2Fhome% | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:09:05.731380 | search_replace | verification/auto-log.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:09:09.397358 | run_terminal_command | cmd: wc -l verification/auto-log.md; tail -15 verificat | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:44:27.273211 | run_terminal_command | cmd: wc -l /home/genesis/.grok/sessions/%2Fhome%2Fgenes | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:44:34.576842 | run_terminal_command | cmd: grep -n "physics_selection" /home/genesis/.grok/se | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:45:11.776472 | run_terminal_command | cmd: find tests -name '*_depth*.py' | head -5 | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:55:18.002892 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:55:25.502661 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:17:20.370203 | run_terminal_command | cmd: find /home/genesis -name "prompt_0.txt" 2>/dev/nul | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:17:23.673750 | run_terminal_command | cmd: find /home/genesis/.grok/sessions -path '*_integra | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:17:25.569379 | run_terminal_command | cmd: ls -d /home/genesis/.grok/sessions/%2Fhome%2Fgenes | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:17:29.271840 | run_terminal_command | cmd: grep -n -i "auto-log\|verification/auto-log\|merge | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:17:32.568386 | run_terminal_command | cmd: grep -n -E '<<<<<<<|=======|>>>>>>>' verification/ | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:18:17.631309 | search_replace | verification/auto-log.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:18:19.375306 | run_terminal_command | cmd: grep -n -E '<<<<<<<|=======|>>>>>>>' verification/ | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:18:21.268096 | run_terminal_command | cmd: grep -E '^<<<<<<<|^=======|^>>>>>>>' verification/ | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:18:25.669414 | run_terminal_command | cmd: wc -l verification/auto-log.md; tail -5 verificati | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:18:28.865769 | run_terminal_command | cmd: grep -l -r --include='*.md' '^<<<<<<< ' . 2>/dev/n | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T01:18:31.870929 | run_terminal_command | cmd: set -o pipefail; if grep -l -r --include='*.md' '^ | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)

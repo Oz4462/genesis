@@ -29,6 +29,32 @@ DEFAULT_SAMPLES = 100_000
 DEFAULT_SEED = 12345
 
 
+def _validate_mc_inputs(
+    uncertainties: dict[str, float], n_samples: int, coverage: float
+) -> None:
+    """Fail loud on inputs that would otherwise produce a SILENT bad value.
+
+    Raises:
+        ValueError: if ``coverage`` is not strictly in (0, 1) — outside this
+            range the symmetric interval is undefined (coverage = 0 collapses to
+            a zero-width interval; coverage > 1 yields negative quantile
+            probabilities); if ``n_samples < 2`` — the sample std (``ddof=1``)
+            divides by zero and silently returns NaN; or if any standard
+            uncertainty is negative — a negative ``u`` would otherwise be
+            silently swallowed (treated as a constant) instead of failing.
+
+    No-silent-defaults discipline (CLAUDE.md §"keine stillen Defaults"): a bad
+    factual input must raise, never be guessed past.
+    """
+    if not (0.0 < coverage < 1.0):
+        raise ValueError(f"coverage must be in (0, 1), got {coverage!r}")
+    if n_samples < 2:
+        raise ValueError(f"n_samples must be >= 2 for a sample std, got {n_samples!r}")
+    for name, u in uncertainties.items():
+        if float(u) < 0.0:
+            raise ValueError(f"uncertainty for {name!r} must be >= 0, got {u!r}")
+
+
 def montecarlo_uncertainty(
     formula: str,
     values: dict[str, float],
@@ -43,7 +69,12 @@ def montecarlo_uncertainty(
     Returns ``{"mean", "std", "lo", "hi"}``: the output mean and standard
     uncertainty (sample std) and the symmetric `coverage` interval (e.g. the 2.5 %
     and 97.5 % quantiles for 95 %). Deterministic for fixed `seed`.
+
+    Raises:
+        ValueError: via :func:`_validate_mc_inputs` on ``coverage`` outside
+            (0, 1), ``n_samples < 2``, or a negative input uncertainty.
     """
+    _validate_mc_inputs(uncertainties, n_samples, coverage)
     rng = np.random.default_rng(seed)
     names = list(values.keys())
     # draw an (n_samples x n_inputs) sample matrix; u = 0 -> a constant column
@@ -94,7 +125,12 @@ def montecarlo_correlated(
     (std = u_a + u_b) instead of in quadrature; for ``a − b`` with ρ=1 they
     partially cancel (std = |u_a − u_b|). Returns ``{"mean","std","lo","hi"}``;
     deterministic for fixed `seed`.
+
+    Raises:
+        ValueError: via :func:`_validate_mc_inputs` on ``coverage`` outside
+            (0, 1), ``n_samples < 2``, or a negative input uncertainty.
     """
+    _validate_mc_inputs(uncertainties, n_samples, coverage)
     rng = np.random.default_rng(seed)
     names = list(values.keys())
     n = len(names)

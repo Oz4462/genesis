@@ -109,6 +109,16 @@ def overhang_check(
     """
     _require_cadquery()  # clear error if OCP is missing
     solid = csg_to_solid(node, quantities)
+    # An empty/degenerate boolean (e.g. A − B with B ⊇ A) yields a face-less shape.
+    # A face-less shape provably tessellates to ZERO triangles (verified against
+    # cadquery 2.8.0: 0 faces ⇒ 0 triangles), so the contract message below is
+    # accurate — the Faces() test is just the cheap EARLY detection of that same
+    # empty geometry, raised here because the alternative (reaching BoundingBox)
+    # crashes opaquely on the VOID box (Standard_ConstructionError "Bnd_Box is
+    # void"). Failing loud beats crashing opaquely or silently returning
+    # needs_support=False. A valid solid always has ≥1 face → no-op for real geometry.
+    if not solid.Faces():
+        raise ValueError("tessellation produced no triangles")
     bb = solid.BoundingBox()
     zmin = bb.zmin
     extent = max(bb.xmax - bb.xmin, bb.ymax - bb.ymin, bb.zmax - bb.zmin)
@@ -117,6 +127,8 @@ def overhang_check(
     down = _unit(-build_dir[0], -build_dir[1], -build_dir[2])
 
     verts, tris = solid.tessellate(tol)
+    if not tris:  # backstop: faces present but tessellation yielded no triangles
+        raise ValueError("tessellation produced no triangles")
     overhang_area = 0.0
     worst = 0.0
     column_volume = 0.0
@@ -168,6 +180,16 @@ def _mesh(node: GeometryNode, quantities: dict[str, Quantity],
     normal, area, centroid height, min vertex height."""
     _require_cadquery()
     solid = csg_to_solid(node, quantities)
+    # An empty/degenerate boolean (e.g. A − B with B ⊇ A) yields a face-less shape
+    # that provably tessellates to ZERO triangles (verified against cadquery 2.8.0:
+    # 0 faces ⇒ 0 triangles), so the contract message is accurate. The Faces() test
+    # is the cheap EARLY detection of that empty geometry, raised before BoundingBox
+    # because the void box would otherwise crash opaquely. A valid solid always has
+    # ≥1 face → no-op for real geometry; the `if not tris` backstop just before the
+    # return covers the all-degenerate-sliver case where faces exist but no triangle
+    # survives, so both _mesh consumers fail loud identically to overhang_check.
+    if not solid.Faces():
+        raise ValueError("tessellation produced no triangles")
     bb = solid.BoundingBox()
     extent = max(bb.xmax - bb.xmin, bb.ymax - bb.ymin, bb.zmax - bb.zmin)
     eps = extent * 1e-3 + 1e-9
@@ -194,6 +216,11 @@ def _mesh(node: GeometryNode, quantities: dict[str, Quantity],
             "min_h": min(h[i], h[j], h[k]),
             "max_h": max(h[i], h[j], h[k]),
         })
+    # Backstop: faces were present but every triangle collapsed to a sliver
+    # (length < 1e-15) → no usable surface. Fail loud here so both consumers
+    # (first_layer_report / bridge_spans) share one guard and one contract string.
+    if not tris:
+        raise ValueError("tessellation produced no triangles")
     return tris, up, eps, tol
 
 
@@ -220,9 +247,7 @@ def first_layer_report(
     ~0.3 mm base chamfer. Warping carries no verdict here (material-dependent,
     no defensible universal threshold): footprint/contact/height are the
     evidence, the human judges. Deterministic for a fixed tolerance."""
-    tris, up, eps, tol = _mesh(node, quantities, build_dir, tolerance)
-    if not tris:
-        raise ValueError("tessellation produced no triangles")
+    tris, up, eps, tol = _mesh(node, quantities, build_dir, tolerance)  # raises on empty mesh
     hmax = max(t["max_h"] for t in tris)
     hmin = min(t["min_h"] for t in tris)
     u_ax, v_ax = _basis(up)
@@ -307,9 +332,7 @@ def bridge_spans(
     Exact for axis-aligned geometry (the GENESIS CSG world); rotated bridge
     directions degrade to the conservative needs-support verdict, never to a
     false pass. Deterministic for a fixed tolerance."""
-    tris, up, eps, _ = _mesh(node, quantities, build_dir, tolerance)
-    if not tris:
-        raise ValueError("tessellation produced no triangles")
+    tris, up, eps, _ = _mesh(node, quantities, build_dir, tolerance)  # raises on empty mesh
     hmin = min(t["min_h"] for t in tris)
     u_ax, v_ax = _basis(up)
     down = (-up[0], -up[1], -up[2])
