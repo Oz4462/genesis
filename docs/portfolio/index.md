@@ -11,22 +11,22 @@
 ```mermaid
 kanban
   done
-    nT01[T01: learning_integrator: make generic LearningDelta derive from real SafetyStag]
-    nT02[T02: technology_roadmapper: derive generic TechnologyRoadmap from real TestStand]
-    nT03[T03: teststand_architect: derive generic TestStandPlan from real MilestoneLadder]
-    nT04[T04: architekt: make generic SystemConcept actually reflect the idea text]
-    nT05[T05: designer: make generic DesignerSpec derive from concept assemblies + ingeni]
+    nT01[T01: Depth-audit + fix fertigungs.py generic branch]
+    nT02[T02: Depth-audit + fix physiker.py generic branch]
+    nT03[T03: Depth-audit + fix regulatorik.py generic branch]
+    nT04[T04: Depth-audit + fix software.py generic branch]
+    nT05[T05: Depth-audit + fix techniker.py generic branch]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | learning_integrator: make generic LearningDelta derive from real SafetyStagePlan/RevisedFrontMap | done | claude | feature |
-| T02 | technology_roadmapper: derive generic TechnologyRoadmap from real TestStandPlan stands | done | grok | feature |
-| T03 | teststand_architect: derive generic TestStandPlan from real MilestoneLadder milestones | done | claude | feature |
-| T04 | architekt: make generic SystemConcept actually reflect the idea text | done | claude | feature |
-| T05 | designer: make generic DesignerSpec derive from concept assemblies + ingenieur failure_modes | done | claude | feature |
+| T01 | Depth-audit + fix fertigungs.py generic branch | done | claude | feature |
+| T02 | Depth-audit + fix physiker.py generic branch | done | grok | feature |
+| T03 | Depth-audit + fix regulatorik.py generic branch | done | grok | feature |
+| T04 | Depth-audit + fix software.py generic branch | done | claude | feature |
+| T05 | Depth-audit + fix techniker.py generic branch | done | grok | feature |
 
 ## Decisions
 
@@ -112,6 +112,14 @@ kanban
 - (2026-06-23) designer's jetpack branch triggers on `"jetpack" in idea or "flug" in idea`, so its generic-path test inputs must avoid both substrings — flagged so the builder's two distinct non-jetpack concepts actually hit the generic branch.
 - (2026-06-23) Builders construct all input dataclasses (SafetyStagePlan/SafetyStage, RevisedFrontMap, MilestoneLadder/Milestone, TestStandPlan/TestStandSpec, SystemConcept/AssemblyConcept, IngenieurSpec/FailureMode) via the REAL constructors/field names in their existing modules — never invent fields — and use only stdlib + already-declared deps.
 - (2026-06-23) Source edits confined to making the generic branch genuinely input-driven; the jetpack branch and all public dataclass signatures stay byte-stable so downstream importers (e.g. designer→architekt/ingenieur) keep compiling and the full pytest gate stays green.
+- (2026-06-23) Split strictly by module (fertigungs / physiker / regulatorik / software / techniker): the five sources share no mutual imports beyond the pre-existing architekt.SystemConcept + ingenieur.IngenieurSpec (+ physiker.PhysikerSpec for techniker), and each task adds a uniquely-named tests/test_<module>_characterization.py + docs/audit/DEPTH_AUDIT_<module>.md — zero path collision across worktrees.
+- (2026-06-23) Shared root cause confirmed by reading all five: the generic `else` branch returns content independent of inputs (regulatorik/software/physiker emit a fixed minimal Spec; fertigungs/techniker emit a fixed stub) — the facade-killer test asserts (a) two DIFFERENT non-jetpack inputs produce MEANINGFULLY different output (proves inputs are consumed) and (b) a signal-free/empty input yields honest abstention (explicit gap strings or a documented ValueError), never a fabricated canned fact, per 'keine stillen Defaults'.
+- (2026-06-23) The jetpack/flug branch in every module triggers on `'jetpack' in idea or 'flug' in idea` (techniker/physiker also scan main_assemblies names) — so each generic-path test input MUST avoid both substrings AND avoid a 'jetpack' assembly name, flagged so the builder's two distinct concepts actually hit the generic branch.
+- (2026-06-23) Each task keeps the rich jetpack branch as a PROTECTED regression: one assertion proves the detailed jetpack output (e.g. fertigungs 2 processes, physiker 4 domains/3 equations, regulatorik 2 norms/2 high risks, software 2 embedded/OTA-rollback, techniker 4 montage steps) is unchanged, so making the generic path real does not silently delete existing demo behavior (L3 seam check).
+- (2026-06-23) Builders construct all inputs via the REAL constructors/field names — SystemConcept(source_idea, requirements:[SystemRequirement(text,quelle)], main_assemblies:[AssemblyConcept(name,purpose,interfaces,quelle)], variants, open_decisions, zusammenfassung), IngenieurSpec(source_concept, lastfaelle:[LoadCase], material_hinweise, toleranzen, failure_modes, cad_anforderungen:[str], pruefplan_hinweise, zusammenfassung), PhysikerSpec(...) — read from src/gen/pipelines/architekt.py + ingenieur.py + physiker.py, never invent fields; stdlib + already-declared deps only.
+- (2026-06-23) Source edits confined to making the generic branch genuinely input-driven and adding the documented guard; public dataclass signatures and the jetpack branch stay byte-stable so downstream importers (architekt/ingenieur/physiker chain, realize/packager, regulatorik←software seam) keep compiling and the full pytest gate stays green.
+- (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (per the 2026-06-23 team decision); each task's honest verdict + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (the integrator consolidates into BUILD_LOG at merge).
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-fix task with no network/subprocess, matching the test→claude routing; the fix surface is small and self-contained.
 
 ### Architecture Decision Records
 
@@ -128,20 +136,21 @@ kanban
 - 0011. Depth-audit AND FIX — wave 3 (continuous). Same rules as bef
 - 0012. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0013. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0014. Depth-audit AND FIX (genesis overnight loop). For each modul
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 6 |
-| Tasks (total) | 21 |
-| Done | 19 |
+| Runs | 7 |
+| Tasks (total) | 26 |
+| Done | 24 |
 | Blocked | 1 |
-| Resolved rate | 90% |
-| Blocked rate | 5% |
-| Merges | 5 |
-| Avg duration | 123.4m |
-| Total cost | 52.41 |
+| Resolved rate | 92% |
+| Blocked rate | 4% |
+| Merges | 6 |
+| Avg duration | 110.5m |
+| Total cost | 63.29 |
 
 ## Architecture
 
@@ -157,6 +166,17 @@ graph TD
 
 Recent commits:
 
+- `1d0372f crew: resolve merge conflict for crew/T05-grok`
+- `eced7c3 crew: resolve merge conflict for crew/T03-grok`
+- `6de893b Merge branch 'crew/T04-claude' into crew/integration`
+- `fd8c52d Merge branch 'crew/T02-grok' into crew/integration`
+- `2e89f87 crew(grok): T05 Depth-audit + fix techniker.py generic branch [round 1]`
+- `00fcb55 crew(claude): T04 Depth-audit + fix software.py generic branch [round 1]`
+- `1f64d8b crew(grok): T03 Depth-audit + fix regulatorik.py generic branch [round 1]`
+- `eee5e1b crew(claude): T01 Depth-audit + fix fertigungs.py generic branch [round 1]`
+- `d64748a crew(grok): T02 Depth-audit + fix physiker.py generic branch [round 1]`
+- `009c493 Merge branch 'crew/integration'`
+- `6a6cd2c crew: scaffold CI/CD + project config`
 - `8629b2b Merge branch 'crew/T05-claude' into crew/integration`
 - `db3e414 Merge branch 'crew/T04-claude' into crew/integration`
 - `f0e8d73 Merge branch 'crew/T03-claude' into crew/integration`
@@ -166,17 +186,6 @@ Recent commits:
 - `e691b4e crew(claude): T03 teststand_architect: derive generic TestStandPlan from real MilestoneLadder milestones [round 1]`
 - `e8d85fd crew(grok): T02 technology_roadmapper: derive generic TechnologyRoadmap from real TestStandPlan stands [round 3]`
 - `a560988 crew(grok): T02 technology_roadmapper: derive generic TechnologyRoadmap from real TestStandPlan stands [round 2]`
-- `f51d04f crew(claude): T01 learning_integrator: make generic LearningDelta derive from real SafetyStagePlan/RevisedFrontMap [round 1]`
-- `57c44d1 crew(grok): T02 technology_roadmapper: derive generic TechnologyRoadmap from real TestStandPlan stands [round 1]`
-- `e0a22f2 Merge branch 'crew/integration'`
-- `977112c crew: integration repair attempt 1`
-- `7f3b42d crew: scaffold CI/CD + project config`
-- `a6d6392 Merge branch 'crew/T05-claude' into crew/integration`
-- `f42d765 Merge branch 'crew/T03-claude' into crew/integration`
-- `e716e67 Merge branch 'crew/T02-grok' into crew/integration`
-- `f521464 crew(claude): T05 Depth-audit + fix development_front: generic map genuinely derived from idee + bekannte_grenzen [round 1]`
-- `0debe46 crew(claude): T03 Depth-audit + fix breakthrough_watch: FrontierItems tied to the real map's gaps, honest-empty when none [round 1]`
-- `1e04cd6 crew(grok): T02 Depth-audit + fix boundary_reviser: evidence-driven revisions, no fabricated no-op revision [round 2]`
 
 
 ---

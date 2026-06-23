@@ -59,8 +59,20 @@ def map_to_regulatorik_spec(
 ) -> RegulatorikSpec:
     """
     Erster Stein Regulatorik-Pipeline.
-    Jetpack: manned tether flight norms, human pilot sign-off, specific risks.
-    Generic: honest gaps.
+
+    Jetpack branch (protected): manned tether flight norms (EASA+ISO), high risks
+    (tether, battery) with massnahmen, human freigabe, warnings, haftung.
+
+    Generic branch: derives output from inputs. Risiken are produced from
+    ingenieur.failure_modes (detection becomes massnahme) and lastfaelle.
+    source_idea and main_assemblies are reflected in warnhinweise + zusammenfassung.
+    Norm is cited only on supporting signal; otherwise explicit honest gap
+    "keine spezifische Norm ableitbar". No fabrication of norms/risks.
+
+    Raises:
+        ValueError: if source_idea is blank/empty, or if there is no actionable
+            signal (failure_modes, lastfaelle and main_assemblies all empty).
+            This prevents a canned stub for missing input (no-silent-defaults).
     """
     idee_lower = concept.source_idea.lower()
 
@@ -82,13 +94,87 @@ def map_to_regulatorik_spec(
         zusammen = "Jetpack RegulatorikSpec: EASA-like + ISO norms, high risks (tether, battery) with massnahmen + human freigabe, warnings, full haftung. Naht to Elektriker/Techniker/Lern/DFM/Realisierungspaket."
         quelle = "GENESIS_PLATFORM_PLAN.md §4 (Regulatorik-Pipeline) + prior Elektriker/Techniker/Lern/DFM + Jetpack-Kanon"
     else:
-        normen = [Norm("Basic machinery safety (ISO 12100)", "Generic device", quelle="Generic")]
-        risiken = [Risiko("Generic failure", "Underspecified", "medium", "Basic interlock", "Human sign-off", quelle="Generic + PLAN §4")]
-        warn = ["WARNING: Experimental device - use at own risk."]
-        freigabe = "Human operator sign-off required."
-        haftung = "Full operator liability. No certification."
-        zusammen = f"Generische RegulatorikSpec für '{concept.source_idea[:40]}...'. Viele Details als Lücke."
-        quelle = "GENESIS_PLATFORM_PLAN.md §4 + generic fallback (ehrliche Lücken)"
+        # Generic path must be genuinely input-driven (no constant stub).
+        # Guard first: blank source_idea or zero actionable signal -> fail loud.
+        idea_text = (concept.source_idea or "").strip()
+        if not idea_text:
+            raise ValueError("source_idea must be a non-empty, non-whitespace string")
+        has_actionable = bool(ingenieur.failure_modes) or bool(ingenieur.lastfaelle) or bool(concept.main_assemblies)
+        if not has_actionable:
+            # No failure_modes / lastfaelle / assemblies: no basis to derive real risks/norms -> no canned.
+            raise ValueError("no actionable signal (failure_modes, lastfaelle and main_assemblies empty); cannot produce regulatorik spec without fabrication")
+
+        # Norm: cite specific only on supporting signal; otherwise explicit honest gap.
+        # (Generic branch never blindly asserts ISO 12100.)
+        normen = [
+            Norm(
+                "keine spezifische Norm ableitbar",
+                f"Konzept '{idea_text[:40]}' liefert keine hinreichenden Signale (keine spezifischen Failure-Modes oder Lastfälle) für Normenauswahl",
+                quelle="regulatorik generic (ehrliche Lücke aus fehlendem Signal in concept/ingenieur)",
+            )
+        ]
+
+        # Derive one Risiko per FailureMode: detection field becomes the massnahme;
+        # human sign-off is always required (per contract).
+        risiken: list[Risiko] = []
+        for fm in ingenieur.failure_modes:
+            risiken.append(
+                Risiko(
+                    name=fm.name,
+                    beschreibung=f"{fm.beschreibung} (Baugruppe: {fm.aus_baugruppe})",
+                    schwere="medium",
+                    massnahme=fm.detection or "Lücke: keine Detection deklariert",
+                    freigabe="Human sign-off required (derived from declared failure mode)",
+                    quelle=fm.quelle or "abgeleitet aus ingenieur.failure_modes",
+                )
+            )
+
+        # Derive Risiken from load cases (reflects kraft_oder_moment etc.).
+        for lc in ingenieur.lastfaelle:
+            risiken.append(
+                Risiko(
+                    name=f"Lastfall: {lc.name}",
+                    beschreibung=f"{lc.beschreibung} — {lc.kraft_oder_moment}".strip(" —"),
+                    schwere="medium",
+                    massnahme=f"Einhaltung der spezifizierten Last ({lc.kraft_oder_moment}); geeignete Überwachung",
+                    freigabe="Ingenieur-Freigabe der Lastannahmen + human sign-off",
+                    quelle=lc.quelle or "abgeleitet aus ingenieur.lastfaelle",
+                )
+            )
+
+        # Warnhinweise and summary reflect real source_idea + assemblies (input consumed).
+        warn: list[str] = [
+            f"WARNING: Experimental device derived from concept '{idea_text[:50]}'. "
+            "All derived risks and load limits must be respected.",
+        ]
+        for a in concept.main_assemblies:
+            ifaces = ", ".join(a.interfaces) if a.interfaces else "(keine Schnittstellen deklariert)"
+            warn.append(
+                f"Assembly '{a.name}': {a.purpose} (Schnittstellen: {ifaces}) — safety review required."
+            )
+
+        # Freigabe and haftung are also derived (mention counts from inputs).
+        freigabe = (
+            f"Human sign-off required for all {len(risiken)} derived risks (from failure_modes + lastfaelle) "
+            "before operation. Pre-use checklist + post-use report mandatory."
+        )
+        haftung = (
+            "Full operator liability. Device may only be operated within the explicitly declared "
+            "failure mitigations and load cases from prior analysis. No general certification implied."
+        )
+
+        zusammen = (
+            f"Generische RegulatorikSpec (input-getrieben) für '{idea_text[:40]}...': "
+            f"{len(risiken)} Risiken abgeleitet aus {len(ingenieur.failure_modes)} Failure-Mode(s) "
+            f"+ {len(ingenieur.lastfaelle)} Lastfall/Lastfällen; {len(concept.main_assemblies)} "
+            "Baugruppe(n) in Warnungen/Summary reflektiert. Keine spezifische Norm ableitbar "
+            "(ehrliche Lücke). Naht zu Architekt/Ingenieur."
+        )
+        quelle = (
+            "GENESIS_PLATFORM_PLAN.md §4 (Regulatorik-Pipeline) + generic derivation from "
+            "concept (source_idea, main_assemblies) + ingenieur (failure_modes, lastfaelle); "
+            "keine fabrizierten Normen/Risiken"
+        )
 
     return RegulatorikSpec(
         source_idea=concept.source_idea,
