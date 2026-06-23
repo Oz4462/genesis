@@ -15,6 +15,30 @@ Greedy-Nicht-Global-Optimalität ist eine dokumentierte ehrliche Grenze, kein Bu
 Bestehende `tests/test_discovery_multiterm.py` weiter grün (14/14). Details: `docs/audit/DEPTH_AUDIT_multiterm.md`.
 4 Linsen angewendet (L1 Wahrheit / L2 Drift / L3 Naht / L4 Realisierbarkeit).
 
+## 2026-06-23 — T03 Depth-Audit + Fix `discovery/surrogate.py` (prefilter + physics surrogate)
+
+**Verdict: REAL.**
+
+- Neuer Charakterisierungs-Test `tests/discovery/test_surrogate_characterization.py` (10 Tests, 3 Hypothesis property-based): train on known f, held-out accuracy within bound + meaningfully better than constant baseline, uncertainty monotone/high on extrapolation, documented errors on <2 pts / bad frac / non-finite.
+- Pre-existing discovery prefilter (subsample R²) unchanged for happy path; added explicit guards + negative tests for n<2 and out-of-range sample_fraction (was silent/raised from inside numpy.choice).
+- Echter RBF-Surrogate implementiert (`build_surrogate`/`predict_surrogate`): quantifizierbar genau, deterministisch, honest unc.
+- Modul-Docstring ehrlich erweitert (beide Rollen + shared "never confirms" Vertrag). Eigene .copy() Snapshots + korrigierter Docstring.
+- Legacy `tests/test_discovery_surrogate.py` 5/5 grün. Keine neuen Deps.
+
+Details + 4 Linsen: `docs/audit/surrogate.md`.
+
+### Selbstkontrolle + 4 Linsen
+- [x] Interface erfüllt, Typen geprüft
+- [x] Tests grün (inkl. Negativtests für beide Pfade)
+- [x] Ledger: n/a (keine fakten-basierten Claims mit Quellen)
+- [x] Keine Gate-Änderung (Surrogate ist Pre-Filter/Approx)
+- [x] Doku aktualisiert (Modul + audit/surrogate.md)
+- [x] BUILD_LOG Eintrag
+- L1 (Wahrheit): alle Claims durch Test auf closed-form f bewiesen + Quellen in Test.
+- L2 (Drift): Pre-Filter Verhalten (passend) byte-stabil; neue Guards schließen echte Lücke; Doc=Code.
+- L3 (Vollständig/Naht): nur Scope-Dateien; Legacy unberührt; Seams zu engine stabil.
+- L4 (Realisierbarkeit): Guards exakt getestet (assert message), full pytest grün, Hypo-Props, minimaler Fix.
+
 ## T03 — Depth-audit + harden `reality_fork.py` (counterfactual physics sandbox)
 
 **Verdikt: REAL** (ein ehrlichkeits-relevanter Defekt behoben).

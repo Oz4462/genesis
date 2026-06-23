@@ -75,6 +75,11 @@ def surrogate_score(
     """A CHEAP promise score for a candidate: refit its coefficient on a random sub-sample and
     return the sub-sample R². Fast (half the data) and dimension-blind — a high score is a hint
     to spend gate budget here, NOT a confirmation. Deterministic for a fixed seed."""
+    if sample_fraction <= 0.0 or sample_fraction > 1.0:
+        raise ValueError("sample_fraction must be in (0, 1]")
+    y = np.asarray(problem.target.values, dtype=float)
+    if y.shape[0] < 2:
+        raise ValueError("surrogate_score requires a DiscoveryProblem with at least 2 data points")
     sub = _subsample_problem(problem, sample_fraction, seed)
     return candidate_from_exponents(sub, candidate.exponents).r_squared
 
@@ -91,6 +96,11 @@ def prefilter(
     """Score every candidate cheaply and return the most promising ones (those scoring at least
     `min_score`, then the best `top_k`), ranked best first. A RANKED SUBSET for the expensive
     gate — never a verdict, never a confirmation."""
+    if sample_fraction <= 0.0 or sample_fraction > 1.0:
+        raise ValueError("sample_fraction must be in (0, 1]")
+    y = np.asarray(problem.target.values, dtype=float)
+    if y.shape[0] < 2:
+        raise ValueError("prefilter requires a DiscoveryProblem with at least 2 data points")
     ranked = [SurrogateRanking(c, surrogate_score(problem, c, sample_fraction=sample_fraction, seed=seed))
               for c in candidates]
     ranked = [r for r in ranked if r.surrogate_score >= min_score]
@@ -138,7 +148,7 @@ class Surrogate:
     Never returns a confirmation or gate verdict.
     """
 
-    X: np.ndarray  # (n, d) training inputs, read-only view
+    X: np.ndarray  # (n, d) copy of the training inputs provided to build_surrogate
     y: np.ndarray  # (n,) training targets
     centers: np.ndarray
     weights: np.ndarray
@@ -183,6 +193,8 @@ def build_surrogate(
     if reg < 0:
         raise ValueError("reg must be >= 0")
 
+    # Store owned copies so the dataclass holds a stable snapshot (not a view that could be mutated by caller).
+    X_stored = X_arr.copy()
     centers = X_arr.copy()
     # Pairwise squared distances, Gaussian (RBF) kernel
     # K_ij = exp( - ||x_i - c_j||^2 / (2 * ls^2) )
@@ -196,8 +208,8 @@ def build_surrogate(
     except np.linalg.LinAlgError:
         weights = np.linalg.lstsq(K_reg, y_arr, rcond=None)[0]
     return Surrogate(
-        X=X_arr,
-        y=y_arr,
+        X=X_stored,
+        y=y_arr.copy(),
         centers=centers,
         weights=weights,
         length_scale=float(length_scale),
