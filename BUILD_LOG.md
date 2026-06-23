@@ -15,6 +15,30 @@ Greedy-Nicht-Global-Optimalität ist eine dokumentierte ehrliche Grenze, kein Bu
 Bestehende `tests/test_discovery_multiterm.py` weiter grün (14/14). Details: `docs/audit/DEPTH_AUDIT_multiterm.md`.
 4 Linsen angewendet (L1 Wahrheit / L2 Drift / L3 Naht / L4 Realisierbarkeit).
 
+## 2026-06-23 — T03 Depth-Audit + Fix `discovery/surrogate.py` (prefilter + physics surrogate)
+
+**Verdict: REAL.**
+
+- Neuer Charakterisierungs-Test `tests/discovery/test_surrogate_characterization.py` (10 Tests, 3 Hypothesis property-based): train on known f, held-out accuracy within bound + meaningfully better than constant baseline, uncertainty monotone/high on extrapolation, documented errors on <2 pts / bad frac / non-finite.
+- Pre-existing discovery prefilter (subsample R²) unchanged for happy path; added explicit guards + negative tests for n<2 and out-of-range sample_fraction (was silent/raised from inside numpy.choice).
+- Echter RBF-Surrogate implementiert (`build_surrogate`/`predict_surrogate`): quantifizierbar genau, deterministisch, honest unc.
+- Modul-Docstring ehrlich erweitert (beide Rollen + shared "never confirms" Vertrag). Eigene .copy() Snapshots + korrigierter Docstring.
+- Legacy `tests/test_discovery_surrogate.py` 5/5 grün. Keine neuen Deps.
+
+Details + 4 Linsen: `docs/audit/surrogate.md`.
+
+### Selbstkontrolle + 4 Linsen
+- [x] Interface erfüllt, Typen geprüft
+- [x] Tests grün (inkl. Negativtests für beide Pfade)
+- [x] Ledger: n/a (keine fakten-basierten Claims mit Quellen)
+- [x] Keine Gate-Änderung (Surrogate ist Pre-Filter/Approx)
+- [x] Doku aktualisiert (Modul + audit/surrogate.md)
+- [x] BUILD_LOG Eintrag
+- L1 (Wahrheit): alle Claims durch Test auf closed-form f bewiesen + Quellen in Test.
+- L2 (Drift): Pre-Filter Verhalten (passend) byte-stabil; neue Guards schließen echte Lücke; Doc=Code.
+- L3 (Vollständig/Naht): nur Scope-Dateien; Legacy unberührt; Seams zu engine stabil.
+- L4 (Realisierbarkeit): Guards exakt getestet (assert message), full pytest grün, Hypo-Props, minimaler Fix.
+
 ## T03 — Depth-audit + harden `reality_fork.py` (counterfactual physics sandbox)
 
 **Verdikt: REAL** (ein ehrlichkeits-relevanter Defekt behoben).
@@ -67,6 +91,16 @@ computed from the per-pair residual, not canned.
   `test_engine_separability_annotation.py` → 28 passed. `test_discovery_engine.py` → 6 passed.
 - Full audit + 4 Linsen in `docs/audit/DEPTH_AUDIT_separability.md`.
 
+## 2026-06-23 — T02 Depth-Audit + Härtung `discovery/srbench_hygiene.py`
+
+**Verdict: REAL** (headline "leakage prevention + OOS + deterministic splits" jetzt selbst-verifizierbar).
+
+- Neuer Charakterisierungs-Test `tests/discovery/test_srbench_hygiene_characterization.py` (13 Tests, 2 Hypothesis-Property-Suites): deliberate leakage (overlapping rows) wird von `check_train_test_overlap` + `assert_no_split_leakage` erkannt+rejected; clean akzeptiert; recompute des held-out R² aus train-only Fit exakt == reported oos_test_r2 (beweist "truly held-out", kein Leak); noise rejected, n<4 → exakter ValueError; Split-Overlap-Invariante + Determinismus via @given.
+- **Defekt behoben:** `hygiene_gate(seed=...)` übergab seed nicht an `out_of_sample_validate` (OOS lief immer default-0) — jetzt forwarded; plus `split_overlap` im Report + explizite Checker-Fns (Leakage-Metric real, 0 für internes OOS).
+- Hygiene-Gate + Legacy-Tests grün (13+5). Keine Änderung außerhalb Scope.
+- 4 Linsen angewendet (L1: recompute + intersect bewiesen; L2: Seed-Drift + Headline-Facade-Risiko geschlossen; L3: Naht zu validation via public API, Scope exakt; L4: minimal fail-loud + Property-Tests).
+- Details: `docs/audit/srbench_hygiene.md`.
+
 ## 2026-06-23 — T05 Depth-Audit + Härtung `discovery/simulated_data.py`
 
 Verdikt **REAL**: `problem_from_simulation`/`discover_from_simulation` sampeln echt eine geschlossene
@@ -80,3 +114,40 @@ Eingabe == Konstante) kollabierte still auf eine Spalte und korrumpierte den dim
 Minimaler Eindeutigkeits-Guard in `problem_from_simulation` → lautes `ValueError` („keine stillen
 Defaults"). Öffentliche Signaturen + Sampling unverändert; vorbestehende Tests grün (27 passed).
 Details: `docs/audit/DEPTH_AUDIT_simulated_data.md`.
+
+## T01 — Depth-Audit + Fix: discovery/sindy.py (SINDy) — 2026-06-23
+VERDICT **REAL**. Headline-Claim (sparse identification of nonlinear dynamics) gegen reale Numerik
+charakterisiert in `tests/discovery/test_sindy_characterization.py` (8 Tests grün, inkl. Hypothesis-
+Invariante): STLSQ findet aus einem bekannten kubischen System exakt Support + Koeffizienten, nullt
+Störterme exakt (vs. dichter `np.linalg.lstsq`-Fit), refüsiert (Null-Modell) ein nicht-sparses Ziel und
+meldet ehrlich niedrigeres R² bei unzureichender Bibliothek statt Fabrikation; Negativfälle (fehlende
+Daten / threshold<0) → lautes `ValueError`. Kein Quellcode-Verhalten geändert (Modul war real); nur
+Audit-Note im Docstring. Details: `docs/audit/sindy.md`.
+
+---
+
+## 2026-06-23 — Depth-Audit + Fix: `discovery/symbiosis.py` (Grok Cross-Model-Symbiose) [T04]
+
+**Verdikt: REAL (nach gezielter Ergänzung).** Die bestehenden `symbiosis_discover`/`council_discover`
+nutzten als Verifikator den deterministischen Gate (echt, aber nicht die *wörtliche*
+Modell-gegen-Modell-Drift-Prüfung aus CLAUDE.md §3). Neu: `cross_model_drift_check(...) -> DriftReport`
+lässt ein **zweites, anders-familiges** Modell (dependency-injizierter `LLMClient`, offline via
+`ScriptedLLM`) dieselbe Frage unabhängig beantworten. `verified=True` nur bei echter
+Cross-Model-Korroboration; Widerspruch ⇒ `drift` (kein stiller Pass); Verifikator-Fehler/Timeout ⇒
+ehrliche `abstention`; gleiche Familie ⇒ `ModelConflictError` (Selbstcheck verweigert). 6 neue Tests
+inkl. zwei Negativtests + ein Hypothesis-Property (falsches Zweiturteil kann nie fälschlich
+verifizieren), alle offline grün. 4 Linsen + Details: `docs/audit/symbiosis.md`.
+
+---
+
+## 2026-06-23 — Depth-Audit T05: discovery/symbolic_search.py (VERDICT: REAL)
+Tiefen-Audit des Open-Form-GP-Symbolic-Regression-Suchers. Charakterisierungstest
+(`tests/discovery/test_symbolic_search_characterization.py`, 9 Tests grün) beweist ECHTE Suche,
+kein Lookup: Rediscovery der transzendenten `y = 3·sin(x)+2` (exakte Struktur + Koeffizienten,
+R² ≈ 1 out-of-sample — eine Form, die die enge Power-Law-`engine.py` nicht darstellen kann),
+strikt steigende + monoton nicht-fallende Fitness über Generationen (reale Optimierung, kein
+Einmal-Rate), reines Rauschen → ehrliches `unentschieden` (Out-of-Sample-Gate kollabiert),
+fehlende/inkonsistente Daten → dokumentierter `ValueError`. Hypothesis-Property: Seed-Determinismus
++ Recovery beliebiger Affin-Gesetze. KEINE Verhaltensänderung nötig (Modul war bereits korrekt);
+nur Modul-Docstring-Audit-Notiz ergänzt. 4 Linsen angewendet. Details:
+`docs/audit/symbolic_search.md`.

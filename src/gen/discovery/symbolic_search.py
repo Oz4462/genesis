@@ -30,6 +30,13 @@ same data → byte-identical expression. Offline, numpy-only.
 Honest boundary: a SMALL GP finds LOW-complexity closed forms (depth a few); it is not a global optimiser,
 constants buried inside transcendental functions are found by search (not gradient), and a hard target may
 come back ``unentschieden`` — an honest "I don't know", never a fabricated law.
+
+Depth-audit (T05, 2026-06-23): verdict REAL. ``tests/discovery/test_symbolic_search_characterization.py``
+proves it is a genuine search, not a lookup: it rediscovers the transcendental ``y = 3·sin(x) + 2`` with
+exact structure + coefficients and R² ≈ 1 out-of-sample (a law the narrow power-law engine cannot
+represent), the best fitness strictly improves and is monotone non-decreasing over generations (real
+optimisation), pure noise returns the honest ``unentschieden`` (the out-of-sample gate collapses), and
+empty / mismatched / column-less data raise the documented ValueError. No behavioural fix was required.
 """
 
 from __future__ import annotations

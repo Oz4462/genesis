@@ -11,22 +11,22 @@
 ```mermaid
 kanban
   done
-    nT01[T01: Depth-audit + harden multiterm.py (additive multi-term discovery)]
-    nT02[T02: Depth-audit + harden proof_loop.py (certification loop: prefilter → kernel)]
-    nT03[T03: Depth-audit + harden reality_fork.py (counterfactual physics sandbox)]
-    nT04[T04: Depth-audit + harden separability.py (additive/multiplicative separability)]
-    nT05[T05: Depth-audit + harden simulated_data.py (self-generated DiscoveryProblem)]
+    nT01[T01: Depth-audit + fix: discovery/sindy.py (SINDy sparse regression)]
+    nT02[T02: Depth-audit + fix: discovery/srbench_hygiene.py (symbolic-regression benchm]
+    nT03[T03: Depth-audit + fix: discovery/surrogate.py (physics surrogate model)]
+    nT04[T04: Depth-audit + fix: discovery/symbiosis.py (Grok cross-model symbiosis)]
+    nT05[T05: Depth-audit + fix: discovery/symbolic_search.py (symbolic regression search]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | Depth-audit + harden multiterm.py (additive multi-term discovery) | done | claude | feature |
-| T02 | Depth-audit + harden proof_loop.py (certification loop: prefilter → kernel) | done | grok | feature |
-| T03 | Depth-audit + harden reality_fork.py (counterfactual physics sandbox) | done | claude | feature |
-| T04 | Depth-audit + harden separability.py (additive/multiplicative separability) | done | claude | feature |
-| T05 | Depth-audit + harden simulated_data.py (self-generated DiscoveryProblem) | done | claude | feature |
+| T01 | Depth-audit + fix: discovery/sindy.py (SINDy sparse regression) | done | claude | feature |
+| T02 | Depth-audit + fix: discovery/srbench_hygiene.py (symbolic-regression benchmark hygiene) | done | grok | feature |
+| T03 | Depth-audit + fix: discovery/surrogate.py (physics surrogate model) | done | grok | feature |
+| T04 | Depth-audit + fix: discovery/symbiosis.py (Grok cross-model symbiosis) | done | claude | feature |
+| T05 | Depth-audit + fix: discovery/symbolic_search.py (symbolic regression search) | done | claude | feature |
 
 ## Decisions
 
@@ -155,6 +155,12 @@ kanban
 - (2026-06-23) Builders construct every input through the REAL constructors/field names in src/gen/discovery/engine.py (DiscoveryProblem/Variable/Constant) and each module's real signatures — read them, never invent fields — and use only stdlib + already-declared deps (numpy, sympy, mpmath, z3 are already declared for the discovery modules).
 - (2026-06-23) BUILD_LOG.md is appended by each task with a short honest entry, but the primary per-module verdict (REAL/PARTIAL/FACADE + what was made real) lives in its own docs/audit/DEPTH_AUDIT_<module>.md to keep the merge clean; the integrator consolidates at merge.
 - (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the historical test→claude routing.
+- (2026-06-23) One task = one module + its own new test file, on disjoint paths (src/gen/discovery/<m>.py + tests/discovery/test_<m>_characterization.py + docs/audit/<m>.md). This guarantees zero file collisions between the two parallel builders.
+- (2026-06-23) Each new audit note is a per-module file (docs/audit/sindy.md etc.), NOT a shared docs/audit/AUDIT.md, so parallel worktrees never conflict on the audit sink. BUILD_LOG.md appends are tolerated as trivial merge points and are excluded from each task's test-pass criteria.
+- (2026-06-23) Characterization test is named *_characterization.py and kept in the SAME task as its module so it is verifiable from that task's files alone (module + pre-existing repo deps only).
+- (2026-06-23) No dependsOn edges: the five modules are siblings under discovery/ and each task must pass using only its own edits plus pre-existing repo files; builders must not rely on another task's in-flight changes.
+- (2026-06-23) Constraint reminder embedded in every spec: stdlib + already-declared deps only, full pytest gate must stay green, honest verdict (REAL/PARTIAL/FACADE) required even if the conclusion is 'already REAL'.
+- (2026-06-23) preferredBuilder=claude for all five: every task's core deliverable is a characterization/negative test that drives a source fix (test-shaped work), which matches Claude's historical strength; docs here are a thin per-module appendix, not the bulk.
 
 ### Architecture Decision Records
 
@@ -176,20 +182,21 @@ kanban
 - 0016. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0017. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0018. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0019. Depth-audit AND FIX (genesis overnight loop). For each modul
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 11 |
-| Tasks (total) | 46 |
-| Done | 44 |
+| Runs | 12 |
+| Tasks (total) | 51 |
+| Done | 49 |
 | Blocked | 1 |
 | Resolved rate | 96% |
 | Blocked rate | 2% |
-| Merges | 10 |
-| Avg duration | 83.1m |
-| Total cost | 95.39 |
+| Merges | 11 |
+| Avg duration | 80.8m |
+| Total cost | 116.73 |
 
 ## Architecture
 
@@ -205,26 +212,26 @@ graph TD
 
 Recent commits:
 
+- `bc0349f crew: resolve merge conflict for crew/T05-claude`
+- `94bb363 crew: resolve merge conflict for crew/T04-claude`
+- `15f6757 crew: resolve merge conflict for crew/T03-grok`
+- `9fcafdb Merge branch 'crew/T02-grok' into crew/integration`
+- `b3e58f0 crew(claude): T05 Depth-audit + fix: discovery/symbolic_search.py (symbolic regression search) [round 1]`
+- `89d3669 crew(grok): T03 Depth-audit + fix: discovery/surrogate.py (physics surrogate model) [round 3]`
+- `d4590f2 crew(claude): T04 Depth-audit + fix: discovery/symbiosis.py (Grok cross-model symbiosis) [round 2]`
+- `f7b0a0f crew(grok): T03 Depth-audit + fix: discovery/surrogate.py (physics surrogate model) [round 2]`
+- `c18ce1b crew(claude): T04 Depth-audit + fix: discovery/symbiosis.py (Grok cross-model symbiosis) [round 1]`
+- `d7bea69 crew(grok): T03 Depth-audit + fix: discovery/surrogate.py (physics surrogate model) [round 1]`
+- `96ed522 crew(claude): T01 Depth-audit + fix: discovery/sindy.py (SINDy sparse regression) [round 1]`
+- `a7fe181 crew(grok): T02 Depth-audit + fix: discovery/srbench_hygiene.py (symbolic-regression benchmark hygiene) [round 1]`
+- `ab66d1c Merge branch 'crew/integration'`
+- `ff9d2d1 crew: scaffold CI/CD + project config`
 - `0f6475c crew: resolve merge conflict for crew/T05-claude`
 - `529ccca crew: resolve merge conflict for crew/T04-claude`
 - `f7df194 crew: resolve merge conflict for crew/T03-claude`
 - `0956d73 Merge branch 'crew/T02-grok' into crew/integration`
 - `ba88702 crew(claude): T05 Depth-audit + harden simulated_data.py (self-generated DiscoveryProblem) [round 1]`
 - `623791a crew(grok): T02 Depth-audit + harden proof_loop.py (certification loop: prefilter → kernel) [round 5]`
-- `95ebff3 crew(claude): T04 Depth-audit + harden separability.py (additive/multiplicative separability) [round 1]`
-- `6be175d crew(grok): T02 Depth-audit + harden proof_loop.py (certification loop: prefilter → kernel) [round 4]`
-- `b11fa14 crew(claude): T03 Depth-audit + harden reality_fork.py (counterfactual physics sandbox) [round 3]`
-- `5480fa3 crew(grok): T02 Depth-audit + harden proof_loop.py (certification loop: prefilter → kernel) [round 3]`
-- `0a8fe70 crew(claude): T03 Depth-audit + harden reality_fork.py (counterfactual physics sandbox) [round 2]`
-- `0407703 crew(claude): T03 Depth-audit + harden reality_fork.py (counterfactual physics sandbox) [round 1]`
-- `176078d crew(grok): T02 Depth-audit + harden proof_loop.py (certification loop: prefilter → kernel) [round 2]`
-- `a8d4a34 crew(claude): T01 Depth-audit + harden multiterm.py (additive multi-term discovery) [round 1]`
-- `51e65cb crew(grok): T02 Depth-audit + harden proof_loop.py (certification loop: prefilter → kernel) [round 1]`
-- `b61452b Merge branch 'crew/integration'`
-- `dc4c083 crew: scaffold CI/CD + project config`
-- `25b2035 crew: resolve merge conflict for crew/T05-grok`
-- `b61a957 crew: resolve merge conflict for crew/T03-grok`
-- `fcb2b59 Merge branch 'crew/T04-claude' into crew/integration`
 
 
 ---

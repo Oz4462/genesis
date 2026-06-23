@@ -44,6 +44,9 @@ __all__ = [
     "prefilter",
     "discover_prefiltered",
     "SurrogateRanking",
+    "build_surrogate",
+    "predict_surrogate",
+    "Surrogate",
     "symbiosis_discover",
     "GrokProposer",
     "Proposal",
@@ -130,9 +133,11 @@ def __getattr__(name: str):
         for n in ("ExplorationController", "ExplorationState", "ControllerResult", "DepthTier"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
-    if name in ("surrogate_score", "prefilter", "discover_prefiltered", "SurrogateRanking"):
+    if name in ("surrogate_score", "prefilter", "discover_prefiltered", "SurrogateRanking",
+                "build_surrogate", "predict_surrogate", "Surrogate"):
         from . import surrogate as _m
-        for n in ("surrogate_score", "prefilter", "discover_prefiltered", "SurrogateRanking"):
+        for n in ("surrogate_score", "prefilter", "discover_prefiltered", "SurrogateRanking",
+                  "build_surrogate", "predict_surrogate", "Surrogate"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     if name in ("symbiosis_discover", "GrokProposer", "Proposal", "JudgedProposal", "SymbiosisResult"):
