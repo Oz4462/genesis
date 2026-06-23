@@ -233,7 +233,7 @@ class LumenCrucible:
                 c = map_to_system_concept(raw_dream, run_id=run_id)
                 i = map_to_ingenieur_spec(c, run_id=run_id)
                 p = map_to_physiker_spec(c, i, run_id=run_id)
-                t = map_to_techniker_spec(c, i, run_id=run_id)
+                t = map_to_techniker_spec(c, i, p, run_id=run_id)
                 s = map_to_software_spec(c, i, run_id=run_id)
                 r = map_to_regulatorik_spec(c, i, run_id=run_id)
                 multi_domain_data = {"concept": c, "ingenieur": i, "physiker": p, "techniker": t, "software": s, "regulatorik": r}

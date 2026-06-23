@@ -97,7 +97,7 @@ def _now() -> datetime:
 
 # --- Verification status -----------------------------------------------------
 
-class ClaimStatus(enum.Enum):
+class ClaimStatus(str, enum.Enum):
     """Lifecycle of a factual claim.
 
     UNVERIFIED  Just extracted by `scholar`; not yet independently checked.
