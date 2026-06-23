@@ -29,8 +29,16 @@ from ..core.state import ClaimStatus, SourceRef
 # --- Model-family identification (enables the cross-model audit, A6) ----------
 
 # Ordered keyword -> family map. First match wins. Lowercased substring test.
+#
+# `codex` MUST be tested before `openai`: an id like ``gpt-5.5-codex`` carries
+# both the ``gpt`` and ``codex`` substrings, and the Codex family is the more
+# specific (correct) answer. First-match-wins ordering therefore requires the
+# narrower `codex` rule to precede the broader `gpt`->openai rule, otherwise the
+# Codex variant would be silently mis-attributed to the OpenAI base family and
+# defeat the cross-model audit. Plain ``gpt-4o`` (no ``codex``) still -> openai.
 _FAMILY_KEYWORDS: list[tuple[tuple[str, ...], str]] = [
     (("claude", "anthropic"), "claude"),
+    (("codex",), "codex"),
     (("gpt", "openai", "davinci", "o1-", "o3-", "o4-"), "openai"),
     (("gemini", "palm", "bison", "gemma"), "google"),
     (("llama", "codellama"), "llama"),
@@ -38,7 +46,6 @@ _FAMILY_KEYWORDS: list[tuple[tuple[str, ...], str]] = [
     (("qwen",), "qwen"),
     (("deepseek",), "deepseek"),
     (("grok",), "xai"),
-    (("codex",), "codex"),
     (("command", "cohere"), "cohere"),
     (("phi-", "phi3", "phi4"), "phi"),
 ]
