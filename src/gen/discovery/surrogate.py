@@ -49,9 +49,16 @@ class SurrogateRanking:
 
 
 def _subsample_problem(problem: DiscoveryProblem, sample_fraction: float, seed: int) -> DiscoveryProblem:
-    """A deterministic random SUB-SAMPLE of the problem's data points (constants unchanged)."""
+    """A deterministic random SUB-SAMPLE of the problem's data points (constants unchanged).
+    Private helper; callers are expected to have validated, but we still fail loud with
+    clean ValueError (addresses latent direct-invocation gap).
+    """
     y = np.asarray(problem.target.values, dtype=float)
     n = y.shape[0]
+    if n < 2:
+        raise ValueError("_subsample_problem requires a DiscoveryProblem with at least 2 data points")
+    if sample_fraction <= 0.0 or sample_fraction > 1.0:
+        raise ValueError("sample_fraction must be in (0, 1]")
     k = max(2, min(n, int(round(n * sample_fraction))))
     rng = np.random.default_rng(seed)
     idx = np.sort(rng.choice(n, size=k, replace=False))
@@ -80,6 +87,8 @@ def surrogate_score(
     y = np.asarray(problem.target.values, dtype=float)
     if y.shape[0] < 2:
         raise ValueError("surrogate_score requires a DiscoveryProblem with at least 2 data points")
+    if not np.all(np.isfinite(y)):
+        raise ValueError("surrogate_score requires finite target values (no NaN/inf)")
     sub = _subsample_problem(problem, sample_fraction, seed)
     return candidate_from_exponents(sub, candidate.exponents).r_squared
 
@@ -101,6 +110,8 @@ def prefilter(
     y = np.asarray(problem.target.values, dtype=float)
     if y.shape[0] < 2:
         raise ValueError("prefilter requires a DiscoveryProblem with at least 2 data points")
+    if not np.all(np.isfinite(y)):
+        raise ValueError("prefilter requires finite target values (no NaN/inf)")
     ranked = [SurrogateRanking(c, surrogate_score(problem, c, sample_fraction=sample_fraction, seed=seed))
               for c in candidates]
     ranked = [r for r in ranked if r.surrogate_score >= min_score]
@@ -120,6 +131,14 @@ def discover_prefiltered(
     """symbolic_regress → surrogate PREFILTER → gate ONLY the survivors. The validated set
     contains only gate-passed candidates (the surrogate merely saved compute on the losers);
     every gated candidate is still recorded. The gate, not the surrogate, decides."""
+    # Guard at this entrypoint so error message names discover_prefiltered (not delegated prefilter)
+    y = np.asarray(problem.target.values, dtype=float)
+    if y.shape[0] < 2:
+        raise ValueError("discover_prefiltered requires a DiscoveryProblem with at least 2 data points")
+    if sample_fraction <= 0.0 or sample_fraction > 1.0:
+        raise ValueError("sample_fraction must be in (0, 1]")
+    if not np.all(np.isfinite(y)):
+        raise ValueError("discover_prefiltered requires finite target values (no NaN/inf)")
     candidates = symbolic_regress(problem)
     survivors = prefilter(problem, candidates, top_k=top_k, min_score=min_score,
                           sample_fraction=sample_fraction, seed=seed)
@@ -175,10 +194,25 @@ def build_surrogate(
         A Surrogate that supports predict_surrogate.
 
     Raises:
-        ValueError: if fewer than 2 samples, shape mismatch, or non-finite data.
+        ValueError: if fewer than 2 samples, shape mismatch, ragged/in-homogeneous input,
+                    non-finite data, or non-finite/ invalid hyperparameters.
     """
-    X_arr = np.asarray(X, dtype=float)
-    y_arr = np.asarray(y, dtype=float).ravel()
+    # Helper to turn input (lists/arrays) into float array or raise a *documented* ValueError
+    # for ragged cases (numpy's "inhomogeneous shape" is not user-friendly).
+    def _to_finite_array(obj, name: str) -> np.ndarray:
+        try:
+            arr = np.asarray(obj, dtype=float)
+        except (ValueError, TypeError) as exc:
+            raise ValueError(
+                f"{name} must be a homogeneous array of numbers (ragged or in-homogeneous "
+                "shapes are not supported)"
+            ) from exc
+        if not np.all(np.isfinite(arr)):
+            raise ValueError(f"{name} must contain only finite numbers (no NaN/inf)")
+        return arr
+
+    X_arr = _to_finite_array(X, "X")
+    y_arr = _to_finite_array(y, "y").ravel()
     if X_arr.ndim == 1:
         X_arr = X_arr.reshape(-1, 1)
     n = X_arr.shape[0]
@@ -186,12 +220,13 @@ def build_surrogate(
         raise ValueError("build_surrogate requires at least 2 training points to fit a surrogate")
     if y_arr.shape[0] != n:
         raise ValueError("X and y must have the same number of samples")
-    if not np.all(np.isfinite(X_arr)) or not np.all(np.isfinite(y_arr)):
-        raise ValueError("training inputs and targets must be finite (no NaN/inf)")
-    if length_scale <= 0:
-        raise ValueError("length_scale must be > 0")
-    if reg < 0:
-        raise ValueError("reg must be >= 0")
+
+    # Hyperparameters must be finite + satisfy sign; NaN comparisons are always False so
+    # we use explicit isfinite first (prevents silent NaN weights or downstream NaNs).
+    if not np.isfinite(length_scale) or length_scale <= 0:
+        raise ValueError("length_scale must be > 0 and finite")
+    if not np.isfinite(reg) or reg < 0:
+        raise ValueError("reg must be >= 0 and finite")
 
     # Store owned copies so the dataclass holds a stable snapshot (not a view that could be mutated by caller).
     X_stored = X_arr.copy()
@@ -232,7 +267,16 @@ def predict_surrogate(
     """
     if not isinstance(model, Surrogate):
         raise ValueError("predict_surrogate expects a Surrogate from build_surrogate")
-    X_arr = np.asarray(X, dtype=float)
+    # Mirror build's clean error for ragged/non-finite (uniform contract across entrypoints)
+    try:
+        X_arr = np.asarray(X, dtype=float)
+    except (ValueError, TypeError) as exc:
+        raise ValueError(
+            "X must be a homogeneous array of numbers (ragged or in-homogeneous "
+            "shapes are not supported)"
+        ) from exc
+    if not np.all(np.isfinite(X_arr)):
+        raise ValueError("X must contain only finite numbers (no NaN/inf)")
     if X_arr.ndim == 1:
         X_arr = X_arr.reshape(-1, 1)
     if X_arr.shape[1] != model.X.shape[1]:

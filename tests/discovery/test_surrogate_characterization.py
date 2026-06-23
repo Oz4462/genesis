@@ -248,3 +248,51 @@ def test_prefilter_and_score_reject_bad_sample_fraction():
         with pytest.raises(ValueError) as ctx2:
             prefilter(p, [c], sample_fraction=bad)
         assert "sample_fraction must be in (0, 1]" in str(ctx2.value)
+
+
+# --- Additional negative cases per rubber-duck review round (NaN hyperparams, ragged, discover entrypoint, predict) ---
+
+from gen.discovery import build_surrogate as build_surrogate_pkg  # test package re-export path too
+from gen.discovery import predict_surrogate as predict_surrogate_pkg
+import pytest  # already present but ensure
+
+
+def test_build_surrogate_rejects_nan_inf_hyperparams_and_ragged():
+    X = [[0.0], [1.0], [2.0]]
+    y = [0.0, 1.0, 4.0]
+    for bad_ls in (float("nan"), float("inf"), -1.0, 0.0):
+        with pytest.raises(ValueError) as ctx:
+            build_surrogate_pkg(X, y, length_scale=bad_ls)
+        assert "length_scale must be > 0 and finite" in str(ctx.value)
+    for bad_reg in (float("nan"), float("inf"), -1e-9):
+        with pytest.raises(ValueError) as ctx:
+            build_surrogate_pkg(X, y, reg=bad_reg)
+        assert "reg must be >= 0 and finite" in str(ctx.value)
+
+    # ragged / inhomogeneous
+    with pytest.raises(ValueError) as ctx:
+        build_surrogate_pkg([[0.0], [1.0, 2.0]], [0.0, 1.0])
+    assert "homogeneous" in str(ctx.value).lower() or "ragged" in str(ctx.value).lower()
+
+
+def test_predict_surrogate_rejects_bad_x():
+    m = build_surrogate_pkg([[0.], [1.], [2.]], [0., 1., 4.])
+    with pytest.raises(ValueError) as ctx:
+        predict_surrogate_pkg(m, [[0., 0.]])  # dim mismatch already covered but ragged shape
+    # dim check happens after, but test ragged first
+    with pytest.raises(ValueError) as ctx2:
+        predict_surrogate_pkg(m, [[0.], [np.nan]])
+    assert "finite" in str(ctx2.value).lower()
+
+    # also package import path works
+    assert predict_surrogate_pkg(m, [0.5])[0].shape == (1,)
+
+
+def test_discover_prefiltered_names_its_own_entrypoint_in_error():
+    """discover_prefiltered must raise with its name (not leak 'prefilter' message)."""
+    from gen.discovery import DiscoveryProblem, Variable
+    from gen.discovery import discover_prefiltered
+    p1 = DiscoveryProblem(idea="1pt", target=Variable("y", "1", (1.0,)), inputs=(Variable("x", "1", (1.0,)),))
+    with pytest.raises(ValueError) as ctx:
+        discover_prefiltered(p1)
+    assert "discover_prefiltered requires" in str(ctx.value)
