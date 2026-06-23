@@ -121,6 +121,12 @@ def rotor_hover_check(
         raise ValueError("figure of merit must be in (0, 1]")
     if min_thrust_weight <= 0.0:
         raise ValueError("minimum thrust-to-weight must be positive")
+    # A negative max thrust is physically meaningless and would silently yield a
+    # negative thrust-to-weight ratio (and misleading safety_factor) instead of
+    # failing loud. 0.0 is allowed: a meaningful evaluable case (ratio 0, ok=False),
+    # matching induced_velocity's non-negative thrust convention.
+    if max_total_thrust < 0.0:
+        raise ValueError("max total thrust must be non-negative")
     weight = mass * STANDARD_GRAVITY
     ratio = max_total_thrust / weight
     per_rotor_hover_thrust = weight / n_rotors
