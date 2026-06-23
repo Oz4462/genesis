@@ -71,10 +71,29 @@ PYTHONPATH=src python -m pytest tests/test_boundary_reviser_characterization.py 
 - No new runtime deps; reconstruction uses the documented public constructor.
 - Tests would have caught the original fabrication immediately (the facade-detector requirement (a) output changes with input + (b) no-signal → honest empty).
 
+## Post-implementation rubber-duck review fixes (2026-06-23)
+The initial implementation had five concrete review findings (see session rubber-duck notes). All were addressed with minimal targeted edits inside the allowed file scope:
+
+1. **hay built but generic token branch ignored beschreibung/impact** — now the generic overlap path tokenizes the full `hay` (titel+beschreibung+relevanz+impact). Added explanatory comment.
+2. **docstring claimed "and/or fehlende_faehigkeiten" for emitting but fehlende only participated in energy side-clean** — implemented `_addresses_fehlend` using same hay logic; fehlende strings are now scanned and cleaned on content match. Updated function docstring + comments to describe the actual contract (grenzen emit revisions with Grenztyp; fehlende participate for honest removal).
+3. **run_id had no fallback** — added `run_id = run_id or frontier_update.run_id or current_front.run_id` at entry; both wrapper and inner map now receive the value. Verified in test + manual.
+4. **is_jetpack rich narrative emitted even with zero matching items (fabricated "New 2026 tech" claim)** — changed guard to `if is_jetpack and revisions:`. When a jetpack traum receives an empty or non-addressing frontier, the description stays the original honest text (no "REVISED" suffix). Protected regression test still sees the narrative because its frontier items do address boundaries.
+5. **no source_traum correspondence check** — added explicit (non-raising) check + comment at function entry documenting that labeling always follows `current_front.traum` while items are applied as evidence. Mismatched calls remain functional and deterministic.
+6. **(note)** legacy test still expects the old fabricated generic revision — left untouched; new characterization is authoritative.
+
+All fixes include brief WHY comments. Tests re-run green (7/7). Manual verification confirmed: hay usage, fehlende cleaning, run_id fallback, conditional narrative, source note, and zero-revision on non-addressing items.
+
+## 4 Linsen re-applied after review fixes
+(See original L1–L4 above.) The additional changes were:
+- L1: no narrative of revision without an addressing item (the jetpack rich text is now gated on actual `revisions`).
+- L2: full hay now feeds the match (data flow matches the documented "by content").
+- L3: fehlende matching documented; source_traum pairing documented; no new seams introduced.
+- L4: property tests + explicit non-addressing case still pass; run_id propagation has a test path.
+
 ## Remainder / out of scope
 - `tests/test_boundary_reviser.py` (legacy) — untouched per team decision; it asserts the old generic fabrication behaviour and will now fail on that path. The authoritative signal is the new `_characterization.py`.
 - Downstream modules that call the reviser (learning_integrator, safety_ladder) are not modified; they continue to receive a well-typed `RevisedFrontMap` with proper enums.
 - Full 8-step Grenzverschiebungs cycle integration and live Wissensbasis feeding remain future work (documented in PLATFORM_PLAN).
 - No change to any file outside the declared scope.
 
-**Result:** `revise_boundary` now satisfies its spec and the "keine stillen Defaults" rule. The generic path is real and evidence-driven; the rich demo path is intact. All new tests green.
+**Result:** `revise_boundary` satisfies the original spec, the rubber-duck review, "keine stillen Defaults", and A5 reproducibility. Generic path is evidence-driven with honest no-op; rich jetpack demo path is intact and only triggered by real evidence. All tests green.

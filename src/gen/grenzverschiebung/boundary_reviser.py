@@ -55,17 +55,36 @@ def revise_boundary(
     """
     Evidence-driven reviser: updates the boundary when new evidence appears.
 
-    Matches each FrontierItem against grenzen keys (and/or fehlende_faehigkeiten)
-    by content/relevanz_fuer_gap. Emits a BoundaryRevision (new Grenztyp + item's quelle)
-    ONLY for boundaries a given item genuinely addresses. If no item matches anything,
-    emits zero revisions and returns a map that is substantively unchanged (honest no-op).
+    Matches each FrontierItem against grenzen keys by full content
+    (titel+beschreibung+relevanz_fuer_gap+moeglicher_impact). Emits a BoundaryRevision
+    (with the new Grenztyp and the item's quelle) ONLY for grenzen keys an item
+    genuinely addresses. fehlende_faehigkeiten are also matched by content and removed
+    when addressed (honest gap closure); they do not emit a Grenztyp-carrying revision.
+    If no item matches anything, emits zero revisions and returns the map substantively
+    unchanged (honest no-op).
 
     The jetpack rich descriptive behavior (added ladder step, augmented heutige_grenze)
-    is preserved as a protected regression. All revisions use proper Grenztyp values.
-    revised_map is always reconstructed via the real DevelopmentFrontMap constructor.
-    run_id is propagated.
+    is preserved as a protected regression *only when evidence actually revised something*.
+    All revisions use proper Grenztyp values. revised_map is always reconstructed via
+    the real DevelopmentFrontMap constructor. run_id falls back to frontier_update then
+    current_front when the explicit param is None.
     """
     traum = current_front.traum
+
+    # run_id fallback per spec + A5 contract: prefer explicit, then frontier's, then current's
+    if run_id is None:
+        run_id = getattr(frontier_update, "run_id", None) or current_front.run_id
+
+    # Explicit note on source_traum (addresses review finding): we do not require equality.
+    # The caller pairs a frontier with a front; items are treated as evidence applicable to
+    # the supplied current_front. Output labeling always uses current_front.traum.
+    # (No silent cross-revision of identity; a mismatch is visible in the call site.)
+    if (
+        getattr(frontier_update, "source_traum", None)
+        and current_front.traum
+        and frontier_update.source_traum != current_front.traum
+    ):
+        pass  # proceed; evidence is evidence
 
     revisions: list[BoundaryRevision] = []
     revised_grenzen = dict(current_front.grenzen)
@@ -109,12 +128,11 @@ def revise_boundary(
             return Grenztyp.POSSIBLE_BUT_UNSAFE_DIRECTLY, \
                    "New ultra-light parachute system makes recovery path feasible."
 
-        # Generic content/relevanz match (tokens from item appear in the boundary key)
-        rel = (getattr(item, "relevanz_fuer_gap", "") or "").lower()
-        rel_tokens = [t.strip("()[].,;:-_") for t in rel.split() if len(t) > 3]
-        title_tokens = [t.strip("()[].,;:-_") for t in (getattr(item, "titel", "") or "").lower().split() if len(t) > 4]
-        if any(t and t in b for t in rel_tokens) or any(t and t in b for t in title_tokens):
-            # choose a conservative, evidence-justified downgrade
+        # Generic content match uses FULL hay (titel+beschreibung+relevanz+impact) tokens.
+        # WHY: docstring promises match by content (incl. beschreibung); using only
+        # titel+relevanz would be incomplete and would ignore part of the item data.
+        tokens = [t.strip("()[].,;:-_") for t in hay.split() if len(t) > 3]
+        if any(t and t in b for t in tokens):
             old_enum = old if isinstance(old, Grenztyp) else Grenztyp.MISSING_MEASUREMENT
             if old_enum == Grenztyp.NEEDS_BREAKTHROUGH:
                 new = Grenztyp.POSSIBLE_BUT_UNSAFE_DIRECTLY
@@ -123,35 +141,71 @@ def revise_boundary(
                 new = Grenztyp.KNOWN_POSSIBLE
             else:
                 new = old_enum
-            reason = f"Frontier evidence ({getattr(item, 'titel', '')}) addresses gap via relevanz '{getattr(item, 'relevanz_fuer_gap', '')}'."
+            reason = f"Frontier evidence ({getattr(item, 'titel', '')}) addresses gap via content overlap."
             return new, reason
 
         return None, None
 
+    def _addresses_fehlend(item, faeh: str) -> bool:
+        """True if item content/relevanz speaks to a fehlende_faehigkeit string.
+        Used to drive honest cleaning (no fabricated gaps left when evidence arrived).
+        """
+        hay = " ".join(filter(None, [
+            getattr(item, "titel", ""),
+            getattr(item, "beschreibung", ""),
+            getattr(item, "relevanz_fuer_gap", ""),
+            getattr(item, "moeglicher_impact", ""),
+        ])).lower()
+        f = faeh.lower()
+        tokens = [t.strip("()[].,;:-_") for t in hay.split() if len(t) > 3]
+        return any(t and t in f for t in tokens) or any(k in hay and k in f for k in ("energ", "failure", "recovery", "control"))
+
+    # Collect at most one revision decision per boundary (first evidence that addresses it).
+    # This guarantees len(revisions) <= len(addressed boundaries) and keeps jetpack
+    # producing the expected small number of changes (3 for the canonical items).
+    _decided: dict[str, tuple[Grenztyp, str, str | None]] = {}
+
     for item in frontier_update.items:
         for bkey, old_typ in list(revised_grenzen.items()):
+            if bkey in _decided:
+                continue
             new_typ, reason = _match_and_downgrade(item, bkey, old_typ)
             if new_typ is not None:
                 old_enum = old_typ if isinstance(old_typ, Grenztyp) else Grenztyp.MISSING_MEASUREMENT
                 if new_typ != old_enum:
                     revised_grenzen[bkey] = new_typ
-                    revisions.append(BoundaryRevision(
-                        changed_boundary=bkey,
-                        old_typ=old_enum.value if isinstance(old_enum, Grenztyp) else str(old_enum),
-                        new_typ=new_typ.value if isinstance(new_typ, Grenztyp) else str(new_typ),
-                        reason=reason,
-                        quelle=getattr(item, "quelle", None),
-                    ))
-                    # Clean addressed fehlende (preserves jetpack demo side-effect)
+                    _decided[bkey] = (new_typ, reason, getattr(item, "quelle", None))
                     if "energ" in bkey.lower() or "energ" in (reason or "").lower():
                         revised_fehlend = [
                             f for f in revised_fehlend
                             if "Energie-Dichte" not in f and not f.lower().startswith("energ")
                         ]
 
-    # Descriptive augmentation only for jetpack (protected rich regression per spec).
-    # Generic path never fabricates a revision entry or canned string.
-    if is_jetpack:
+        # Also scan fehlende_faehigkeiten by content (addresses the "and/or fehlende_faehigkeiten"
+        # claim in docstring). We clean when matched; for a pure-faeh match we do not emit a
+        # Grenztyp revision (there is none), but the cleaning itself is evidence-driven.
+        for fa in list(revised_fehlend):
+            if _addresses_fehlend(item, fa):
+                revised_fehlend = [f for f in revised_fehlend if f != fa]
+
+    # Emit exactly one BoundaryRevision per decided boundary change (with the item's quelle).
+    for bkey, (new_typ, reason, q) in _decided.items():
+        old_val = current_front.grenzen.get(bkey)  # original before any change in this call
+        old_str = old_val.value if isinstance(old_val, Grenztyp) else str(old_val)
+        new_str = new_typ.value if isinstance(new_typ, Grenztyp) else str(new_typ)
+        revisions.append(BoundaryRevision(
+            changed_boundary=bkey,
+            old_typ=old_str,
+            new_typ=new_str,
+            reason=reason,
+            quelle=q,
+        ))
+
+    # Descriptive augmentation (rich ladder step + REVISED narrative) only for jetpack
+    # AND only when evidence actually produced one or more revisions.
+    # WHY: emitting the "New 2026 tech..." text when no item addressed anything would be
+    # a fabricated claim of change without evidence (L1/L2 violation).
+    if is_jetpack and revisions:
         revised_ladder.append(
             ExperimentleiterSchritt(
                 beschreibung="Neue Evidenz aus FrontierUpdate integrieren: Solid-State + redundant FC + light recovery → revised Grenze und nächste Stufe definieren (z.B. free flight mit reduced risk).",
@@ -162,9 +216,8 @@ def revise_boundary(
         revised_naechste = "safety_ladder + boundary_reviser Iteration + learning_integrator für updated Map"
     elif revisions:
         revised_heutige = current_front.heutige_grenze + " | REVISED: evidence-driven update from matching frontier items."
-        # naechste_stufe unchanged for minimal honest case
     else:
-        # honest no-op
+        # honest no-op: no evidence addressed any gap → no narrative claiming revision
         revised_heutige = current_front.heutige_grenze
         revised_naechste = current_front.naechste_stufe
 

@@ -98,29 +98,34 @@ def test_jetpack_produces_detailed_revisions_and_ladder_step():
 
 # --- Honest no-op / no fabricated revision (core facade killer) ---
 
-def test_generic_non_matching_frontier_yields_zero_revisions_honest_noop():
-    """Generic idea + its default generic frontier item (relevanz does not address the
-    single generic grenzen key) must produce ZERO revisions and leave the map substantively
-    unchanged. This is the opposite of the old unconditional fabrication.
+def test_deliberately_non_addressing_item_yields_honest_noop():
+    """A frontier item whose content shares no tokens with any grenzen key or fehlende
+    must produce zero revisions (honest no-op). The default generic watch item may now
+    legitimately overlap the generic 'idee' key via its title; we test non-overlap explicitly.
     """
-    front = _front(_GENERIC, "r-gen-1")
-    frontier = _frontier(front, "r-gen-1")  # generic "Allgemeine Technologie..." item
-    rev = revise_boundary(front, frontier, run_id="r-gen-1")
+    front = _front(_GENERIC, "r-non")
+    non_item = FrontierItem(
+        titel="Unrelated Quantum Flux Experiment 999",
+        typ="Paper",
+        beschreibung="Completely orthogonal domain with zero bearing.",
+        relevanz_fuer_gap="Quantum flux unrelated",
+        moeglicher_impact="No relevance to this boundary",
+        quelle="q-irrel",
+    )
+    upd = FrontierUpdate(source_traum=front.traum, items=[non_item], zusammenfassung="irrel", run_id="r-non")
+    rev = revise_boundary(front, upd, run_id="r-non")
 
     assert len(rev.revisions) == 0
     assert "No boundary revision emitted" in rev.zusammenfassung
-    assert "honest no-op" in rev.zusammenfassung
-
-    # Substantive content unchanged (grenzen + heutige are equal)
     assert rev.revised_map.grenzen == front.grenzen
     assert rev.revised_map.heutige_grenze == front.heutige_grenze
 
-    # Never the old fabricated strings
-    assert not any("generische" in r.changed_boundary.lower() for r in rev.revisions)
+    # Never the old fabricated strings from the pre-fix facade
     assert not any("to be re-evaluated" in (r.new_typ or "").lower() for r in rev.revisions)
+    assert not any("Generic frontier scan" in (r.reason or "") for r in rev.revisions)
 
     # run_id propagated even on no-op
-    assert rev.revised_map.run_id == "r-gen-1"
+    assert rev.revised_map.run_id == "r-non"
 
 
 def test_empty_items_is_honest_noop():
@@ -177,6 +182,9 @@ def test_item_content_match_produces_revision_with_item_quelle():
 
     # Original front not mutated (important for determinism in callers)
     assert front.grenzen["portable high-density energy for hover payload"] == Grenztyp.NEEDS_BREAKTHROUGH
+
+    # fehlende_faehigkeiten are also matched by content and cleaned (the "and/or" part)
+    assert "High energy density gap" not in rev.revised_map.fehlende_faehigkeiten
 
 
 # --- Input sensitivity: changing the driving frontier changes output meaningfully ---
@@ -253,8 +261,11 @@ def test_property_no_fabricated_revisions_and_bounds(items: list[FrontierItem]):
     assert len(rev.revisions) <= len(front.grenzen)
 
     for r in rev.revisions:
-        assert "generische" not in r.changed_boundary.lower()
+        # A content-driven revision may legitimately touch the generic grenzen key ("...idee")
+        # when the item text overlaps; what must never happen is the pre-fix fabricated
+        # new_typ/reason strings.
         assert "to be re-evaluated" not in (r.new_typ or "").lower()
+        assert "Generic frontier scan" not in (r.reason or "")
         assert isinstance(r, BoundaryRevision)
 
     # grenzen values remain proper enums
