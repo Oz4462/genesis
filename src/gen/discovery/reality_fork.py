@@ -28,6 +28,7 @@ than silently "explored". Offline, deterministic, dependency-free.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 #: Our world has 3 spatial dimensions; Gauss's law then gives the inverse-square force.
@@ -109,14 +110,42 @@ def fork_constant(
     scales as ``constant^scaling_exponent``, and report the counterfactual scaling of the
     target: ``target_new/target_base = (new_value/base_value)^scaling_exponent``. Internally
     consistent iff both values are positive (a power law needs positive magnitudes); a
-    non-positive forked constant is flagged, not silently explored."""
+    non-positive forked constant is flagged, not silently explored. A non-finite input
+    (NaN/inf) — or an exponent/factor that turns out non-finite — is likewise flagged, since
+    a consistent world is defined as a *finite* power law (module docstring); we must not
+    silently emit a non-finite scale factor while claiming consistency."""
+    # NaN slips past plain ``<= 0.0`` (NaN comparisons are always False), so guard finiteness
+    # explicitly first — otherwise a NaN/inf magnitude would yield a non-finite scale factor
+    # stamped ``internally_consistent=True``, contradicting the finite-power-law contract.
+    if not (math.isfinite(base_value) and math.isfinite(new_value) and math.isfinite(scaling_exponent)):
+        return CounterfactualWorld(
+            name=f"{constant} -> {new_value:g}", kind="constant",
+            change={"constant": constant, "base": base_value, "new": new_value},
+            forked_law="(nicht-finite Magnitude)", internally_consistent=False,
+            notes=("Potenzgesetz braucht finite Magnituden; NaN/inf ist inkonsistent",))
     if base_value <= 0.0 or new_value <= 0.0:
         return CounterfactualWorld(
             name=f"{constant} -> {new_value:g}", kind="constant",
             change={"constant": constant, "base": base_value, "new": new_value},
             forked_law="(nicht-positive Magnitude)", internally_consistent=False,
             notes=("Potenzgesetz braucht positive Magnituden; nicht-positiver Wert ist inkonsistent",))
-    factor = (new_value / base_value) ** scaling_exponent
+    # Finite positive inputs can still break exponentiation, and CPython is inconsistent about
+    # how: ``(new/base) ** exp`` RAISES OverflowError on power overflow, but the intermediate
+    # ``new/base`` division overflows to ``inf`` silently; and if the ratio UNDERFLOWS to exactly
+    # 0.0 (e.g. 1e-300/1e300) a negative exponent RAISES ZeroDivisionError. So we catch both
+    # exceptions AND check finiteness. Either way the honest result is a flagged-inconsistent
+    # world, never a crash and never a silent non-finite scale factor.
+    try:
+        factor = (new_value / base_value) ** scaling_exponent
+        overflowed = not math.isfinite(factor)
+    except (OverflowError, ZeroDivisionError):
+        overflowed = True
+    if overflowed:
+        return CounterfactualWorld(
+            name=f"{constant} -> {new_value:g}", kind="constant",
+            change={"constant": constant, "base": base_value, "new": new_value},
+            forked_law="(nicht-finiter Skalenfaktor)", internally_consistent=False,
+            notes=("Skalenfaktor läuft über (nicht finit); inkonsistent",))
     return CounterfactualWorld(
         name=f"{constant} -> {new_value:g}", kind="constant",
         change={"constant": constant, "base": base_value, "new": new_value,
