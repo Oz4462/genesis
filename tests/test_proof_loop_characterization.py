@@ -167,10 +167,12 @@ def test_unparseable_claim_is_unsupported_before_any_layer():
 
 def test_different_claims_produce_meaningfully_different_verdicts():
     """L2: two different inputs consume different paths and produce observably different outputs
-    (status + kernel label + detail) — proves inputs are genuinely consumed, not a constant facade."""
+    (status + kernel label + detail) — proves inputs are genuinely consumed, not a constant facade.
+    All early-short-circuit cases explicitly pass kernels=[] (or a test double) to prove the path
+    is independent of the default Z3IdentityKernel singleton (addresses rubberduck finding)."""
     poly = prove_identity(_poly_identity(), kernels=[_UnsupportedKernel()])
     hole = prove_identity(_domain_hole(), kernels=[_RefutingKernel()])
-    falsey = prove_identity(_num_false())
+    falsey = prove_identity(_num_false(), kernels=[])  # explicit empty: mpmath short-circuit must stay independent
     assert poly.status != falsey.status
     assert hole.status != poly.status
     # Strengthen to cover audit claim: kernel and/or detail also differ for distinct driving claims.
@@ -179,8 +181,9 @@ def test_different_claims_produce_meaningfully_different_verdicts():
 
 
 def test_unsupported_is_the_honest_abstention_for_bad_input():
-    """L4: unparseable is explicit abstention, never a fabricated Kandidat/Satz."""
-    v = prove_identity(_unparseable())
+    """L4: unparseable is explicit abstention, never a fabricated Kandidat/Satz.
+    Uses explicit kernels=[] to demonstrate parse short-circuit is kernel-list independent."""
+    v = prove_identity(_unparseable(), kernels=[])
     assert v.status == "unsupported"
     assert "cannot parse" in v.detail
 
@@ -195,6 +198,37 @@ def test_empty_variables_and_const_only_identities_are_supported():
     v_satz = prove_identity(const_true, kernels=[_ProvingKernel()])
     assert v_satz.status == "Satz"
     assert v_satz.kernel == "test_prover"
+
+
+def test_empty_kernels_sequence_boundary_forces_kandidat():
+    """Public API accepts kernels=[] (empty Sequence). Must force the no-kernel "Kandidat" path
+    (sympy/mpmath only) even for a kernel-provable claim. This boundary was previously untested."""
+    claim = _poly_identity()
+    v = prove_identity(claim, kernels=[])
+    assert v.status == "Kandidat"
+    assert v.kernel in ("sympy", "mpmath")
+    assert v.numeric_ok  # prefilter passed
+    # Contrast: same claim with proving kernel still yields Satz (kernel decides).
+    v2 = prove_identity(claim, kernels=[_ProvingKernel()])
+    assert v2.status == "Satz"
+
+
+def test_positive_variable_sampling_happy_path_and_bad_hi_loud():
+    """Exercises the positive-var branch in numeric_prefilter:
+       lo = max(sample_lo, 1e-6) ... uniform(lo, hi)
+    Happy case (effective lo < hi) must reach Kandidat via prefilter+sympy.
+    Bad case (caller supplies hi small enough that max makes lo >= hi) must fail loud (ValueError),
+    not produce garbage samples or silent wrong result."""
+    # Happy positive range (sample_lo negative is clamped internally for positive vars).
+    pos_claim = IdentityClaim("x**2", "x*x", {"x": "positive"}, sample_lo=-5.0, sample_hi=3.0)
+    v = prove_identity(pos_claim, kernels=[_UnsupportedKernel()])
+    assert v.status == "Kandidat"
+    assert v.numeric_ok
+
+    # Bad hi for positive: after max the lo will exceed hi → uniform raises.
+    bad_pos = IdentityClaim("x", "x", {"x": "positive"}, sample_lo=0.0, sample_hi=1e-7)
+    with pytest.raises(ValueError):
+        prove_identity(bad_pos, kernels=[])
 
 
 # --- Property-based tests (invariants) ---
@@ -240,10 +274,11 @@ def test_property_input_variation_changes_detail_but_preserves_kandidat_when_no_
 
 def test_bad_sample_range_produces_fail_loud_from_prefilter():
     """L4: hi < lo is invalid; the public API fails loud (ValueError from sampling) rather than silent wrong.
-    This matches no-silent-defaults; we assert the error surfaces from the called layer."""
+    This matches no-silent-defaults; we assert the error surfaces from the called layer.
+    Explicit kernels=[] ensures the range error (in prefilter) is independent of default kernel."""
     bad = IdentityClaim("x", "x", {"x": "real"}, sample_lo=5.0, sample_hi=1.0)
     with pytest.raises(ValueError):
-        prove_identity(bad)
+        prove_identity(bad, kernels=[])
 
 
 def test_zero_samples_defers_to_sympy_heuristic():
