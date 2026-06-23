@@ -197,3 +197,10 @@ import ast
 - 2026-06-23T04:09:27.751293 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok; | → /vibe-verify or RecoveryPlaybook
 - 2026-06-23T04:15:10.070595 | search_replace | verification/auto-log.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
 - 2026-06-23T04:18:05.130639 | search_replace | verification/auto-log.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-23T04:25:14.666966 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T04:25:17.368681 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T04:25:35.665705 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T04:25:53.066172 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T04:26:12.665686 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T04:26:21.060354 | search_replace | tests/test_active_resolution_characterization.py | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-23T04:26:26.430889 | search_replace | tests/test_active_resolution_characterization.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
