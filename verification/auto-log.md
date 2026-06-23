@@ -659,3 +659,25 @@ f | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detecte
 - 2026-06-23T23:56:51.939510 | search_replace | docs/audit/DEPTH_AUDIT_kinematics.md | → /vibe-verify or RecoveryPlaybook
 - 2026-06-23T23:56:55.344992 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
 - 2026-06-23T23:56:57.647091 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:02:51.233679 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T04-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:02:56.433656 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T04-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:03:03.834441 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T04-grok; | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-24T00:03:47.293953 | search_replace | tests/test_mesh_integrity_characterization.py | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-24T00:03:51.942936 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T04-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:03:59.627199 | search_replace | src/gen/mesh_integrity.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-24T00:04:02.527625 | search_replace | src/gen/mesh_integrity.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-24T00:04:06.630706 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T04-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:04:10.434360 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T04-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:04:13.873838 | search_replace | src/gen/mesh_integrity.py | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-24T00:04:18.248286 | search_replace | src/gen/mesh_integrity.py | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-24T00:04:36.433574 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T04-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:08:35.231137 | run_terminal_command | cmd: grep -n '<<<<<<<\|=======\|>>>>>>>' verification/a | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:08:45.529548 | run_terminal_command | cmd: grep -n -E 'T0[0-9]-grok|mesh_integrity|kinematics | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:08:49.929664 | run_terminal_command | cmd: wc -l /home/genesis/.grok/sessions/%2Fhome%2Fgenes | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:08:54.934902 | run_terminal_command | cmd: head -20 verification/auto-log.md; echo '---'; tai | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:09:30.355209 | search_replace | verification/auto-log.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-24T00:09:32.424445 | run_terminal_command | cmd: grep -n '<<<<<<<\|=======\|>>>>>>>' verification/a | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:09:34.424756 | run_terminal_command | cmd: grep -n '^<<<<<<<\|^=======\|^>>>>>>>' verificatio | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:09:37.924433 | run_terminal_command | cmd: git status --porcelain 2>/dev/null || true; echo ' | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:09:40.928250 | run_terminal_command | cmd: sed -n '610,680p' verification/auto-log.md | head  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T00:09:42.526977 | run_terminal_command | cmd: grep -E 'T04-grok|mesh_integrity.py' verification/ | → /vibe-verify or RecoveryPlaybook
