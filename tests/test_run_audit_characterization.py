@@ -14,8 +14,14 @@ regression in any of them fails loudly:
   * A DIFFERENT key fails verification -> ``BadSignatureError``.
   * An unknown key id -> ``KeyError``; a wrong ``payload_type`` -> ``ValueError``.
 
-The whole file is guarded by ``importorskip('trust_core')`` so the full pytest
-gate stays green without the optional ``verify`` extra installed.
+``run_audit`` hard-imports trust-core (the optional ``verify`` extra) at module
+load, so the crypto tests require that extra. Rather than a module-level
+``importorskip`` — which collects ZERO tests and makes pytest exit 5 ("no tests
+collected") when the extra is absent — the trust-core tests carry a ``skipif``
+mark, and ``test_import_contract`` ALWAYS runs: it pins the module's documented
+behaviour in BOTH environments (a clean ``ImportError`` without the extra, a real
+import with it). So the file always collects at least one passing test and the
+full pytest gate stays green either way.
 
 Conclusion (see docs/audit/DEPTH_AUDIT_run_audit.md): REAL. No source edit needed.
 """
@@ -23,32 +29,41 @@ Conclusion (see docs/audit/DEPTH_AUDIT_run_audit.md): REAL. No source edit neede
 from __future__ import annotations
 
 import base64
+import importlib
+import importlib.util
 import json
 
 import pytest
 
-# run_audit hard-imports trust_core at module load (it raises ImportError without
-# the extra), so skip BEFORE importing the module under test.
-pytest.importorskip("trust_core")
-
-from hypothesis import given  # noqa: E402
-from hypothesis import strategies as st  # noqa: E402
-from nacl.exceptions import BadSignatureError  # noqa: E402
-
-from gen.audit import (  # noqa: E402
-    AuditEnvelope,
-    RunAuditRecord,
-    audit_from_claims,
-    digest_claims,
-    sign_audit,
-    verify_audit,
+# Detect the optional `verify` extra once. We must NOT import run_audit (or its
+# gen.* siblings) at module top unconditionally: run_audit raises ImportError
+# without trust-core, which would turn collection into an ERROR rather than a
+# clean skip. Using a skipif mark (instead of a module-level importorskip) keeps
+# the trust-core tests COLLECTED-then-skipped, so the file never yields pytest
+# exit 5 ("no tests collected") when the extra is absent.
+HAS_TRUST_CORE = importlib.util.find_spec("trust_core") is not None
+requires_trust_core = pytest.mark.skipif(
+    not HAS_TRUST_CORE,
+    reason="trust-core ('verify' extra) not installed",
 )
-from gen.audit.run_audit import _PAYLOAD_TYPE  # noqa: E402
-from gen.core.state import Claim, ClaimStatus, SourceRef  # noqa: E402
-from trust_core.receipts.keystore import KeyStore  # noqa: E402
+
+if HAS_TRUST_CORE:
+    from nacl.exceptions import BadSignatureError
+    from trust_core.receipts.keystore import KeyStore
+
+    from gen.audit import (
+        AuditEnvelope,
+        RunAuditRecord,
+        audit_from_claims,
+        digest_claims,
+        sign_audit,
+        verify_audit,
+    )
+    from gen.audit.run_audit import _PAYLOAD_TYPE
+    from gen.core.state import Claim, ClaimStatus, SourceRef
 
 
-# --- builders ---------------------------------------------------------------
+# --- builders (only invoked by trust-core tests) ----------------------------
 
 def _src(uid: str) -> SourceRef:
     return SourceRef(url_or_id=uid, retrieved=True)
@@ -77,7 +92,7 @@ def _claims() -> list[Claim]:
     ]
 
 
-def _record() -> RunAuditRecord:
+def _record():
     return audit_from_claims(
         run_id="run-1",
         generator_model="qwen3.5:9b",
@@ -88,14 +103,37 @@ def _record() -> RunAuditRecord:
     )
 
 
-def _keyed_store() -> tuple[KeyStore, str]:
+def _keyed_store():
     ks = KeyStore()
     key_id = ks.generate(scope="genesis-audit").key_id
     return ks, key_id
 
 
+# --- always-on: documented import contract (keeps collection non-empty) -----
+
+def test_import_contract():
+    """The module's documented load behaviour, asserted in BOTH environments.
+
+    Without the `verify` extra it must raise a helpful ImportError (no silent
+    partial import); with it, the public verifier surface must be importable.
+    This test always collects+runs, so the file never yields pytest exit 5.
+    """
+    if HAS_TRUST_CORE:
+        mod = importlib.import_module("gen.audit.run_audit")
+        assert hasattr(mod, "verify_audit") and hasattr(mod, "sign_audit")
+    else:
+        with pytest.raises(ImportError) as exc:
+            importlib.import_module("gen.audit.run_audit")
+        # When `gen` itself is importable, the failure MUST be the module's
+        # documented trust-core guard (a clean, helpful ImportError) — not some
+        # unrelated import error.
+        if importlib.util.find_spec("gen") is not None:
+            assert "trust-core is required" in str(exc.value)
+
+
 # --- digest_claims: deterministic, order-independent, content-sensitive -----
 
+@requires_trust_core
 def test_digest_is_deterministic():
     assert digest_claims(_claims()) == digest_claims(_claims())
     # A digest is a 64-char SHA-256 hex string, not an empty/canned value.
@@ -103,6 +141,7 @@ def test_digest_is_deterministic():
     assert len(d) == 64 and all(ch in "0123456789abcdef" for ch in d)
 
 
+@requires_trust_core
 def test_digest_independent_of_source_order_within_a_claim():
     forward = [_claim("x", ClaimStatus.VERIFIED,
                       sources=[_src("u://1"), _src("u://2"), _src("u://3")])]
@@ -111,24 +150,28 @@ def test_digest_independent_of_source_order_within_a_claim():
     assert digest_claims(forward) == digest_claims(reverse)
 
 
+@requires_trust_core
 def test_digest_sensitive_to_claim_text():
     base = [_claim("c", ClaimStatus.VERIFIED, text="alpha")]
     other = [_claim("c", ClaimStatus.VERIFIED, text="beta")]
     assert digest_claims(base) != digest_claims(other)
 
 
+@requires_trust_core
 def test_digest_sensitive_to_status():
     base = [_claim("c", ClaimStatus.VERIFIED)]
     other = [_claim("c", ClaimStatus.REFUTED)]
     assert digest_claims(base) != digest_claims(other)
 
 
+@requires_trust_core
 def test_digest_sensitive_to_id():
     base = [_claim("c0", ClaimStatus.VERIFIED, text="same", sources=[_src("u://1")])]
     other = [_claim("c1", ClaimStatus.VERIFIED, text="same", sources=[_src("u://1")])]
     assert digest_claims(base) != digest_claims(other)
 
 
+@requires_trust_core
 def test_digest_sensitive_to_claim_order():
     # Claim order is part of the canonical record (ledger insertion order, A5),
     # so reordering the claims is a real change in what the run produced.
@@ -139,6 +182,7 @@ def test_digest_sensitive_to_claim_order():
 
 # --- audit_from_claims: real counts + digest wiring -------------------------
 
+@requires_trust_core
 def test_counts_and_n_claims():
     r = _record()
     assert r.n_claims == 5
@@ -150,6 +194,7 @@ def test_counts_and_n_claims():
     assert r.n_verified + r.n_refuted + r.n_unsupported + r.n_unverified == r.n_claims
 
 
+@requires_trust_core
 def test_ledger_digest_equals_digest_claims():
     claims = _claims()
     r = audit_from_claims(
@@ -163,6 +208,7 @@ def test_ledger_digest_equals_digest_claims():
     assert r.ledger_digest == digest_claims(claims)
 
 
+@requires_trust_core
 def test_record_reflects_inputs():
     r = _record()
     assert r.run_id == "run-1"
@@ -174,6 +220,7 @@ def test_record_reflects_inputs():
 
 # --- sign -> verify round-trip ----------------------------------------------
 
+@requires_trust_core
 def test_sign_verify_roundtrip_returns_equal_record():
     ks, key_id = _keyed_store()
     rec = _record()
@@ -187,6 +234,7 @@ def test_sign_verify_roundtrip_returns_equal_record():
 
 # --- tamper-evidence --------------------------------------------------------
 
+@requires_trust_core
 def test_tampering_with_a_status_count_is_detected():
     ks, key_id = _keyed_store()
     env = sign_audit(_record(), ks, key_id)
@@ -209,6 +257,7 @@ def test_tampering_with_a_status_count_is_detected():
         verify_audit(tampered, ks)
 
 
+@requires_trust_core
 def test_signature_tamper_is_detected():
     ks, key_id = _keyed_store()
     env = sign_audit(_record(), ks, key_id)
@@ -226,6 +275,7 @@ def test_signature_tamper_is_detected():
 
 # --- wrong / unknown key + bad payload type ---------------------------------
 
+@requires_trust_core
 def test_different_key_fails_verification():
     # Same keystore holds two keys; verify against the OTHER key id. The key id
     # is known (no KeyError) but its verify key does not match the signature ->
@@ -245,6 +295,7 @@ def test_different_key_fails_verification():
         verify_audit(rebound, ks)
 
 
+@requires_trust_core
 def test_unknown_key_id_raises_keyerror():
     ks_signer, key_id = _keyed_store()
     env = sign_audit(_record(), ks_signer, key_id)
@@ -253,6 +304,7 @@ def test_unknown_key_id_raises_keyerror():
         verify_audit(env, empty_store)
 
 
+@requires_trust_core
 def test_wrong_payload_type_raises_valueerror():
     ks, key_id = _keyed_store()
     env = sign_audit(_record(), ks, key_id)
@@ -268,12 +320,17 @@ def test_wrong_payload_type_raises_valueerror():
 
 # --- property-based: source-order invariance of the digest ------------------
 
-@given(urls=st.lists(st.text(min_size=1, max_size=12), min_size=1, max_size=6, unique=True))
-def test_digest_invariant_under_source_permutation(urls):
-    """For any set of source ids, permuting them within a claim leaves the digest
-    unchanged — the digest sorts sources, so order carries no information (A5)."""
-    forward = [Claim(id="p", text="t", sources=[_src(u) for u in urls],
-                     status=ClaimStatus.VERIFIED)]
-    reverse = [Claim(id="p", text="t", sources=[_src(u) for u in reversed(urls)],
-                     status=ClaimStatus.VERIFIED)]
-    assert digest_claims(forward) == digest_claims(reverse)
+if HAS_TRUST_CORE:
+    from hypothesis import given
+    from hypothesis import strategies as st
+
+    @given(urls=st.lists(st.text(min_size=1, max_size=12), min_size=1, max_size=6, unique=True))
+    def test_digest_invariant_under_source_permutation(urls):
+        """For any set of source ids, permuting them within a claim leaves the
+        digest unchanged — the digest sorts sources, so order carries no
+        information (A5)."""
+        forward = [Claim(id="p", text="t", sources=[_src(u) for u in urls],
+                         status=ClaimStatus.VERIFIED)]
+        reverse = [Claim(id="p", text="t", sources=[_src(u) for u in reversed(urls)],
+                         status=ClaimStatus.VERIFIED)]
+        assert digest_claims(forward) == digest_claims(reverse)
