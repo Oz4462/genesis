@@ -60,6 +60,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- DEFERRABLE so a claim and its sources can be inserted in one transaction.
+-- DROP-then-CREATE makes applying this file idempotent (CREATE CONSTRAINT TRIGGER
+-- has no IF NOT EXISTS); re-running the schema must never error.
+DROP TRIGGER IF EXISTS claim_requires_source ON claims;
 CREATE CONSTRAINT TRIGGER claim_requires_source
     AFTER INSERT ON claims
     DEFERRABLE INITIALLY DEFERRED

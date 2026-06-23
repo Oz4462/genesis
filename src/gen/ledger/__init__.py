@@ -19,12 +19,13 @@ __all__ = [
     "FetchRecord",
     "UnknownClaimError",
     "PostgresLedgerStore",
+    "PostgresConfig",
 ]
 
 
 def __getattr__(name: str):
     # Lazy: only import the Postgres adapter (and asyncpg) on demand.
-    if name == "PostgresLedgerStore":
-        from .postgres import PostgresLedgerStore
-        return PostgresLedgerStore
+    if name in ("PostgresLedgerStore", "PostgresConfig"):
+        from . import postgres
+        return getattr(postgres, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

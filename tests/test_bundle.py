@@ -28,7 +28,15 @@ from gen.demo import (  # noqa: E402
 )
 from gen.pipeline import assess_specification  # noqa: E402
 
-_HAS_CADQUERY = importlib.util.find_spec("cadquery") is not None
+# The print-ready STL is producible either in-process (cadquery imported here) OR via
+# the isolated cad-venv subprocess bridge (the GENESIS-box path). The bundle writes the
+# STL whenever EITHER route works, and honestly records it as missing only when NEITHER
+# does — so the test reflects both routes, not just the in-process import.
+from gen.cad.cadquery_bridge import cad_available as _cad_bridge_available  # noqa: E402
+
+_HAS_CADQUERY = (
+    importlib.util.find_spec("cadquery") is not None or _cad_bridge_available()
+)
 
 
 def test_knee_mount_bundle_writes_every_deliverable(tmp_path):

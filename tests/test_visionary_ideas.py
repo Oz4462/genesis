@@ -21,7 +21,12 @@ from gen.bundle import emit_bundle  # noqa: E402
 from gen.pipeline import assess_specification  # noqa: E402
 from gen.visionary_ideas import ALL_VISIONARY_IDEAS  # noqa: E402
 
-_HAS_CADQUERY = importlib.util.find_spec("cadquery") is not None
+# STL is producible in-process (cadquery here) OR via the isolated cad-venv bridge.
+from gen.cad.cadquery_bridge import cad_available as _cad_bridge_available  # noqa: E402
+
+_HAS_CADQUERY = (
+    importlib.util.find_spec("cadquery") is not None or _cad_bridge_available()
+)
 
 # the signature axis each grok-dreamed idea must auto-fire — proof GENESIS verified the physics the
 # vision actually depends on (a flying manipulator must fire the flight stack, a resonance walker the

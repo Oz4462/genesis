@@ -851,6 +851,70 @@ def export_placement_to_kicad_pcb(placements: list[PlacementHint], components: l
     return text
 
 
+def validate_pcb_with_kicad_cli(
+    placements: list[PlacementHint],
+    components: list[Component],
+    out_dir: str,
+    *,
+    formats: tuple[str, ...] = ("svg", "gerbers", "step"),
+    layers: str = "F.Cu,B.Cu",
+) -> dict[str, Any]:
+    """Generate the PCB and validate it with the REAL ``kicad-cli`` (ground truth).
+
+    Two-stage verification, strongest last: (1) our internal verifier
+    (``verify_kicad_pcb``) confirms the S-expression is well-formed by GENESIS rules;
+    (2) KiCad's OWN engine loads the ``.kicad_pcb`` and exports the requested artifacts
+    — SVG (render), Gerbers (fab files) and/or STEP (3D). Stage 2 succeeding means
+    KiCad genuinely parsed the board, a far stronger claim than the regex pass, and it
+    yields real manufacturing output.
+
+    Returns ``{"pcb_path", "kicad_version", "results": {fmt: KiCadCliResult}, "ok",
+    "available"}``. ``ok`` is True only if every requested export succeeded under KiCad.
+
+    Honest degradation: if ``kicad-cli`` is not installed, returns ``available=False,
+    ok=False`` with the generated (internally-verified) ``.kicad_pcb`` still written —
+    it does NOT fabricate a pass. A genuine KiCad rejection is surfaced as ``ok=False``
+    with KiCad's message, never swallowed.
+
+    Raises:
+        ValueError: the internal PCB verifier rejects the generated file (stage 1).
+        ToolError: kicad-cli is present but the subprocess itself cannot run.
+    """
+    import os as _os
+
+    from gen.cad import kicad_cli as _kc
+
+    text = export_placement_to_kicad_pcb(placements, components)  # stage 1 gate inside
+    _os.makedirs(out_dir, exist_ok=True)
+    pcb_path = _os.path.join(out_dir, "genesis_board.kicad_pcb")
+    with open(pcb_path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+
+    if not _kc.kicad_cli_available():
+        return {
+            "pcb_path": pcb_path,
+            "kicad_version": None,
+            "results": {},
+            "ok": False,
+            "available": False,
+            "detail": "kicad-cli not installed; internal verifier passed only",
+        }
+
+    results: dict[str, Any] = {}
+    all_ok = True
+    for fmt in formats:
+        res = _kc.export_pcb(pcb_path, out_dir, fmt=fmt, layers=layers)
+        results[fmt] = res
+        all_ok = all_ok and res.ok
+    return {
+        "pcb_path": pcb_path,
+        "kicad_version": _kc.kicad_version(),
+        "results": results,
+        "ok": all_ok,
+        "available": True,
+    }
+
+
 # =============================================================================
 # Internal rule-based auto-place + harness routing + basic DRC (C-item internalized, besser als vorher)
 # Deterministic, provenance everywhere, multi-board/CAN/tether aware. Generalist (any Component list).

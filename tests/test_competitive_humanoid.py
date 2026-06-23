@@ -30,7 +30,12 @@ from gen.costing import bom_cost  # noqa: E402
 from gen.export.openscad import specification_to_openscad  # noqa: E402
 from gen.pipeline import assess_specification  # noqa: E402
 
-_HAS_CADQUERY = importlib.util.find_spec("cadquery") is not None
+# STL is producible in-process (cadquery here) OR via the isolated cad-venv bridge.
+from gen.cad.cadquery_bridge import cad_available as _cad_bridge_available  # noqa: E402
+
+_HAS_CADQUERY = (
+    importlib.util.find_spec("cadquery") is not None or _cad_bridge_available()
+)
 _IDS = [fn().run_id for fn, _ in ALL_COMPETITIVE_HUMANOIDS]
 
 

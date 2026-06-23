@@ -22,9 +22,18 @@ by the δ-DFM layers, not by this exporter.
 
 from __future__ import annotations
 
+import importlib.util
+
 from ..core.errors import GeometryError
 from ..core.state import Quantity, Specification
 from ..brep import csg_to_solid
+
+
+def _in_process_cadquery() -> bool:
+    """True iff cadquery imports in THIS interpreter. When False (the GENESIS box,
+    where cadquery lives only in the isolated cad venv) the STL is produced via the
+    subprocess bridge instead of the in-process tessellation below."""
+    return importlib.util.find_spec("cadquery") is not None
 
 
 def _facet(a, b, c) -> str | None:
@@ -62,6 +71,27 @@ def specification_to_brep_stl(spec: Specification, *, tolerance: float = 0.1) ->
     if not parts:
         raise GeometryError("no component with geometry to export")
 
+    # Off-box / isolated-venv path: tessellate every part in the cad venv and fuse
+    # the resulting facet blocks into one body (strip each part's solid wrapper).
+    if not _in_process_cadquery():
+        from ..cad import cadquery_bridge  # noqa: PLC0415
+        body = [f"solid genesis_{spec.run_id}\n"]
+        n_facets = 0
+        for comp in parts:
+            part_stl = cadquery_bridge.to_stl(
+                comp.geometry, quantities, name="part", tolerance=tolerance
+            )
+            for line in part_stl.splitlines(keepends=True):
+                if line.startswith("solid ") or line.startswith("endsolid "):
+                    continue
+                body.append(line)
+                if line.lstrip().startswith("facet normal"):
+                    n_facets += 1
+        if n_facets == 0:
+            raise GeometryError("tessellation produced no facets (degenerate geometry?)")
+        body.append(f"endsolid genesis_{spec.run_id}\n")
+        return "".join(body)
+
     chunks: list[str] = [f"solid genesis_{spec.run_id}\n"]
     n_facets = 0
     for comp in parts:
@@ -85,6 +115,9 @@ def component_to_brep_stl(geometry, quantities: dict[str, Quantity], *,
     part), unlike ``specification_to_brep_stl`` which fuses every component into a single body. Same
     tessellation and outward winding. Raises GeometryError if cadquery is absent, the CSG is malformed,
     or the mesh is degenerate (no facets)."""
+    if not _in_process_cadquery():
+        from ..cad import cadquery_bridge  # noqa: PLC0415
+        return cadquery_bridge.to_stl(geometry, quantities, name=name, tolerance=tolerance)
     solid = csg_to_solid(geometry, quantities)
     verts, tris = solid.tessellate(tolerance)
     chunks: list[str] = [f"solid genesis_{name}\n"]

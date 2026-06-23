@@ -1,5 +1,68 @@
 # BUILD_LOG
 
+## 2026-06-23 — Tool-Integration: neu-installierte externe Tools real verdrahtet (PG/pgvector, CadQuery, KiCad, OpenFOAM, OpenMDAO)
+
+**Verdict: REAL.** Fünf zuvor degradiert/Fassade laufende import-guarded Hooks an echte, jetzt
+installierte Tools angeschlossen — alles fail-loud, keine stillen Defaults, Negativtests inklusive.
+
+1. **PostgreSQL-Ledger + pgvector** (`src/gen/ledger/postgres.py`, `sql/002_embeddings.sql`): `genesis`-Rolle
+   (peer-auth Socket) + DB owner gesetzt, `CREATE EXTENSION vector` (0.6.0). `PostgresConfig.from_env()`
+   (GENESIS_DB_*-Defaults), `ensure_schema()` (idempotent — `DROP TRIGGER IF EXISTS` in 001; **Dimensions-
+   Mismatch-Guard** fail-loud), `store_embedding()`/`recall_similar()` mit **injizierbarem** Embedder (kein
+   harter Ollama-Zwang, Dimension explizit). Cosine-Recall liefert den richtigen Claim MIT rekonstruierter
+   Provenance. Test `tests/test_ledger_postgres_integration.py`: **6 passed** (Round-Trip, embed_model-
+   Isolation, Dim-Mismatch loud, DB-Trigger-Reject sourceless, FK-Reject unknown claim, Dim-Guard).
+2. **CadQuery → exakte OCCT-BREP via Subprozess-Bridge** (`src/gen/cad/cadquery_bridge.py` +
+   `cadquery_worker.py`): cadquery NIE im Haupt-venv (degradiert numpy) — Worker läuft in `/home/genesis/
+   .venv-cad`, JSON rein/raus. `brep.exact_volume/is_valid/interferes` + `export/brep_stl` delegieren jetzt
+   an die Bridge (in-process-Fallback bleibt). Neu: STEP-Export (ISO-10303). Test
+   `tests/test_cadquery_bridge_integration.py`: **9 passed** (boolean-Volumen == analytisch, exakte
+   Interferenz schlägt AABB, STL, STEP, brep-API-Routing, 3 Negativtests). Nebenwirkung: 34 Bundle/STL-Tests
+   (`test_bundle/future_ideas/visionary_ideas/competitive_humanoid`) produzieren jetzt ECHTE STLs statt
+   „missing" — Gating bridge-aware aktualisiert, **34 passed**.
+3. **KiCad → echtes `kicad-cli` (v7.0.11)** (`src/gen/cad/kicad_cli.py`, `electronics.validate_pcb_with_kicad_cli`):
+   KiCads EIGENE Engine lädt unsere `.kicad_pcb` und exportiert SVG/Gerbers/STEP — echte Validierung statt
+   nur Regex. `_run_cli` fängt KiCads exit-0-ohne-Output-Falle (kein erfundener Pass). Ehrliche Grenze
+   gemessen: KiCad 7 LEHNT das minimale Schema-Skelett ab; ERC/DRC erst ab KiCad 8 (deklariert). Test
+   `tests/test_kicad_cli_integration.py`: **6 passed** (PCB→SVG/Gerbers/STEP real geladen, Netlist aus echtem
+   Demo-Schema, 3 Negativtests).
+4. **OpenFOAM → neue CFD-Validierungsachse** (`src/gen/cfd.py`): `poiseuille_channel_check` fährt echten
+   `blockMesh`+`simpleFoam`-Lauf (laminarer Kanal), vergleicht das vom Solver UNABHÄNGIG berechnete
+   Geschwindigkeitsfeld gegen die analytische Poiseuille-Form (u_max-Fehler 2.1e-7; Profil-L2 0.086 % =
+   echter Diskretisierungsfehler). Separater `gate_cfd` + `CFD_VALIDATORS` (bewusst NICHT im schnellen
+   δ-Physik-Gate). Test `tests/test_cfd_integration.py`: **8 passed** (inkl. Negativ-Physik + Gate +
+   missing-binary loud). Sourct `/usr/share/openfoam/etc/bashrc`.
+5. **OpenMDAO → MDO-Backend** (`src/gen/inventor/optimize.py`): `OpenMdaoOptimizer.minimize()` baut echtes
+   `om.Problem` + SLSQP, konvergiert auf bekannte Optima (Paraboloid (3,-1) → 3.0e-7). Ehrlich dokumentiert:
+   `select()` nutzt OpenMDAO NICHT (Listen-Filter ≠ kontinuierlicher Optimierer) → gleicher Pareto wie
+   `ParetoOptimizer`. Test `tests/test_optimize_openmdao.py`: **14 passed** (inkl. Nicht-Konvergenz →
+   `OptimizationError`, absent-backend → `OptimizerUnavailable`).
+
+**Volle Offline-Suite: 2479 passed / 43 skipped / 2 failed.** Die 2 Failures sind in
+`tests/test_lumencrucible.py` und **vorbestehend** (bewiesen via `git stash` gegen HEAD — Enum-vs-String-
+Vergleich + multi_domain['software']=None); von mir NICHT berührt. Ruff sauber auf allen Dateien.
+**Nicht committet** (Orchestrator committet nach Verifikation). `.crew/`/Queue unberührt.
+
+DEFERRED (ehrlich): FreeCAD (nur als GUI-Flatpak `org.freecad.FreeCAD 1.1.1` — headless-awkward; FEM ist
+ohnehin pure-numpy), OpenModelica/OMPython, Qdrant-als-Store, ROS2-Export, OpenCV — keine Code-Hooks in
+`src/` vorhanden; saubere Next-Steps.
+
+### Selbstkontrolle + 4 Linsen
+- [x] Interfaces erfüllt, Typen+Docstrings, Fehlerfälle dokumentiert
+- [x] Tests grün inkl. Negativtests pro Tool (fehlende Quelle/Tool-Fehler/Widerspruch fail-loud)
+- [x] Ledger: pgvector-Recall liefert Claims MIT Provenance; Trigger-Layer live bewiesen
+- [x] Keine Gate-Regression; CFD-Gate bewusst separat vom schnellen δ-Gate
+- [x] Doku: jeder Modul-Docstring ehrlich (inkl. gemessene Grenzen, z.B. KiCad-7-Skelett-Reject)
+- [x] BUILD_LOG-Eintrag
+- L1 (Wahrheit): jede Tool-Behauptung durch echten Lauf bewiesen (PG round-trip, OCCT-Volumen vs analytisch,
+  KiCad-Load, OpenFOAM vs closed-form, SLSQP vs bekanntes Optimum) — keine erfundenen Zahlen.
+- L2 (Drift): bestehende Tests grün; brep_stl-Verhalten verbessert (STL jetzt produzierbar) → abhängige
+  Tests bridge-aware nachgezogen, Doc==Code.
+- L3 (Vollständig/Naht): Subprozess-Isolation hält numpy sauber; PG-Treiber bleibt aus dem Core; Negativ-
+  pfade decken die Nähte ab.
+- L4 (Realisierbarkeit): alle 5 Tool-Integrationstests real ausgeführt (PG/CadQuery/KiCad/CFD/OpenMDAO),
+  Server/Binaries waren up → pass, nicht skip.
+
 ## 2026-06-23 — T01 Depth-Audit + Härtung `discovery/multiterm.py`
 
 **Verdict: REAL.** Neuer Charakterisierungs-Test `tests/test_multiterm_characterization.py` (29 Fälle,

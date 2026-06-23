@@ -20,6 +20,16 @@ kernel. The test skips when cadquery is not installed; where it IS installed the
 results are cross-checked against the analytic `geometry.volume_of` (two
 independent methods agreeing) and against the conservative AABB (exact ≤ bound).
 
+ISOLATED-VENV BRIDGE (2026-06): cadquery cannot live in the main GENESIS venv (it
+downgrades numpy and breaks the stack), so the exact-OCCT path runs in a SEPARATE
+interpreter (``/home/genesis/.venv-cad``). The scalar/export API here
+(``exact_volume``, ``is_valid``, ``interferes``, and ``brep_stl`` STL) delegates to
+``cad.cadquery_bridge``, which serialises the CSG and runs ``cad/cadquery_worker.py``
+under the cad-venv as a subprocess — no ``import cadquery`` in the main process.
+``csg_to_solid`` still returns a LIVE OCCT object and therefore only works where
+cadquery IS importable in-process (it raises a clear error otherwise); the
+subprocess bridge is the supported path on the GENESIS box.
+
 Geometry convention matches the rest of GENESIS: primitives are CENTERED at the
 origin (see PHASE_DELTA.md §1 / export/openscad.py / export/build123d.py).
 
@@ -123,15 +133,35 @@ def csg_to_solid(node: GeometryNode, quantities: dict[str, Quantity]):
     raise GeometryError(f"unknown geometry kind {node.kind!r}")
 
 
+def _in_process_cadquery() -> bool:
+    """True iff cadquery imports IN THIS interpreter (only then can csg_to_solid's
+    live-Solid path run locally). On the GENESIS box this is False — the kernel runs
+    in the isolated cad venv via the subprocess bridge."""
+    import importlib.util  # noqa: PLC0415
+
+    return importlib.util.find_spec("cadquery") is not None
+
+
 def exact_volume(node: GeometryNode, quantities: dict[str, Quantity]) -> float:
     """Exact solid volume from the OCCT kernel (vs the analytic bound of
-    geometry.volume_of). Same length unit cubed as the quantities."""
-    return float(csg_to_solid(node, quantities).Volume())
+    geometry.volume_of). Same length unit cubed as the quantities.
+
+    Runs the kernel in-process when cadquery is importable here; otherwise delegates
+    to the isolated cad-venv via ``cad.cadquery_bridge`` (the GENESIS-box path)."""
+    if _in_process_cadquery():
+        return float(csg_to_solid(node, quantities).Volume())
+    from .cad import cadquery_bridge  # noqa: PLC0415
+    return cadquery_bridge.exact_volume(node, quantities)
 
 
 def is_valid(node: GeometryNode, quantities: dict[str, Quantity]) -> bool:
-    """True if the kernel reports a topologically valid solid (BRepCheck)."""
-    return bool(csg_to_solid(node, quantities).isValid())
+    """True if the kernel reports a topologically valid solid (BRepCheck).
+
+    In-process when cadquery is present here; else via the isolated-venv bridge."""
+    if _in_process_cadquery():
+        return bool(csg_to_solid(node, quantities).isValid())
+    from .cad import cadquery_bridge  # noqa: PLC0415
+    return cadquery_bridge.is_valid(node, quantities)
 
 
 def interferes(
@@ -144,12 +174,17 @@ def interferes(
     """Exact interference: True iff the two solids actually overlap (intersection
     volume > tolerance). Unlike the AABB test this is EXACT — two parts whose
     bounding boxes overlap but whose solids do not are correctly reported as
-    non-interfering."""
-    solid_a = csg_to_solid(node_a, quantities)
-    solid_b = csg_to_solid(node_b, quantities)
-    inter = solid_a.intersect(solid_b)
-    try:
-        vol = float(inter.Volume())
-    except Exception:  # noqa: BLE001 - an empty intersection can be a null shape
-        return False
-    return vol > tolerance
+    non-interfering.
+
+    In-process when cadquery is present here; else via the isolated-venv bridge."""
+    if _in_process_cadquery():
+        solid_a = csg_to_solid(node_a, quantities)
+        solid_b = csg_to_solid(node_b, quantities)
+        inter = solid_a.intersect(solid_b)
+        try:
+            vol = float(inter.Volume())
+        except Exception:  # noqa: BLE001 - an empty intersection can be a null shape
+            return False
+        return vol > tolerance
+    from .cad import cadquery_bridge  # noqa: PLC0415
+    return cadquery_bridge.interferes(node_a, node_b, quantities, tolerance=tolerance)
