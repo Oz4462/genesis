@@ -11,22 +11,22 @@
 ```mermaid
 kanban
   done
-    nT01[T01: Depth-audit + fix future_ideas.py (five gated future-product specs)]
-    nT02[T02: Depth-audit + fix geometry_verification.py (BREP-vs-analytic cross-check)]
-    nT03[T03: Depth-audit + fix goldset.py (curated measurement set loader + scorer)]
-    nT04[T04: Depth-audit + fix grounding_integrity.py (corroboration independence + repo]
-    nT05[T05: Depth-audit + fix identity_research.py (bounded identity falsifier + witnes]
+    nT01[T01: Depth-audit + fix inverse_design.py (γ⁺ validated Pareto front)]
+    nT02[T02: Depth-audit + fix kinematics.py (δ closed-form robot axes)]
+    nT03[T03: Depth-audit + fix memory_fabric.py (ζ shared-memory certificate + gate)]
+    nT04[T04: Depth-audit + fix mesh_integrity.py (δ STL sliceability proof)]
+    nT05[T05: Depth-audit + fix modal.py (natural-frequency eigenproblem)]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | Depth-audit + fix future_ideas.py (five gated future-product specs) | done | claude | feature |
-| T02 | Depth-audit + fix geometry_verification.py (BREP-vs-analytic cross-check) | done | grok | feature |
-| T03 | Depth-audit + fix goldset.py (curated measurement set loader + scorer) | done | claude | feature |
-| T04 | Depth-audit + fix grounding_integrity.py (corroboration independence + report grounding) | done | claude | feature |
-| T05 | Depth-audit + fix identity_research.py (bounded identity falsifier + witness finder) | done | claude | feature |
+| T01 | Depth-audit + fix inverse_design.py (γ⁺ validated Pareto front) | done | claude | feature |
+| T02 | Depth-audit + fix kinematics.py (δ closed-form robot axes) | done | grok | feature |
+| T03 | Depth-audit + fix memory_fabric.py (ζ shared-memory certificate + gate) | done | claude | feature |
+| T04 | Depth-audit + fix mesh_integrity.py (δ STL sliceability proof) | done | grok | feature |
+| T05 | Depth-audit + fix modal.py (natural-frequency eigenproblem) | done | claude | feature |
 
 ## Decisions
 
@@ -300,6 +300,16 @@ kanban
 - (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (standing 2026-06-23 team decision); each task's honest verdict (REAL/PARTIAL/FACADE + what was made real) + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (the integrator consolidates at merge).
 - (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (Specification/Quantity/Claim/ClaimStatus/SourceRef/Report/GeometryNode) and each module's real signatures — read them, never invent fields — and use only stdlib + already-declared deps (sympy/mpmath/numpy/cadquery already declared).
 - (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess in the always-run path, matching the historical test→claude routing.
+- (2026-06-23) Split strictly by module (inverse_design / kinematics / memory_fabric / mesh_integrity / modal): the five sources share no mutual imports beyond pre-existing core.state/core.errors/fem3d/verification helpers carried unmodified in each worktree, so parallel worktrees never write the same path.
+- (2026-06-23) Keep each module and ITS new test in the SAME task (the test imports the module under audit) so each task is independently verifiable in its own worktree using only its own files plus pre-existing repo files (core.state, verification.units, fem3d/fem3d_quadratic, pipeline/gates already on main).
+- (2026-06-23) New test files take the _characterization suffix because kinematics/memory_fabric/mesh_integrity/modal already have a legacy test_<module>.py; inverse_design has none, so its new file is also its first — in all cases legacy tests stay untouched (no churn).
+- (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (standing 2026-06-23 team decision); each task's honest verdict + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (the integrator consolidates into BUILD_LOG at merge).
+- (2026-06-23) Universal facade-killer per module: assert (a) the headline output changes MEANINGFULLY when a driving input changes (proves the input is consumed, not a canned constant) AND (b) the documented fail-loud/abstention path fires exactly (the mandatory NEGATIVE test) — per 'keine stillen Defaults' and 'a gate without a test does not exist'.
+- (2026-06-23) Numeric modules are cross-checked against CLOSED FORMS so the numbers are proven computed not echoed: kinematics' DH product == planar-2R x=l₁cosθ₁+l₂cos(θ₁+θ₂) and base hold-torque == m·g·L; mesh_integrity's hand-built unit cube gives chi=2/genus=0/positive signed volume == cube volume; modal's consistent mass sums to ρV exactly and a free-free single tet returns six ~zero rigid-body modes.
+- (2026-06-23) inverse_design's facade-killer targets the gamma/delta-independent core (objective_value unit rescale, dominates strict relation, ObjectiveEvaluationError guards, empty-front-with-gap abstention) so the test is self-contained and need NOT spin up the full GATE γ + δ assessment machinery to prove non-facade behavior.
+- (2026-06-23) modal's bar→c/(4L) convergence needs a fine mesh (gmsh); the always-available claims (mass==ρV, six free-free zeros on a single hand-built regular tetrahedron, resonance_check ratio/guards) carry the audit, and any gmsh meshing cross-check is pytest.importorskip-guarded so the full pytest gate stays green where gmsh is absent.
+- (2026-06-23) All five modules construct inputs through the REAL constructors/field/enum names in src/gen/core/state.py (RunState/Question/Claim/ClaimStatus/SourceRef/Specification/Quantity/DesignCandidate/DesignObjective/InverseDesignGoal/ObjectiveDirection/ParetoFront/MemoryDeposit/MemoryRecallLink/MemoryFabricCertificate/MemoryHealthStatus) and each module's real signatures — never invent fields — using only stdlib + already-declared deps (numpy already declared for kinematics/modal).
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess in the always-run path, matching the historical test→claude routing.
 
 ### Architecture Decision Records
 
@@ -337,20 +347,21 @@ kanban
 - 0032. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0033. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0034. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0035. Depth-audit AND FIX (genesis overnight loop). For each modul
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 27 |
-| Tasks (total) | 126 |
-| Done | 124 |
+| Runs | 28 |
+| Tasks (total) | 131 |
+| Done | 129 |
 | Blocked | 1 |
 | Resolved rate | 98% |
 | Blocked rate | 1% |
-| Merges | 16 |
-| Avg duration | 70.9m |
-| Total cost | 315.37 |
+| Merges | 17 |
+| Avg duration | 70.4m |
+| Total cost | 331.14 |
 
 ## Architecture
 
@@ -366,6 +377,18 @@ graph TD
 
 Recent commits:
 
+- `95b2ab9 crew: resolve merge conflict for crew/T04-grok`
+- `6de2ed5 Merge branch 'crew/T05-claude' into crew/integration`
+- `c4a45e5 Merge branch 'crew/T03-claude' into crew/integration`
+- `a387d4c Merge branch 'crew/T02-grok' into crew/integration`
+- `56ce203 crew(claude): T05 Depth-audit + fix modal.py (natural-frequency eigenproblem) [round 1]`
+- `32cdfed crew(grok): T04 Depth-audit + fix mesh_integrity.py (δ STL sliceability proof) [round 1]`
+- `e408a89 crew(claude): T03 Depth-audit + fix memory_fabric.py (ζ shared-memory certificate + gate) [round 1]`
+- `7e55048 crew(grok): T02 Depth-audit + fix kinematics.py (δ closed-form robot axes) [round 2]`
+- `e428612 crew(grok): T02 Depth-audit + fix kinematics.py (δ closed-form robot axes) [round 1]`
+- `faa944c crew(claude): T01 Depth-audit + fix inverse_design.py (γ⁺ validated Pareto front) [round 1]`
+- `747e065 Merge branch 'crew/integration'`
+- `4b071d1 crew: scaffold CI/CD + project config`
 - `6f36463 Merge branch 'crew/T05-claude' into crew/integration`
 - `3d9dae2 Merge branch 'crew/T04-claude' into crew/integration`
 - `84a81d9 Merge branch 'crew/T03-claude' into crew/integration`
@@ -374,18 +397,6 @@ Recent commits:
 - `7776ffc crew(grok): T02 Depth-audit + fix geometry_verification.py (BREP-vs-analytic cross-check) [round 4]`
 - `d89d339 crew(claude): T04 Depth-audit + fix grounding_integrity.py (corroboration independence + report grounding) [round 1]`
 - `d3ec224 crew(grok): T02 Depth-audit + fix geometry_verification.py (BREP-vs-analytic cross-check) [round 3]`
-- `eb21d03 crew(claude): T03 Depth-audit + fix goldset.py (curated measurement set loader + scorer) [round 1]`
-- `840b8e8 crew(grok): T02 Depth-audit + fix geometry_verification.py (BREP-vs-analytic cross-check) [round 2]`
-- `8246c15 crew(claude): T01 Depth-audit + fix future_ideas.py (five gated future-product specs) [round 1]`
-- `10281fc crew(grok): T02 Depth-audit + fix geometry_verification.py (BREP-vs-analytic cross-check) [round 1]`
-- `039ebd8 Merge branch 'crew/integration'`
-- `721673c crew: scaffold CI/CD + project config`
-- `9d91523 Merge branch 'crew/T05-claude' into crew/integration`
-- `e4e601f Merge branch 'crew/T04-claude' into crew/integration`
-- `7708c31 Merge branch 'crew/T03-claude' into crew/integration`
-- `03b1769 Merge branch 'crew/T02-grok' into crew/integration`
-- `038995e Merge branch 'crew/T01-claude' into crew/integration`
-- `c02eac2 crew(claude): T05 Depth-audit + characterization for frontier.py (Phase χ frontier map) [round 1]`
 
 
 ---
