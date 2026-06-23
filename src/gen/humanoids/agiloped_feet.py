@@ -28,7 +28,13 @@ from pathlib import Path
 @dataclass(frozen=True)
 class FlatFootSpec:
     """A flat box sole to fix under a link. Dimensions [m]; ``z_bottom`` is the sole's centre z in the
-    parent link frame (place at the link's measured lowest extent + half the pad thickness)."""
+    parent link frame (place at the link's measured lowest extent + half the pad thickness).
+
+    ``roll``/``pitch`` [rad] rotate the sole in the parent-link fixed joint. Default 0 keeps the original
+    behaviour; they exist because the AGILOped ``ankle_link`` carries a baked ±29° roll (from the −44°
+    hip-chain splay that the un-splay pose only partly cancels), so a sole attached with rpy=0 inherits
+    that tilt and is NOT flat on the ground. Setting ``roll`` to the negative of the link's baked roll
+    makes the sole truly flat, which is what gives a real (wide) support polygon."""
 
     parent_link: str
     size_x: float
@@ -38,6 +44,8 @@ class FlatFootSpec:
     y: float
     z_bottom: float
     mass: float = 0.02  #: near-zero so it does not perturb the inertia-repaired mass model
+    roll: float = 0.0   #: sole roll [rad] in the fixed joint (counter the parent link's baked roll)
+    pitch: float = 0.0  #: sole pitch [rad] in the fixed joint
 
 
 #: Measured AGILOped sole specs (from the ``left_ankle_link`` STL footprint, used for both feet since the
@@ -98,7 +106,8 @@ def add_flat_feet(urdf_in: str = AGILOPED_NOPARALLEL_URDF, urdf_out: str = AGILO
         joint = ET.SubElement(root, "joint", {"name": f"{sole_name}_fixed", "type": "fixed"})
         ET.SubElement(joint, "parent", {"link": spec.parent_link})
         ET.SubElement(joint, "child", {"link": sole_name})
-        ET.SubElement(joint, "origin", {"xyz": f"{spec.x} {spec.y} {cz}", "rpy": "0 0 0"})
+        ET.SubElement(joint, "origin", {"xyz": f"{spec.x} {spec.y} {cz}",
+                                        "rpy": f"{spec.roll} {spec.pitch} 0"})
 
     out = Path(urdf_out)
     tree.write(out, encoding="utf-8", xml_declaration=True)

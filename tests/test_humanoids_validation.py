@@ -60,9 +60,13 @@ def test_zmp_anchor_is_stable_for_a_known_height_robot():
 
 
 def test_spec_only_robot_reports_honest_structural_gap_not_a_fabricated_value():
-    """Fourier N1 has no model on disk → structural check must be a GAP, never invented DOF/mass."""
-    assert ASSETS["fourier_n1"].model_path is None
-    res = structural_cross_check("fourier_n1")
+    """A spec-only robot (no model on disk) → structural check must be a GAP, never invented DOF/mass.
+
+    Uses InMoov, which is genuinely spec-only here (STL-only NonCommercial hobby model, no URDF/MJCF).
+    NOTE: Fourier N1 USED to be the spec-only example, but its MJCF was acquired (Wiki-GRx-MJCF) and it
+    is now engine-validated, so it is no longer the right fixture for the spec-only gap behaviour."""
+    assert ASSETS["inmoov"].model_path is None
+    res = structural_cross_check("inmoov")
     assert len(res) == 1
     assert res[0].verdict == "gap"
     assert res[0].genesis_value == "—"

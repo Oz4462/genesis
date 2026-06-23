@@ -223,22 +223,33 @@ ASSETS: dict[str, AssetRef] = {
                     "+ STEP/MuJoCo present; NOT clean-dynamics-ready (missing inertials) without repair.",
     ),
     "fourier_n1": AssetRef(
-        key="fourier_n1", repo_url="github.com/FFTAI/Wiki-GRx-Deploy@FourierN1",
-        license="MIT (deploy SDK) — N1 hardware files under Fourier's open release terms",
-        license_note="the cloned deploy repo (control SDK + RL policy .pt) is MIT; no mesh here",
+        key="fourier_n1", repo_url="github.com/FFTAI/Wiki-GRx-MJCF (models/N1) + Wiki-GRx-Deploy@FourierN1 (SDK)",
+        license="GPL-3.0 (Wiki-GRx-MJCF model repo)",
+        license_note="the N1 MJCF/URDF/meshes come from Wiki-GRx-MJCF (GPL-3.0); the deploy SDK is MIT",
         local_dir=f"{ASSET_ROOT}/fourier_n1",
-        model_path=None, model_format=None, extra_formats=("RL policy .pt", "joint config yaml"),
-        status_note="SPEC-ONLY: 23-DOF actuator map + control period confirmed from config yaml; the "
-                    "robot URDF/mesh is an installed runtime resource, not in any GitHub repo found.",
+        model_path=f"{ASSET_ROOT}/fourier_n1/model/scene/N1_raw_refine.xml",
+        model_format="mjcf", extra_formats=("URDF (N1_raw.urdf, N1_rotor.urdf)", "29 STL meshes",
+                                            "RL policy .pt", "joint config yaml"),
+        status_note="ENGINE-VALIDATED + STANDS: MJCF loads in MuJoCo 3.10 — 23 hinge DOF + free base, "
+                    "nu=23 actuators, total mass 39.73 kg (spec 38 kg, +4.5%), 29 real binary STL meshes. "
+                    "Use scene/N1_raw_refine.xml (relative meshdir, actuated); the bare mjcf/N1_raw.xml "
+                    "has hardcoded absolute mesh paths and will not compile here. STAND: with flat box "
+                    "soles (gen.humanoids.n1_feet.add_box_feet -> scene/N1_boxfeet.xml) it holds the FULL "
+                    "8s upright (max lean 5deg, position-servo PD) and survives lateral + forward pushes; "
+                    "the raw mesh feet only stand ~2s (sparse contact). Render: _renders/n1_boxfeet_stand_*.png.",
     ),
     "kbot": AssetRef(
-        key="kbot", repo_url="github.com/kscalelabs/kbot",
+        key="kbot", repo_url="github.com/kscalelabs/kbot + kscalelabs/kscale-assets (kbot-v2-feet)",
         license="CERN-OHL-S (hardware) + GPL-3.0 (software)",
         license_note="strongly-reciprocal open hardware + copyleft sw",
         local_dir=f"{ASSET_ROOT}/kbot",
-        model_path=None, model_format=None, extra_formats=("Onshape CAD (link)",),
-        status_note="MODEL-BLOCKED offline: CAD is Onshape-only; MJCF fetched at runtime from the "
-                    "kscale web API (needs the `kscale` package, not installed). ksim-kbot RL stack cloned.",
+        model_path=f"{ASSET_ROOT}/kbot/model/robot.mjcf",
+        model_format="mjcf", extra_formats=("URDF (robot.urdf)", "24 STL meshes (LFS-resolved)",
+                                            "scene MJCFs", "metadata.json (actuator map)"),
+        status_note="ENGINE-VALIDATED: MJCF loads in MuJoCo 3.10 — 20 hinge DOF + free base, nu=20 "
+                    "actuators, total mass 35.65 kg (spec ~34 kg, +5%), 24 STL meshes. NOTE: meshes ship "
+                    "as git-LFS POINTERS in the repo; resolved via the LFS batch API (git-lfs CLI absent). "
+                    "robot.mjcf is the bare model; robot_scene.mjcf adds a floor.",
     ),
     "inmoov": AssetRef(
         key="inmoov", repo_url="inmoov.fr + github.com/inmoov-ros/inmoov_model",
