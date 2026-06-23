@@ -109,12 +109,14 @@ def overhang_check(
     """
     _require_cadquery()  # clear error if OCP is missing
     solid = csg_to_solid(node, quantities)
-    # An empty/degenerate boolean (e.g. A − B with B ⊇ A) yields a face-less shape
-    # whose OCCT bounding box is VOID — reading it raises an opaque kernel failure
-    # (Standard_ConstructionError "Bnd_Box is void"). Surface the documented error
-    # up front instead, so a degenerate input fails loud rather than crashing
-    # opaquely or (worse) silently returning needs_support=False. A valid solid
-    # always has ≥1 face, so this guard is a no-op for real geometry.
+    # An empty/degenerate boolean (e.g. A − B with B ⊇ A) yields a face-less shape.
+    # A face-less shape provably tessellates to ZERO triangles (verified against
+    # cadquery 2.8.0: 0 faces ⇒ 0 triangles), so the contract message below is
+    # accurate — the Faces() test is just the cheap EARLY detection of that same
+    # empty geometry, raised here because the alternative (reaching BoundingBox)
+    # crashes opaquely on the VOID box (Standard_ConstructionError "Bnd_Box is
+    # void"). Failing loud beats crashing opaquely or silently returning
+    # needs_support=False. A valid solid always has ≥1 face → no-op for real geometry.
     if not solid.Faces():
         raise ValueError("tessellation produced no triangles")
     bb = solid.BoundingBox()
@@ -179,10 +181,12 @@ def _mesh(node: GeometryNode, quantities: dict[str, Quantity],
     _require_cadquery()
     solid = csg_to_solid(node, quantities)
     # An empty/degenerate boolean (e.g. A − B with B ⊇ A) yields a face-less shape
-    # whose OCCT bounding box is VOID — reading it raises an opaque kernel failure
-    # before tessellation. Surface the documented error up front instead, so the
-    # "tessellation produced no triangles" contract holds for every degenerate input
-    # (a valid solid always has ≥1 face, so this is a no-op for real geometry).
+    # that provably tessellates to ZERO triangles (verified against cadquery 2.8.0:
+    # 0 faces ⇒ 0 triangles), so the contract message is accurate. The Faces() test
+    # is the cheap EARLY detection of that empty geometry, raised before BoundingBox
+    # because the void box would otherwise crash opaquely. A valid solid always has
+    # ≥1 face → no-op for real geometry; the `if not tris` backstop below still
+    # covers the all-degenerate-sliver case where faces exist but no triangle does.
     if not solid.Faces():
         raise ValueError("tessellation produced no triangles")
     bb = solid.BoundingBox()

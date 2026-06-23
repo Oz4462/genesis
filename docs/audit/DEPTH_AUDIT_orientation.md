@@ -53,7 +53,17 @@ beseitigt (Verletzung von „keine stillen/opaken Defaults").
 
 **Empirisch verifiziert** (cadquery 2.8.0 in `/home/genesis/.venv-cad`):
 `small.cut(big)` → `Compound`; `.Faces()` → `[]` (wirft **nicht**);
-`.BoundingBox()` → `Standard_ConstructionError "Bnd_Box is void"`. Der Crash ist real.
+`.tessellate(0.1)` → `(0, 0)` (0 Vertices/0 Dreiecke); `.BoundingBox()` →
+`Standard_ConstructionError "Bnd_Box is void"`. Der Crash ist real.
+
+**Zur Botschafts-Genauigkeit (Review-Befund Runde 3):** Der `Faces()`-Guard
+verwendet bewusst denselben Vertrags-String `"tessellation produced no triangles"`.
+Das ist **nicht** ungenau: ein flächenloser Shape tesselliert beweisbar zu NULL
+Dreiecken (oben empirisch: 0 Flächen ⇒ 0 Dreiecke). Der `Faces()`-Test ist nur die
+**billige, frühe** Erkennung genau dieser leeren Geometrie — vorgezogen, weil der
+alternative Pfad (bis `BoundingBox`) an der voiden Box opak crasht. Botschaft und
+Bedingung sind also konsistent; ein einziger Vertrags-String hält die drei
+öffentlichen Funktionen und ihre Tests synchron.
 
 Fix: ein vorgezogener Guard direkt nach `csg_to_solid`, in **`_mesh` UND
 `overhang_check`** (der Review-Befund aus Runde 1 — overhang_check war zunächst
