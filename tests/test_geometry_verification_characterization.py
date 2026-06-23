@@ -143,6 +143,36 @@ def test_mismatched_geometry_via_contained_subtraction_fails_when_expected():
     assert r["brep_volume"] < r["analytic_volume"] + 1e-6  # exercised upper-bound path
 
 
+def test_trimming_difference_yields_ok_true_with_shrunk_extent():
+    """A legitimate trimming difference (tool overlaps boundary of minuend) produces a
+    solid whose realized BREP extent is *strictly smaller* than the declared outer AABB
+    returned by analytic aabb_of(difference) which always yields the minuend box.
+    Before the bound fix this would set extent_ok=False (isclose) even though volume_ok
+    and the geometry are correct → false mismatch. After fix (<= bound) it must report
+    ok=True while still proving brep_extent < analytic in the trimmed axis.
+    This exercises the 'trim vs declared outer envelope' case that the review required."""
+    pytest.importorskip("cadquery", reason="BREP-vs-analytic cross-check needs optional cadquery/OCP kernel")
+    # 20x10x5 box minus a 10x10x5 box translated to clip ~7.5 mm off +X
+    big = GeometryNode(kind="box", params={"size_x": "bx", "size_y": "by", "size_z": "bz"})
+    tool = GeometryNode(kind="translate", params={"x": "tx", "y": "ty", "z": "tz"}, children=[
+        GeometryNode(kind="box", params={"size_x": "txs", "size_y": "tys", "size_z": "tzs"})
+    ])
+    node = GeometryNode(kind="difference", children=[big, tool])
+    qs = {
+        "bx": _q("bx", 20.0), "by": _q("by", 10.0), "bz": _q("bz", 5.0),
+        "tx": _q("tx", 7.5), "ty": _q("ty", 0.0), "tz": _q("tz", 0.0),
+        "txs": _q("txs", 10.0), "tys": _q("tys", 10.0), "tzs": _q("tzs", 5.0),
+    }
+    r = verify_geometry(node, qs)
+    assert r["ok"] is True
+    assert r["volume_ok"] is True
+    assert r["extent_ok"] is True
+    # legitimately shrunk in X
+    assert r["brep_extent"][0] < r["analytic_extent"][0] - 1e-6
+    assert math.isclose(r["brep_extent"][1], 10.0, abs_tol=1e-6)
+    assert math.isclose(r["brep_extent"][2], 5.0, abs_tol=1e-6)
+
+
 # --------------------------------------------------------------------------- #
 # Input consumption + determinism (facade killer)
 # --------------------------------------------------------------------------- #
@@ -178,12 +208,14 @@ def test_geometry_verification_is_deterministic():
     sx=st.floats(min_value=1.0, max_value=100.0),
     sy=st.floats(min_value=1.0, max_value=100.0),
     sz=st.floats(min_value=1.0, max_value=100.0),
+    cyl_r=st.floats(min_value=0.5, max_value=30.0),
+    cyl_h=st.floats(min_value=1.0, max_value=80.0),
 )
-def test_property_primitives_match_analytic_and_pass_crosscheck(radius, sx, sy, sz):
+def test_property_primitives_match_analytic_and_pass_crosscheck(radius, sx, sy, sz, cyl_r, cyl_h):
     """INVARIANT: for any admissible positive finite primitive the BREP result
     satisfies ok=True, volume_ok=True, extent_ok=True, and brep_volume isclose
     analytic (exact for box/sphere/cylinder). Property-based exploration, not
-    a single hard-coded example."""
+    a single hard-coded example. Includes cylinder (was missing in initial review)."""
     pytest.importorskip("cadquery", reason="BREP-vs-analytic cross-check needs optional cadquery/OCP kernel")
     # sphere
     ns = GeometryNode(kind="sphere", params={"radius": "r"})
@@ -201,6 +233,14 @@ def test_property_primitives_match_analytic_and_pass_crosscheck(radius, sx, sy, 
     assert rb["extent_ok"] is True
     expected_box = sx * sy * sz
     assert math.isclose(rb["brep_volume"], expected_box, rel_tol=1e-9)
+
+    # cylinder (added for coverage; volume exact = pi r^2 h, extent 2r/2r/h)
+    nc = GeometryNode(kind="cylinder", params={"radius": "cr", "height": "ch"})
+    rc = verify_geometry(nc, {"cr": _q("cr", cyl_r), "ch": _q("ch", cyl_h)})
+    assert rc["ok"] is True
+    assert rc["volume_ok"] is True
+    assert rc["extent_ok"] is True
+    assert math.isclose(rc["brep_volume"], rc["analytic_volume"], rel_tol=1e-6)
 
 
 # --------------------------------------------------------------------------- #

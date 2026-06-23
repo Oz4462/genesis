@@ -566,3 +566,29 @@ sy | → /vibe-verify or RecoveryPlaybook
 import sys
 sy | → /vibe-verify or RecoveryPlaybook
 - 2026-06-23T23:04:09.289921 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:09:26.818257 | run_terminal_command | cmd: cat > /tmp/trim_probe.py << 'PYEOF'
+import sys
+sys | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:09:39.634583 | search_replace | src/gen/geometry_verification.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-23T23:09:48.651655 | search_replace | tests/test_geometry_verification_characterization.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-23T23:09:55.410570 | search_replace | tests/test_geometry_verification_characterization.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-23T23:10:04.517154 | run_terminal_command | cmd: cat > /tmp/verify_fix.py << 'PYEOF'
+import sys
+sys | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:10:11.795683 | search_replace | docs/audit/DEPTH_AUDIT_geometry_verification.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:10:16.007386 | search_replace | docs/audit/DEPTH_AUDIT_geometry_verification.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:10:20.489143 | search_replace | docs/audit/DEPTH_AUDIT_geometry_verification.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:10:23.844649 | search_replace | docs/audit/DEPTH_AUDIT_geometry_verification.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:10:27.286688 | search_replace | docs/audit/DEPTH_AUDIT_geometry_verification.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-23T23:10:31.181778 | search_replace | docs/audit/DEPTH_AUDIT_geometry_verification.md | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:10:34.917757 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:10:46.420405 | run_terminal_command | cmd: cat > /tmp/verify_all.py << 'PYEOF'
+import sys
+sys | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-23T23:10:50.403719 | search_replace | src/gen/geometry_verification.py | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-23T23:10:56.416752 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:11:05.619625 | run_terminal_command | cmd: /home/genesis/.venv-cad/bin/python -c '
+import sys | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:11:15.319220 | run_terminal_command | cmd: /home/genesis/.venv-cad/bin/python -c '
+import sys | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:11:20.915871 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook

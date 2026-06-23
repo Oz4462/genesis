@@ -50,7 +50,8 @@ def verify_geometry(
     solid = csg_to_solid(node, quantities)
     # Use brep high-level API for exact volume/validity (central contract;
     # small rebuild vs direct here is negligible for validator; ensures
-    # any future wrapper logic (guards, errors) is shared).
+    # any future wrapper logic (guards, errors) is shared). The early solid
+    # is kept only for its BoundingBox() in the nonzero path.
     valid = is_valid(node, quantities)
     brep_volume = exact_volume(node, quantities)
     nonzero = brep_volume > abs_tol
@@ -75,10 +76,23 @@ def verify_geometry(
 
     bb = solid.BoundingBox()
     brep_extent = (bb.xmax - bb.xmin, bb.ymax - bb.ymin, bb.zmax - bb.zmin)
-    extent_ok = all(
-        math.isclose(b, a, rel_tol=rel_tol, abs_tol=abs_tol)
-        for b, a in zip(brep_extent, analytic_extent)
-    )
+    # AABB from analytic layer is *always* a sound upper bound (difference returns
+    # the minuend box; rotate uses conservative 8-corner re-box). The built BREP must
+    # never exceed it (overbuild = divergence from declared spec). Legitimate
+    # shrinking operations (trimming difference, slots, pockets to edge) produce
+    # strictly smaller realized extent while remaining correct; bidirectional isclose
+    # would wrongly reject them (ok=False despite volume_ok). Use directional <= bound
+    # (with tol) analogous to the non-exact volume path. For exact primitives the
+    # volume isclose already enforces "not under-size", so overall check stays tight.
+    # Additionally guard against NaN/negative extent from a pathological nonzero solid
+    # (kernel oddity) — fail loud rather than produce misleading ok.
+    if any(not math.isfinite(e) or e < -abs_tol for e in brep_extent):
+        extent_ok = False
+    else:
+        extent_ok = all(
+            b <= a + abs_tol + rel_tol * abs(a)
+            for b, a in zip(brep_extent, analytic_extent)
+        )
 
     return {
         "valid": valid,
