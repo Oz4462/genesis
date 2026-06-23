@@ -137,3 +137,17 @@ Cross-Model-Korroboration; Widerspruch ⇒ `drift` (kein stiller Pass); Verifika
 ehrliche `abstention`; gleiche Familie ⇒ `ModelConflictError` (Selbstcheck verweigert). 6 neue Tests
 inkl. zwei Negativtests + ein Hypothesis-Property (falsches Zweiturteil kann nie fälschlich
 verifizieren), alle offline grün. 4 Linsen + Details: `docs/audit/symbiosis.md`.
+
+---
+
+## 2026-06-23 — Depth-Audit T05: discovery/symbolic_search.py (VERDICT: REAL)
+Tiefen-Audit des Open-Form-GP-Symbolic-Regression-Suchers. Charakterisierungstest
+(`tests/discovery/test_symbolic_search_characterization.py`, 9 Tests grün) beweist ECHTE Suche,
+kein Lookup: Rediscovery der transzendenten `y = 3·sin(x)+2` (exakte Struktur + Koeffizienten,
+R² ≈ 1 out-of-sample — eine Form, die die enge Power-Law-`engine.py` nicht darstellen kann),
+strikt steigende + monoton nicht-fallende Fitness über Generationen (reale Optimierung, kein
+Einmal-Rate), reines Rauschen → ehrliches `unentschieden` (Out-of-Sample-Gate kollabiert),
+fehlende/inkonsistente Daten → dokumentierter `ValueError`. Hypothesis-Property: Seed-Determinismus
++ Recovery beliebiger Affin-Gesetze. KEINE Verhaltensänderung nötig (Modul war bereits korrekt);
+nur Modul-Docstring-Audit-Notiz ergänzt. 4 Linsen angewendet. Details:
+`docs/audit/symbolic_search.md`.
