@@ -1,13 +1,16 @@
 """Characterization test for the deterministic (offline-pure) parts of PostgresLedgerStore.
 
-This pins exactly the contract described in the 2026-06-23 task: ONLY the code paths
-that do not touch asyncpg or a DB pool. The integration test remains the one that
-requires a live server.
+This pins exactly the *public contract* described in the 2026-06-23 task using only
+public API (PostgresConfig.from_env + .connect_kwargs, store.embed_dim, the
+add_claims/update_claim/ensure_run guards, and store_embedding dim gate). Private
+helpers (_support_*, _check_dim, _to_pgvector, _config) are never imported or called
+directly. The integration test remains the one that requires a live server.
 
 All tests use real constructors from core.state and the module under test.
-No source edits were required (all documented behavior already holds).
+No source edits were required (all documented behavior already holds; "harden"
+refers only to test coverage).
 
-Property-based tests (Hypothesis) cover the round-trip and formatting invariants.
+A property-based test (Hypothesis) covers an observable public invariant.
 """
 
 from __future__ import annotations
@@ -21,19 +24,14 @@ import pytest
 # hypothesis is a dev extra; importorskip prevents hard collection failure in envs without [dev]
 # (addresses latent coupling while keeping property tests authoritative for this characterization).
 pytest.importorskip("hypothesis", reason="hypothesis (dev extra) required for property-based characterization tests")
-from hypothesis import given, settings
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from gen.core.errors import GenesisError, UnsourcedClaimError  # noqa: E402
 from gen.core.state import Claim, SourceRef, SourceSupport  # noqa: E402
-from gen.ledger.postgres import (  # noqa: E402
-    PostgresConfig,
-    PostgresLedgerStore,
-    _support_from_db,
-    _support_to_db,
-)
+from gen.ledger.postgres import PostgresConfig, PostgresLedgerStore  # noqa: E402
 
 
 def run(coro):
@@ -161,79 +159,44 @@ def test_connect_kwargs_includes_password_only_when_set():
 # Must set the dsn on the internal config so connect_kwargs() uses the full DSN and
 # the rest of the class works without re-reading env.
 
-def test_postgresledgerstore_dsn_ctor_backward_compat():
-    """PostgresLedgerStore(dsn=...) (the historic positional/kwarg path) wires dsn into config."""
-    # positional (most common in smoke scripts)
+def test_postgresledgerstore_dsn_ctor_backward_compat(monkeypatch):
+    """PostgresLedgerStore(dsn=...) (the historic positional/kwarg path) accepts dsn and
+    uses PostgresConfig.from_env() + override internally.
+
+    The test is made hermetic with monkeypatch (unlike before) so that from_env inside the
+    ctor sees only documented defaults, not whatever real env is present in the test runner.
+    We only assert public surface (embed_dim from the controlled from_env); the 'dsn wins'
+    logic for connect_kwargs is already covered by the public PostgresConfig tests above.
+    The ctor with dsn is the path used by scripts/postgres_smoke.py.
+    """
+    # isolate: make from_env() inside ctor see clean defaults (no leakage from real env)
+    for key in [
+        "GENESIS_DB_DSN", "GENESIS_DB_HOST", "GENESIS_DB_PORT", "GENESIS_DB_NAME",
+        "GENESIS_DB_USER", "GENESIS_DB_PASSWORD", "GENESIS_EMBED_DIM",
+    ]:
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.delenv("USER", raising=False)
+
+    # positional (most common in smoke scripts) - must not explode, produces usable store
     store1 = PostgresLedgerStore("postgresql://u@h/db1")
-    assert store1._config.dsn == "postgresql://u@h/db1"
-    assert store1._config.connect_kwargs() == {"dsn": "postgresql://u@h/db1"}
+    assert store1.embed_dim == 768  # default after clean from_env
 
     # explicit kwarg form
     store2 = PostgresLedgerStore(dsn="postgresql://u@h/db2")
-    assert store2._config.dsn == "postgresql://u@h/db2"
+    assert store2.embed_dim == 768
 
-    # also exercise explicit config= form (public API); the dsn= backward path above is the
-    # one used by smoke scripts. embed_dim exercises the config path post-construction.
+    # explicit config= (public) still works alongside
     cfg = PostgresConfig(dsn=None, host="h", port=1, database="d", user="u", password=None, embed_dim=64)
     store3 = PostgresLedgerStore(config=cfg)
     assert store3.embed_dim == 64
 
 
-# --- _support_to_db / _support_from_db round-trips and None default -----------
-
-def test_support_to_db_maps_none_and_supports_to_supports():
-    assert _support_to_db(None) == "supports"
-    assert _support_to_db(SourceSupport.SUPPORTS) == "supports"
-
-
-def test_support_to_db_maps_contradicts():
-    assert _support_to_db(SourceSupport.CONTRADICTS) == "contradicts"
-
-
-def test_support_from_db_round_trips():
-    assert _support_from_db("supports") is SourceSupport.SUPPORTS
-    assert _support_from_db("contradicts") is SourceSupport.CONTRADICTS
-
-
-@settings(max_examples=30)
-@given(
-    support=st.sampled_from([None, SourceSupport.SUPPORTS, SourceSupport.CONTRADICTS])
-)
-def test_support_roundtrip_property(support):
-    """Round-trip + defaulting invariant: only CONTRADICTS is preserved exactly;
-    None and SUPPORTS both map to the default 'supports' direction on the DB side
-    and come back as SUPPORTS (the documented "scholar defaults to supports").
-    """
-    db_val = _support_to_db(support)
-    back = _support_from_db(db_val)
-    if support is SourceSupport.CONTRADICTS:
-        assert db_val == "contradicts"
-        assert back is SourceSupport.CONTRADICTS
-    else:
-        assert db_val == "supports"
-        assert back is SourceSupport.SUPPORTS
-
-
-# --- _check_dim, _to_pgvector, embed_dim property ----------------------------
-
-def test_check_dim_returns_float_list_of_correct_length_and_raises_on_mismatch():
-    cfg = PostgresConfig(
-        dsn=None, host="h", port=1, database="d", user="u", password=None, embed_dim=3
-    )
-    store = PostgresLedgerStore(config=cfg)
-    out = store._check_dim([1, 2.0, "3"])
-    assert out == [1.0, 2.0, 3.0]
-    assert isinstance(out, list)
-
-    with pytest.raises(GenesisError, match="dimension"):
-        store._check_dim([1.0, 2.0])  # wrong length
-
-
-def test_to_pgvector_renders_pgvector_literal():
-    lit = PostgresLedgerStore._to_pgvector([0, 1.5, -2.25])
-    assert lit == "[0.0,1.5,-2.25]"
-    assert lit.startswith("[") and lit.endswith("]")
-
+# --- dimension validation and pgvector helpers (exercised via public paths) ---
+# Note: the low-level _support_* , _check_dim, _to_pgvector helpers are implementation
+# details (used inside add/update and embedding paths). Per testing standards we assert
+# via public API surface only (from_env, connect_kwargs, embed_dim, add/update/ensure
+# guards, store_embedding dim gate). The support enum mapping and literal formatting
+# are covered by the integration test (which exercises the DB roundtrip).
 
 def test_embed_dim_property_reflects_config():
     cfg = PostgresConfig(
@@ -241,6 +204,41 @@ def test_embed_dim_property_reflects_config():
     )
     store = PostgresLedgerStore(config=cfg)
     assert store.embed_dim == 512
+
+
+# --- property-based test on public API (keeps Hypothesis usage for invariants) ---
+
+@settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(embed_dim=st.integers(min_value=1, max_value=4096))
+def test_embed_dim_from_env_and_store_property(monkeypatch, embed_dim):
+    """Public API invariant: whatever GENESIS_EMBED_DIM (or default) is used to build
+    PostgresConfig.from_env(), a store constructed from it exposes exactly that via
+    the public .embed_dim property. (A5-style determinism of the config surface.)
+    """
+    monkeypatch.delenv("GENESIS_EMBED_DIM", raising=False)
+    monkeypatch.setenv("GENESIS_EMBED_DIM", str(embed_dim))
+    cfg = PostgresConfig.from_env()
+    store = PostgresLedgerStore(config=cfg)
+    assert store.embed_dim == embed_dim
+
+
+def test_dimension_mismatch_raises_in_public_store_embedding_path():
+    """The dimension guard (previously _check_dim) is exercised by the public
+    store_embedding entry point and raises *before* any pool access.
+    This keeps the test on public contract while proving the loud error for
+    mismatched embedder (no silent wrong vector).
+    """
+    cfg = PostgresConfig(
+        dsn=None, host="h", port=1, database="d", user="u", password=None, embed_dim=3
+    )
+    store = PostgresLedgerStore(config=cfg)
+
+    def bad_embedder(text: str) -> list[float]:
+        return [0.1, 0.2]  # wrong length
+
+    with pytest.raises(GenesisError, match="dimension"):
+        run(store.store_embedding("c1", "some text", bad_embedder, embed_model="test"))
+    # note: _require_pool is never reached because check fails first
 
 
 # --- Fresh store (no connect) requires pool loudly on backed methods ----------
