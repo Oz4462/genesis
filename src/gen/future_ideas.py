@@ -29,10 +29,12 @@ from .core.state import (
     BomDomain,
     BomItem,
     BomRole,
+    Claim,
     Component,
     Constraint,
     Decision,
     GeometryNode,
+    Quantity,
     Specification,
     Step,
 )
@@ -48,7 +50,7 @@ from .structural import (
 )
 
 
-def _link(sx, sy, sz, r1, off1, r2, off2) -> GeometryNode:
+def _link(sx: str, sy: str, sz: str, r1: str, off1: str, r2: str, off2: str) -> GeometryNode:
     """A printed structural link: a box minus two through-bores at ±x ends (all args are quantity-ids)."""
     return GeometryNode(kind="difference", children=[
         GeometryNode(kind="box", params={"size_x": sx, "size_y": sy, "size_z": sz}),
@@ -59,7 +61,7 @@ def _link(sx, sy, sz, r1, off1, r2, off2) -> GeometryNode:
     ])
 
 
-def _dfm_quantities() -> list:
+def _dfm_quantities() -> list[Quantity]:
     """The shared FDM printability quantities (nozzle, perimeters, min wall/hole) every printed spec
     carries, plus the zero-offset used by every bore."""
     return [
@@ -74,7 +76,7 @@ def _dfm_quantities() -> list:
     ]
 
 
-def _dfm_claims() -> list:
+def _dfm_claims() -> list[Claim]:
     return [
         _claim("c_gravity", "Die Normfallbeschleunigung ist definiert als 9.80665 m/s^2."),
         _claim("c_pla", "FDM-gedrucktes PLA, in der Druckebene belastet, hat eine Zugfestigkeit "
@@ -88,7 +90,7 @@ def _dfm_claims() -> list:
     ]
 
 
-def _struct_quantities(force_n: float, arm_mm: float, b_mm: float, h_mm: float) -> list:
+def _struct_quantities(force_n: float, arm_mm: float, b_mm: float, h_mm: float) -> list[Quantity]:
     """The shared cantilever-bending statics on a printed load-bearing link: nominal + peak stress at
     a bore vs PLA strength (the σ-constraint), plus the PLA strength/density."""
     sigma_nom = 6.0 * force_n * arm_mm / (b_mm * h_mm * h_mm)
@@ -110,7 +112,7 @@ def _struct_quantities(force_n: float, arm_mm: float, b_mm: float, h_mm: float) 
 # 1. Autonomous last-mile delivery drone — the FLIGHT axes
 # ============================================================================================
 
-def delivery_drone_claims() -> list:
+def delivery_drone_claims() -> list[Claim]:
     return _dfm_claims() + [
         _claim("c_drone", "Ein Quadrocopter erzeugt seinen Schub mit vier Rotoren; eine sichere "
                "Auslegung hat ein Schub-Gewicht-Verhältnis von mindestens 2."),
@@ -221,7 +223,7 @@ def delivery_drone_spec() -> Specification:
 # 2. Modular home energy-storage wall — the general energy/current axes
 # ============================================================================================
 
-def home_battery_claims() -> list:
+def home_battery_claims() -> list[Claim]:
     return _dfm_claims() + [
         _claim("c_bess", "Ein modularer Heim-Energiespeicher puffert PV-/Netzenergie und liefert "
                "eine Notlaufzeit aus seiner nutzbaren Kapazität."),
@@ -324,7 +326,7 @@ def home_battery_spec() -> Specification:
 # 3. Vertical-farming harvest arm — kinematics + actuator + vision compute
 # ============================================================================================
 
-def harvest_arm_claims() -> list:
+def harvest_arm_claims() -> list[Claim]:
     return _dfm_claims() + [
         _claim("c_harvest", "Ein autonomer Ernteroboter greift Früchte mit einem 2-Glied-Arm und "
                "erkennt sie per Kamera-Inferenz."),
@@ -430,7 +432,7 @@ def harvest_arm_spec() -> Specification:
 # 4. Autonomous construction hydraulic actuator module — the HYDRAULIC axes
 # ============================================================================================
 
-def hydraulic_boom_claims() -> list:
+def hydraulic_boom_claims() -> list[Claim]:
     return _dfm_claims() + [
         _claim("c_boom", "Ein autonomes Baumaschinen-Auslegermodul bewegt seinen Ausleger mit einem "
                "Hydraulikzylinder; der Stahlausleger ist ein Kaufteil."),
@@ -531,7 +533,7 @@ def hydraulic_boom_spec() -> Specification:
 # 5. Assistive exoskeleton knee module — actuator + kinematics + swing dynamics
 # ============================================================================================
 
-def exo_knee_claims() -> list:
+def exo_knee_claims() -> list[Claim]:
     return _dfm_claims() + [
         _claim("c_exo", "Ein assistives Exoskelett-Kniemodul unterstützt das menschliche Knie über "
                "Oberschenkel- und Unterschenkelschienen mit einem motorisierten Gelenk."),

@@ -11,22 +11,22 @@
 ```mermaid
 kanban
   done
-    nT01[T01: Depth-audit + characterization for fem.py (Euler-Bernoulli beam FEM)]
-    nT02[T02: Depth-audit + characterization for fem3d_quadratic.py (T10 quadratic tet)]
-    nT03[T03: Depth-audit + FIX for flight.py (multirotor closed-form axes)]
-    nT04[T04: Depth-audit + characterization for fracture.py (LEFM crack axis)]
-    nT05[T05: Depth-audit + characterization for frontier.py (Phase χ frontier map)]
+    nT01[T01: Depth-audit + fix future_ideas.py (five gated future-product specs)]
+    nT02[T02: Depth-audit + fix geometry_verification.py (BREP-vs-analytic cross-check)]
+    nT03[T03: Depth-audit + fix goldset.py (curated measurement set loader + scorer)]
+    nT04[T04: Depth-audit + fix grounding_integrity.py (corroboration independence + repo]
+    nT05[T05: Depth-audit + fix identity_research.py (bounded identity falsifier + witnes]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | Depth-audit + characterization for fem.py (Euler-Bernoulli beam FEM) | done | claude | feature |
-| T02 | Depth-audit + characterization for fem3d_quadratic.py (T10 quadratic tet) | done | grok | feature |
-| T03 | Depth-audit + FIX for flight.py (multirotor closed-form axes) | done | claude | feature |
-| T04 | Depth-audit + characterization for fracture.py (LEFM crack axis) | done | claude | feature |
-| T05 | Depth-audit + characterization for frontier.py (Phase χ frontier map) | done | claude | feature |
+| T01 | Depth-audit + fix future_ideas.py (five gated future-product specs) | done | claude | feature |
+| T02 | Depth-audit + fix geometry_verification.py (BREP-vs-analytic cross-check) | done | grok | feature |
+| T03 | Depth-audit + fix goldset.py (curated measurement set loader + scorer) | done | claude | feature |
+| T04 | Depth-audit + fix grounding_integrity.py (corroboration independence + report grounding) | done | claude | feature |
+| T05 | Depth-audit + fix identity_research.py (bounded identity falsifier + witness finder) | done | claude | feature |
 
 ## Decisions
 
@@ -291,6 +291,15 @@ kanban
 - (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (standing 2026-06-23 team decision); each task's honest verdict (REAL/PARTIAL/FACADE + what was made real) + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (the integrator consolidates into BUILD_LOG at merge).
 - (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (RunState/Question/Claim/ClaimStatus/Report/SolutionReport/Approach/Specification/FrontierMap/KnownRegion/FrontierEdge) and each module's real signatures — read them, never invent fields — and use only stdlib + already-declared deps (numpy is already declared for the FEM tasks).
 - (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess in the always-run path, matching the historical test→claude routing.
+- (2026-06-23) Split strictly by module (future_ideas / geometry_verification / goldset / grounding_integrity / identity_research): disjoint source paths + uniquely-named new test files + per-module audit docs ⇒ zero path collision across worktrees.
+- (2026-06-23) Keep each module and ITS new test in the SAME task (the test imports the module under audit) so each task is independently verifiable in its own worktree using only its own files plus pre-existing repo files (core.state, demo, brep, verification.geometry, pipeline already on main).
+- (2026-06-23) New test files take the _characterization suffix because every module already has a legacy test on main (test_future_ideas, test_geometry_verification, test_goldset, test_grounding_integrity, test_identity_research); the new file is the authoritative facade-detector and leaves legacy tests untouched (no churn).
+- (2026-06-23) geometry_verification depends on the optional cadquery/OCP kernel (lazy via brep.py): its test must pytest.importorskip the kernel for the deep BREP-vs-analytic cross-check so the full pytest gate stays green where the extra is absent, while still really proving a hemisphere-as-sphere volume mismatch fails the volume cross-check.
+- (2026-06-23) identity_research and goldset are pure (sympy/mpmath/stdlib, already declared) so their characterization tests run the full headline claim end-to-end: a true identity proves/survives and a false one is REFUTED with a witness; the gold-set scorer flags a fabricated nonsense answer and refuses to score an incomplete run.
+- (2026-06-23) Universal facade-killer per module: assert the headline output changes meaningfully with a driving input AND the documented fail-loud/abstention path fires exactly — per 'keine stillen Defaults' and 'a gate without a test does not exist'.
+- (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (standing 2026-06-23 team decision); each task's honest verdict (REAL/PARTIAL/FACADE + what was made real) + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (the integrator consolidates at merge).
+- (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (Specification/Quantity/Claim/ClaimStatus/SourceRef/Report/GeometryNode) and each module's real signatures — read them, never invent fields — and use only stdlib + already-declared deps (sympy/mpmath/numpy/cadquery already declared).
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess in the always-run path, matching the historical test→claude routing.
 
 ### Architecture Decision Records
 
@@ -327,20 +336,21 @@ kanban
 - 0031. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0032. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0033. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0034. Depth-audit AND FIX (genesis overnight loop). For each modul
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 26 |
-| Tasks (total) | 121 |
-| Done | 119 |
+| Runs | 27 |
+| Tasks (total) | 126 |
+| Done | 124 |
 | Blocked | 1 |
 | Resolved rate | 98% |
 | Blocked rate | 1% |
-| Merges | 15 |
-| Avg duration | 72.1m |
-| Total cost | 305.02 |
+| Merges | 16 |
+| Avg duration | 70.9m |
+| Total cost | 315.37 |
 
 ## Architecture
 
@@ -356,26 +366,26 @@ graph TD
 
 Recent commits:
 
+- `6f36463 Merge branch 'crew/T05-claude' into crew/integration`
+- `3d9dae2 Merge branch 'crew/T04-claude' into crew/integration`
+- `84a81d9 Merge branch 'crew/T03-claude' into crew/integration`
+- `f1ba8a6 Merge branch 'crew/T02-grok' into crew/integration`
+- `73d0797 crew(claude): T05 Depth-audit + fix identity_research.py (bounded identity falsifier + witness finder) [round 1]`
+- `7776ffc crew(grok): T02 Depth-audit + fix geometry_verification.py (BREP-vs-analytic cross-check) [round 4]`
+- `d89d339 crew(claude): T04 Depth-audit + fix grounding_integrity.py (corroboration independence + report grounding) [round 1]`
+- `d3ec224 crew(grok): T02 Depth-audit + fix geometry_verification.py (BREP-vs-analytic cross-check) [round 3]`
+- `eb21d03 crew(claude): T03 Depth-audit + fix goldset.py (curated measurement set loader + scorer) [round 1]`
+- `840b8e8 crew(grok): T02 Depth-audit + fix geometry_verification.py (BREP-vs-analytic cross-check) [round 2]`
+- `8246c15 crew(claude): T01 Depth-audit + fix future_ideas.py (five gated future-product specs) [round 1]`
+- `10281fc crew(grok): T02 Depth-audit + fix geometry_verification.py (BREP-vs-analytic cross-check) [round 1]`
+- `039ebd8 Merge branch 'crew/integration'`
+- `721673c crew: scaffold CI/CD + project config`
 - `9d91523 Merge branch 'crew/T05-claude' into crew/integration`
 - `e4e601f Merge branch 'crew/T04-claude' into crew/integration`
 - `7708c31 Merge branch 'crew/T03-claude' into crew/integration`
 - `03b1769 Merge branch 'crew/T02-grok' into crew/integration`
 - `038995e Merge branch 'crew/T01-claude' into crew/integration`
 - `c02eac2 crew(claude): T05 Depth-audit + characterization for frontier.py (Phase χ frontier map) [round 1]`
-- `aefe4c6 crew(grok): T02 Depth-audit + characterization for fem3d_quadratic.py (T10 quadratic tet) [round 3]`
-- `5df4a69 crew(claude): T04 Depth-audit + characterization for fracture.py (LEFM crack axis) [round 1]`
-- `2e4b369 crew(grok): T02 Depth-audit + characterization for fem3d_quadratic.py (T10 quadratic tet) [round 2]`
-- `e27d9fc crew(claude): T03 Depth-audit + FIX for flight.py (multirotor closed-form axes) [round 1]`
-- `379746d feat(humanoids): AETHON - our complete head-to-toe humanoid (39 DOF, dexterous hands, stands, full pipeline PASS)`
-- `c8becdb crew(grok): T02 Depth-audit + characterization for fem3d_quadratic.py (T10 quadratic tet) [round 1]`
-- `5d782a1 crew(claude): T01 Depth-audit + characterization for fem.py (Euler-Bernoulli beam FEM) [round 1]`
-- `b66feeb feat(tools): wire CAD easy-wins + integrate deferred tools (8/8)`
-- `f432835 Merge branch 'crew/integration'`
-- `a1a7067 crew: scaffold CI/CD + project config`
-- `6e799e9 Merge branch 'crew/T05-claude' into crew/integration`
-- `213078e Merge branch 'crew/T04-claude' into crew/integration`
-- `55025d0 Merge branch 'crew/T03-claude' into crew/integration`
-- `9fe7a88 Merge branch 'crew/T02-claude' into crew/integration`
 
 
 ---
