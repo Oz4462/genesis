@@ -23,6 +23,9 @@ The mathematics is exact, not heuristic:
     consistently wound mesh is positive iff the normals point outward. An
     inside-out solid has exactly the negative volume.
 
+The edge-walk also produces exact open_edges and duplicated counts; these are
+returned so characterization tests can assert the topology math directly.
+
 Vertices are matched EXACTLY (same coordinates), which is correct for a mesh
 produced by one tessellation pass (brep_stl.py, and any single-kernel export).
 Honest boundary: meshes from other tools with jittered shared vertices can report
@@ -111,14 +114,18 @@ def stl_integrity_check(stl_text: str) -> dict:
 
     Returns ``{"ok", "n_facets", "n_vertices", "n_edges", "n_degenerate",
     "watertight", "consistent_winding", "euler_characteristic", "genus",
-    "volume", "volume_positive", "issues"}``. ``ok`` is True only when the mesh
-    is watertight, consistently wound, outward-oriented (positive volume), free
-    of degenerate facets, and has a plausible closed-surface Euler characteristic
-    (chi even); every defect appends a human-readable entry to ``issues`` —
-    never a silent pass. ``genus`` is derived as (2 − chi) / 2 only for a closed
-    single-shell-consistent chi (chi <= 2, even); otherwise None. Raises
-    ValueError on a file that cannot be parsed as ASCII STL triangles at all
-    (an unparseable mesh must not get a verdict). Deterministic, stdlib-only."""
+    "volume", "volume_positive", "open_edges", "duplicated", "issues"}``.
+    ``ok`` is True only when the mesh is watertight, consistently wound,
+    outward-oriented (positive volume), free of degenerate facets, and has a
+    plausible closed-surface Euler characteristic (chi even); every defect
+    appends a human-readable entry to ``issues`` — never a silent pass.
+    ``genus`` is derived as (2 − chi) / 2 only for a closed single-shell-consistent
+    chi (chi <= 2, even); otherwise None. The raw counts ``open_edges`` and
+    ``duplicated`` are the exact results of the directed-edge walk and are
+    surfaced so tests can assert the topology math directly (they already
+    determine watertight/consistent_winding). Raises ValueError on a file that
+    cannot be parsed as ASCII STL triangles at all (an unparseable mesh must not
+    get a verdict). Deterministic, stdlib-only."""
     tris = _triangles(stl_text)
     issues: list[str] = []
 
@@ -172,5 +179,10 @@ def stl_integrity_check(stl_text: str) -> dict:
         "genus": genus,
         "volume": volume,
         "volume_positive": volume_positive,
+        # Exact edge-walk diagnostics (already computed for the watertight decision).
+        # Surfaced so characterization tests can assert the topology math directly
+        # (open_edges, duplicated) rather than only via human-readable issues text.
+        "open_edges": open_edges,
+        "duplicated": duplicated,
         "issues": issues,
     }
