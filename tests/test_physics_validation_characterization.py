@@ -23,7 +23,7 @@ import math
 import sys
 from pathlib import Path
 
-from hypothesis import given, strategies as st
+from hypothesis import example, given, strategies as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -212,6 +212,9 @@ def test_run_physics_checks_evidence_shape():
 
 # --- property: pass/fail is monotone in the safety margin (yield strength) ---
 
+# The SF == 1.0 boundary is the most error-prone point of the `>=` predicate, so pin
+# it explicitly: r_inner=500, thickness=10, pressure=10 -> hoop=500; yield=500 -> SF=1.0.
+@example(yield_strength=500.0, pressure=10.0)
 @given(
     yield_strength=st.floats(min_value=1.0, max_value=5000.0),
     pressure=st.floats(min_value=0.1, max_value=50.0),
