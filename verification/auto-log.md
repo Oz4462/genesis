@@ -527,3 +527,42 @@ print('python', sys.versio | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_
 - 2026-06-23T22:26:54.904528 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
 - 2026-06-23T22:27:00.702264 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
 - 2026-06-23T22:52:25.769207 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-23T23:01:05.383476 | run_terminal_command | cmd: which python3 || which python || ls /home/genesis/ | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:01:07.486843 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-23T23:01:14.285940 | run_terminal_command | cmd: ls -d /home/genesis/.venv-cad 2>/dev/null && /home | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:01:25.983265 | run_terminal_command | cmd: /home/genesis/.venv-cad/bin/python -c "
+import sys | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:01:47.984493 | run_terminal_command | cmd: cat > /tmp/probe_geo.py << 'PYEOF'
+import sys
+sys. | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:01:56.082896 | run_terminal_command | cmd: cat > /tmp/probe_geo2.py << 'PYEOF'
+import sys
+sys | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:02:07.879808 | run_terminal_command | cmd: cat > /tmp/probe_degen.py << 'PYEOF'
+import sys
+sy | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-23T23:02:17.696921 | run_terminal_command | cmd: python3 -c "
+import sys
+print(sys.executable)
+try: | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-23T23:02:53.883237 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:03:01.287973 | run_terminal_command | cmd: cat > /tmp/run_char_geo.py << 'PYEOF'
+import sys
+s | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-23T23:03:10.885429 | run_terminal_command | cmd: cat > /tmp/run_char_geo.py << 'PYEOF'
+import sys
+s | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-23T23:03:16.483623 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:03:34.282660 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:03:36.183572 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:03:41.184102 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:03:48.796551 | search_replace | tests/test_geometry_verification_characterization.py | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-23T23:03:54.583156 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:04:00.184097 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:04:02.784205 | run_terminal_command | cmd: cat > /tmp/final_check.py << 'PYEOF'
+import sys
+sy | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:04:06.083099 | run_terminal_command | cmd: cat > /tmp/final_check.py << 'PYEOF'
+import sys
+sy | → /vibe-verify or RecoveryPlaybook
+- 2026-06-23T23:04:09.289921 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T02-grok; | → /vibe-verify or RecoveryPlaybook
