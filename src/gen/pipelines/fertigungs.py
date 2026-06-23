@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Optional, Any
 
 from .architekt import SystemConcept
-from .ingenieur import IngenieurSpec
+from .ingenieur import IngenieurSpec, MaterialSpec, ToleranceSpec
 # Naht to advanced DFM (from prior stone)
 try:
     from gen.cad.manufacturing_check import AdvancedDFMReport
@@ -90,6 +90,114 @@ def _fdm_cost_estimate_from_dfm(dfm_report: Optional[Any]) -> str | None:
     return None
 
 
+# Markers that justify ADDING a precision/subtractive process (CNC) — derived from
+# the engineer's REAL tolerance signal, never invented. Tight fits (ISO H/g/k grades),
+# explicit micron specs and ±0.0x callouts cannot be held by hobby-grade FDM.
+_PRECISION_TOLERANCE_MARKERS: tuple[str, ...] = (
+    "h7", "h6", "h5", "g6", "k6", "js", "µm", "um", "micron", "±0.0",
+)
+# Material name fragments that signal a metallic/composite workpiece — a real signal
+# from ingenieur.material_hinweise that a metal-capable process (CNC) is appropriate.
+_METAL_MATERIAL_MARKERS: tuple[str, ...] = (
+    "alu", "stahl", "steel", "titan", "edelstahl", "messing", "metal", "cfk",
+)
+# Fragments in a CAD requirement that carry a concrete manufacturing constraint
+# (wall thickness / dimension) we can quote into prozessgrenzen instead of guessing.
+_DIMENSION_REQUIREMENT_MARKERS: tuple[str, ...] = ("wand", "wall", "mm", "fillet", "radius")
+
+
+def _precision_tolerance(ingenieur: IngenieurSpec) -> "ToleranceSpec | None":
+    """Return the first engineer tolerance that signals a precision (CNC) need, or
+    ``None`` when no tolerance justifies one. The decision is driven purely by the
+    REAL ``ingenieur.toleranzen`` values — no fabricated precision requirement."""
+    for tol in ingenieur.toleranzen:
+        blob = f"{tol.feature} {tol.toleranz}".lower()
+        if any(marker in blob for marker in _PRECISION_TOLERANCE_MARKERS):
+            return tol
+    return None
+
+
+def _metal_material(ingenieur: IngenieurSpec) -> "MaterialSpec | None":
+    """Return the first metallic/composite material hint, or ``None``. Used only to
+    JUSTIFY (with the real material name) adding a metal-capable process; never to
+    invent a material the engineer did not specify."""
+    for mat in ingenieur.material_hinweise:
+        if any(marker in mat.name.lower() for marker in _METAL_MATERIAL_MARKERS):
+            return mat
+    return None
+
+
+def _dimension_requirements(ingenieur: IngenieurSpec) -> list[str]:
+    """Return the engineer's CAD requirements that carry a concrete dimensional /
+    wall-thickness constraint, so prozessgrenzen can quote real input instead of a
+    fixed 'min wall from DFM' placeholder. Empty list ⇒ caller declares a gap."""
+    return [
+        req
+        for req in ingenieur.cad_anforderungen
+        if any(marker in req.lower() for marker in _DIMENSION_REQUIREMENT_MARKERS)
+    ]
+
+
+def _derive_generic_processes(
+    concept: SystemConcept, ingenieur: IngenieurSpec
+) -> list[FertigungsProzess]:
+    """Derive the manufacturing process list for a non-jetpack idea from REAL signals
+    in ``concept``/``ingenieur`` (Gate: keine Prozesswahl ohne Begründung).
+
+    - FDM is always proposed as the honest prototype baseline; its prozessgrenzen quote
+      real dimensional CAD requirements when present, else declare an explicit gap.
+    - CNC is added ONLY when a real precision tolerance or a metallic material justifies
+      it; the begründung embeds the concrete driving value so the choice is auditable.
+
+    No facts are fabricated: every justification cites a field that was actually passed in.
+    """
+    dimension_reqs = _dimension_requirements(ingenieur)
+    if dimension_reqs:
+        fdm_grenzen = "Maß/Wand aus ingenieur.cad_anforderungen: " + "; ".join(dimension_reqs)
+    else:
+        # No silent default: be explicit that the bound is unknown until a DFM/geometry check.
+        fdm_grenzen = (
+            "Lücke: keine Wand-/Maß-Vorgabe in ingenieur.cad_anforderungen — "
+            "Geometrie-/DFM-Check nötig (keine geratene Wandstärke)"
+        )
+
+    lead_assembly = concept.main_assemblies[0] if concept.main_assemblies else None
+    fdm_begruendung = f"FDM als Prototyp-Default für »{concept.source_idea}«"
+    if lead_assembly is not None:
+        fdm_begruendung += f"; trägt Baugruppe '{lead_assembly.name}' ({lead_assembly.purpose})"
+
+    processes = [
+        FertigungsProzess(
+            name="FDM",
+            begruendung=fdm_begruendung,
+            prozessgrenzen=fdm_grenzen,
+            datei_stub=None,  # honest: no slicer/CAM run in the first stone
+            quelle="generic mapping aus concept+ingenieur (keine fabrizierte Prozesswahl) + PLAN §4.7",
+        )
+    ]
+
+    tol = _precision_tolerance(ingenieur)
+    metal = _metal_material(ingenieur)
+    if tol is not None or metal is not None:
+        reasons: list[str] = []
+        if tol is not None:
+            reasons.append(f"enge Toleranz '{tol.toleranz}' an '{tol.feature}'")
+        if metal is not None:
+            reasons.append(f"metallischer/composite Werkstoff '{metal.name}'")
+        processes.append(
+            FertigungsProzess(
+                name="CNC",
+                begruendung="CNC ergänzt, weil " + " und ".join(reasons) + " (aus ingenieur abgeleitet)",
+                prozessgrenzen=(
+                    "Feinbearbeitung nach realer Toleranz-/Materialvorgabe; "
+                    "exakte Maschinenparameter/Aufspannung offen (Lücke)"
+                ),
+                quelle="generic mapping aus ingenieur.toleranzen/material_hinweise + PLAN §4.7",
+            )
+        )
+    return processes
+
+
 def map_to_fertigungs_spec(
     concept: SystemConcept,
     ingenieur: IngenieurSpec,
@@ -101,8 +209,21 @@ def map_to_fertigungs_spec(
     Erster Stein Fertigungs-Pipeline.
     Nutzt advanced DFM für Prozesswahl/Grenzen (Naht).
     Jetpack: FDM primary für Tether Plate (real volume/wall aus CAD + DFM), CNC alt.
-    Generic: ehrliche Lücken (z.B. exakte Supplier-Preise via Wissensbasis später).
+    Generic: leitet Prozesse/Grenzen/Kosten/QA nachweislich aus ``concept`` und
+    ``ingenieur`` ab (zwei verschiedene Eingaben → unterscheidbare Specs) und markiert
+    fehlende Belege ehrlich als Lücke (keine fabrizierten Preise/Prozesse).
+
+    Raises:
+        ValueError: wenn ``concept.source_idea`` leer oder nur Whitespace ist — eine
+            fehlende Eingabe darf keinen fabrizierten Stub erzeugen (Kernprinzip:
+            keine stillen Defaults; spiegelt architekt.map_to_system_concept).
     """
+    if not concept.source_idea.strip():
+        raise ValueError(
+            "concept.source_idea must be a non-empty, non-whitespace string "
+            "(no fabricated FertigungsSpec for a missing idea)"
+        )
+
     idee_lower = concept.source_idea.lower()
 
     if "jetpack" in idee_lower or "flug" in idee_lower:
@@ -153,12 +274,67 @@ def map_to_fertigungs_spec(
         zusammen = "Jetpack FertigungsSpec: FDM primary (real STL + DFM), CNC alt; cost/volume from CAD/Wissensbasis; real verified CNC profile gcode (cad.gcode) + FDM-slicing gap; QA with DFM gates. Naht to realize/packager (DFM in manifest)."
         quelle = "GENESIS_PLATFORM_PLAN.md §4.7 (Fertigungs-Pipeline) + advanced_dfm (prior stone) + prototype_cad_builder (real) + Wissensbasis Material + Jetpack-Kanon"
     else:
-        prozesse = [FertigungsProzess(name="FDM", begruendung="Default prototype", prozessgrenzen="min wall from DFM", quelle="Generic")]
-        dfm_ref = "advanced DFM (generic)"
-        kosten = KostenModell(material_kosten="TBD", prozess_kosten="TBD", gesamt_est="TBD (Lücke: Supplier-Preise via Wissensbasis)", stueckzahl_hinweis="Lücke", quelle="Generic + PLAN §4.7")
-        qa = QAPlan(schritte=["Basic visual/dim"], gate_kriterien="Lücke", quelle="Generic")
-        zusammen = f"Generische FertigungsSpec für '{concept.source_idea[:40]}...'. Viele Details als Lücke (keine spezifische DFM/CAD aus prior)."
-        quelle = "GENESIS_PLATFORM_PLAN.md §4.7 + generic fallback (ehrliche Lücken)"
+        # Generic path: derive everything from the passed-in concept/ingenieur signals.
+        prozesse = _derive_generic_processes(concept, ingenieur)
+        dfm_ref = (
+            "advanced DFM (übergeben — Kosten/Grenzen daraus konsumiert)"
+            if dfm_report is not None
+            else "advanced DFM (generic — keiner übergeben → Kosten/Grenzen als Lücke)"
+        )
+
+        # Consume the SAME real cost seam as the jetpack path; declare an honest gap
+        # (never a fabricated band) when no DFM cost is present.
+        fdm_cost = _fdm_cost_estimate_from_dfm(dfm_report)
+        if fdm_cost:
+            kosten = KostenModell(
+                material_kosten="im gerangten FDM-Modell enthalten (Volumen × Dichte × Infill × Preis, cost_model.py Stein 4)",
+                prozess_kosten="im gerangten FDM-Modell enthalten (Maschinenzeit × Maschinenrate)",
+                gesamt_est=fdm_cost,
+                stueckzahl_hinweis="1-10: FDM; >50: Spritzguss/CNC-Batch prüfen (heuristisch)",
+                quelle="advanced_dfm → cost_model.estimate_fdm_cost (Stein 4, reale gerangte Schätzung) + PLAN §4.7",
+            )
+        else:
+            kosten = KostenModell(
+                material_kosten="Lücke: kein DFM-Kostenmodell übergeben",
+                prozess_kosten="Lücke: kein DFM-Kostenmodell übergeben",
+                gesamt_est=(
+                    "Lücke: keine gerangte Schätzung (advanced_dfm mit realem CAD-Volumen "
+                    "nötig — cost_model.py Stein 4; keine fabrizierte Zahl)"
+                ),
+                stueckzahl_hinweis="Lücke: Stückzahl-Strategie braucht Volumen/Kostenmodell",
+                quelle="generic + PLAN §4.7 (keine Kosten ohne cost_model-Quelle, Lücke)",
+            )
+
+        # QA derived from the engineer's REAL tolerances + Prüfplan-Hinweise.
+        qa_schritte = ["Maß-/Sichtprüfung der gefertigten Teile"]
+        qa_schritte += [f"Toleranz prüfen: {t.feature} = {t.toleranz}" for t in ingenieur.toleranzen]
+        qa_schritte += list(ingenieur.pruefplan_hinweise)
+        qa_gate = (
+            "Geometrie-/DFM-Check bestanden + alle deklarierten Toleranzen erfüllt"
+            if ingenieur.toleranzen
+            else "Lücke: kein Prüfkriterium aus ingenieur.toleranzen ableitbar — DFM-Check nötig"
+        )
+        qa = QAPlan(
+            schritte=qa_schritte,
+            gate_kriterien=qa_gate,
+            quelle="generic aus ingenieur.toleranzen + ingenieur.pruefplan_hinweise + PLAN §4.7",
+        )
+
+        assembly_summary = (
+            ", ".join(f"{a.name} ({a.purpose})" for a in concept.main_assemblies)
+            or "keine Baugruppen im Konzept"
+        )
+        prozess_namen = "+".join(p.name for p in prozesse)
+        zusammen = (
+            f"Generische FertigungsSpec für »{concept.source_idea}«: "
+            f"{len(prozesse)} Prozess(e) [{prozess_namen}] aus Konzept/Ingenieur abgeleitet "
+            f"(Baugruppen: {assembly_summary}). "
+            "Offene Punkte ehrlich als Lücke markiert (Supplier-Preise, exakte DFM/CAD)."
+        )
+        quelle = (
+            "GENESIS_PLATFORM_PLAN.md §4.7 + generischer Mapper "
+            "(aus concept+ingenieur abgeleitet, ehrliche Lücken)"
+        )
 
     return FertigungsSpec(
         source_idea=concept.source_idea,
