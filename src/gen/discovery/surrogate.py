@@ -1,20 +1,23 @@
-"""surrogate — the Physics Foundation Layer as a cheap PREFILTER (build doc §3.1 item 2 / §4.2).
+"""surrogate — the Physics Foundation Layer: cheap PREFILTER + general surrogate approximator.
 
-A fast, deterministic surrogate that RANKS and PRUNES candidates before the expensive gate
-runs — so a wide candidate space (later: the assumption annihilator, a GP search) does not
-pay full gate cost on the obvious losers.
+Two related but distinct capabilities (both obey "approximates only, never confirms"):
 
-THE HARD RULE (the doc, Risk 2): **the surrogate only prefilters, it NEVER confirms.** It looks
-at a cheap signal — the R² of the candidate refit on a random SUB-SAMPLE of the data — and
-deliberately does NOT look at dimensional consistency or run the full gate. So it can rank a
-dimensionally-impossible candidate highly; that is fine and expected, because the gate
-(`engine.judge_candidate`) remains the sole decider of ``bestaetigt`` / ``widerlegt`` /
-``unentschieden``. If we ever let the surrogate confirm, we would import exactly the black-box
-weakness we criticise in other systems.
+1. Discovery prefilter (original): surrogate_score / prefilter / discover_prefiltered use
+   sub-sample R² to cheaply rank symbolic candidates before the expensive symbolic gate.
+   A dimensionally-wrong candidate can score high; only the gate decides bestaetigt/widerlegt.
 
-Structurally enforced: `surrogate_score` returns a float, `prefilter` returns a ranked subset
-of *candidates* — neither returns a verdict. Confirmation lives only in the gate. Offline,
-deterministic (seeded sub-sampling), numpy-only.
+2. General function surrogate (added for the approximation claim): build_surrogate trains on
+   samples (X, y) of a (possibly expensive) physics/objective function. predict_surrogate
+   returns mean + uncertainty for new points. The model is a cheap stand-in that must be
+   quantifiably accurate on held-out data and must be *honest* on extrapolation (high unc).
+
+Common contract (Risk 2 / no-silent-defaults):
+- Never emits a gate verdict or "confirmed" claim.
+- Deterministic for fixed seed/hyperparams/data.
+- numpy only. Fails loud on bad inputs (non-finite, insufficient data, dim mismatch).
+- Uncertainty (when provided) grows with distance from training support.
+
+See also: engine.py for the symbolic discovery that may use the prefilter.
 """
 
 from __future__ import annotations
@@ -115,3 +118,123 @@ def discover_prefiltered(
                              key=lambda r: (-r.candidate.r_squared, r.candidate.complexity)))
     return DiscoveryResult(problem_idea=problem.idea, validated=validated,
                            all_records=records, run_id=problem.run_id)
+
+
+# --- General physics / objective surrogate (quantifiable approximation of expensive f) ---
+# Added to make the module's headline claim hold: a surrogate that can be *trained* on
+# samples of a known (possibly expensive-to-evaluate) function and then cheaply predict
+# held-out points with a bounded error and a monotone uncertainty signal.
+# This is orthogonal to (and composable with) the discovery prefilter above.
+# The surrogate approximates only; it is a prefilter/accelerator, never a replacement
+# for exact evaluation or the symbolic gate. Deterministic given data + hyperparameters.
+# Uses only numpy (declared dep).
+
+@dataclass(frozen=True)
+class Surrogate:
+    """A trained, deterministic surrogate model for a scalar expensive function.
+
+    Approximates y ≈ f(X) from finite samples. Provides predictions + uncertainty
+    estimate that grows with distance from training support (L4 edge honesty).
+    Never returns a confirmation or gate verdict.
+    """
+
+    X: np.ndarray  # (n, d) training inputs, read-only view
+    y: np.ndarray  # (n,) training targets
+    centers: np.ndarray
+    weights: np.ndarray
+    length_scale: float
+    reg: float
+
+
+def build_surrogate(
+    X: np.ndarray | list[list[float]] | list[float],
+    y: np.ndarray | list[float],
+    *,
+    length_scale: float = 1.0,
+    reg: float = 1e-8,
+) -> Surrogate:
+    """Build (train) a surrogate approximator from samples of a known function.
+
+    Args:
+        X: training inputs, shape (n_samples, n_features) or (n_samples,) for 1D.
+        y: training targets, shape (n_samples,).
+        length_scale: RBF kernel length scale (controls smoothness/support).
+        reg: small ridge regularizer for numerical stability.
+
+    Returns:
+        A Surrogate that supports predict_surrogate.
+
+    Raises:
+        ValueError: if fewer than 2 samples, shape mismatch, or non-finite data.
+    """
+    X_arr = np.asarray(X, dtype=float)
+    y_arr = np.asarray(y, dtype=float).ravel()
+    if X_arr.ndim == 1:
+        X_arr = X_arr.reshape(-1, 1)
+    n = X_arr.shape[0]
+    if n < 2:
+        raise ValueError("build_surrogate requires at least 2 training points to fit a surrogate")
+    if y_arr.shape[0] != n:
+        raise ValueError("X and y must have the same number of samples")
+    if not np.all(np.isfinite(X_arr)) or not np.all(np.isfinite(y_arr)):
+        raise ValueError("training inputs and targets must be finite (no NaN/inf)")
+    if length_scale <= 0:
+        raise ValueError("length_scale must be > 0")
+    if reg < 0:
+        raise ValueError("reg must be >= 0")
+
+    centers = X_arr.copy()
+    # Pairwise squared distances, Gaussian (RBF) kernel
+    # K_ij = exp( - ||x_i - c_j||^2 / (2 * ls^2) )
+    deltas = X_arr[:, None, :] - centers[None, :, :]
+    sq_dists = np.sum(deltas * deltas, axis=-1)
+    K = np.exp(-sq_dists / (2.0 * length_scale * length_scale))
+    K_reg = K + reg * np.eye(n)
+    # Solve for weights; lstsq as stable fallback
+    try:
+        weights = np.linalg.solve(K_reg, y_arr)
+    except np.linalg.LinAlgError:
+        weights = np.linalg.lstsq(K_reg, y_arr, rcond=None)[0]
+    return Surrogate(
+        X=X_arr,
+        y=y_arr,
+        centers=centers,
+        weights=weights,
+        length_scale=float(length_scale),
+        reg=float(reg),
+    )
+
+
+def predict_surrogate(
+    model: Surrogate,
+    X: np.ndarray | list[list[float]] | list[float],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Predict mean and uncertainty at new points using the trained surrogate.
+
+    Uncertainty heuristic is monotone increasing with distance to nearest training
+    center. Far extrapolation therefore yields high uncertainty rather than
+    spuriously confident predictions (negative-test contract).
+
+    Returns:
+        (y_mean, uncertainty) with shapes (m,), (m,). uncertainty >=0 and grows outside support.
+    """
+    if not isinstance(model, Surrogate):
+        raise ValueError("predict_surrogate expects a Surrogate from build_surrogate")
+    X_arr = np.asarray(X, dtype=float)
+    if X_arr.ndim == 1:
+        X_arr = X_arr.reshape(-1, 1)
+    if X_arr.shape[1] != model.X.shape[1]:
+        raise ValueError(f"feature dimension mismatch: got {X_arr.shape[1]}, expected {model.X.shape[1]}")
+    if X_arr.shape[0] == 0:
+        return np.array([], dtype=float), np.array([], dtype=float)
+
+    deltas = X_arr[:, None, :] - model.centers[None, :, :]
+    sq_dists = np.sum(deltas * deltas, axis=-1)
+    Knew = np.exp(-sq_dists / (2.0 * model.length_scale * model.length_scale))
+    y_mean = Knew @ model.weights
+
+    # Distance-based uncertainty: base floor + term proportional to min-distance / ls
+    # This guarantees: far points have *higher* unc than near points.
+    min_dists = np.min(np.sqrt(sq_dists), axis=1)
+    unc = 0.05 + (min_dists / max(model.length_scale, 1e-12))
+    return y_mean, unc
