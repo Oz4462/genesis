@@ -42,3 +42,6 @@ robin_output/
 # MCP-Tool-Schema/-Cache-Dumps (asya-state/pinecone/project-state) — Session-Artefakt, kein Source
 mcps/
 .no-recap
+
+# genesis CLI run artifacts (junk)
+*_out/
