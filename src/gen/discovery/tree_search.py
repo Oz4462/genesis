@@ -55,8 +55,11 @@ def best_first_search(
 ) -> SearchResult[S]:
     """Best-first search. ``score`` is the gate (returns ``(quality, passed)``); ``expand`` grows the
     tree. Expands the highest-quality unexpanded node first, deduping by ``key`` (default identity),
-    bounded by ``max_nodes`` expansions and ``max_depth``. The gate alone decides ``passed`` — no model
-    promotes a node."""
+    bounded by ``max_nodes`` expansions and ``max_depth``. ``max_depth`` bounds tree GROWTH: a node at
+    ``depth == max_depth`` is still visited (popped, counted, eligible to pass) but its ``expand`` is not
+    called, so no node deeper than ``max_depth`` is ever created. Ties in quality break by insertion
+    order (a monotonic counter, so two equal-quality nodes never compare the states themselves). The
+    gate alone decides ``passed`` — no model promotes a node."""
     if max_nodes < 1:
         raise ValueError("max_nodes must be >= 1")
     identity = key or (lambda s: s)

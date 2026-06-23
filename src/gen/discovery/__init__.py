@@ -97,6 +97,7 @@ __all__ = [
     "RivalForm",
     "discover_rivals",
     "evaluate_rival",
+    "refit_rival",
     "propose_resolution",
     "DecisionSpec",
     "propose_resolution_robust",
@@ -217,10 +218,10 @@ def __getattr__(name: str):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     if name in ("discover_transcendental", "dimensionless_groups", "TranscendentalForm",
-                "TranscendentalLaw", "RivalForm", "discover_rivals", "evaluate_rival"):
+                "TranscendentalLaw", "RivalForm", "discover_rivals", "evaluate_rival", "refit_rival"):
         from . import transcendental as _m
         for n in ("discover_transcendental", "dimensionless_groups", "TranscendentalForm",
-                  "TranscendentalLaw", "RivalForm", "discover_rivals", "evaluate_rival"):
+                  "TranscendentalLaw", "RivalForm", "discover_rivals", "evaluate_rival", "refit_rival"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     if name in ("propose_resolution", "DecisionSpec", "propose_resolution_robust", "RobustDecisionSpec"):

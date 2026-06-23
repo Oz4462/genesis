@@ -11,22 +11,22 @@
 ```mermaid
 kanban
   done
-    nT01[T01: Depth-audit + fix: discovery/sindy.py (SINDy sparse regression)]
-    nT02[T02: Depth-audit + fix: discovery/srbench_hygiene.py (symbolic-regression benchm]
-    nT03[T03: Depth-audit + fix: discovery/surrogate.py (physics surrogate model)]
-    nT04[T04: Depth-audit + fix: discovery/symbiosis.py (Grok cross-model symbiosis)]
-    nT05[T05: Depth-audit + fix: discovery/symbolic_search.py (symbolic regression search]
+    nT01[T01: tournament.py — prove evolution beats single-shot on a free-π problem]
+    nT02[T02: transcendental.py — prove honest transcendental-vs-powerlaw verdicts]
+    nT03[T03: tree_search.py — prove the gate is the sole node-scoring oracle]
+    nT04[T04: uncertainty.py — prove bootstrap bands are degenerate on exact data and wid]
+    nT05[T05: universe_bridge.py — prove simulated data is rediscovered THROUGH the gates]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | Depth-audit + fix: discovery/sindy.py (SINDy sparse regression) | done | claude | feature |
-| T02 | Depth-audit + fix: discovery/srbench_hygiene.py (symbolic-regression benchmark hygiene) | done | grok | feature |
-| T03 | Depth-audit + fix: discovery/surrogate.py (physics surrogate model) | done | grok | feature |
-| T04 | Depth-audit + fix: discovery/symbiosis.py (Grok cross-model symbiosis) | done | claude | feature |
-| T05 | Depth-audit + fix: discovery/symbolic_search.py (symbolic regression search) | done | claude | feature |
+| T01 | tournament.py — prove evolution beats single-shot on a free-π problem | done | claude | feature |
+| T02 | transcendental.py — prove honest transcendental-vs-powerlaw verdicts | done | grok | feature |
+| T03 | tree_search.py — prove the gate is the sole node-scoring oracle | done | claude | feature |
+| T04 | uncertainty.py — prove bootstrap bands are degenerate on exact data and widen with noise | done | claude | feature |
+| T05 | universe_bridge.py — prove simulated data is rediscovered THROUGH the gates | done | claude | feature |
 
 ## Decisions
 
@@ -161,6 +161,14 @@ kanban
 - (2026-06-23) No dependsOn edges: the five modules are siblings under discovery/ and each task must pass using only its own edits plus pre-existing repo files; builders must not rely on another task's in-flight changes.
 - (2026-06-23) Constraint reminder embedded in every spec: stdlib + already-declared deps only, full pytest gate must stay green, honest verdict (REAL/PARTIAL/FACADE) required even if the conclusion is 'already REAL'.
 - (2026-06-23) preferredBuilder=claude for all five: every task's core deliverable is a characterization/negative test that drives a source fix (test-shaped work), which matches Claude's historical strength; docs here are a thin per-module appendix, not the bulk.
+- (2026-06-23) Split strictly by module: each task edits exactly ONE src/gen/discovery/<m>.py + adds ONE tests/test_<m>_characterization.py + ONE docs/audit/DEPTH_AUDIT_<m>.md — the five sources import only the pre-existing engine.py (carried unmodified in every worktree) and never each other, so parallel worktrees never write the same path (zero collision risk).
+- (2026-06-23) Keep each module and its new test in the SAME task (the test imports the module under audit) so each task is independently verifiable in its own worktree using only its own files plus pre-existing repo files (engine.py already on main).
+- (2026-06-23) New test files take the _characterization suffix because tournament/transcendental/uncertainty/universe_bridge already have a legacy test_discovery_<m>.py and tree_search has test_tree_search.py; the new file is the authoritative facade-detector and leaves legacy tests untouched (no churn).
+- (2026-06-23) Universal facade-killer per module: assert (a) the headline output changes MEANINGFULLY when a driving input changes (proves the input is genuinely consumed, not a canned constant) AND (b) the documented fail-loud path raises the exact ValueError / honest-abstention verdict (proves the guard exists) — per 'keine stillen Defaults' and 'a gate without a test does not exist'.
+- (2026-06-23) All five modules read as REAL/honest on inspection, so each task edits its source ONLY where the new characterization test exposes a genuine defect (missing guard, silent wrong/constant value, dead input that never affects output) — never blanket feature-creep — upholding 'change nothing if correct'.
+- (2026-06-23) Builders construct every input through the REAL constructors/field names in src/gen/discovery/engine.py (DiscoveryProblem/Variable/Constant/Candidate) and each module's real signatures — read them, never invent fields — and use only stdlib + already-declared deps (numpy, scipy are already declared for the discovery modules).
+- (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (per the standing 2026-06-23 team decision); each task's honest verdict + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<m>.md (the integrator consolidates at merge).
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the historical test→claude routing.
 
 ### Architecture Decision Records
 
@@ -183,20 +191,21 @@ kanban
 - 0017. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0018. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0019. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0020. Depth-audit AND FIX (genesis overnight loop). For each modul
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 12 |
-| Tasks (total) | 51 |
-| Done | 49 |
+| Runs | 13 |
+| Tasks (total) | 56 |
+| Done | 54 |
 | Blocked | 1 |
 | Resolved rate | 96% |
 | Blocked rate | 2% |
-| Merges | 11 |
-| Avg duration | 80.8m |
-| Total cost | 116.73 |
+| Merges | 12 |
+| Avg duration | 78.7m |
+| Total cost | 130.81 |
 
 ## Architecture
 
@@ -212,6 +221,19 @@ graph TD
 
 Recent commits:
 
+- `9d7b8e7 Merge branch 'crew/T05-claude' into crew/integration`
+- `b35681f Merge branch 'crew/T04-claude' into crew/integration`
+- `1ac9c4f Merge branch 'crew/T03-claude' into crew/integration`
+- `01451bb Merge branch 'crew/T02-grok' into crew/integration`
+- `672fd10 crew(claude): T05 universe_bridge.py — prove simulated data is rediscovered THROUGH the gates [round 1]`
+- `c7015be crew(grok): T02 transcendental.py — prove honest transcendental-vs-powerlaw verdicts [round 3]`
+- `543e9c7 crew(claude): T04 uncertainty.py — prove bootstrap bands are degenerate on exact data and widen with noise [round 1]`
+- `b8c3349 crew(claude): T03 tree_search.py — prove the gate is the sole node-scoring oracle [round 1]`
+- `80de8fb crew(grok): T02 transcendental.py — prove honest transcendental-vs-powerlaw verdicts [round 2]`
+- `283171a crew(grok): T02 transcendental.py — prove honest transcendental-vs-powerlaw verdicts [round 1]`
+- `bf3e44c crew(claude): T01 tournament.py — prove evolution beats single-shot on a free-π problem [round 1]`
+- `156518b Merge branch 'crew/integration'`
+- `71d6f3e crew: scaffold CI/CD + project config`
 - `bc0349f crew: resolve merge conflict for crew/T05-claude`
 - `94bb363 crew: resolve merge conflict for crew/T04-claude`
 - `15f6757 crew: resolve merge conflict for crew/T03-grok`
@@ -219,19 +241,6 @@ Recent commits:
 - `b3e58f0 crew(claude): T05 Depth-audit + fix: discovery/symbolic_search.py (symbolic regression search) [round 1]`
 - `89d3669 crew(grok): T03 Depth-audit + fix: discovery/surrogate.py (physics surrogate model) [round 3]`
 - `d4590f2 crew(claude): T04 Depth-audit + fix: discovery/symbiosis.py (Grok cross-model symbiosis) [round 2]`
-- `f7b0a0f crew(grok): T03 Depth-audit + fix: discovery/surrogate.py (physics surrogate model) [round 2]`
-- `c18ce1b crew(claude): T04 Depth-audit + fix: discovery/symbiosis.py (Grok cross-model symbiosis) [round 1]`
-- `d7bea69 crew(grok): T03 Depth-audit + fix: discovery/surrogate.py (physics surrogate model) [round 1]`
-- `96ed522 crew(claude): T01 Depth-audit + fix: discovery/sindy.py (SINDy sparse regression) [round 1]`
-- `a7fe181 crew(grok): T02 Depth-audit + fix: discovery/srbench_hygiene.py (symbolic-regression benchmark hygiene) [round 1]`
-- `ab66d1c Merge branch 'crew/integration'`
-- `ff9d2d1 crew: scaffold CI/CD + project config`
-- `0f6475c crew: resolve merge conflict for crew/T05-claude`
-- `529ccca crew: resolve merge conflict for crew/T04-claude`
-- `f7df194 crew: resolve merge conflict for crew/T03-claude`
-- `0956d73 Merge branch 'crew/T02-grok' into crew/integration`
-- `ba88702 crew(claude): T05 Depth-audit + harden simulated_data.py (self-generated DiscoveryProblem) [round 1]`
-- `623791a crew(grok): T02 Depth-audit + harden proof_loop.py (certification loop: prefilter → kernel) [round 5]`
 
 
 ---
