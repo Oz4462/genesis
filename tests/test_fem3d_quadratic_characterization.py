@@ -266,36 +266,14 @@ def test_box_mesh_cross_check_path_is_guarded_and_optional():
     assert len(tets) >= 1
 
 
-def test_geometry_error_is_raised_for_missing_gmsh_path():
-    """The documented GeometryError for the mesher surface is importable and the
-    contract type exists (even if current env has gmsh, the error class is the
-    fail-loud signal used by _require_gmsh)."""
-    # we can force the error path via module patch without uninstalling
-    import sys
+def test_geometry_error_on_absent_gmsh_is_loud_and_documented():
+    """_require_gmsh (reached via box_mesh_t10) raises the documented GeometryError
+    when the gmsh import fails. This exercises the real except branch (patch.dict
+    forces ImportError on the runtime `import gmsh` inside _require_gmsh).
+    """
     from unittest import mock
-
-    real_gmsh = sys.modules.get("gmsh")
-    try:
-        sys.modules["gmsh"] = None  # simulate absent
-        # reimport to pick the None? but func does try inside
-        # call via the module's private that forces
-        # instead directly invoke the error-raising logic equivalent
-        with pytest.raises(GeometryError):
-            # trigger by calling box which will hit _require
-            # but since we patched after import, better to exec the import inside require
-            # simulate by calling a constructed require effect:
-            # the clean way: just assert the error type is the one raised by the module
-            # but to hit code, re-execute the import logic via a mock on __import__
-            with mock.patch("builtins.__import__", side_effect=ImportError("no gmsh")):
-                # this won't re-run the def, but we can call _require after forcing reload?
-                # simplest: just document that the error path exists and is used
-                # we already know from source it raises GeometryError; the test asserts the
-                # contract type for negative case.
-                raise GeometryError("simulated")
-    finally:
-        if real_gmsh is not None:
-            sys.modules["gmsh"] = real_gmsh
-        else:
-            sys.modules.pop("gmsh", None)
-    # the above just ensures we exercise GeometryError in a negative test
-    # (the real absent case is covered by the source and legacy when gmsh absent)
+    with mock.patch.dict("sys.modules", {"gmsh": None}):
+        with pytest.raises(GeometryError) as excinfo:
+            box_mesh_t10(1.0, 1.0, 1.0, 0.5)
+        msg = str(excinfo.value).lower()
+        assert "gmsh" in msg or "optional" in msg
