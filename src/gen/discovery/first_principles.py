@@ -132,15 +132,18 @@ def derive(
     names = list(known)
 
     # 1 operation: x op y
-    for x in names:
-        for y in names:
-            for op in _OPS:
-                f = f"{x} {op} {y}"
-                v = _try_formula(f, known, target_value, tolerance)
-                if v is not None:
-                    return verify_proof(axioms, [ProofStep(target_name, f, v)],
-                                        target_name=target_name, target_value=target_value,
-                                        tolerance=tolerance)
+    # Guarded so that max_ops=0 (or <1) truly bounds to zero operations and yields None
+    # for any target requiring combination (honors docstring contract and no-silent exceed).
+    if max_ops >= 1:
+        for x in names:
+            for y in names:
+                for op in _OPS:
+                    f = f"{x} {op} {y}"
+                    v = _try_formula(f, known, target_value, tolerance)
+                    if v is not None:
+                        return verify_proof(axioms, [ProofStep(target_name, f, v)],
+                                            target_name=target_name, target_value=target_value,
+                                            tolerance=tolerance)
     # 2 operations: (x op1 y) op2 z
     if max_ops >= 2:
         for x in names:
