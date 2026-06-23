@@ -22,6 +22,13 @@ all. The proposer's family is recorded in provenance for the audit.
 
 The proposer sits behind the mockable ``LLMClient`` seam (``llm.base``), so the protocol is
 fully testable offline with a scripted client; live runs use ``GrokCLI(model='grok-build')``.
+
+In addition to the gate-as-verifier discipline, ``cross_model_drift_check`` implements the
+literal model-vs-model rule of CLAUDE.md §3: a SECOND, different-family model independently
+re-derives a claimed law. Agreement (the second model independently produces the SAME law and it
+passes the gate) corroborates; disagreement is surfaced as DRIFT and never silently passed off as
+verified; a verifier that errors/times out yields an honest ABSTENTION. Same-family
+self-verification is refused with ``ModelConflictError`` — it shares the generator's blind spots.
 """
 
 from __future__ import annotations
@@ -32,7 +39,7 @@ from dataclasses import dataclass
 from ..llm.base import LLMClient
 from ..llm.schemas import parse_proposals
 from .canonical import dedupe_by_exponents
-from ..verification.cross_model import model_family
+from ..verification.cross_model import assert_different_families, model_family
 from .engine import (
     Candidate,
     DiscoveryProblem,
@@ -280,3 +287,137 @@ def scripted_council(proposals: dict[str, str]) -> list[GrokProposer]:
 
     return [GrokProposer(client=ScriptedLLM(model, text), model=model)
             for model, text in proposals.items()]
+
+
+# ---------------------------------------------------------------------------------------------------
+# Cross-model DRIFT CHECK — a SECOND model independently verifies the generator's law (CLAUDE.md §3).
+# ---------------------------------------------------------------------------------------------------
+#
+# The protocols above use the deterministic gate as the verifier. This adds the *model-vs-model*
+# discipline CLAUDE.md §3 demands literally: a SECOND model, of a DIFFERENT family than the model
+# that produced a claimed law, independently re-derives the same problem. Agreement (the verifier
+# independently arrives at the SAME law AND that law passes the gate) corroborates; any successful
+# disagreement is surfaced as DRIFT and never silently passed off as "verified". A verifier that
+# cannot answer (tool error / timeout) yields an honest ABSTENTION, not a fake pass.
+
+# Verdict vocabulary for a drift check. Three mutually-exclusive honest outcomes.
+DRIFT_CORROBORATED = "corroborated"  # second model independently confirms the gated law -> verified
+DRIFT_DETECTED = "drift"            # second model ran but did NOT corroborate -> NOT verified
+DRIFT_ABSTAINED = "abstention"      # second model could not answer (error/timeout) -> NOT verified
+
+
+@dataclass(frozen=True)
+class DriftReport:
+    """The honest record of a cross-model drift check.
+
+    `verified` is True ONLY in the ``corroborated`` case — a gate-passed proposal from the
+    *different-family* verifier matched the generator's claimed exponents. ``drift`` and
+    ``abstention`` both leave `verified` False, so no path turns a disagreement or a failed
+    verifier call into a silent pass.
+
+    Fields:
+        generator_model:  the model whose claimed law is under check (provenance/audit).
+        verifier_model:   the second, different-family model that re-derived it.
+        claim_exponents:  the law the generator asserted (power-law exponents).
+        status:           one of ``corroborated`` / ``drift`` / ``abstention``.
+        verified:         True iff the cross-model check independently corroborated the claim.
+        drift:            True iff the verifier ran but failed to corroborate (disagreement).
+        verifier_passed:  the verifier proposals that independently PASSED the gate.
+        detail:           short human-readable reason (not a new fact).
+    """
+
+    generator_model: str
+    verifier_model: str
+    claim_exponents: dict[str, float]
+    status: str
+    verified: bool
+    drift: bool
+    verifier_passed: tuple[JudgedProposal, ...]
+    detail: str
+
+
+def _exponents_match(a: dict[str, float], b: dict[str, float], tol: float) -> bool:
+    """Two exponent maps describe the same power law iff every shared/implied exponent agrees
+    within `tol`. A key absent from one map is treated as exponent 0 (the source does not enter),
+    so ``{a: 1.5}`` and ``{a: 1.5, mu: 0.0}`` compare equal — same physical law."""
+    for key in set(a) | set(b):
+        if abs(a.get(key, 0.0) - b.get(key, 0.0)) > tol:
+            return False
+    return True
+
+
+def cross_model_drift_check(
+    problem: DiscoveryProblem,
+    claim: Proposal | dict[str, float],
+    *,
+    generator_model: str,
+    verifier: LLMClient,
+    n_proposals: int = 4,
+    known_laws: dict[str, dict[str, float]] | None = None,
+    r2_threshold: float = DEFAULT_R2_THRESHOLD,
+    tol: float = 1e-3,
+) -> DriftReport:
+    """Independently verify a generator's claimed law with a SECOND, different-family model.
+
+    This is the literal cross-model gate of CLAUDE.md §3: the ``verifier`` LLM is dependency-
+    injected (any ``LLMClient`` — a ``ScriptedLLM`` offline, a live CLI in production), runs the
+    same problem, and its proposals are gated by the deterministic ``judge_candidate``. The claim
+    counts as VERIFIED only if a gate-PASSED verifier proposal matches the claimed exponents — i.e.
+    a different model independently re-derived the same, dimensionally-sound law. Otherwise the
+    result is DRIFT (verifier disagreed) or ABSTENTION (verifier could not answer); neither is ever
+    reported as verified.
+
+    Args:
+        problem: the discovery problem both models work.
+        claim: the generator's asserted power law (a ``Proposal`` or raw exponent dict).
+        generator_model: the id of the model that produced the claim (for the family check + audit).
+        verifier: the second model, injected for offline testability.
+        n_proposals: how many independent hypotheses to request from the verifier.
+        known_laws, r2_threshold, tol: gate + match tolerances, threaded to ``judge_candidate``.
+
+    Returns:
+        DriftReport with ``verified`` True only on independent cross-model corroboration.
+
+    Raises:
+        ModelConflictError: the verifier shares the generator's model family. Single-model
+            self-checking is not verification (CLAUDE.md §3) and is refused loudly, never run.
+    """
+    claim_exponents = dict(claim.exponents) if isinstance(claim, Proposal) else dict(claim)
+
+    # Cross-model law: the verifier MUST be a different family. A same-family "check" shares the
+    # generator's blind spots and is refused before any model call is made.
+    assert_different_families(generator_model, verifier.model)
+
+    proposer = GrokProposer(client=verifier, model=verifier.model)
+    try:
+        props = asyncio.run(proposer.propose(problem, n=n_proposals))
+    except Exception as exc:  # tool error / timeout / unreachable verifier -> honest abstention
+        # We could not obtain an independent second opinion, so we MUST NOT claim verification.
+        return DriftReport(
+            generator_model=generator_model, verifier_model=verifier.model,
+            claim_exponents=claim_exponents, status=DRIFT_ABSTAINED,
+            verified=False, drift=False, verifier_passed=(),
+            detail=f"verifier unavailable ({type(exc).__name__}): abstaining, not verified.",
+        )
+
+    judged = _gate_proposals(problem, props, known_laws=known_laws, r2_threshold=r2_threshold)
+    passed = tuple(j for j in judged if j.verdict.passed)
+
+    corroborating = any(_exponents_match(j.proposal.exponents, claim_exponents, tol) for j in passed)
+    if corroborating:
+        return DriftReport(
+            generator_model=generator_model, verifier_model=verifier.model,
+            claim_exponents=claim_exponents, status=DRIFT_CORROBORATED,
+            verified=True, drift=False, verifier_passed=passed,
+            detail=f"{verifier.model} independently re-derived the gated law: corroborated.",
+        )
+
+    # The verifier ran but produced no gate-passed proposal matching the claim: genuine
+    # disagreement. Surfaced as drift — emphatically NOT verified.
+    return DriftReport(
+        generator_model=generator_model, verifier_model=verifier.model,
+        claim_exponents=claim_exponents, status=DRIFT_DETECTED,
+        verified=False, drift=True, verifier_passed=passed,
+        detail=f"{verifier.model} did not corroborate the claim "
+               f"({len(passed)} gate-passed rival law(s)): drift flagged.",
+    )
