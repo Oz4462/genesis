@@ -16,8 +16,13 @@
   nicht-finiter „Fakt", der dem Finite-Power-Law-Vertrag widerspricht (Kernprinzip 4). Fix:
   Finitheits-Guard für base/new/exponent + Overflow-Guard auf den Faktor → ehrliche
   Abstention (`internally_consistent=False`, kein `target_scale_factor`).
+- **Runde 2 (Review-Finding `rubberduck`):** CPython wirft beim Potenz-Overflow
+  `OverflowError` (kein `inf`), z.B. `base=1, new=1e10, exp=40` → `1e400`; der reine
+  `isfinite`-Guard ließ die Exception ungefangen entkommen → Absturz statt Flag. Fix: Potenz
+  in `try/except OverflowError` gekapselt, beide Überlauf-Pfade → flagged-inconsistent. Neuer
+  Regressionstest `test_power_overflow_is_flagged_not_crashed`.
 - Öffentliche Signaturen unverändert; bestehende `tests/test_discovery_reality_fork.py` grün.
 - 4 Linsen: L1 (Math gegen Gauß/Potenzgesetz verifiziert), L2 (Counterfactual-/`bestaetigt`-
   Invarianten getestet), L3 (Signaturen stabil, keine Downstream-Brüche), L4 (stiller
-  nicht-finiter Defekt beseitigt).
-- **19 Tests grün** (14 neu + 5 bestehend). Details: `docs/audit/DEPTH_AUDIT_reality_fork.md`.
+  nicht-finiter Defekt + Overflow-Crash beseitigt).
+- **20 Tests grün** (15 neu + 5 bestehend). Details: `docs/audit/DEPTH_AUDIT_reality_fork.md`.

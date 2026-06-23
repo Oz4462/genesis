@@ -40,6 +40,15 @@ vor der Positivitäts-Prüfung, plus ein Overflow-Guard auf den berechneten Fakt
 Eingaben können nach `inf` überlaufen). Nicht-finite Fälle werden jetzt
 `internally_consistent=False` ohne `target_scale_factor` zurückgegeben (ehrliche Abstention).
 
+**Runde-2-Nachschärfung (Review-Finding `rubberduck`):** CPython ist beim Potenz-Overflow
+inkonsistent — `(new/base) ** exp` **wirft `OverflowError`** statt `inf` zurückzugeben (z.B.
+`base=1, new=1e10, exp=40` → `1e400`), während der Zwischenschritt `new/base` nach `inf`
+überläuft. Der reine `math.isfinite(factor)`-Guard fing nur den Divisions-Fall; die
+Exception entkam ungefangen und stürzte den Aufruf ab — ein Widerspruch zur
+„flag-don't-crash"-Absicht. Fix: die Potenz in `try/except OverflowError` gekapselt → beide
+Pfade (Exception **und** `inf`) führen jetzt zur flagged-inconsistent-Welt. Neuer
+Regressionstest `test_power_overflow_is_flagged_not_crashed`.
+
 ## L3 Vollständigkeit / Naht
 Öffentliche Signaturen (`CounterfactualWorld`, beide Fork-Funktionen, `gauss_force_exponent`,
 `fork_from_discovery`) unverändert → keine Downstream-Brüche. Bestehende Tests bleiben grün.

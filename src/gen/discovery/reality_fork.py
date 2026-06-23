@@ -129,8 +129,17 @@ def fork_constant(
             change={"constant": constant, "base": base_value, "new": new_value},
             forked_law="(nicht-positive Magnitude)", internally_consistent=False,
             notes=("Potenzgesetz braucht positive Magnituden; nicht-positiver Wert ist inkonsistent",))
-    factor = (new_value / base_value) ** scaling_exponent
-    if not math.isfinite(factor):  # finite inputs can still overflow to inf — never claim that consistent
+    # Finite positive inputs can still overflow under exponentiation. CPython is inconsistent
+    # here: ``(new/base) ** exp`` RAISES OverflowError on float power overflow, but the
+    # intermediate ``new/base`` division overflows to ``inf`` instead — so we must both catch
+    # the exception AND check finiteness. Either way the honest result is a flagged-inconsistent
+    # world, never a crash and never a silent non-finite scale factor.
+    try:
+        factor = (new_value / base_value) ** scaling_exponent
+        overflowed = not math.isfinite(factor)
+    except OverflowError:
+        overflowed = True
+    if overflowed:
         return CounterfactualWorld(
             name=f"{constant} -> {new_value:g}", kind="constant",
             change={"constant": constant, "base": base_value, "new": new_value},

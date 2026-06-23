@@ -165,6 +165,18 @@ def test_nonfinite_constant_is_flagged_inconsistent():
         assert "target_scale_factor" not in w.change
 
 
+def test_power_overflow_is_flagged_not_crashed():
+    """REGRESSION: finite positive inputs can still overflow under exponentiation. CPython
+    RAISES OverflowError on float power overflow (it does NOT return inf), so a plain
+    ``math.isfinite(factor)`` check would let the exception escape and crash the call. The
+    honest behaviour is a flagged-inconsistent world, never an uncaught OverflowError."""
+    # (1e10)^40 = 1e400 overflows float — confirmed to raise OverflowError, not return inf.
+    w = fork_constant("T", "mu", base_value=1.0, new_value=1e10, scaling_exponent=40.0)
+    assert w.internally_consistent is False
+    assert "target_scale_factor" not in w.change
+    assert "(nicht-finiter Skalenfaktor)" == w.forked_law
+
+
 # --------------------------------------------------------------------------------------------
 # Property-based invariants (math identities that must hold for ALL valid inputs).
 # --------------------------------------------------------------------------------------------
