@@ -20,7 +20,7 @@ The audit target: prove the layers are live (not a sympy facade) and the verdict
   | numerically false | `sin(x) == x` | "widerlegt", `numeric_ok=False`, `kernel="mpmath"` | mpmath prefilter (before any kernel) | `test_mpmath_prefilter_refutes_false_and_short_circuits_kernel` (even when proving kernel supplied) |
   | domain-hole (sympy accepts) | `(x**2+x)/x == x+1` + refuter kernel | "widerlegt" (NOT "Satz"), ce at x=0 | kernel refutation | `test_domain_hole_sympy_approves_kernel_refutes_not_satz` + explicit `sp.simplify==0` guard |
   | unparseable | `x +* 1` | "unsupported", `kernel="parse"` | parse gate (before layers) | `test_unparseable_claim_is_unsupported_before_any_layer` |
-- Facade killer satisfied: (a) driving input change yields observably different status/kernel/detail (`test_different_claims_produce_meaningfully_different_verdicts`); (b) sympy_zero alone never produces "Satz" (always "Kandidat" with "sympy" or "mpmath" kernel label when no kernel close).
+- Facade killer satisfied: (a) driving input change yields observably different status/kernel/detail (`test_different_claims_produce_meaningfully_different_verdicts` — strengthened post-review to also assert kernel+detail differ); (b) sympy_zero alone never produces "Satz" (always "Kandidat" with "sympy" or "mpmath" kernel label when no kernel close).
 - Property-based (Hypothesis, >=20 examples + derandomize): determinism (identical claim+seed+kernel list → identical `(status, kernel, numeric_ok)`) — A5 contract. Plus input-variation property keeps "Kandidat" for true identities under abstaining kernel while confirming layers are claim-driven.
 - Negative / documented fail-loud paths: bad `sample_lo/hi` (hi<lo) raises `ValueError` (public API loud, no silent numeric); `n_samples=0` defers to heuristic (documented abstention path).
 - Real kernel collaboration: custom `_ProvingKernel` / `_RefutingKernel` / `_UnsupportedKernel` (duck the `ProofKernel` protocol via `KernelResult`) exercise the `for kernel in kernels:` loop without requiring optional z3-solver. Default Z3 path left untouched (honest degradation already covered by legacy tests).
@@ -29,11 +29,17 @@ A sympy-facade implementation would have failed `test_kernel_close_is_what_earns
 
 ## Änderungen (scope-respecting)
 
-- `src/gen/discovery/proof_loop.py`: **NO EDITS**. The three layers, the strict "Satz only on kernel proved", the mpmath early-refute, the sympy-heuristic fallback to "Kandidat", the parse guard, counterexample threading, and determinism were already present and match the documented contract exactly. "change nothing if correct".
+- `src/gen/discovery/proof_loop.py`: **NO EDITS** (the 4th scoped file per task). Read in full for verification + defect hunt; all claims (3-layer execution, "Satz only on kernel close", prefilter short-circuit, etc.) already held exactly. "change nothing if correct". Diff therefore reports the 3 written files.
 - `tests/test_proof_loop_characterization.py`: **new file** (the authoritative characterization per team decisions 2026-06-22/23). Uses real ctors + pre-existing `gen.proof_kernels`. Leaves `test_discovery_proof_loop.py` and `test_proof_tier.py` byte-for-byte untouched (no churn).
 - `docs/audit/DEPTH_AUDIT_proof_loop.md`: this file.
 - `BUILD_LOG.md`: short honest append (per explicit task spec; other tasks deliberately excluded it for merge safety).
 
+Post-review rubberduck findings addressed inside scope (no new files):
+- test_different... now asserts kernel+detail differences (not just status).
+- unparseable test now supplies explicit kernels=[...] + clarifying comment (parse is before kernel by design).
+- numeric_prefilter's internal broad-except abstain path is now directly exercised via numeric_prefilter(bad).
+- property test uses keyword args for IdentityClaim; added dedicated test for empty-vars + const-only identities.
+- hypothesis import guarded by pytest.importorskip (prevents collection failure when dev extras absent).
 Legacy tests remain untouched. Isolation: only the four files in the declared scope. The new test passes using only its files + pre-existing repo modules (including proof_kernels.py, sympy/mpmath already declared).
 
 ## Evidence vs. backlog
@@ -45,16 +51,16 @@ Satisfies the assigned T02 task: "Write a NEW characterization test ... that pro
 - **L1 (Wahrheit / Provenance):** All verdicts and layer attributions are derived from actual execution of `prove_identity` + real numeric/sympy/kernel collaborators. The "Satz" label asserted only when a test kernel returns "proved"; sympy approval explicitly measured with `sp.simplify` and shown insufficient. No invented numbers or canned strings. Matches "keine stillen Defaults".
 - **L2 (Drift / Grounding):** Module docstring, ProofVerdict fields, and status rules match runtime exactly. No drift introduced. Determinism property guards A5 reproducibility. Kernel label in output is the actual decider object name.
 - **L3 (Vollständigkeit / Naht):** Covers prefilter short-circuit, sympy heuristic, kernel loop, all four status branches, multi-kernel precedence, domain-hole (the canonical sympy-unsound case), and documented error paths. Uses the same `IdentityClaim` + kernel protocol as production callers. Jetpack-rich (z3) behaviour is protected by leaving legacy tests + default path alone; the characterization proves the generic kernel path is real.
-- **L4 (Realisierbarkeit / Edge):** Scoped to genuine public-API edges (bad range → loud ValueError, n=0 deferral, unparseable, zero/positive domains via sampling). No blanket NaN/inf guards added (per team decision: only where they would silently produce wrong factual value; here crashes are already loud). Property tests filter degenerate inputs. Offline, pure (given fixed seed), stdlib+declared deps only. Hypothesis already in dev extras (no pyproject edit).
+- **L4 (Realisierbarkeit / Edge):** Scoped to genuine public-API edges (bad range → loud ValueError, n=0 deferral, unparseable, zero/positive domains via sampling, empty-vars const identities). Direct call to numeric_prefilter exercises its internal except-abstain path. No blanket NaN/inf guards added (per team decision: only where they would silently produce wrong factual value; here crashes are already loud). Property tests filter degenerate inputs. Offline, pure (given fixed seed), stdlib+declared deps only. Hypothesis guarded by importorskip (no pyproject edit).
 
-**Selfkontrolle (DoD):** Interface (IdentityClaim/ProofVerdict/prove_identity) unchanged; types exercised; tests (12 new + property + neg) green; no ledger (pure math); no gate-delta here (this is the kernel inside discovery cert); docs + audit written; 4L applied; BUILD_LOG appended (short); pre-existing behaviour green; isolation (scoped files only) honoured.
+**Selfkontrolle (DoD):** Interface (IdentityClaim/ProofVerdict/prove_identity) unchanged; types exercised; tests (14 new incl. const/empty-vars + direct prefilter path + strengthened assertions + property + neg) green; no ledger (pure math); no gate-delta here (this is the kernel inside discovery cert); docs + audit written; 4L applied; BUILD_LOG appended (short); pre-existing behaviour green; isolation (scoped files only) honoured. All rubberduck items from review fixed strictly inside the 4-file scope.
 
 ## Test Results (this task)
 
 ```
 $ PYTHONPATH=src python3 -m pytest tests/test_proof_loop_characterization.py -q --tb=line
-............                                                             [100%]
-12 passed in 2.8s
+..............                                                           [100%]
+14 passed in 2.9s
 ```
 
 Legacy proof tests also re-confirmed green:
