@@ -16,8 +16,22 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .architekt import SystemConcept
-from .ingenieur import IngenieurSpec
+from .architekt import AssemblyConcept, SystemConcept
+from .ingenieur import FailureMode, IngenieurSpec
+
+# Keywords that mark an assembly as needing active control/monitoring (i.e. an
+# embedded node), as opposed to being purely structural. German + English so the
+# generic mapper works for any idea, not just the jetpack canon. WHY a keyword
+# heuristic instead of a hardcoded list: the only honest signal we have about a
+# non-jetpack idea is the assembly's own declared name/purpose/interfaces — we
+# derive control-relevance from THOSE, we do not invent it.
+_CONTROL_KEYWORDS: tuple[str, ...] = (
+    "control", "steuer", "regel", "sensor", "sensing", "motor", "antrieb",
+    "propuls", "schub", "power", "energie", "energy", "drive", "actuat",
+    "aktor", "valve", "ventil", "pump", "pumpe", "heat", "therm", "comm",
+    "signal", "flight", "flug", "navig", "telemetr", "battery", "akku",
+    "interlock", "safety", "recovery",
+)
 
 
 @dataclass(frozen=True)
@@ -63,17 +77,74 @@ class SoftwareSpec:
     quelle: str | None = None
 
 
+def _needs_control(assembly: AssemblyConcept) -> bool:
+    """Return True if an assembly plausibly needs an embedded controller/monitor.
+
+    The decision is derived ONLY from the assembly's own declared name, purpose and
+    interfaces (no invented system knowledge), so a purely structural assembly does
+    not silently grow a fabricated controller.
+    """
+    haystack = " ".join(
+        [assembly.name, assembly.purpose, *assembly.interfaces]
+    ).lower()
+    return any(kw in haystack for kw in _CONTROL_KEYWORDS)
+
+
+def _failure_states_for(
+    assembly: AssemblyConcept, failure_modes: list[FailureMode]
+) -> list[str]:
+    """Derive an embedded component's declared failure states.
+
+    Every embedded node carries the universal ``comm_loss`` baseline (a genuine,
+    non-fabricated failure mode of any communicating controller), plus every
+    Ingenieur-declared failure mode whose originating assembly matches this one.
+    The gate intent — *no unhandled failure state* — is honoured because the list
+    is never empty.
+    """
+    states = ["comm_loss"]
+    name_l = assembly.name.lower()
+    for fm in failure_modes:
+        quelle_l = fm.aus_baugruppe.lower()
+        # Match in either direction so "Propulsion / Frame" links to a
+        # "Propulsion" assembly and vice versa.
+        if name_l and (name_l in quelle_l or quelle_l in name_l):
+            states.append(fm.name)
+    return states
+
+
 def map_to_software_spec(
     concept: SystemConcept,
     ingenieur: IngenieurSpec,
     *,
     run_id: str | None = None,
 ) -> SoftwareSpec:
+    """Erster Stein Software-Pipeline: mappt SystemConcept + IngenieurSpec → SoftwareSpec.
+
+    Jetpack: Thrust controller + Tether safety + ground API + OTA + error states
+    (kanonischer Spezialfall, byte-stabil).
+
+    Generischer Pfad: leitet die Embedded-Komponenten aus ``concept.main_assemblies``
+    ab (jede steuerungs-relevante Baugruppe wird ein Knoten), die deklarierten
+    Fehlerzustände aus ``ingenieur.failure_modes`` und den Testplan aus eben diesen
+    Failure-Modes (Fault-Injection je deklariertem Fehler). Wo Rollback-/OTA-Fähigkeit
+    nicht analysiert ist, wird eine explizite Lücke deklariert statt still „kein
+    Rollback" zu behaupten. Zwei verschiedene Eingaben → unterscheidbare Outputs.
+
+    Gate-Intent (PLAN §4): jede ``EmbeddedComponent`` listet ≥1 Fehlerzustand, jede
+    ``APISpec`` hat nicht-leeres input/output/sicherheit.
+
+    Raises:
+        ValueError: wenn weder ``concept.source_idea`` (nach strip) noch
+            ``concept.main_assemblies`` ein verwertbares Signal liefern — eine
+            fehlende Eingabe darf keinen fabrizierten Stub erzeugen
+            (Kernprinzip: keine stillen Defaults).
     """
-    Erster Stein Software-Pipeline.
-    Jetpack: Thrust controller + Tether safety + ground API + OTA + error states.
-    Generic: honest gaps.
-    """
+    if not concept.source_idea.strip() and not concept.main_assemblies:
+        raise ValueError(
+            "concept has no actionable signal: source_idea is blank and "
+            "main_assemblies is empty — refusing to fabricate a SoftwareSpec stub"
+        )
+
     idee_lower = concept.source_idea.lower()
 
     if "jetpack" in idee_lower or "flug" in idee_lower:
@@ -94,12 +165,87 @@ def map_to_software_spec(
         zusammen = "Jetpack SoftwareSpec: Embedded (ThrustController + TetherSafety), API (GroundTelemetry), OTA with rollback, testplan with fault injection. Naht to Elektriker/Techniker/DFM/Lern/Realisierungspaket."
         quelle = "GENESIS_PLATFORM_PLAN.md §4 (Software-Pipeline) + prior Elektriker/Techniker/DFM/Lern + Jetpack-Kanon"
     else:
-        embedded = [EmbeddedComponent("MainController", "Basic control loop", "simple I/O", ["comm_loss"], quelle="Generic")]
-        apis = [APISpec("BasicAPI", "Status query", "none", "status JSON", "basic auth", quelle="Generic")]
-        update = UpdatePfad("Manual flash", "No rollback (Lücke)", "Manual verify", quelle="Generic + PLAN §4")
-        testplan = ["Basic unit + integration (Lücke for fault injection)"]
-        zusammen = f"Generische SoftwareSpec für '{concept.source_idea[:40]}...'. Viele Details als Lücke (keine spezifische control/safety from prior)."
-        quelle = "GENESIS_PLATFORM_PLAN.md §4 + generic fallback (ehrliche Lücken)"
+        idea_text = concept.source_idea.strip() or "(unbenannte Idee)"
+
+        # Embedded: one node per control-relevant assembly, failure states drawn
+        # from the Ingenieur failure modes. Purely structural assemblies do NOT
+        # become controllers (no fabrication).
+        embedded = [
+            EmbeddedComponent(
+                name=f"{a.name} Controller",
+                funktion=f"Steuerung/Überwachung der Baugruppe »{a.name}« ({a.purpose})",
+                interface=", ".join(a.interfaces) if a.interfaces else "I/O (Lücke: Schnittstellen nicht spezifiziert)",
+                fehler_zustaende=_failure_states_for(a, ingenieur.failure_modes),
+                quelle=f"abgeleitet aus Architekt-Baugruppe + Ingenieur failure_modes (concept »{idea_text}«)",
+            )
+            for a in concept.main_assemblies
+            if _needs_control(a)
+        ]
+        # Honest fallback: if no assembly is control-relevant we still need a
+        # software node for the system, but we declare that no control-specific
+        # assembly was identified rather than inventing one.
+        if not embedded:
+            embedded = [
+                EmbeddedComponent(
+                    name="SystemMonitor",
+                    funktion=f"Basis-Überwachung des Gesamtsystems »{idea_text}« "
+                    "(keine steuerungs-spezifische Baugruppe identifiziert — Lücke)",
+                    interface="Status-I/O (Lücke: keine Steuer-Schnittstelle aus Konzept ableitbar)",
+                    # Gate intent: a component never ships without a failure state.
+                    fehler_zustaende=["comm_loss"],
+                    quelle="generic fallback (keine control-relevante Baugruppe)",
+                )
+            ]
+
+        # API: a status/telemetry contract over the derived components. Contract is
+        # non-empty (gate: no API without contract); command/write paths are an
+        # explicit gap, not silently asserted.
+        komponenten_namen = ", ".join(e.name for e in embedded)
+        apis = [
+            APISpec(
+                name="StatusAPI",
+                beschreibung=f"Statusabfrage der Komponenten ({komponenten_namen}) für »{idea_text}«",
+                input="Statusabfrage (read-only)",
+                output="JSON: Zustand + deklarierte Fehlerzustände je Komponente",
+                sicherheit="Auth erforderlich, rate-limited, read-only "
+                "(Lücke: Befehls-/Schreib-API noch nicht spezifiziert)",
+                quelle=f"abgeleitet aus Embedded-Komponenten (concept »{idea_text}«)",
+            )
+        ]
+
+        # Update path: rollback capability is NOT analysed here, so we declare an
+        # explicit honest gap instead of falsely asserting 'No rollback'.
+        update = UpdatePfad(
+            methode="Update-Methode nicht festgelegt (Lücke: OTA/Flash je nach Hardware offen)",
+            rollback="UNBEKANNT — Rollback-Fähigkeit nicht analysiert "
+            "(explizite Lücke, nicht als 'kein Rollback' behauptet)",
+            test="A/B- oder Health-Check-Strategie noch zu definieren (Lücke)",
+            quelle="generic fallback + PLAN §4 (ehrliche Lücke statt geratener Default)",
+        )
+
+        # Testplan: fault-injection per declared failure mode (derived, not canned).
+        testplan = [
+            "Unit-Tests je Steuer-Komponente (State Machines)",
+            "Integrationstest: Komponenten ↔ StatusAPI",
+        ]
+        for fm in ingenieur.failure_modes:
+            testplan.append(
+                f"Fault-Injection: {fm.name} ({fm.aus_baugruppe}) → muss in sicheren "
+                f"Zustand übergehen (Detection: {fm.detection})"
+            )
+        if not ingenieur.failure_modes:
+            testplan.append(
+                "Fault-Injection-Tests offen (Lücke): keine Failure-Modes aus "
+                "Ingenieur deklariert"
+            )
+
+        zusammen = (
+            f"Generische SoftwareSpec für »{idea_text}«: {len(embedded)} Embedded-"
+            f"Komponente(n) aus den Baugruppen abgeleitet, {len(apis)} API "
+            f"(read-only-Kontrakt), Testplan aus {len(ingenieur.failure_modes)} "
+            "Failure-Mode(s). Update/Rollback als explizite Lücke deklariert."
+        )
+        quelle = "GENESIS_PLATFORM_PLAN.md §4 + generischer Mapper (Inputs konsumiert, ehrliche Lücken)"
 
     return SoftwareSpec(
         source_idea=concept.source_idea,
