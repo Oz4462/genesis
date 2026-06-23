@@ -1,16 +1,19 @@
 """Characterization test for the deterministic (offline-pure) parts of PostgresLedgerStore.
 
-This pins exactly the *public contract* described in the 2026-06-23 task using only
-public API (PostgresConfig.from_env + .connect_kwargs, store.embed_dim, the
-add_claims/update_claim/ensure_run guards, and store_embedding dim gate). Private
-helpers (_support_*, _check_dim, _to_pgvector, _config) are never imported or called
-directly. The integration test remains the one that requires a live server.
+This pins exactly the contract described in the 2026-06-23 task (see spec):
+ONLY the deterministic, non-database code (no asyncpg, no live server).
+Uses public surface (from_env, connect_kwargs, embed_dim, guards on add/update/ensure,
+dim via store_embedding) PLUS direct tests of the small pure helpers
+_support_to_db/_support_from_db (roundtrips + None->'supports') and
+_to_pgvector (literal render) because the task spec explicitly requires them
+for offline coverage. The live-DB integration test is skipped in this gate,
+so regression in support mapping or pgvector literal would otherwise go undetected.
 
 All tests use real constructors from core.state and the module under test.
-No source edits were required (all documented behavior already holds; "harden"
-refers only to test coverage).
+No source edits to postgres.py were required (all documented behavior already holds;
+"harden" refers only to test coverage + docs).
 
-A property-based test (Hypothesis) covers an observable public invariant.
+Property-based tests (Hypothesis) cover round-trip and other invariants.
 """
 
 from __future__ import annotations
@@ -31,7 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from gen.core.errors import GenesisError, UnsourcedClaimError  # noqa: E402
 from gen.core.state import Claim, SourceRef, SourceSupport  # noqa: E402
-from gen.ledger.postgres import PostgresConfig, PostgresLedgerStore  # noqa: E402
+from gen.ledger.postgres import PostgresConfig, PostgresLedgerStore, _support_from_db, _support_to_db  # noqa: E402
 
 
 def run(coro):
@@ -154,6 +157,57 @@ def test_connect_kwargs_includes_password_only_when_set():
     assert cfg_yes.connect_kwargs()["password"] == "secret"
 
 
+# --- _support_to_db / _support_from_db round-trips (spec-required for offline) ---
+# These pure helpers implement the documented mapping (None/SUPPORTS -> 'supports',
+# CONTRADICTS -> 'contradicts'). Per task spec they must be asserted in the offline
+# char test: the only other exercise is inside the live-DB integration test
+# (which is skipped in this gate). Direct coverage here prevents silent regression
+# in provenance direction when no DB is present. (Small, deterministic, no side effects.)
+
+def test_support_to_db_maps_none_and_supports_to_supports():
+    assert _support_to_db(None) == "supports"
+    assert _support_to_db(SourceSupport.SUPPORTS) == "supports"
+
+
+def test_support_to_db_maps_contradicts():
+    assert _support_to_db(SourceSupport.CONTRADICTS) == "contradicts"
+
+
+def test_support_from_db_round_trips():
+    assert _support_from_db("supports") is SourceSupport.SUPPORTS
+    assert _support_from_db("contradicts") is SourceSupport.CONTRADICTS
+
+
+@settings(max_examples=30)
+@given(
+    support=st.sampled_from([None, SourceSupport.SUPPORTS, SourceSupport.CONTRADICTS])
+)
+def test_support_roundtrip_property(support):
+    """Round-trip + defaulting invariant (property-based per spec + A5):
+    Only CONTRADICTS is preserved exactly; None and SUPPORTS map to the default
+    'supports' (as documented for scholar sources).
+    """
+    db_val = _support_to_db(support)
+    back = _support_from_db(db_val)
+    if support is SourceSupport.CONTRADICTS:
+        assert db_val == "contradicts"
+        assert back is SourceSupport.CONTRADICTS
+    else:
+        assert db_val == "supports"
+        assert back is SourceSupport.SUPPORTS
+
+
+# --- _to_pgvector literal (spec-required for offline) ---
+# The static helper produces the exact pgvector text literal form used in SQL.
+# Spec requires asserting the '[v0,v1,...]' render. Only other path is live
+# embedding in integration (skipped offline), so must cover here for the gate.
+
+def test_to_pgvector_renders_pgvector_literal():
+    lit = PostgresLedgerStore._to_pgvector([0, 1.5, -2.25])
+    assert lit == "[0.0,1.5,-2.25]"
+    assert lit.startswith("[") and lit.endswith("]")
+
+
 # --- Backward-compat ctor PostgresLedgerStore(dsn=...) ------------------------
 # Used by scripts/postgres_smoke.py: PostgresLedgerStore(TEST_DSN) (positional dsn path).
 # Must set the dsn on the internal config so connect_kwargs() uses the full DSN and
@@ -191,12 +245,11 @@ def test_postgresledgerstore_dsn_ctor_backward_compat(monkeypatch):
     assert store3.embed_dim == 64
 
 
-# --- dimension validation and pgvector helpers (exercised via public paths) ---
-# Note: the low-level _support_* , _check_dim, _to_pgvector helpers are implementation
-# details (used inside add/update and embedding paths). Per testing standards we assert
-# via public API surface only (from_env, connect_kwargs, embed_dim, add/update/ensure
-# guards, store_embedding dim gate). The support enum mapping and literal formatting
-# are covered by the integration test (which exercises the DB roundtrip).
+# --- dimension validation (exercised via public path) + other helpers covered above ---
+# _check_dim is exercised via public store_embedding (before pool). The support
+# mapping and _to_pgvector literal are tested directly above per explicit task spec
+# (offline regression protection for helpers whose only other use is in skipped
+# integration test).
 
 def test_embed_dim_property_reflects_config():
     cfg = PostgresConfig(
