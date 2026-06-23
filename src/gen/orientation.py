@@ -185,8 +185,9 @@ def _mesh(node: GeometryNode, quantities: dict[str, Quantity],
     # 0 faces ⇒ 0 triangles), so the contract message is accurate. The Faces() test
     # is the cheap EARLY detection of that empty geometry, raised before BoundingBox
     # because the void box would otherwise crash opaquely. A valid solid always has
-    # ≥1 face → no-op for real geometry; the `if not tris` backstop below still
-    # covers the all-degenerate-sliver case where faces exist but no triangle does.
+    # ≥1 face → no-op for real geometry; the `if not tris` backstop just before the
+    # return covers the all-degenerate-sliver case where faces exist but no triangle
+    # survives, so both _mesh consumers fail loud identically to overhang_check.
     if not solid.Faces():
         raise ValueError("tessellation produced no triangles")
     bb = solid.BoundingBox()
@@ -215,6 +216,11 @@ def _mesh(node: GeometryNode, quantities: dict[str, Quantity],
             "min_h": min(h[i], h[j], h[k]),
             "max_h": max(h[i], h[j], h[k]),
         })
+    # Backstop: faces were present but every triangle collapsed to a sliver
+    # (length < 1e-15) → no usable surface. Fail loud here so both consumers
+    # (first_layer_report / bridge_spans) share one guard and one contract string.
+    if not tris:
+        raise ValueError("tessellation produced no triangles")
     return tris, up, eps, tol
 
 
@@ -241,9 +247,7 @@ def first_layer_report(
     ~0.3 mm base chamfer. Warping carries no verdict here (material-dependent,
     no defensible universal threshold): footprint/contact/height are the
     evidence, the human judges. Deterministic for a fixed tolerance."""
-    tris, up, eps, tol = _mesh(node, quantities, build_dir, tolerance)
-    if not tris:
-        raise ValueError("tessellation produced no triangles")
+    tris, up, eps, tol = _mesh(node, quantities, build_dir, tolerance)  # raises on empty mesh
     hmax = max(t["max_h"] for t in tris)
     hmin = min(t["min_h"] for t in tris)
     u_ax, v_ax = _basis(up)
@@ -328,9 +332,7 @@ def bridge_spans(
     Exact for axis-aligned geometry (the GENESIS CSG world); rotated bridge
     directions degrade to the conservative needs-support verdict, never to a
     false pass. Deterministic for a fixed tolerance."""
-    tris, up, eps, _ = _mesh(node, quantities, build_dir, tolerance)
-    if not tris:
-        raise ValueError("tessellation produced no triangles")
+    tris, up, eps, _ = _mesh(node, quantities, build_dir, tolerance)  # raises on empty mesh
     hmin = min(t["min_h"] for t in tris)
     u_ax, v_ax = _basis(up)
     down = (-up[0], -up[1], -up[2])

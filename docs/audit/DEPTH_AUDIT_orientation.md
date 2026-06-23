@@ -74,9 +74,15 @@ if not solid.Faces():
     raise ValueError("tessellation produced no triangles")
 ```
 
-plus in `overhang_check` ein `if not tris:`-Backstop nach `tessellate` (paritätisch zu
-den `_mesh`-Konsumenten, fängt den All-Sliver-Fall: Flächen vorhanden, aber keine
-verwertbaren Dreiecke). Ein gültiger Solid hat immer ≥1 Fläche und tesselliert zu
+plus ein `if not tris:`-Backstop nach `tessellate`, der den All-Sliver-Fall fängt
+(Flächen vorhanden, aber jedes Dreieck zur Länge < 1e-15 kollabiert → keine
+verwertbare Oberfläche). **Runde-4-Korrektur:** dieser Backstop ist jetzt in `_mesh`
+SELBST zentralisiert (direkt vor `return`), nicht in den beiden Konsumenten dupliziert
+— so feuern `overhang_check`, `first_layer_report` UND `bridge_spans` über genau
+EINEN Guard mit identischem Vertrags-String, und der frühere Kommentar (der auf einen
+nicht existenten `_mesh`-Backstop verwies) ist jetzt zutreffend. Die vorher in den
+Konsumenten dupliziert gewesenen `if not tris`-Wächter wurden entfernt (kein toter
+Code). Ein gültiger Solid hat immer ≥1 Fläche und tesselliert zu
 vielen Dreiecken → für jede reale Geometrie ein **No-op** (Kugel-Fixtur weiterhin
 `needs_support=True`, area>0; Box/Zylinder unverändert). Nur der degenerierte/leere
 Shape wird jetzt in allen drei öffentlichen Funktionen deterministisch mit der
