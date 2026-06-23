@@ -51,7 +51,9 @@ def _spec(
     return TestStandSpec(
         name=name,
         beschreibung=beschreibung,
-        sicherheitsmassnahmen=sicherheitsmassnahmen or ["Keine bemannte Phase"],
+        # Preserve explicit [] (no safety measures declared) vs None (use default).
+        # This allows tests to distinguish empty-safety case from "has safety" case.
+        sicherheitsmassnahmen=sicherheitsmassnahmen if sicherheitsmassnahmen is not None else ["Keine bemannte Phase"],
         messungen=messungen or ["Abdeckung der Grenzen"],
         dauer_aufwand=dauer_aufwand,
         quelle=quelle,
@@ -117,6 +119,26 @@ def test_one_gap_per_stand_and_gap_referenz_points_at_stand_name():
     assert roadmap.source_traum == plan.source_traum
     # abhaengigkeiten reflect safety when present
     assert "safe-1" in roadmap.gaps[2].abhaengigkeiten
+
+
+def test_empty_safety_list_uses_fallback_and_nonempty_is_reflected():
+    """L4: explicit [] safety (no measures) → fallback abhaeng; nonempty list → prefix reflected.
+    Distinguishes [] / None (falsy, fallback) from populated list (uses declared values).
+    """
+    s_empty = _spec(name="T-empty-safety", sicherheitsmassnahmen=[])
+    s_pop = _spec(name="T-with-safety", sicherheitsmassnahmen=["Alpha", "Beta", "Gamma", "Delta"])
+    plan_empty = _plan(s_empty, traum="Gravitationsaufhebung mit leerer Safety")
+    plan_pop = _plan(s_pop, traum="Gravitationsaufhebung mit Safety-Liste")
+
+    r_empty = build_technology_roadmap(plan_empty)
+    r_pop = build_technology_roadmap(plan_pop)
+
+    # empty safety list yields the module fallback (no silent use of [] )
+    assert r_empty.gaps[0].abhaengigkeiten == ["safety_ladder", "bench_test_runner"]
+    # populated reflected (first 3)
+    assert r_pop.gaps[0].abhaengigkeiten == ["Alpha", "Beta", "Gamma"]
+    # beschreibung always reflects what was passed (even if [])
+    assert "[]" in r_empty.gaps[0].beschreibung or "sicherheitsmassnahmen []" in r_empty.gaps[0].beschreibung.lower()
 
 
 def test_empty_stands_yields_honest_empty_gaps_and_explicit_summary():

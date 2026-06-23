@@ -140,9 +140,13 @@ def build_technology_roadmap(
                     f"{s.messungen} unter Sicherheitsmassnahmen {s.sicherheitsmassnahmen}. "
                     f"Stand-Beschreibung: {s.beschreibung}"
                 )
-                abhaengigkeiten = (
-                    list(s.sicherheitsmassnahmen)[:3] if s.sicherheitsmassnahmen else ["safety_ladder", "bench_test_runner"]
-                )
+                # WHY: sicherheitsmassnahmen may be [] (explicitly no measures) or None (defensive);
+                # both mean "no specific safety items declared for this stand" → use fallback.
+                # Non-empty list means reflect the declared safety requirements in the gap (L4 edge case).
+                # Using `if s.sicherheitsmassnahmen` (truthy check) + list() copy is intentional and
+                # consistent with TestStandSpec always providing list (or None in test helpers).
+                safety = s.sicherheitsmassnahmen if s.sicherheitsmassnahmen is not None else []
+                abhaengigkeiten = list(safety)[:3] if safety else ["safety_ladder", "bench_test_runner"]
                 gaps.append(
                     TechnologyGap(
                         # Use a name that still contains the legacy-expected substring ("Grundlegend")

@@ -31,6 +31,7 @@ The derivation is intentionally generic (no domain-specific canned text for arbi
 ## Evidence from the new characterization test (`tests/test_technology_roadmapper_characterization.py`)
 - `test_generic_derives_gaps_from_stands_input_is_consumed`: different stand lists on identical non-jetpack traum → observably different roadmaps (different refs + beschreibung content changes). Proves `.stands` is now consumed.
 - `test_one_gap_per_stand_and_gap_referenz_points_at_stand_name`: exact 1:1, `gap_referenz` == stand.name, safety reflected in abhaeng.
+- `test_empty_safety_list_uses_fallback_and_nonempty_is_reflected`: explicit `sicherheitsmassnahmen=[]` yields fallback abhaeng; populated list is reflected as prefix of 3 (distinguishes empty vs. values, fixes inconsistent []/None handling in if-guard + _spec normalization).
 - `test_empty_stands_yields_honest_empty_gaps_and_explicit_summary`: `gaps == []` + summary contains "keine Prüfstände" / "no stands" language; no old canned item.
 - `test_jetpack_branch_still_returns_exact_rich_gaps_verbatim` + `..._even_with_zero_stands`: the 3 classic jetpack gaps + exact referenzen are still emitted (protected L3 regression). Stands content is ignored only inside the jetpack if (verbatim).
 - `test_determinism_same_plan_same_roadmap`, `test_run_id_override_is_used`.
@@ -39,7 +40,7 @@ The derivation is intentionally generic (no domain-specific canned text for arbi
   - `test_property_generic_gap_count_equals_stand_count_and_referenz_match`: over arbitrary (non-trigger) stand name lists, `len(gaps) == len(stands)` and every referenz is from the input; empty → honest empty.
   - `test_property_different_stand_count_changes_gap_count`.
 - All construction uses the real `TestStandPlan(...)` / `TestStandSpec(...)` (read from teststand_architect.py); no invented fields.
-- 14 tests; only this task's files + pre-existing collaborators.
+- 11+ tests in characterization (incl. the new empty-safety distinction test); only this task's files + pre-existing collaborators. (Total relevant suite stays green.)
 
 Run (in this worktree):
 ```
@@ -71,7 +72,7 @@ PYTHONPATH=src python -m pytest tests/test_technology_roadmapper_characterizatio
 ### L4 — Realisierbarkeits- & Verifizierbarkeits-Linse
 - Self-contained test uses only stdlib + hypothesis (already declared in dev deps) + pre-existing modules.
 - Direct construction of TestStand* means the test runs in an isolated worktree with zero cross-task file dependency.
-- Edges covered: empty stands (honest), non-empty varying counts, None input (loud), determinism, run_id override, non-trigger traum strings (to reliably hit generic).
+- Edges covered: empty stands (honest), non-empty varying counts, None input (loud), determinism, run_id override, non-trigger traum strings (to reliably hit generic), explicit empty `sicherheitsmassnahmen=[]` vs. populated (L4 edge for abhaengigkeiten fallback vs. reflection; no silent [] or None mishandling).
 - Property tests explore the space beyond hand examples.
 - No new runtime dependencies. Characterization would have immediately caught the old constant behavior.
 
@@ -80,6 +81,7 @@ PYTHONPATH=src python -m pytest tests/test_technology_roadmapper_characterizatio
 - Confirmed empty-stands path produces `[]` + explicit summary (no accidental fallback to old single gap).
 - Property tests deliberately filter out jetpack/flug substrings in generated traum to exercise the generic path.
 - Abhaengigkeiten fallback list is minimal and deterministic (no random).
+- Explicit handling + test for `sicherheitsmassnahmen=[]` (or None) vs. populated list added to address review finding on inconsistent falsy treatment between _spec and roadmapper (now documented and tested; empty safety → honest fallback, values reflected).
 - All strings in generic derivation are built from the input values (no hidden constants that would make different stands produce identical text).
 
 ## Remainder / out of scope (documented, not fixed here)
