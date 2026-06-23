@@ -51,10 +51,22 @@ def map_to_system_concept(
     run_id: str | None = None,
 ) -> SystemConcept:
     """
-    Erster Stein der Architekt-Pipeline.
+    Erster Stein der Architekt-Pipeline: mappt eine Idee auf ein SystemConcept.
+
     Für das Jetpack-Beispiel erzeugt es eine belastbare Systemstruktur,
     die direkt aus den prior Grenz- und Safety-Outputs abgeleitet ist (keine Erfindung).
+    Für jede andere Idee leitet der generische Pfad Anforderungen und Zusammenfassung
+    nachweislich aus dem `idea`-Text ab (zwei verschiedene Ideen → unterscheidbare Konzepte),
+    markiert die offenen Entscheidungen aber ehrlich als „needs full analysis" — es wird
+    keine vollständige Fach-Analyse vorgetäuscht.
+
+    Raises:
+        ValueError: wenn `idea` leer oder nur Whitespace ist — eine fehlende Eingabe darf
+            keinen fabrizierten Stub erzeugen (Kernprinzip: keine stillen Defaults).
     """
+    if not idea.strip():
+        raise ValueError("idea must be a non-empty, non-whitespace string")
+
     if "jetpack" in idea.lower() or ("mensch" in idea.lower() and "fliegen" in idea.lower()):
         requirements = [
             SystemRequirement("Sichere Demonstration über Menschenmenge (kein unkontrollierter Absturz)", "PLAN 3.2 + safety_ladder S3/S5"),
@@ -88,11 +100,42 @@ def map_to_system_concept(
             "offene Entscheidungen markiert. Naht zu CAD-Builder und Manufacturing-Gates vorbereitet."
         )
     else:
-        requirements = [SystemRequirement("Grundlegende Stabilität und sichere Handhabung", "generic fallback")]
-        assemblies = [AssemblyConcept("Main Structure", "Trägt die Funktion", ["Mounting points"], "generic")]
+        # Generic path: the idea text must genuinely drive the output so that two distinct
+        # ideas yield distinguishable concepts (no silent constant stub). We surface the
+        # verbatim idea in a requirement, the main assembly purpose and the summary, while
+        # still honestly marking open_decisions as needing a full analysis — we do NOT
+        # fabricate detailed requirements/assemblies we have not actually derived.
+        idea_text = idea.strip()
+        # Single-quoted f-strings so the verbatim idea (which may contain double quotes)
+        # can be embedded in German guillemets »…« without clashing with the delimiter.
+        requirements = [
+            SystemRequirement(
+                f'Die Idee »{idea_text}« muss als belastbares System realisierbar sein '
+                '(Funktion, Sicherheit, Handhabung).',
+                "idea (generic mapping)",
+            ),
+            SystemRequirement(
+                "Grundlegende Stabilität und sichere Handhabung im bestimmungsgemäßen Betrieb",
+                "generic baseline",
+            ),
+        ]
+        assemblies = [
+            AssemblyConcept(
+                "Main Structure",
+                f'Trägt die Kernfunktion der Idee »{idea_text}«',
+                ["Mounting points"],
+                "generic",
+            )
+        ]
         variants = ["Minimal viable prototype (bench first)"]
-        open_decisions = ["No detailed analysis yet — needs full Grenz + Fach-Pipeline run"]
-        zusammenfassung = "Minimal SystemConcept für noch nicht detailliert analysierte Idee."
+        open_decisions = [
+            "No detailed analysis yet — needs full Grenz + Fach-Pipeline run",
+            f'Anforderungen und Baugruppen für »{idea_text}« noch nicht im Detail abgeleitet',
+        ]
+        zusammenfassung = (
+            f'Minimal SystemConcept für die Idee »{idea_text}«: Idee als Anforderung und '
+            'Hauptbaugruppe gespiegelt, Detail-Analyse offen (needs full analysis).'
+        )
 
     return SystemConcept(
         source_idea=idea,
