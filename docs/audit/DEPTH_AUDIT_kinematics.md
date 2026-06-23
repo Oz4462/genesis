@@ -33,22 +33,22 @@ Bewegungs-Beweise (jede treibende Variable verschiebt den Output messbar): θ-Va
 ## 4 Linsen
 - **L1 Wahrheit:** Jede Kennzahl gegen Closed-Form / handgerechneten Anker + Hypothesis-Property fixiert (DH ≡ trig, τ == m·g·L, ZMP-Shift exakt). Kein faktischer Wert ohne nachvollziehbare Herleitung.
 - **L2 Drift:** Docstrings beschreiben exakt die implementierten Formeln + Guards (z.B. "Raises ValueError on non-positive link lengths", "degenerate support polygon", "length mismatch"). Keine Lücke. Kein stiller Default.
-- **L3 Vollständigkeit/Naht:** Legacy-Test `test_kinematics.py` (10) bleibt grün; neuer Characterization-Test (16 + Props) deckt zusätzlich beide Elbow-Branches, mehrere Winkel, vertikales ~0-Torque, exakte ZMP-Shift-Formel, Property-Invarianten über den Eingaberaum und alle in der Spec genannten Negativfälle ab. Keine Überschneidung / Churn.
+- **L3 Vollständigkeit/Naht:** Legacy-Test `test_kinematics.py` (10) bleibt grün; neuer Characterization-Test (18 + Props) deckt zusätzlich beide Elbow-Branches, mehrere Winkel, vertikales ~0-Torque, exakte ZMP-Shift-Formel, Property-Invarianten (inkl. length-driven reach cross-check), explizite exact min/max reach boundaries, und alle in der Spec genannten Negativfälle ab. Keine Überschneidung / Churn. Dead-input property fixed; added boundary per L4 review.
 - **L4 Realisierbarkeit:** Die dokumentierten ehrlichen Grenzen (planar static gravity only, 2R closed-form IK nur, kein full 3D Newton-Euler / dynamic walking, kein full contact) bleiben als bewusste Nicht-Abdeckung im Modul-Docstring deklariert. Keine NaN/Inf blanket guards hinzugefügt (nur echte Defects würden das triggern). Stack-agnostisch, offline, deterministisch, keine neuen Deps (Hypothesis nur im Test).
 
 ## Geänderte Quelldateien
 Keine. `kinematics.py` blieb byte-stabil ("change nothing if correct" — Pre-Analyse + Charakterisierungstests haben keinen echten Defect (silent wrong value / fehlender dokumentierter Guard) gefunden).
 
 ## Test
-`tests/test_kinematics_characterization.py` — 16 passed (Property-Tests eingeschlossen). Zusammen mit legacy `tests/test_kinematics.py` (10 passed).
+`tests/test_kinematics_characterization.py` — 18 passed (Property-Tests + explicit reach boundaries eingeschlossen). Zusammen mit legacy `tests/test_kinematics.py` (10 passed). Gesamt grün ohne src-Änderung.
 
 ## Isolation / Task-Regeln
-Nur die drei erlaubten Pfade berührt:
+Nur die drei erlaubten Pfade berührt (per 2026-06-23 team decisions on strict module split + BUILD_LOG deliberately out-of-scope for every task):
 - src/gen/kinematics.py (nicht editiert)
-- tests/test_kinematics_characterization.py (neu)
+- tests/test_kinematics_characterization.py (neu, authoritative facade-detector)
 - docs/audit/DEPTH_AUDIT_kinematics.md (neu)
 
-Kein Touch von BUILD_LOG.md, legacy tests, anderen Modulen oder src unterhalb — erfüllt strikte Modul-Split + "tests pass using only this task's files plus pre-existing repo files".
+Kein Touch von BUILD_LOG.md (intentionally left for integrator), legacy tests (no churn), anderen Modulen oder src unterhalb — erfüllt Isolation + "pass using only this task's files plus pre-existing repo files". Cross-task BUILD_LOG appends by others are irrelevant to this task's compliance.
 
 ## Determinismus / Reproduzierbarkeit
 Alle Tests deterministisch (feste Anker + Property mit bounded floats). Keine Wall-Clock / Zufall ohne Seed.

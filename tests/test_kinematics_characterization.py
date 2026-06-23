@@ -232,7 +232,7 @@ def test_zmp_guards():
 
 
 # --------------------------------------------------------------------------- #
-# reach_check (supporting) and additional negatives
+# reach_check — exact boundary coverage + length-driven properties
 # --------------------------------------------------------------------------- #
 
 def test_reach_check_nonpositive_raises():
@@ -240,20 +240,59 @@ def test_reach_check_nonpositive_raises():
         reach_check(0.0, 0.3, 0.1, 0.0)
 
 
-@settings(max_examples=30, deadline=None)
+def test_reach_check_exact_min_and_max_reach_are_ok():
+    """Explicit boundary test for reach_check at the annulus edges (min_reach / max_reach).
+    Per L4 edge review: exactly on the boundary must be ok=True (inclusive), safety_factor
+    sensible (sf=1 exactly at max_reach, sf>1 at min_reach)."""
+    l1, l2 = 0.4, 0.3
+    min_r = abs(l1 - l2)
+    max_r = l1 + l2
+    at_min = reach_check(l1, l2, min_r, 0.0)
+    at_max = reach_check(l1, l2, max_r, 0.0)
+    assert at_min["ok"] is True
+    assert at_min["safety_factor"] > 1.0
+    assert at_max["ok"] is True
+    assert at_max["safety_factor"] == pytest.approx(1.0, abs=1e-12)
+
+
+@settings(max_examples=40, deadline=None)
 @given(
     l1=st.floats(min_value=0.05, max_value=2.0),
     l2=st.floats(min_value=0.05, max_value=2.0),
-    x=st.floats(min_value=-5.0, max_value=5.0),
-    y=st.floats(min_value=-5.0, max_value=5.0),
+    t1=st.floats(min_value=-math.pi, max_value=math.pi),
+    t2=st.floats(min_value=-math.pi, max_value=math.pi),
 )
-def test_zmp_shift_property(l1, l2, x, y):  # l1/l2 unused, just to show variety of inputs
-    """Property: the ZMP formula shift is always exactly -(com_z/g)*accel_x regardless of support."""
-    # fix com/support, vary accel; also pick random com_z
-    com_z = 0.7
-    accel = 1.5
-    res = zmp_balance_check(x, com_z, -0.2, 0.2, accel_x=accel)
-    assert res["zmp_x"] == pytest.approx(x - (com_z / STANDARD_GRAVITY) * accel, abs=1e-12)
+def test_reach_ok_for_fk_targets_property(l1, l2, t1, t2):
+    """Property-based: any target produced by a valid planar FK (the physical workspace)
+    must be reported reachable by reach_check (ok=True) and the safety_factor >=1.
+    This cross-checks that the annulus math is consistent with the FK closed form
+    and that lengths genuinely drive the reach decision.
+    fp tolerance around exact |l1-l2| and l1+l2 because cos/sin summation can push r by ~2e-16."""
+    # target from the same cumulative trig the DH/planar code uses
+    x = l1 * math.cos(t1) + l2 * math.cos(t1 + t2)
+    y = l1 * math.sin(t1) + l2 * math.sin(t1 + t2)
+    res = reach_check(l1, l2, x, y)
+    rr = res["reach"]
+    minr = abs(l1 - l2)
+    maxr = l1 + l2
+    on_boundary = min(abs(rr - minr), abs(rr - maxr)) < 1e-9
+    assert res["ok"] or on_boundary
+    assert res["safety_factor"] >= 1.0 - 1e-9 or on_boundary
+
+
+# A clean ZMP shift property (no dead inputs)
+@settings(max_examples=30, deadline=None)
+@given(
+    com_x=st.floats(min_value=-3.0, max_value=3.0),
+    com_z=st.floats(min_value=0.01, max_value=2.0),
+    accel=st.floats(min_value=-20.0, max_value=20.0),
+)
+def test_zmp_shift_identity_property(com_x, com_z, accel):
+    """Property: ZMP shift is *always* exactly com_x - (com_z/g)*accel_x for any finite
+    accel (the defining linear relation). Support bounds do not affect the zmp_x value."""
+    res = zmp_balance_check(com_x, com_z, -1.0, 1.0, accel_x=accel)
+    expected = com_x - (com_z / STANDARD_GRAVITY) * accel
+    assert res["zmp_x"] == pytest.approx(expected, abs=1e-12)
 
 
 # Note: static length-mismatch + degen support + negative link already asserted in their guard sections.
