@@ -299,7 +299,7 @@ def test_e2e_full_cert_chain_delta_plus_gamma_epsilon_zeta_omega_from_lumen_cond
     claim = Claim(
         id="c-e2e-1",
         text="standard gravity is 9.80665 m/s^2",
-        sources=[SourceRef(url_or_id="reviewed:test")],
+        sources=[SourceRef(url_or_id="reviewed:test", retrieved=True)],
         status=ClaimStatus.VERIFIED,
         confidence=0.98,
     )
@@ -445,7 +445,7 @@ def test_e2e_full_cert_chain_delta_plus_gamma_epsilon_zeta_omega_from_lumen_cond
     assert any("gate:omega" in r or "artifact:omega" in r or "omega" in r for r in note_refs) or len(omega_cert.learning_notes) > 0
     # subgates exercised inside gate_omega for present certs (ε/ζ/γ+)
     # (no assert on passed to allow honest skeleton gaps; main is chain + reviewed pop)
-    assert "run_id" in str(state.question.run_id)  # sanity
+    assert state.question.run_id == "r-e2e-cert-chain"  # sanity (fixed ctor assert)
 
     # Also exercise gate with some required (reviewed style)
     res2 = gate_omega(state, omega_cert, required_gates=("gamma",))  # may partial

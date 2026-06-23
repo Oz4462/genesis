@@ -336,6 +336,7 @@ def gate_omega(
     required_gates: Iterable[str] = (),
     gate_results: Mapping[str, GateResult] | None = None,
     require_ratification: bool = True,
+    reviewed: bool = False,
 ) -> GateResult:
     """GATE omega - validate the cross-phase completion packet.
 
@@ -348,6 +349,12 @@ def gate_omega(
       OM-6 MISSING_*_NOTE               artifacts, gaps, frontier edges, decisions are surfaced.
       OM-7 MISSING_RATIFICATION_REF     the decision sheet lists ratification items.
       OM-8 UNRATIFIED_BLOCKING_ITEM     blocking spec items need explicit human sign-off.
+      OM-9 MISSING_UPSTREAM_CERTIFICATE reviewed mode: δ+ coverage/reality + γ+ pareto + ε/ζ certs must be attached to state (real chain, not hollow receipts).
+      OM-10 *_CERT_RUN_MISMATCH         any attached upstream cert must match the state's run_id (no silent cross-run mix).
+
+    reviewed=True makes the gate a true e2e cert-chain verifier over real upstream certs
+    built by their modules. Default False keeps non-strict aggregator behavior for
+    intermediate conductor paths.
 
     Pure; no model calls, no UI assumptions.
     """
@@ -363,6 +370,85 @@ def gate_omega(
                 ),
             )
         )
+
+    # Always cross-check run_id on any attached upstream certs (L2 drift guard).
+    # These certs are the genuine receipts from their phases; mismatch means the
+    # omega packet is mixing data across runs (violates A5 determinism contract).
+    cov = getattr(state, "coverage_certificate", None)
+    if cov is not None and getattr(cov, "spec_run_id", None) != state.question.run_id:
+        failures.append(
+            GateFailure(
+                code="COVERAGE_CERT_RUN_MISMATCH",
+                detail=(
+                    f"coverage_certificate spec_run_id {getattr(cov, 'spec_run_id', None)!r} "
+                    f"does not match state run {state.question.run_id!r}."
+                ),
+            )
+        )
+    mf = getattr(state, "memory_fabric", None)
+    if mf is not None and getattr(mf, "run_id", None) != state.question.run_id:
+        failures.append(
+            GateFailure(
+                code="MEMORY_FABRIC_RUN_MISMATCH",
+                detail=(
+                    f"memory_fabric run_id {getattr(mf, 'run_id', None)!r} "
+                    f"does not match state run {state.question.run_id!r}."
+                ),
+            )
+        )
+    seam = getattr(state, "seam_certificate", None)
+    if seam is not None and getattr(seam, "spec_run_id", None) != state.question.run_id:
+        failures.append(
+            GateFailure(
+                code="SEAM_CERT_RUN_MISMATCH",
+                detail=(
+                    f"seam_certificate spec_run_id {getattr(seam, 'spec_run_id', None)!r} "
+                    f"does not match state run {state.question.run_id!r}."
+                ),
+            )
+        )
+
+    # reviewed mode: enforce that genuine upstream certificates are attached on the state.
+    # This is the core of "make the e2e cert chain a REAL gate": hollow/placeholder
+    # states (no δ+ cov/reality, no γ+ pareto, no ε/ζ) must not pass a reviewed omega.
+    # The presence of the cert objects (built by real builders) + their run_id match
+    # (checked above) proves the receipts are not fabricated by the caller.
+    if reviewed:
+        if getattr(state, "coverage_certificate", None) is None:
+            failures.append(
+                GateFailure(
+                    code="MISSING_COVERAGE_CERTIFICATE",
+                    detail="reviewed omega gate requires δ+ coverage_certificate to be attached on state",
+                )
+            )
+        if getattr(state, "reality_verdict", None) is None:
+            failures.append(
+                GateFailure(
+                    code="MISSING_REALITY_VERDICT",
+                    detail="reviewed omega gate requires δ+ reality_verdict to be attached on state",
+                )
+            )
+        if getattr(state, "pareto_front", None) is None:
+            failures.append(
+                GateFailure(
+                    code="MISSING_PARETO_FRONT",
+                    detail="reviewed omega gate requires γ+ pareto_front to be attached on state",
+                )
+            )
+        if getattr(state, "seam_certificate", None) is None:
+            failures.append(
+                GateFailure(
+                    code="MISSING_SEAM_CERTIFICATE",
+                    detail="reviewed omega gate requires ε seam_certificate to be attached on state",
+                )
+            )
+        if getattr(state, "memory_fabric", None) is None:
+            failures.append(
+                GateFailure(
+                    code="MISSING_MEMORY_FABRIC",
+                    detail="reviewed omega gate requires ζ memory_fabric to be attached on state",
+                )
+            )
 
     receipt_names = [receipt.name for receipt in certificate.gate_receipts]
     note_refs = [note.ref for note in certificate.learning_notes]
@@ -441,6 +527,22 @@ def gate_omega(
                 for f in gp.failures:
                     failures.append(f)
         except Exception:  # guarded, no impact on other flows
+            pass
+
+    # HORIZON δ+ wiring (symmetric to ε/ζ/γ+): make coverage active inside Ω when attached.
+    # Uses the real gate; empty requirements (no triggered modes) is honest abstention.
+    # reviewed callers that attached a real build_coverage_certificate will have its
+    # verdict cross-checked here.
+    if getattr(state, "coverage_certificate", None) is not None and getattr(state, "specification", None) is not None:
+        try:
+            from .coverage import gate_delta_plus_coverage
+            dc = gate_delta_plus_coverage(
+                state.specification, state.coverage_certificate, reviewed_failure_modes=()
+            )
+            if not dc.passed:
+                for f in dc.failures:
+                    failures.append(f)
+        except Exception:  # guarded
             pass
 
     if gate_results is not None:
