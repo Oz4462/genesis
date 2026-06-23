@@ -11,22 +11,22 @@
 ```mermaid
 kanban
   done
-    nT01[T01: Depth-audit + fix wirtschaft.py generic branch (make it input-driven)]
-    nT02[T02: Depth-audit + characterization test for active_resolution.py (discriminatin]
-    nT03[T03: Depth-audit + characterization test for active_search.py (information-gain]
-    nT04[T04: Depth-audit + characterization test for assumption_annihilator.py (all thre]
-    nT05[T05: Depth-audit + honesty test for benchmark.py (rediscovery is not leaked/echo]
+    nT01[T01: Depth-audit + harden campaign.py (learned-prior + cross-domain composition)]
+    nT02[T02: Depth-audit + harden composition.py (minimal-correction discovery)]
+    nT03[T03: Depth-audit + harden concept_utility.py (ledger-learned contrastive prior)]
+    nT04[T04: Depth-audit + harden controller.py (budget/depth/checkpoint controller)]
+    nT05[T05: Depth-audit + harden cosmic_insight.py (cross-domain structural analogy)]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | Depth-audit + fix wirtschaft.py generic branch (make it input-driven) | done | claude | feature |
-| T02 | Depth-audit + characterization test for active_resolution.py (discriminating-measurement is real) | done | grok | feature |
-| T03 | Depth-audit + characterization test for active_search.py (information-gain ordering is real) | done | grok | feature |
-| T04 | Depth-audit + characterization test for assumption_annihilator.py (all three δ-verdicts are real) | done | claude | feature |
-| T05 | Depth-audit + honesty test for benchmark.py (rediscovery is not leaked/echoed) | done | claude | feature |
+| T01 | Depth-audit + harden campaign.py (learned-prior + cross-domain composition) | done | claude | feature |
+| T02 | Depth-audit + harden composition.py (minimal-correction discovery) | done | grok | feature |
+| T03 | Depth-audit + harden concept_utility.py (ledger-learned contrastive prior) | done | grok | feature |
+| T04 | Depth-audit + harden controller.py (budget/depth/checkpoint controller) | done | claude | feature |
+| T05 | Depth-audit + harden cosmic_insight.py (cross-domain structural analogy) | done | claude | feature |
 
 ## Decisions
 
@@ -131,6 +131,13 @@ kanban
 - (2026-06-23) Each task edits its module's source ONLY where the new test exposes a genuine defect (wirtschaft is a real fix; the other four fix only if the characterization test fails — never blanket feature-creep), per 'change nothing if correct'.
 - (2026-06-23) Builders construct all state/spec/problem inputs through the REAL constructors and field/enum names in the existing modules (SystemConcept/IngenieurSpec from architekt.py/ingenieur.py; DiscoveryProblem/Variable/Constant from engine.py; RivalForm via transcendental.py's refit/evaluate) — never invent fields — and use only stdlib + already-declared deps (numpy is already declared for the discovery tasks).
 - (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-fix task with no network/subprocess, matching the test→claude routing; the fix surface is small and self-contained.
+- (2026-06-23) Split strictly by module (campaign / composition / concept_utility / controller / cosmic_insight); the five sources share no mutual imports beyond pre-existing helpers, and each task adds a uniquely-named tests/test_<module>_characterization.py + docs/audit/DEPTH_AUDIT_<module>.md — zero path collision across worktrees.
+- (2026-06-23) Name every new test file with the _characterization suffix because each module already has pre-existing test files (test_campaign.py, test_discovery_composition.py, test_concept_utility.py, test_discovery_controller.py, test_discovery_cosmic_insight.py); the new file is the authoritative facade-detector and leaves legacy tests untouched (no churn).
+- (2026-06-23) Universal facade-killer per module: assert (a) the headline output changes MEANINGFULLY when a driving input changes (proves the input is genuinely consumed, not a canned constant) and (b) the documented fail-loud path raises the exact ValueError / honest-abstention output (proves the guard exists) — per 'keine stillen Defaults' and 'a gate without a test does not exist'.
+- (2026-06-23) All five modules read as REAL on inspection, so each task edits its source ONLY where the new characterization test exposes a genuine defect (missing guard, silent wrong/constant value, dead input) — never blanket feature-creep — upholding 'change nothing if correct'.
+- (2026-06-23) Builders construct every input through the REAL constructors/field names in src/gen/discovery/engine.py, graph.py, knowledge_graph.py, archive.py (DiscoveryProblem/Variable/Constant/Candidate, GraphNode.input_idea/exponent_signature, etc.) — read them, never invent fields — and use only stdlib + already-declared deps (numpy is already declared).
+- (2026-06-23) BUILD_LOG.md is out of every task's scope (shared-file merge-collision risk per the standing team decision); each task's honest verdict + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (integrator consolidates at merge).
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the test→claude routing.
 
 ### Architecture Decision Records
 
@@ -149,20 +156,21 @@ kanban
 - 0013. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0014. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0015. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0016. Depth-audit AND FIX (genesis overnight loop). For each modul
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 8 |
-| Tasks (total) | 31 |
-| Done | 29 |
+| Runs | 9 |
+| Tasks (total) | 36 |
+| Done | 34 |
 | Blocked | 1 |
 | Resolved rate | 94% |
 | Blocked rate | 3% |
-| Merges | 7 |
-| Avg duration | 100.8m |
-| Total cost | 71.35 |
+| Merges | 8 |
+| Avg duration | 93.3m |
+| Total cost | 79.12 |
 
 ## Architecture
 
@@ -178,6 +186,17 @@ graph TD
 
 Recent commits:
 
+- `061cb7f crew: resolve merge conflict for crew/T03-grok`
+- `2dce3d7 Merge branch 'crew/T05-claude' into crew/integration`
+- `516fcd6 Merge branch 'crew/T04-claude' into crew/integration`
+- `61d2b3b Merge branch 'crew/T02-grok' into crew/integration`
+- `d72a215 crew(claude): T05 Depth-audit + harden cosmic_insight.py (cross-domain structural analogy) [round 1]`
+- `5c4b45d crew(claude): T04 Depth-audit + harden controller.py (budget/depth/checkpoint controller) [round 1]`
+- `8cde34b crew(grok): T03 Depth-audit + harden concept_utility.py (ledger-learned contrastive prior) [round 1]`
+- `d382a01 crew(claude): T01 Depth-audit + harden campaign.py (learned-prior + cross-domain composition) [round 1]`
+- `dae5a45 crew(grok): T02 Depth-audit + harden composition.py (minimal-correction discovery) [round 1]`
+- `e84348f Merge branch 'crew/integration'`
+- `481eb30 crew: scaffold CI/CD + project config`
 - `ccb90c6 crew: resolve merge conflict for crew/T03-grok`
 - `907da1f Merge branch 'crew/T05-claude' into crew/integration`
 - `323da22 Merge branch 'crew/T04-claude' into crew/integration`
@@ -187,17 +206,6 @@ Recent commits:
 - `272b7d3 crew(grok): T03 Depth-audit + characterization test for active_search.py (information-gain ordering is real) [round 1]`
 - `c63aa91 crew(claude): T01 Depth-audit + fix wirtschaft.py generic branch (make it input-driven) [round 1]`
 - `ddb6e7c crew(grok): T02 Depth-audit + characterization test for active_resolution.py (discriminating-measurement is real) [round 1]`
-- `bb72f89 Merge branch 'crew/integration'`
-- `d866e28 crew: scaffold CI/CD + project config`
-- `1d0372f crew: resolve merge conflict for crew/T05-grok`
-- `eced7c3 crew: resolve merge conflict for crew/T03-grok`
-- `6de893b Merge branch 'crew/T04-claude' into crew/integration`
-- `fd8c52d Merge branch 'crew/T02-grok' into crew/integration`
-- `2e89f87 crew(grok): T05 Depth-audit + fix techniker.py generic branch [round 1]`
-- `00fcb55 crew(claude): T04 Depth-audit + fix software.py generic branch [round 1]`
-- `1f64d8b crew(grok): T03 Depth-audit + fix regulatorik.py generic branch [round 1]`
-- `eee5e1b crew(claude): T01 Depth-audit + fix fertigungs.py generic branch [round 1]`
-- `d64748a crew(grok): T02 Depth-audit + fix physiker.py generic branch [round 1]`
 
 
 ---
