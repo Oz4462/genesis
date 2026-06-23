@@ -67,6 +67,16 @@ computed from the per-pair residual, not canned.
   `test_engine_separability_annotation.py` → 28 passed. `test_discovery_engine.py` → 6 passed.
 - Full audit + 4 Linsen in `docs/audit/DEPTH_AUDIT_separability.md`.
 
+## 2026-06-23 — T02 Depth-Audit + Härtung `discovery/srbench_hygiene.py`
+
+**Verdict: REAL** (headline "leakage prevention + OOS + deterministic splits" jetzt selbst-verifizierbar).
+
+- Neuer Charakterisierungs-Test `tests/discovery/test_srbench_hygiene_characterization.py` (13 Tests, 2 Hypothesis-Property-Suites): deliberate leakage (overlapping rows) wird von `check_train_test_overlap` + `assert_no_split_leakage` erkannt+rejected; clean akzeptiert; recompute des held-out R² aus train-only Fit exakt == reported oos_test_r2 (beweist "truly held-out", kein Leak); noise rejected, n<4 → exakter ValueError; Split-Overlap-Invariante + Determinismus via @given.
+- **Defekt behoben:** `hygiene_gate(seed=...)` übergab seed nicht an `out_of_sample_validate` (OOS lief immer default-0) — jetzt forwarded; plus `split_overlap` im Report + explizite Checker-Fns (Leakage-Metric real, 0 für internes OOS).
+- Hygiene-Gate + Legacy-Tests grün (13+5). Keine Änderung außerhalb Scope.
+- 4 Linsen angewendet (L1: recompute + intersect bewiesen; L2: Seed-Drift + Headline-Facade-Risiko geschlossen; L3: Naht zu validation via public API, Scope exakt; L4: minimal fail-loud + Property-Tests).
+- Details: `docs/audit/srbench_hygiene.md`.
+
 ## 2026-06-23 — T05 Depth-Audit + Härtung `discovery/simulated_data.py`
 
 Verdikt **REAL**: `problem_from_simulation`/`discover_from_simulation` sampeln echt eine geschlossene
