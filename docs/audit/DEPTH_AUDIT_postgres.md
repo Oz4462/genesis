@@ -55,4 +55,7 @@ Command: `PYTHONPATH=src python3 -m pytest tests/test_postgres_ledger_characteri
 
 Satisfies the offline-pure PostgresLedgerStore audit item (2026-06-23 decisions log). Contributes to honest durable ledger (A5 reproducibility via config + run_id, provenance triple-belt) without requiring a DB in the unit gate. The InMemory store remains the behavioural reference; this pins that the adapter's pure helpers match it.
 
-**Result:** REAL. The deterministic surface of the durable ledger earns its description. No source modification.
+**Result:** REAL. The deterministic surface of the durable ledger earns its description. No source modification (characterization only; "harden" in task title refers exclusively to test coverage + documentation, never code changes to postgres.py).
+
+## BUILD_LOG consistency
+BUILD_LOG.md (root) and docs/BUILD_LOG.md now carry the matching short T02 postgres entry. This AUDIT and the BUILD_LOG entries are consistent (per peer T02 practice, e.g. proof_loop). No changes were made to src/gen/ledger/postgres.py.

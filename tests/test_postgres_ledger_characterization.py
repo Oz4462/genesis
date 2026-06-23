@@ -17,7 +17,12 @@ import sys
 from pathlib import Path
 
 import pytest
-from hypothesis import given, settings, strategies as st
+
+# hypothesis is a dev extra; importorskip prevents hard collection failure in envs without [dev]
+# (addresses latent coupling while keeping property tests authoritative for this characterization).
+pytest.importorskip("hypothesis", reason="hypothesis (dev extra) required for property-based characterization tests")
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -66,7 +71,9 @@ def test_from_env_defaults_when_unset(monkeypatch):
     assert cfg.host == "/var/run/postgresql"
     assert cfg.port == 5432
     assert cfg.database == "genesis"
-    assert cfg.user  # either $USER or "genesis"
+    # After clearing USER + GENESIS_DB_USER, the documented fallback is exactly "genesis"
+    # (see PostgresConfig.from_env: default_user = os.environ.get("USER") or "genesis")
+    assert cfg.user == "genesis"
     assert cfg.password is None
     assert cfg.embed_dim == 768
 
@@ -147,6 +154,29 @@ def test_connect_kwargs_includes_password_only_when_set():
         dsn=None, host="h", port=1, database="d", user="u", password="secret", embed_dim=1
     )
     assert cfg_yes.connect_kwargs()["password"] == "secret"
+
+
+# --- Backward-compat ctor PostgresLedgerStore(dsn=...) ------------------------
+# Used by scripts/postgres_smoke.py: PostgresLedgerStore(TEST_DSN) (positional dsn path).
+# Must set the dsn on the internal config so connect_kwargs() uses the full DSN and
+# the rest of the class works without re-reading env.
+
+def test_postgresledgerstore_dsn_ctor_backward_compat():
+    """PostgresLedgerStore(dsn=...) (the historic positional/kwarg path) wires dsn into config."""
+    # positional (most common in smoke scripts)
+    store1 = PostgresLedgerStore("postgresql://u@h/db1")
+    assert store1._config.dsn == "postgresql://u@h/db1"
+    assert store1._config.connect_kwargs() == {"dsn": "postgresql://u@h/db1"}
+
+    # explicit kwarg form
+    store2 = PostgresLedgerStore(dsn="postgresql://u@h/db2")
+    assert store2._config.dsn == "postgresql://u@h/db2"
+
+    # also exercise explicit config= form (public API); the dsn= backward path above is the
+    # one used by smoke scripts. embed_dim exercises the config path post-construction.
+    cfg = PostgresConfig(dsn=None, host="h", port=1, database="d", user="u", password=None, embed_dim=64)
+    store3 = PostgresLedgerStore(config=cfg)
+    assert store3.embed_dim == 64
 
 
 # --- _support_to_db / _support_from_db round-trips and None default -----------

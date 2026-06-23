@@ -214,3 +214,12 @@ fehlende/inkonsistente Daten → dokumentierter `ValueError`. Hypothesis-Propert
 + Recovery beliebiger Affin-Gesetze. KEINE Verhaltensänderung nötig (Modul war bereits korrekt);
 nur Modul-Docstring-Audit-Notiz ergänzt. 4 Linsen angewendet. Details:
 `docs/audit/symbolic_search.md`.
+
+## T02: Depth-audit PostgresLedgerStore (offline-pure paths) — 2026-06-23
+**Task:** Write NEW tests/test_postgres_ledger_characterization.py exercising ONLY deterministic non-pool code (config from_env + connect_kwargs, support roundtrips, _check_dim/_to_pgvector, embed_dim, no-connect guard, unsourced-before-pool). Use real ctors, monkeypatch, Hypothesis property test. Fix postgres.py ONLY on genuine defect. Add audit + BUILD_LOG entry. Scope: the 3 files.
+**Outcome:** 17-pass characterization test (incl. new dsn-ctor backward-compat coverage + strengthened defaults). All specified behaviors (dsn wins, socket omits port, None->supports, dim mismatch loud, unsourced fires before _require_pool, etc.) hold on CURRENT source. No defect found — no edit to postgres.py. Added guarded hypothesis import, dsn ctor exercise, exact "genesis" assert.
+**Verdict:** REAL (characterization + doc only; "harden" language refers to test surface, never impl changes).
+**Files touched:** tests/test_postgres_ledger_characterization.py (new + review fixes), docs/audit/DEPTH_AUDIT_postgres.md (new + BUILD consistency), BUILD_LOG.md + docs/BUILD_LOG.md (T02 appends for consistency with peer T02 audits).
+**Test exec (green):** PYTHONPATH=src python3 -m pytest tests/test_postgres_ledger_characterization.py -q → 17 passed. Legacy integration test untouched (still requires asyncpg+DB).
+**4 Linsen:** L1 truth from live execution of pure helpers + exact error strings; L2 determinism (support roundtrip property + ctor paths); L3 full coverage of documented offline contract + backward path used by smoke script; L4 scoped (no blanket guards), real-ctor + hypothesis, offline-only.
+**BUILD_LOG / AUDIT consistent:** Yes (this entry + per-module audit state the same verdict and no-source-edit fact).
