@@ -49,6 +49,14 @@ Exception entkam ungefangen und stürzte den Aufruf ab — ein Widerspruch zur
 Pfade (Exception **und** `inf`) führen jetzt zur flagged-inconsistent-Welt. Neuer
 Regressionstest `test_power_overflow_is_flagged_not_crashed`.
 
+**Runde-3-Nachschärfung (Review-Finding `rubberduck`):** Ein zweiter Crash-Pfad bei finiten,
+positiven Eingaben: läuft das Verhältnis `new/base` nach exakt `0.0` **unter** (z.B.
+`1e-300/1e300`) und ist der Exponent negativ, wirft `0.0 ** negativ` **`ZeroDivisionError`**
+— eine andere Exception als der Overflow-Pfad, die das alleinige `except OverflowError`
+entkommen ließ. Fix: `except (OverflowError, ZeroDivisionError)` → auch dieser Pfad wird
+flagged-inconsistent. Neuer Regressionstest
+`test_ratio_underflow_with_negative_exponent_is_flagged_not_crashed`.
+
 ## L3 Vollständigkeit / Naht
 Öffentliche Signaturen (`CounterfactualWorld`, beide Fork-Funktionen, `gauss_force_exponent`,
 `fork_from_discovery`) unverändert → keine Downstream-Brüche. Bestehende Tests bleiben grün.

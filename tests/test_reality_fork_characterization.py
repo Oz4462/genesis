@@ -177,6 +177,17 @@ def test_power_overflow_is_flagged_not_crashed():
     assert "(nicht-finiter Skalenfaktor)" == w.forked_law
 
 
+def test_ratio_underflow_with_negative_exponent_is_flagged_not_crashed():
+    """REGRESSION: with both magnitudes finite & positive (passing the guards) the ratio can
+    UNDERFLOW to exactly 0.0 (1e-300/1e300), and ``0.0 ** negative`` raises ZeroDivisionError —
+    a different exception than the OverflowError path. Without catching it the call would crash,
+    contradicting the flag-don't-crash intent. The honest result is flagged-inconsistent."""
+    w = fork_constant("T", "mu", base_value=1e300, new_value=1e-300, scaling_exponent=-0.5)
+    assert w.internally_consistent is False
+    assert "target_scale_factor" not in w.change
+    assert "(nicht-finiter Skalenfaktor)" == w.forked_law
+
+
 # --------------------------------------------------------------------------------------------
 # Property-based invariants (math identities that must hold for ALL valid inputs).
 # --------------------------------------------------------------------------------------------
