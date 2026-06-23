@@ -97,6 +97,32 @@ class HumanoidConfig:
     extra_claims: list = field(default_factory=list)
 
 
+#: Price keys the buy-list quantities and the cost-out claims require. A missing one is a factual
+#: gap — a price is a claim about the world — so it must fail LOUD, never be silently defaulted
+#: (GENESIS Kernprinzip: "Keine stillen Defaults bei faktischen Dingen").
+REQUIRED_PRICE_KEYS: tuple[str, ...] = (
+    "filament_eur_g", "motor", "chip", "battery", "mcu", "driver", "imu", "harness",
+)
+
+
+def _require_prices(cfg: HumanoidConfig) -> None:
+    """Validate that `cfg.prices` carries every buy-list price key before any quantity/claim is built.
+
+    Without this, a missing key surfaces as a bare ``KeyError`` deep inside quantity construction
+    (or, worse, could invite a guessed default). Raising a clear ``ValueError`` that names the missing
+    key(s) keeps the failure loud and diagnosable — there is no silent default for a factual price.
+
+    Raises:
+        ValueError: if one or more required price keys are absent from ``cfg.prices``.
+    """
+    missing = [k for k in REQUIRED_PRICE_KEYS if k not in cfg.prices]
+    if missing:
+        raise ValueError(
+            "HumanoidConfig.prices fehlt erforderliche Preis-Schlüssel: "
+            f"{', '.join(missing)} — ein fehlender Preis darf nicht still gedefaulted werden."
+        )
+
+
 def _link(sx, sy, sz, r1, off1, r2, off2) -> GeometryNode:
     return GeometryNode(kind="difference", children=[
         GeometryNode(kind="box", params={"size_x": sx, "size_y": sy, "size_z": sz}),
@@ -136,6 +162,7 @@ def build_humanoid(cfg: HumanoidConfig) -> Specification:
     (pelvis, torso, head, thigh, shank, upper arm, forearm, foot) with real CSG geometry, the full
     buy-list (ten gearmotors, bearings, bolts, the onboard chip, drivers, IMU, battery, harness), and
     the measurands that fire structure, kinematics, actuation, compute, balance and swing."""
+    _require_prices(cfg)  # fail loud on a missing factual price before building anything
     g = STANDARD_GRAVITY
     sf = 2.0
     force_n = cfg.leg_load_kg * sf * g

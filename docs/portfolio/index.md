@@ -11,22 +11,22 @@
 ```mermaid
 kanban
   done
-    nT01[T01: Depth-audit + harden run_audit (signed tamper-evident run audit)]
-    nT02[T02: Depth-audit + harden PostgresLedgerStore (offline-pure paths)]
-    nT03[T03: Depth-audit + harden InMemoryLedgerStore (provenance + determinism)]
-    nT04[T04: Depth-audit + harden actuation (electric + hydraulic actuator screens)]
-    nT05[T05: Depth-audit + harden bolted_joint (preload load-sharing axis)]
+    nT01[T01: Depth-audit + fix chip_selection.py (requirement-driven chip selection over]
+    nT02[T02: Depth-audit + fix circuit.py (MNA DC/AC/transient/nonlinear solver)]
+    nT03[T03: Depth-audit + fix clarification.py (underspecification detection + targeted]
+    nT04[T04: Depth-audit + fix cli.py rendering surface (format_report/solution/specific]
+    nT05[T05: Depth-audit + fix competitive_humanoid.py (two cfg-driven whole-body humano]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | Depth-audit + harden run_audit (signed tamper-evident run audit) | done | claude | feature |
-| T02 | Depth-audit + harden PostgresLedgerStore (offline-pure paths) | done | grok | feature |
-| T03 | Depth-audit + harden InMemoryLedgerStore (provenance + determinism) | done | claude | feature |
-| T04 | Depth-audit + harden actuation (electric + hydraulic actuator screens) | done | claude | feature |
-| T05 | Depth-audit + harden bolted_joint (preload load-sharing axis) | done | grok | feature |
+| T01 | Depth-audit + fix chip_selection.py (requirement-driven chip selection over compute.py gate) | done | claude | feature |
+| T02 | Depth-audit + fix circuit.py (MNA DC/AC/transient/nonlinear solver) | done | claude | feature |
+| T03 | Depth-audit + fix clarification.py (underspecification detection + targeted questions) | done | claude | feature |
+| T04 | Depth-audit + fix cli.py rendering surface (format_report/solution/specification/render_spec) | done | claude | feature |
+| T05 | Depth-audit + fix competitive_humanoid.py (two cfg-driven whole-body humanoid specs) | done | claude | feature |
 
 ## Decisions
 
@@ -231,6 +231,25 @@ kanban
 - (2026-06-23) All five modules read as REAL on inspection, so each task edits its source ONLY where the new characterization test exposes a genuine defect (missing guard, silent wrong/constant value, dead input) — never blanket feature-creep — upholding 'change nothing if correct'.
 - (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (Claim/ClaimStatus/SourceRef/SourceSupport) and each module's real signatures — read them, never invent fields — and use only stdlib + already-declared deps (pytest-asyncio for the async store/postgres guards if the repo already uses it; otherwise drive coroutines via asyncio.run).
 - (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the historical test→claude routing.
+- (2026-06-23) Split strictly by module: bracket_fem / brep / buckling / bundle / calibration share no mutual imports beyond pre-existing core/* + fem/fem3d/costing/export helpers carried unmodified in each worktree, so parallel worktrees never write the same path — zero collision risk.
+- (2026-06-23) Keep each module and ITS new test in the SAME task (the test imports the module under audit) so each task is independently verifiable in its own worktree using only its own files plus pre-existing repo files (fem.py, fem3d.py, geometry.py, costing.py, export/*, core.state all already on main).
+- (2026-06-23) New test files take the _characterization suffix because every module already has a legacy test on main (test_bracket_fem, test_brep/test_brep_stl, test_buckling, test_bundle, test_calibration); the new file is the authoritative facade-detector and leaves legacy tests untouched (no churn).
+- (2026-06-23) bracket_fem depends on the optional 'gmsh' package and brep on the optional 'cadquery' kernel: each test pytest.importorskip()s its heavy dep for the deep numeric cross-check so the full pytest gate stays green where the extra is absent, while the always-available guard paths (GeometryError on missing dep / unknown quantity / unknown kind / zero rotate-axis) run unconditionally as the mandatory negatives.
+- (2026-06-23) buckling and calibration are pure (numpy/stdlib, no optional dep) so their characterization tests run the full headline claim end-to-end: buckling's FEM eigenproblem converging to the Euler closed form for all 4 end conditions, and calibration's threshold/ECE/conformal honesty including the None-abstention paths.
+- (2026-06-23) Universal facade-killer per module: assert (a) the headline output changes MEANINGFULLY when a driving input changes (proves the input is consumed, not a canned constant) AND (b) the documented fail-loud/abstention path fires exactly (the mandatory NEGATIVE test) — per 'keine stillen Defaults' and 'a gate without a test does not exist'.
+- (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (standing 2026-06-23 team decision); each task's honest verdict (REAL/PARTIAL/FACADE + what was made real) + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (the integrator consolidates into BUILD_LOG at merge).
+- (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (Specification/Component/BomItem/BomRole/Quantity/GeometryNode) and each module's real signatures — read them, never invent fields — and use only stdlib + already-declared deps (numpy is already declared).
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess in the always-run path, matching the historical test→claude routing.
+- (2026-06-23) Split strictly by module (chip_selection / circuit / clarification / cli / competitive_humanoid): each task edits exactly ONE src file + adds ONE tests/test_<module>_characterization.py + ONE docs/audit/DEPTH_AUDIT_<module>.md — zero path collision across worktrees.
+- (2026-06-23) New test files take the _characterization suffix because every module already has a legacy test on main (test_chip_selection, test_circuit, test_clarification, test_cli_*_mode, test_competitive_humanoid); the new file is the authoritative facade-detector and leaves legacy tests untouched (no churn).
+- (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (standing 2026-06-23 team decision); each task's honest verdict (REAL/PARTIAL/FACADE + what was made real) + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (the integrator consolidates at merge).
+- (2026-06-23) chip_selection reads REAL: select_chip is a genuine proposer/gate split delegating to compute.py's three checks; its facade-killer asserts the chosen chip CHANGES with the requirement and the prefer key (price vs power vs headroom select different chips), that an over-spec workload honestly returns selected=None ('keiner passt'), and the documented ValueErrors fire (unknown prefer / empty catalog / non-positive requirement bubbling up from compute.py) — edit source only if a guard is genuinely missing.
+- (2026-06-23) circuit reads REAL: MNA in pure numpy; its facade-killer cross-checks against closed forms (Ohm I=V/R, two-resistor divider node voltage, an RC transient charging toward its DC steady state, an AC reactive phasor) so the numbers are computed not canned, plus the documented fail-loud paths (non-positive R/C/L/i_sat → ValueError; floating/singular network → LinAlgError; non-convergent nonlinear → RuntimeError).
+- (2026-06-23) clarification reads REAL: its facade-killer asserts a spec carrying a recipe TRIGGER measurand but missing an input yields a question for exactly that measurand with priority = #indicated-checks-needing-it and correct sole-unblock set; a physics-free or fully-specified spec yields an EMPTY list (honest abstention, the negative case); and apply_answers adds ONLY missing measurands with stable measurand-derived ids and never overwrites an existing declaration.
+- (2026-06-23) cli task is scoped to the PURE rendering surface (format_report / format_solution / format_specification / render_spec / format_assessment_footer) to stay self-contained and deterministic; its facade-killer asserts rendered German output actually reflects input data (a changed Quantity value appears in format_specification output; populated vs empty findings flip format_report between the bullet list and the explicit 'keine' abstention line) and that render_spec dispatches the requested format — proving the formatter consumes the spec rather than emitting a canned template.
+- (2026-06-23) competitive_humanoid reads REAL: build_humanoid is fully cfg-driven; its facade-killer asserts the printed vs flagship specs differ in the gate-relevant headline numbers that are actually consumed (q_avail_tau=420 N·m > H2's 360 for flagship vs 200 for printed; reach links; compute workload/chip TOPS) so the competitive claim is present in the spec, not just the docstring; the NEGATIVE test asserts a HumanoidConfig with an incomplete prices dict fails LOUD (raises) rather than silently producing an unpriced BOM — make it a clear error if it is currently a bare KeyError.
+- (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (Specification/Quantity/ValueOrigin/Component/Report/SolutionReport/Approach) and each module's real signatures (HumanoidConfig, Chip, Resistor/VoltageSource, RECIPES) — read them, never invent fields — and use only stdlib + already-declared deps (numpy is already declared for circuit).
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the historical test→claude routing.
 
 ### Architecture Decision Records
 
@@ -261,20 +280,22 @@ kanban
 - 0025. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0026. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0027. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0028. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0029. Depth-audit AND FIX (genesis overnight loop). For each modul
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 20 |
-| Tasks (total) | 91 |
-| Done | 89 |
+| Runs | 22 |
+| Tasks (total) | 101 |
+| Done | 99 |
 | Blocked | 1 |
 | Resolved rate | 98% |
 | Blocked rate | 1% |
-| Merges | 13 |
-| Avg duration | 70.3m |
-| Total cost | 223.11 |
+| Merges | 14 |
+| Avg duration | 73.9m |
+| Total cost | 249.06 |
 
 ## Architecture
 
@@ -290,26 +311,26 @@ graph TD
 
 Recent commits:
 
+- `6e799e9 Merge branch 'crew/T05-claude' into crew/integration`
+- `213078e Merge branch 'crew/T04-claude' into crew/integration`
+- `55025d0 Merge branch 'crew/T03-claude' into crew/integration`
+- `9fe7a88 Merge branch 'crew/T02-claude' into crew/integration`
+- `b1a7b73 Merge branch 'crew/T01-claude' into crew/integration`
+- `f6574bf crew(claude): T02 Depth-audit + fix circuit.py (MNA DC/AC/transient/nonlinear solver) [round 1]`
+- `9a3ad82 feat(humanoids): broaden roster to 6/7 engine-validated — Fourier-N1 + K-Bot acquired, N1 stands; AGILOped robust, Asimov improved`
+- `44817f1 crew(claude): T05 Depth-audit + fix competitive_humanoid.py (two cfg-driven whole-body humanoid specs) [round 1]`
+- `94a4cad crew(claude): T04 Depth-audit + fix cli.py rendering surface (format_report/solution/specification/render_spec) [round 1]`
+- `2ec0908 crew(claude): T03 Depth-audit + fix clarification.py (underspecification detection + targeted questions) [round 2]`
+- `3cc608d crew(claude): T03 Depth-audit + fix clarification.py (underspecification detection + targeted questions) [round 1]`
+- `0224103 fix: unblock campaign integration — ClaimStatus str-enum + lumencrucible techniker arg`
+- `be57c35 crew(claude): T01 Depth-audit + fix chip_selection.py (requirement-driven chip selection over compute.py gate) [round 1]`
+- `ac1a517 feat(humanoids): dynamic stepping env + capture-step + RL (honest negative result)`
+- `0e999f1 Merge branch 'crew/integration'`
+- `ef33b75 feat(humanoids): whole-body balance control + AGILOped flat-foot stand + Asimov actuators`
+- `bd6dd31 crew: scaffold CI/CD + project config`
 - `6946a69 crew: resolve merge conflict for crew/T05-grok`
 - `4d5061e Merge branch 'crew/T04-claude' into crew/integration`
 - `ea8e31d Merge branch 'crew/T03-claude' into crew/integration`
-- `dc9ae37 Merge branch 'crew/T02-grok' into crew/integration`
-- `d4e800a crew(grok): T05 Depth-audit + harden bolted_joint (preload load-sharing axis) [round 2]`
-- `5e3ce4b crew(grok): T05 Depth-audit + harden bolted_joint (preload load-sharing axis) [round 1]`
-- `2db4b4a crew(claude): T04 Depth-audit + harden actuation (electric + hydraulic actuator screens) [round 1]`
-- `c9ca79c crew(grok): T02 Depth-audit + harden PostgresLedgerStore (offline-pure paths) [round 4]`
-- `7447415 crew(claude): T03 Depth-audit + harden InMemoryLedgerStore (provenance + determinism) [round 1]`
-- `9c8f227 crew(grok): T02 Depth-audit + harden PostgresLedgerStore (offline-pure paths) [round 3]`
-- `0302dc2 crew(claude): T01 Depth-audit + harden run_audit (signed tamper-evident run audit) [round 2]`
-- `6f7e37a crew(grok): T02 autofix [round 2]`
-- `17c6827 crew(grok): T02 Depth-audit + harden PostgresLedgerStore (offline-pure paths) [round 2]`
-- `93da09c crew(claude): T01 Depth-audit + harden run_audit (signed tamper-evident run audit) [round 1]`
-- `cda496a crew(grok): T02 Depth-audit + harden PostgresLedgerStore (offline-pure paths) [round 1]`
-- `580a289 feat(tools): wire PostgreSQL/pgvector ledger, CadQuery BREP, KiCad, OpenFOAM CFD, OpenMDAO into genesis`
-- `164e957 feat(humanoids): real open-source humanoids + in-engine validation/balance/RL harness`
-- `466be1b Merge branch 'crew/integration'`
-- `473621c crew: scaffold CI/CD + project config`
-- `9d7b8e7 Merge branch 'crew/T05-claude' into crew/integration`
 
 
 ---
