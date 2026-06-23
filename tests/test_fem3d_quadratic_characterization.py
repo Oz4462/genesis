@@ -40,7 +40,6 @@ from gen.fem3d import _elasticity_matrix  # noqa: E402  (pre-existing; shared)
 from gen.fem3d_quadratic import (  # noqa: E402
     _EDGES,
     _GAUSS,
-    _NODE_NAT,
     _b_matrix,
     _shape_grads,
     _t10_mass_reference,
@@ -268,11 +267,24 @@ def test_box_mesh_cross_check_path_is_guarded_and_optional():
 
 def test_geometry_error_on_absent_gmsh_is_loud_and_documented():
     """_require_gmsh (reached via box_mesh_t10) raises the documented GeometryError
-    when the gmsh import fails. This exercises the real except branch (patch.dict
-    forces ImportError on the runtime `import gmsh` inside _require_gmsh).
+    (the except ImportError branch) when 'import gmsh' fails.
+
+    We use a targeted patch on builtins.__import__ (instead of sys.modules=None,
+    which would bind None and cause AttributeError later on .initialize()).
+    This reliably forces the ImportError path regardless of whether gmsh is
+    installed in the current environment. Only cross-checks use importorskip.
     """
+    import builtins
     from unittest import mock
-    with mock.patch.dict("sys.modules", {"gmsh": None}):
+
+    orig = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name == "gmsh" or name.startswith("gmsh."):
+            raise ImportError("No module named 'gmsh' (mocked)")
+        return orig(name, *args, **kwargs)
+
+    with mock.patch.object(builtins, "__import__", fake_import):
         with pytest.raises(GeometryError) as excinfo:
             box_mesh_t10(1.0, 1.0, 1.0, 0.5)
         msg = str(excinfo.value).lower()
