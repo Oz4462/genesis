@@ -7,24 +7,33 @@
 | Status | Count |
 | --- | --- |
 | done | 4 |
+| blocked | 1 |
 
 ```mermaid
 kanban
   done
-    nT01[T01: omega.py — make the e2e cert chain a REAL gate]
-    nT02[T02: integrator.py — make the richer BOM/assembly package real]
-    nT03[T03: cross_model.py — fix codex family detection]
-    nT04[T04: discovery/benchmark.py — prove rediscovery is honest, not rigged]
+    nT01[T01: Depth-audit + fix bench_test_runner: make 'bewertet den Messlauf' real (inp]
+    nT02[T02: Depth-audit + fix boundary_reviser: evidence-driven revisions, no fabricate]
+    nT03[T03: Depth-audit + fix breakthrough_watch: FrontierItems tied to the real map's]
+    nT05[T05: Depth-audit + fix development_front: generic map genuinely derived from ide]
+  blocked
+    nT04[T04: Depth-audit + fix capability_gap_analyzer: actually CLASSIFY the map's type]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | omega.py — make the e2e cert chain a REAL gate | done | grok | feature |
-| T02 | integrator.py — make the richer BOM/assembly package real | done | claude | feature |
-| T03 | cross_model.py — fix codex family detection | done | claude | feature |
-| T04 | discovery/benchmark.py — prove rediscovery is honest, not rigged | done | claude | feature |
+| T01 | Depth-audit + fix bench_test_runner: make 'bewertet den Messlauf' real (input-derived results + honest verdict) | done | claude | feature |
+| T02 | Depth-audit + fix boundary_reviser: evidence-driven revisions, no fabricated no-op revision | done | grok | feature |
+| T03 | Depth-audit + fix breakthrough_watch: FrontierItems tied to the real map's gaps, honest-empty when none | done | claude | feature |
+| T04 | Depth-audit + fix capability_gap_analyzer: actually CLASSIFY the map's typed boundaries into GapCategories | blocked | grok | feature |
+| T05 | Depth-audit + fix development_front: generic map genuinely derived from idee + bekannte_grenzen | done | claude | feature |
+
+### Blocked / risks
+
+- **T04** Depth-audit + fix capability_gap_analyzer: actually CLASSIFY the map's typed boundaries into GapCategories
+  - merge conflict at integration vs base — code not integrated
 
 ## Decisions
 
@@ -96,6 +105,12 @@ kanban
 - (2026-06-23) Each task edits its module's source ONLY where the new test exposes a genuine defect (cross_model is a real fix; the other three fix only if the characterization test fails — never blanket feature-creep), per 'change nothing if correct'.
 - (2026-06-23) Builders construct all state/spec/problem inputs through the REAL constructors and enum names in src/gen/core/state.py and the module's real signatures (read them, never invent fields), and use only stdlib + already-declared deps — no new dependency; numpy is already a declared dep for the discovery task.
 - (2026-06-23) preferredBuilder=claude on the two cleanly-deterministic test-centric tasks (cross_model, rediscovery) per test→claude routing; left null on the two large debugging-surface tasks (omega cert chain, integrator package/artifact emission) where no clear leader applies.
+- (2026-06-23) Split strictly by module: each task edits exactly ONE source file under src/gen/grenzverschiebung/ and adds one uniquely-named tests/test_<module>_characterization.py + docs/audit/DEPTH_AUDIT_<module>.md — zero path collision across worktrees; the runtime cross-import (boundary_reviser imports development_front) is safe because each worktree carries the unmodified pre-existing dependency.
+- (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision; each task's honest verdict + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md instead (the integrator can consolidate into BUILD_LOG at merge).
+- (2026-06-23) Task 5 (development_front) MUST NOT change the existing DevelopmentFrontMap / ExperimentleiterSchritt / Grenztyp field or enum signatures — only add behavior — because tasks 2/3/4 construct DevelopmentFrontMap in their tests; keeping the dataclass shape stable keeps the post-merge integration green.
+- (2026-06-23) The universal facade-killer per module: assert (a) output changes meaningfully when a driving input field changes (proves the input is consumed, not a constant), and (b) an input with no actionable signal yields an honest empty/abstaining output rather than a fabricated canned result — per 'keine stillen Defaults'.
+- (2026-06-23) Every task keeps the rich jetpack branch as a protected regression (one test asserts it still returns its detailed map) so making the generic path real does not silently delete the existing demo behavior — completeness/L3 seam check.
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-fix task with no network/subprocess, matching the test→claude routing; the fix surface is small and self-contained.
 
 ### Architecture Decision Records
 
@@ -110,20 +125,21 @@ kanban
 - 0009. Depth-audit AND FIX — wave 2. For each module below the job
 - 0010. Depth-audit AND FIX — wave 2. For each module below the job
 - 0011. Depth-audit AND FIX — wave 3 (continuous). Same rules as bef
+- 0012. Depth-audit AND FIX (genesis overnight loop). For each modul
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 4 |
-| Tasks (total) | 12 |
-| Done | 11 |
+| Runs | 5 |
+| Tasks (total) | 16 |
+| Done | 15 |
 | Blocked | 0 |
-| Resolved rate | 92% |
+| Resolved rate | 94% |
 | Blocked rate | 0% |
-| Merges | 3 |
-| Avg duration | 165.9m |
-| Total cost | 32.47 |
+| Merges | 4 |
+| Avg duration | 140.1m |
+| Total cost | 41 |
 
 ## Architecture
 
@@ -139,6 +155,16 @@ graph TD
 
 Recent commits:
 
+- `a6d6392 Merge branch 'crew/T05-claude' into crew/integration`
+- `f42d765 Merge branch 'crew/T03-claude' into crew/integration`
+- `e716e67 Merge branch 'crew/T02-grok' into crew/integration`
+- `f521464 crew(claude): T05 Depth-audit + fix development_front: generic map genuinely derived from idee + bekannte_grenzen [round 1]`
+- `0debe46 crew(claude): T03 Depth-audit + fix breakthrough_watch: FrontierItems tied to the real map's gaps, honest-empty when none [round 1]`
+- `1e04cd6 crew(grok): T02 Depth-audit + fix boundary_reviser: evidence-driven revisions, no fabricated no-op revision [round 2]`
+- `96dd19d crew(claude): T01 Depth-audit + fix bench_test_runner: make 'bewertet den Messlauf' real (input-derived results + honest verdict) [round 1]`
+- `e944d3e crew(grok): T02 Depth-audit + fix boundary_reviser: evidence-driven revisions, no fabricated no-op revision [round 1]`
+- `4d7a117 Merge branch 'crew/integration'`
+- `81d4630 crew: scaffold CI/CD + project config`
 - `7524d64 Merge branch 'crew/T04-claude' into crew/integration`
 - `b831da2 Merge branch 'crew/T03-claude' into crew/integration`
 - `6833983 Merge branch 'crew/T02-claude' into crew/integration`
@@ -149,16 +175,6 @@ Recent commits:
 - `1ae6202 crew(grok): T01 omega.py — make the e2e cert chain a REAL gate [round 1]`
 - `f41d0e4 Merge branch 'crew/integration'`
 - `b6be5d6 crew: scaffold CI/CD + project config`
-- `81931a4 Merge branch 'crew/T05-claude' into crew/integration`
-- `d75d4a2 Merge branch 'crew/T04-claude' into crew/integration`
-- `93148fe Merge branch 'crew/T03-claude' into crew/integration`
-- `f0c3ae0 Merge branch 'crew/T02-claude' into crew/integration`
-- `66b6c33 crew(claude): T02 lernmaschine: make the 8-step lern chain genuinely real [round 1]`
-- `57c261a crew(claude): T01 lumencrucible: make hammer_omega_certificate + self_improvement real [round 1]`
-- `d5f3aed crew(claude): T05 fem3d: prove deflection/stress scale with load + geometry [round 1]`
-- `6a57326 crew(claude): T04 synthesizer: make duplicate-approach dedup correct + logged [round 1]`
-- `5ae9af2 crew(claude): T03 inventor loop: make γ+ bridge derive + attach to RunState [round 1]`
-- `6ac5f62 fix(simulation): repair broken module docstring in runner.py (SyntaxError blocked all imports)`
 
 
 ---

@@ -23,12 +23,24 @@ def test_jetpack_produces_revised_front_map():
     assert "possible_but_unsafe_directly" in str(revised.revised_map.grenzen.values()) or "known_possible" in str(revised.revised_map.grenzen.values())
 
 
-def test_generic_idea_produces_minimal_revision():
-    """Generische Idee → minimale Revision (generic item)."""
+def test_generic_idea_with_no_known_boundaries_yields_honest_noop():
+    """Generische Idee ohne benannte Grenzen → ehrlicher No-op (keine fabrizierte Revision).
+
+    Integriertes Verhalten: development_front bleibt für eine generische Idee ohne
+    bekannte_grenzen ehrlich abstinent (``grenzen == {}``), und breakthrough_watch
+    liefert nur ein abstinentes Watch-Target. Der evidenz-getriebene boundary_reviser
+    erfindet daraufhin KEINE „generische Machbarkeit"-Revision mehr (das war die alte
+    Fassade, die beide Features bewusst entfernt haben — „keine stillen Defaults"),
+    sondern gibt die Map substanziell unverändert zurück. Das ist ein echter Negativtest:
+    er schlägt fehl, sobald der Reviser eine Revision ohne reale Evidenz fabriziert.
+    """
     idee = "Ein tragbares Gerät, das Schwerkraft lokal aufhebt."
     front = map_development_front(idee)
     frontier = watch_frontier(front)
     revised = revise_boundary(front, frontier)
 
-    assert len(revised.revisions) >= 1
-    assert "generische" in revised.revisions[0].changed_boundary.lower() or "Machbarkeit" in revised.revisions[0].changed_boundary
+    assert front.grenzen == {}  # T05: ehrlich abstinent statt erfundener Pseudo-Grenze
+    assert len(revised.revisions) == 0
+    assert "No boundary revision emitted" in revised.zusammenfassung
+    assert revised.revised_map.grenzen == front.grenzen
+    assert revised.revised_map.heutige_grenze == front.heutige_grenze

@@ -1,15 +1,20 @@
 """bench_test_runner — achter Grenzverschiebungs-Modul (nächster aktiver Stein nach technology_builder).
 
 Gemäß GENESIS_PLATFORM_PLAN.md §3.3:
-- Aufgabe: plant und bewertet den Messlauf für diesen Prototyp.
-- Output: `BenchTestResult`.
+- Aufgabe: plant UND bewertet den Messlauf für diesen Prototyp.
+- Output: `BenchTestPlan` (eine `BenchTestResult` pro Prototyp).
 
-Dieses Modul nimmt die TechnologyPrototypePlan (oder die kumulierten Outputs) und
-produziert die konkreten Messpläne und Ergebnis-Bewertungen für die Prototypen (mit definierten Testläufen, Messdaten-Anforderungen, Erfolgskriterien, Abbruchregeln und ehrlicher Bewertung).
+Dieses Modul nimmt die `TechnologyPrototypePlan` aus dem technology_builder und
+produziert pro Prototyp einen konkreten Messplan: Messdaten-Anforderungen,
+Erfolgskriterien und Abbruchkriterien werden **aus den realen `anforderungen`/`risiken`
+des jeweiligen Prototyps abgeleitet** (nicht hartkodiert), und jede `BenchTestResult`
+trägt eine explizite, ehrliche `ergebnis_bewertung` — niemals ein stilles `None`.
 
-Erster Stein: Datamodel + deterministischer Runner für das Jetpack-Beispiel
-( plant die Messläufe für die Prototypen aus dem Builder, mit sicheren Bedingungen und Abbruchkriterien).
-Später: Volle Verknüpfung mit breakthrough_watch, boundary_reviser, Wissensbasis.
+Ehrlichkeits-Prinzip (CLAUDE.md Kernprinzip 1 + 4): Es existiert in dieser Stufe noch
+kein realer Messlauf. Deshalb ist die Bewertung honest `geplant_nicht_ausgefuehrt`
+(mit Begründung), statt ein Pass/Fail zu erfinden, das keine Messung deckt. Trägt ein
+Prototyp keine Anforderungen, lässt sich kein Erfolgskriterium ableiten — das wird als
+`geplant_unvollstaendig_keine_kriterien` ausgewiesen, nicht überspielt.
 """
 
 from __future__ import annotations
@@ -18,12 +23,24 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .technology_builder import TechnologyPrototypePlan
+    from .technology_builder import TechnologyPrototypePlan, TechnologyPrototypeSpec
+
+
+# Ehrliche Bewertungs-Stati. Single source of truth, damit Tests und Downstream
+# (breakthrough_watch, safety_ladder) gegen Konstanten und nicht gegen Stringliterale prüfen.
+STATUS_GEPLANT_NICHT_AUSGEFUEHRT = "geplant_nicht_ausgefuehrt"
+STATUS_GEPLANT_UNVOLLSTAENDIG = "geplant_unvollstaendig_keine_kriterien"
 
 
 @dataclass(frozen=True)
 class BenchTestResult:
-    """Ein einzelnes Messergebnis für einen Prototyp (Output des Moduls)."""
+    """Ein einzelnes Messergebnis für einen Prototyp (Output des Moduls).
+
+    `ergebnis_bewertung` ist nie `None`: solange kein realer Messlauf existiert, steht
+    hier ein ehrlicher Plan-Status (`STATUS_GEPLANT_*`), begründet in
+    `bewertung_begruendung`. Nach einem echten Lauf würde hier ein gemessenes Verdikt
+    (z.B. "bestanden"/"nicht erreicht") gesetzt.
+    """
 
     prototype_name: str
     test_name: str
@@ -32,7 +49,8 @@ class BenchTestResult:
     erfolgskriterien: list[str]
     abbruchkriterien: list[str]
     geplante_dauer: str
-    ergebnis_bewertung: str | None = None   # Wird nach dem Lauf gesetzt (z.B. "bestanden", "teilweise", "abgebrochen", "nicht erreicht")
+    ergebnis_bewertung: str = STATUS_GEPLANT_NICHT_AUSGEFUEHRT
+    bewertung_begruendung: str | None = None
     quelle: str | None = None
 
 
@@ -47,93 +65,130 @@ class BenchTestPlan:
     quelle: str | None = None
 
 
+# Universelles Sicherheits-Abbruchkriterium: gilt unabhängig vom konkreten Prototyp,
+# damit auch ein risiko-armer Prototyp nie ohne Stopp-Bedingung gefahren wird.
+_UNIVERSAL_ABBRUCH = "Sicherheitsrisiko für Mensch/Material oder Verlassen des freigegebenen Test-Stand-Fensters"
+
+
+def _messdaten_anforderungen(spec: "TechnologyPrototypeSpec") -> list[str]:
+    """Jede Bau-Anforderung wird zur Messgröße: gemessen wird, ob sie erfüllt ist.
+
+    Leitet direkt aus `spec.anforderungen` ab — kein Hardcode. Trägt der Prototyp die
+    reichen Jetpack-Anforderungen, erscheint deren Inhalt hier; trägt er nichts, bleibt
+    die Liste leer (ehrlich), statt einen Default zu erfinden.
+    """
+    return [f"Messung: {a}" for a in spec.anforderungen]
+
+
+def _erfolgskriterien(spec: "TechnologyPrototypeSpec") -> list[str]:
+    """Erfolgskriterium = die jeweilige Anforderung muss im Messlauf erfüllt sein."""
+    return [f"Erfüllt im Messlauf: {a}" for a in spec.anforderungen]
+
+
+def _abbruchkriterien(spec: "TechnologyPrototypeSpec") -> list[str]:
+    """Abbruchkriterien aus den realen Risiken plus universelles Sicherheits-Stopp.
+
+    Jedes deklarierte Risiko, das sich materialisiert, ist ein Abbruchgrund — so wird
+    der Messplan an die echten Risiken des Prototyps gekoppelt statt an eine Konstante.
+    """
+    aus_risiken = [f"Abbruch bei Eintreten von: {r}" for r in spec.risiken]
+    # Reihenfolge: prototyp-spezifisch zuerst, dann das universelle Stopp-Kriterium.
+    return [*aus_risiken, _UNIVERSAL_ABBRUCH]
+
+
+def _bench_result_for(spec: "TechnologyPrototypeSpec") -> BenchTestResult:
+    """Baut genau eine `BenchTestResult` aus einer Prototyp-Spec — vollständig abgeleitet.
+
+    Setzt eine ehrliche `ergebnis_bewertung`:
+    - hat der Prototyp Anforderungen → vollständiger Plan, Status
+      `geplant_nicht_ausgefuehrt` (noch kein realer Messlauf);
+    - hat er keine → kein Erfolgskriterium ableitbar, Status
+      `geplant_unvollstaendig_keine_kriterien` (Lücke ehrlich ausgewiesen).
+    """
+    messdaten = _messdaten_anforderungen(spec)
+    erfolg = _erfolgskriterien(spec)
+    abbruch = _abbruchkriterien(spec)
+
+    if spec.anforderungen:
+        bewertung = STATUS_GEPLANT_NICHT_AUSGEFUEHRT
+        begruendung = (
+            "Messplan vollständig aus den Prototyp-Anforderungen und -Risiken abgeleitet. "
+            "Es liegt noch kein realer Messlauf vor, daher (ehrlich) kein Pass/Fail-Verdikt."
+        )
+    else:
+        bewertung = STATUS_GEPLANT_UNVOLLSTAENDIG
+        begruendung = (
+            "Prototyp trägt keine Anforderungen — es lässt sich kein Erfolgskriterium "
+            "ableiten; der Messlauf ist nicht bewertbar (keine stillen Defaults)."
+        )
+
+    return BenchTestResult(
+        prototype_name=spec.name,
+        test_name=f"Bench-Validierung: {spec.ziel_technologie}",
+        beschreibung=(
+            f"Messlauf auf {spec.test_stand_tie_in} zur Validierung des Prototyps "
+            f"'{spec.name}'. {spec.beschreibung}"
+        ),
+        messdaten_anforderungen=messdaten,
+        erfolgskriterien=erfolg,
+        abbruchkriterien=abbruch,
+        geplante_dauer=f"Messlauf-Fenster orientiert am Prototyp-Zeitplan: {spec.grober_zeitplan}",
+        ergebnis_bewertung=bewertung,
+        bewertung_begruendung=begruendung,
+        quelle=(
+            f"bench_test_runner (abgeleitet aus Prototyp-Spec) + "
+            f"{spec.quelle or 'technology_builder'} + GENESIS_PLATFORM_PLAN.md §3.3"
+        ),
+    )
+
+
 def run_bench_test(
     prototype_plan: "TechnologyPrototypePlan",
     *,
     run_id: str | None = None,
 ) -> BenchTestPlan:
-    """
-    Erste Version des bench_test_runner.
+    """Plant und bewertet den Messlauf — eine `BenchTestResult` pro Prototyp.
 
-    Für das Jetpack-Beispiel (PLAN) plant sie die konkreten Messläufe für die Prototypen aus dem Builder
-    und liefert die Struktur für die Bewertung (die tatsächliche Ausführung und Datenerfassung kommt später mit realen Ständen).
+    Was/Warum: Für jeden `TechnologyPrototypeSpec` in `prototype_plan.prototypes` wird ein
+    Messplan abgeleitet, dessen Messdaten-Anforderungen/Erfolgs-/Abbruchkriterien aus den
+    realen `anforderungen`/`risiken` des Prototyps stammen. Jede Bewertung ist explizit und
+    ehrlich (nie `None`): solange kein realer Messlauf existiert, `geplant_nicht_ausgefuehrt`.
+
+    Fehlerfälle / ehrliche Abstention:
+    - Enthält der Plan **keine** Prototypen, wird KEIN Default-Prototyp erfunden, sondern
+      eine leere Ergebnisliste mit ehrlicher Begründung zurückgegeben.
+    - Trägt ein Prototyp keine Anforderungen, wird dessen Bewertung als
+      `geplant_unvollstaendig_keine_kriterien` ausgewiesen (statt fabrizierter Kriterien).
     """
     traum = prototype_plan.source_traum
 
-    results: list[BenchTestResult] = []
-
-    if "jetpack" in traum.lower() or ("mensch" in traum.lower() and "fliegen" in traum.lower()):
-        results = [
-            BenchTestResult(
-                prototype_name="P1 — Portable High-Density Energy Module (erste Zelle + Pack)",
-                test_name="Energie-Dichte & Zyklen unter Last (T1 Bench)",
-                beschreibung="Messlauf auf dem T1 Bench mit simulierter 80kg+ Payload, 50 Zyklen bei 80% DoD, Abuse-Tests (Überladung, Kurzschluss, Temperatur).",
-                messdaten_anforderungen=[
-                    "Wh/kg bei Pack-Level (Ziel ≥300)",
-                    "Zyklenleben bei 80% DoD (Ziel ≥200)",
-                    "Temperaturprofil bei Dauerlast",
-                    "Spannungsverlauf bei Abuse",
-                ],
-                erfolgskriterien=[
-                    "Durchschnittliche Energiedichte ≥280 Wh/kg über 50 Zyklen",
-                    "Keine Thermal Runaway in Abuse-Tests",
-                    "Kapazitätsverlust <20% nach 200 Zyklen",
-                ],
-                abbruchkriterien=[
-                    "Temperatur >60°C bei Dauerlast",
-                    "Kapazitätsverlust >5% in einem Zyklus",
-                    "Spannungsabfall >10% unter Last",
-                ],
-                geplante_dauer="4–6 Wochen (Bench-Aufbau + 50 Zyklen + Abuse + Auswertung)",
-                quelle="GENESIS_PLATFORM_PLAN.md §3.3 + technology_builder P1 + teststand T1",
+    if not prototype_plan.prototypes:
+        # Ehrliche Abstention statt fabriziertem P0-Default: ohne Prototyp kein Messlauf.
+        return BenchTestPlan(
+            source_traum=traum,
+            results=[],
+            zusammenfassung=(
+                "Kein Prototyp im Plan — es ist kein Messlauf planbar oder bewertbar. "
+                "Ehrliche Abstention (keine stillen Defaults)."
             ),
-            BenchTestResult(
-                prototype_name="P2 — Dissimilar Redundant Flight Controller + ESC Set",
-                test_name="Single-Failure Detection & Switch (T1 + T0)",
-                beschreibung="HIL/SIL auf T1 Bench + Integration auf T0 Scale Rig, 100 injizierte Single-Failures (Motor, ESC, Sensor, FC), Messung der Reaktionszeit und Kompensation.",
-                messdaten_anforderungen=[
-                    "Zeit von Failure-Detektion bis Switch (Ziel <80ms)",
-                    "Anzahl erfolgreicher Kompensationen in 100 Injektionen",
-                    "Stabilität nach Switch (Höhenabweichung)",
-                    "Gewicht des vollen Satzes",
-                ],
-                erfolgskriterien=[
-                    "Durchschnittliche Switch-Zeit <80ms",
-                    "≥98/100 Injektionen erfolgreich kompensiert ohne Absturz",
-                    "Gesamtgewicht ≤1,2 kg",
-                ],
-                abbruchkriterien=[
-                    "Switch-Zeit >150ms in >5% der Fälle",
-                    "Unkompensierter Absturz in >3 Injektionen",
-                    "Gewicht >1,5 kg",
-                ],
-                geplante_dauer="3–4 Wochen (HIL-Setup + 100 Injektionen + T0 Integration + Auswertung)",
-                quelle="GENESIS_PLATFORM_PLAN.md §3.3 + technology_builder P2 + teststand T1/T0",
-            ),
-        ]
-        zusammenfassung = (
-            "2 konkrete BenchTestResults (Messpläne + Erfolgskriterien + Abbruchregeln) für die ersten Prototypen. "
-            "Die Pläne sind direkt an die existierenden sicheren Test-Stände gekoppelt und haben klare, messbare Kriterien."
+            run_id=run_id,
+            quelle="bench_test_runner (leere Abstention) + GENESIS_PLATFORM_PLAN.md §3.3",
         )
-    else:
-        results = [
-            BenchTestResult(
-                prototype_name="P0 — Grundlegender Technologie-Validierungs-Prototyp",
-                test_name="Parameter-Validierung (T0)",
-                beschreibung="Minimaler Bench-Lauf zur Messung der kritischen Parameter des P0-Prototyps.",
-                messdaten_anforderungen=["Reproduzierbare Messung der kritischen Parameter"],
-                erfolgskriterien=["Messung innerhalb der erwarteten Toleranz"],
-                abbruchkriterien=["Messung nicht reproduzierbar"],
-                geplante_dauer="1–2 Wochen",
-                quelle="GENESIS_PLATFORM_PLAN.md §3.3",
-            ),
-        ]
-        zusammenfassung = "Minimaler Messplan für noch nicht detailliert analysierte Idee."
+
+    results = [_bench_result_for(spec) for spec in prototype_plan.prototypes]
+
+    bewertbar = sum(1 for r in results if r.ergebnis_bewertung == STATUS_GEPLANT_NICHT_AUSGEFUEHRT)
+    zusammenfassung = (
+        f"{len(results)} BenchTestResult(s) aus den Prototyp-Specs abgeleitet "
+        f"(Messpläne + Erfolgs-/Abbruchkriterien direkt aus deren Anforderungen/Risiken). "
+        f"{bewertbar}/{len(results)} vollständig planbar; alle Bewertungen sind ehrlich gesetzt "
+        f"(noch kein realer Messlauf ausgeführt)."
+    )
 
     return BenchTestPlan(
         source_traum=traum,
         results=results,
         zusammenfassung=zusammenfassung,
         run_id=run_id,
-        quelle="bench_test_runner (erster Stein) + technology_prototype_plan + GENESIS_PLATFORM_PLAN.md §3.3",
+        quelle="bench_test_runner (input-abgeleitet) + technology_prototype_plan + GENESIS_PLATFORM_PLAN.md §3.3",
     )
