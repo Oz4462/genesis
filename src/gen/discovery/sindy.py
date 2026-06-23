@@ -22,6 +22,13 @@ and a learned library are declared extensions. Deterministic, offline.
 # Note (FORSCHUNG_AUTONOMES_ERFINDEN §A2): addresses the "categorical jump" beyond single power-law.
 # Fed from GENESIS simulators (clean data). Pair with srbench_hygiene + uncertainty for production use.
 # See also simulation/backends.py usage.
+#
+# Depth-audit (T01, docs/audit/sindy.md): VERDICT = REAL. The sparsity claim is genuine, not a relabeled
+# dense fit — STLSQ recovers the exact support + coefficients of a KNOWN cubic system within tolerance and
+# zeros every spurious term EXACTLY (where plain np.linalg.lstsq leaves them nonzero), refuses (all-zero
+# model) a target with no sparse representation, and reports an honestly lower R² for an inadequate library
+# rather than fabricating a perfect law. Characterized in tests/discovery/test_sindy_characterization.py
+# (incl. a Hypothesis sparse-recovery invariant). No source change was required.
 """
 
 from __future__ import annotations

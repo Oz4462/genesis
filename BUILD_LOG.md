@@ -80,3 +80,12 @@ Eingabe == Konstante) kollabierte still auf eine Spalte und korrumpierte den dim
 Minimaler Eindeutigkeits-Guard in `problem_from_simulation` → lautes `ValueError` („keine stillen
 Defaults"). Öffentliche Signaturen + Sampling unverändert; vorbestehende Tests grün (27 passed).
 Details: `docs/audit/DEPTH_AUDIT_simulated_data.md`.
+
+## T01 — Depth-Audit + Fix: discovery/sindy.py (SINDy) — 2026-06-23
+VERDICT **REAL**. Headline-Claim (sparse identification of nonlinear dynamics) gegen reale Numerik
+charakterisiert in `tests/discovery/test_sindy_characterization.py` (8 Tests grün, inkl. Hypothesis-
+Invariante): STLSQ findet aus einem bekannten kubischen System exakt Support + Koeffizienten, nullt
+Störterme exakt (vs. dichter `np.linalg.lstsq`-Fit), refüsiert (Null-Modell) ein nicht-sparses Ziel und
+meldet ehrlich niedrigeres R² bei unzureichender Bibliothek statt Fabrikation; Negativfälle (fehlende
+Daten / threshold<0) → lautes `ValueError`. Kein Quellcode-Verhalten geändert (Modul war real); nur
+Audit-Note im Docstring. Details: `docs/audit/sindy.md`.
