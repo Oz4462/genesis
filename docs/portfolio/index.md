@@ -11,22 +11,22 @@
 ```mermaid
 kanban
   done
-    nT01[T01: Depth-audit + harden campaign.py (learned-prior + cross-domain composition)]
-    nT02[T02: Depth-audit + harden composition.py (minimal-correction discovery)]
-    nT03[T03: Depth-audit + harden concept_utility.py (ledger-learned contrastive prior)]
-    nT04[T04: Depth-audit + harden controller.py (budget/depth/checkpoint controller)]
-    nT05[T05: Depth-audit + harden cosmic_insight.py (cross-domain structural analogy)]
+    nT01[T01: engine.py: dimensional SR + discover_new_formulas really discovers, not gue]
+    nT02[T02: feynman.py: separate recovery vs honest-abstention rates, no blended score]
+    nT03[T03: first_principles.py: proof recompute catches tampering, derive only returns]
+    nT04[T04: graph.py: dedup fingerprint really collapses re-discoveries and emits the A]
+    nT05[T05: knowledge_graph.py: dimensional-type filter disposes spurious cross-domain]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | Depth-audit + harden campaign.py (learned-prior + cross-domain composition) | done | claude | feature |
-| T02 | Depth-audit + harden composition.py (minimal-correction discovery) | done | grok | feature |
-| T03 | Depth-audit + harden concept_utility.py (ledger-learned contrastive prior) | done | grok | feature |
-| T04 | Depth-audit + harden controller.py (budget/depth/checkpoint controller) | done | claude | feature |
-| T05 | Depth-audit + harden cosmic_insight.py (cross-domain structural analogy) | done | claude | feature |
+| T01 | engine.py: dimensional SR + discover_new_formulas really discovers, not guesses | done | claude | feature |
+| T02 | feynman.py: separate recovery vs honest-abstention rates, no blended score | done | grok | feature |
+| T03 | first_principles.py: proof recompute catches tampering, derive only returns verified proofs | done | grok | feature |
+| T04 | graph.py: dedup fingerprint really collapses re-discoveries and emits the Anhang-C record | done | claude | feature |
+| T05 | knowledge_graph.py: dimensional-type filter disposes spurious cross-domain groupings | done | grok | feature |
 
 ## Decisions
 
@@ -138,6 +138,11 @@ kanban
 - (2026-06-23) Builders construct every input through the REAL constructors/field names in src/gen/discovery/engine.py, graph.py, knowledge_graph.py, archive.py (DiscoveryProblem/Variable/Constant/Candidate, GraphNode.input_idea/exponent_signature, etc.) — read them, never invent fields — and use only stdlib + already-declared deps (numpy is already declared).
 - (2026-06-23) BUILD_LOG.md is out of every task's scope (shared-file merge-collision risk per the standing team decision); each task's honest verdict + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (integrator consolidates at merge).
 - (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess, matching the test→claude routing.
+- (2026-06-23) One module = one task = one new test file, split by module never by file type, so each task is independently verifiable in its own worktree.
+- (2026-06-23) engine.py is edited ONLY by Task 1. feynman/graph/knowledge_graph import engine but their tasks must NOT edit engine.py; if they need engine behavior they assert against the existing public API. This prevents the four downstream tasks from colliding on engine.py. dependsOn left empty because each test passes against the repo's current engine.
+- (2026-06-23) New test files use a *_audit.py / *_facade.py suffix distinct from the existing test_discovery_engine.py, test_feynman_benchmark.py, test_discovery_first_principles.py, test_discovery_graph.py, test_knowledge_graph.py so no existing test file is touched.
+- (2026-06-23) Acceptance criteria are framed as black-box outcomes of the anti-hallucination claim (dimension solve, recompute gate, dedup fingerprint, abstention) so 'green' means the headline really holds, plus a mandatory negative case per module.
+- (2026-06-23) Routing: characterization/test-heavy tasks lean claude; all are test+fix so claude is preferred, none are doc-only.
 
 ### Architecture Decision Records
 
@@ -157,20 +162,21 @@ kanban
 - 0014. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0015. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0016. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0017. Depth-audit AND FIX (genesis overnight loop). For each modul
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 9 |
-| Tasks (total) | 36 |
-| Done | 34 |
+| Runs | 10 |
+| Tasks (total) | 41 |
+| Done | 39 |
 | Blocked | 1 |
-| Resolved rate | 94% |
-| Blocked rate | 3% |
-| Merges | 8 |
-| Avg duration | 93.3m |
-| Total cost | 79.12 |
+| Resolved rate | 95% |
+| Blocked rate | 2% |
+| Merges | 9 |
+| Avg duration | 87.7m |
+| Total cost | 88.3 |
 
 ## Architecture
 
@@ -186,6 +192,17 @@ graph TD
 
 Recent commits:
 
+- `25b2035 crew: resolve merge conflict for crew/T05-grok`
+- `b61a957 crew: resolve merge conflict for crew/T03-grok`
+- `fcb2b59 Merge branch 'crew/T04-claude' into crew/integration`
+- `1b63c8c Merge branch 'crew/T02-grok' into crew/integration`
+- `4190bb5 crew(grok): T05 knowledge_graph.py: dimensional-type filter disposes spurious cross-domain groupings [round 1]`
+- `faeff2d crew(claude): T04 graph.py: dedup fingerprint really collapses re-discoveries and emits the Anhang-C record [round 1]`
+- `60cfee9 crew(grok): T03 first_principles.py: proof recompute catches tampering, derive only returns verified proofs [round 1]`
+- `3c07906 crew(claude): T01 engine.py: dimensional SR + discover_new_formulas really discovers, not guesses [round 1]`
+- `909b11f crew(grok): T02 feynman.py: separate recovery vs honest-abstention rates, no blended score [round 1]`
+- `2073e4f Merge branch 'crew/integration'`
+- `3d7b558 crew: scaffold CI/CD + project config`
 - `061cb7f crew: resolve merge conflict for crew/T03-grok`
 - `2dce3d7 Merge branch 'crew/T05-claude' into crew/integration`
 - `516fcd6 Merge branch 'crew/T04-claude' into crew/integration`
@@ -195,17 +212,6 @@ Recent commits:
 - `8cde34b crew(grok): T03 Depth-audit + harden concept_utility.py (ledger-learned contrastive prior) [round 1]`
 - `d382a01 crew(claude): T01 Depth-audit + harden campaign.py (learned-prior + cross-domain composition) [round 1]`
 - `dae5a45 crew(grok): T02 Depth-audit + harden composition.py (minimal-correction discovery) [round 1]`
-- `e84348f Merge branch 'crew/integration'`
-- `481eb30 crew: scaffold CI/CD + project config`
-- `ccb90c6 crew: resolve merge conflict for crew/T03-grok`
-- `907da1f Merge branch 'crew/T05-claude' into crew/integration`
-- `323da22 Merge branch 'crew/T04-claude' into crew/integration`
-- `5ca7b2d Merge branch 'crew/T02-grok' into crew/integration`
-- `60b19eb crew(claude): T05 Depth-audit + honesty test for benchmark.py (rediscovery is not leaked/echoed) [round 1]`
-- `e38f679 crew(claude): T04 Depth-audit + characterization test for assumption_annihilator.py (all three δ-verdicts are real) [round 1]`
-- `272b7d3 crew(grok): T03 Depth-audit + characterization test for active_search.py (information-gain ordering is real) [round 1]`
-- `c63aa91 crew(claude): T01 Depth-audit + fix wirtschaft.py generic branch (make it input-driven) [round 1]`
-- `ddb6e7c crew(grok): T02 Depth-audit + characterization test for active_resolution.py (discriminating-measurement is real) [round 1]`
 
 
 ---
