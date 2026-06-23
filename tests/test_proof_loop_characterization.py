@@ -269,6 +269,18 @@ def test_property_input_variation_changes_detail_but_preserves_kandidat_when_no_
     # The numeric layer ran (we have a numeric_ok field) and the claim text affects path.
     assert isinstance(v.detail, str) and len(v.detail) > 0
 
+    # Prove input consumption for the Kandidat path: different claims drive different
+    # sympy_zero decisions (and thus .detail text) even when numeric_prefilter agrees.
+    # Use Abs(x) vs x over positive domain (numeric diff==0 on x>0 samples, but
+    # simplify(Abs(x)-x) does not yield 0, so "inconclusive" detail vs "simplify==0").
+    claim_abs = IdentityClaim("Abs(x)", "x", {"x": "positive"}, "R",
+                              sample_lo=0.1, sample_hi=4.0)
+    v_abs = prove_identity(claim_abs, kernels=[_UnsupportedKernel()], seed=seed)
+    assert v_abs.status == "Kandidat"
+    assert v.detail != v_abs.detail
+    assert "SymPy simplify==0" in v.detail
+    assert "SymPy inconclusive" in v_abs.detail
+
 
 # --- Negative / documented guard behaviour (a gate without a test does not exist) ---
 

@@ -64,7 +64,13 @@ def numeric_prefilter(claim: IdentityClaim, *, n_samples: int = 40, prec_dps: in
     """High-precision numeric check: sample the variables in their box and compare ``lhs`` vs ``rhs`` at
     ~``prec_dps`` digits. Returns ``(agrees, worst_abs_diff)`` — ``agrees`` is False (a sound refutation)
     when the worst |lhs-rhs| exceeds the precision tolerance. Points that fail to evaluate (e.g. a sampled
-    pole) are skipped; if none evaluate, it abstains (agrees=True) and leaves the verdict to the kernel."""
+    pole) are skipped; if none evaluate, it abstains (agrees=True) and leaves the verdict to the kernel.
+
+    Raises ValueError if for any variable the effective lo (after the >=1e-6 clamp for "positive" vars)
+    is not < sample_hi. This guarantees a valid sampling interval and makes the documented "fail loud on
+    bad range" contract independent of the underlying RNG (some numpy versions may otherwise silently
+    reverse the interval, producing a wrong numeric verdict).
+    """
     mp.mp.dps = prec_dps
     tol = mp.mpf(10) ** (-(prec_dps // 2))
     try:
@@ -83,7 +89,18 @@ def numeric_prefilter(claim: IdentityClaim, *, n_samples: int = 40, prec_dps: in
         point = []
         for name in names:
             lo = max(claim.sample_lo, 1e-6) if claim.variables[name] == "positive" else claim.sample_lo
-            point.append(mp.mpf(float(rng.uniform(lo, claim.sample_hi))))
+            hi = claim.sample_hi
+            if lo >= hi:
+                # Explicit guard (independent of numpy.uniform's check_constraint) so that
+                # hi<lo (or positive-clamp making effective lo >= hi) always fails loud with
+                # clear message. Prevents potential silent reversed-interval sampling that
+                # would compute a wrong "worst" diff and thus a wrong numeric_ok / verdict.
+                # Mirrors the lo<hi contract enforced in simulated_data.InputSpec.
+                raise ValueError(
+                    f"sample_hi must be > effective lo for variable {name!r} "
+                    f"(got effective_lo={lo}, hi={hi}; positive vars clamp low end to 1e-6)"
+                )
+            point.append(mp.mpf(float(rng.uniform(lo, hi))))
         try:
             diff = abs(f_lhs(*point) - f_rhs(*point))
         except Exception:  # noqa: BLE001 - skip a sampled pole / undefined point
