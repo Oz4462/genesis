@@ -32,13 +32,14 @@ The bolted-joint preload/load-sharing math (Shigley/VDI-2230 closed forms) is ge
   - check is deterministic (A5 contract)
 - Negative paths cover delegated (preload/factor) + direct check guards.
 - Determinism: identical inputs → identical dict (incl. math.inf yield_safety path exercised indirectly via high safety).
+- Explicit recipe-contract test exercises the exact call shape used by the pre-existing CheckRecipe wiring (physics_selection/validators auto-select for "bolted joint (preloaded load sharing)").
 
 A constant-stub or inverted formula (wrong IPC-style, wrong (1-C), missing < vs <=) would have failed the anchors, the zero-member test, the regime ok-flips, the strict > , and the property identities.
 
 ## Änderungen (scope-respecting)
 
 - `src/gen/bolted_joint.py`: **NO EDITS**. All formulas, guards, return keys, separation predicate (P < P_sep), and yield predicate (stress <= proof) were already correct and matched the docstring + spec. (Verified independently by driving the characterization test to green on the pre-existing implementation.)
-- `tests/test_bolted_joint_characterization.py`: new authoritative file (18 tests + 5 Hypothesis properties). Pins every listed anchor, regime, negative, and invariant. Leaves legacy `tests/test_bolted_joint.py` (20 tests) untouched.
+- `tests/test_bolted_joint_characterization.py`: new authoritative file (19 tests + 5 Hypothesis properties). Pins every listed anchor, regime, negative, and invariant. Leaves legacy `tests/test_bolted_joint.py` (20 tests) untouched.
 - `docs/audit/DEPTH_AUDIT_bolted_joint.md`: this file.
 
 Isolation: only the three files in the declared scope. The characterization test imports only the module under review + stdlib/hypothesis/pytest (all allowed).
@@ -47,12 +48,12 @@ Isolation: only the three files in the declared scope. The characterization test
 
 - **L1 (Wahrheit / Provenance):** Every numerical claim (5000 N, 10000 N, C=0.5, member=0, stress > naive) is computed from the live functions against hand-verified algebra (F_i = T/(K d), C=kb/(kb+km), F_b=F_i+C P, P_sep=F_i/(1-C), F_m=0 at sep). No unsourced constants. Matches "keine stillen Defaults".
 - **L2 (Drift / Grounding):** Module docstring, function docstrings, and runtime behaviour are identical (verified by the char test). No drift from the Shigley/VDI reference. A5 determinism property holds. The "preload axis a nominal misses" is demonstrated by concrete > comparison, not asserted.
-- **L3 (Vollständigkeit / Naht):** Covers happy path + all listed edges + the three distinct ok regimes + delegated guards + universal invariants. The new char file complements (does not replace) the legacy test. Seams to structural.py / physics_validation (the axis they miss) documented in the module itself. No missing negative per "a gate without a test does not exist".
-- **L4 (Realisierbarkeit / Edge):** Scoped to genuine public-API defects only (no blanket NaN/inf guards added). All inputs positive by construction in properties; guards are the documented non-positive ones. Tests are fully offline, deterministic, use only declared deps. Hypothesis + concrete anchors together make the correctness falsifiable. No change to public signatures (downstream callers unaffected).
+- **L3 (Vollständigkeit / Naht):** Covers happy path + all listed edges + the three distinct ok regimes + delegated guards + universal invariants. Explicit test of the CheckRecipe call shape (the "bolted joint (preloaded load sharing)" wiring via physics_selection/validators) proves the seam to auto-select / δ-physics is live and not a facade. The new char file complements (does not replace) the legacy test. Seams to structural.py / physics_validation (the axis they miss) documented in the module itself. No missing negative per "a gate without a test does not exist".
+- **L4 (Realisierbarkeit / Edge):** Scoped to genuine public-API defects only (no blanket NaN/inf guards added). All inputs positive by construction in properties; guards are the documented non-positive ones. Tests are fully offline, deterministic, use only declared deps. Hypothesis + concrete anchors together make the correctness falsifiable. No change to public signatures (downstream callers unaffected). The asymmetry between separation_load (C<1) and bolt_load (C<=1) properties is explicitly documented with WHY comments (rubberduck finding addressed).
 
 **Selfkontrolle (DoD):**
 - [x] Interface erfüllt, Typen geprüft (existing + char)
-- [x] Tests grün (18 in char + legacy 20; incl. mandatory negatives)
+- [x] Tests grün (19 in char + legacy 20; incl. mandatory negatives)
 - [x] No Ledger (pure math, no factual claims)
 - [x] Gate-Bedingung: N/A (DFM helper, used by higher δ-physics)
 - [x] Doku-Datei des Moduls: no change needed (already accurate)
@@ -70,16 +71,21 @@ Satisfies the assigned T05 task and the bolted-joint / "preload load-sharing axi
 
 ```
 PYTHONPATH=src python3 -m pytest tests/test_bolted_joint_characterization.py -q
-..................                                                       [100%]
-18 passed
+...................                                                      [100%]
+19 passed
+```
 
+(The authoritative characterization file.)
+
+Legacy (untouched, per isolation rule) stayed green:
+
+```
 PYTHONPATH=src python3 -m pytest tests/test_bolted_joint.py -q
 ....................                                                     [100%]
 20 passed
-
-Combined (char + legacy, no source change):
-38 passed
 ```
+
+Combined relevant slice (char + legacy, no source change): 39 passed.
 
 Legacy test files untouched. Zero collision with any parallel worktree (bolted_joint.py is this task's sole source).
 

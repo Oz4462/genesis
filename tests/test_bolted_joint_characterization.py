@@ -108,6 +108,30 @@ def test_check_keys_and_structure():
     assert r["bolt_stress"] == pytest.approx(r["bolt_load"] / 58.0)
 
 
+def test_bolted_joint_check_signature_matches_physics_recipe_contract():
+    """The public signature matches exactly what the pre-existing CheckRecipe
+    (physics_selection / validators) wires for "bolted joint (preloaded load sharing)":
+    torque, nominal_diameter, tensile_stress_area, external_load_P,
+    bolt_stiffness_kb, member_stiffness_km, proof_strength (k_factor default).
+    Driving this shape proves the module is consumable by the auto-select path
+    without any facade in the numeric core.
+    """
+    # Values chosen so the call succeeds and produces ok=True under modest load
+    result = bolted_joint_check(
+        torque=10000.0,
+        nominal_diameter=10.0,
+        tensile_stress_area=58.0,
+        external_load_P=2000.0,
+        bolt_stiffness_kb=1.0,
+        member_stiffness_km=1.0,
+        proof_strength=640.0,
+        # k_factor defaults to 0.2 as in the recipe usage
+    )
+    assert "ok" in result and result["ok"] is True
+    assert result["preload"] == pytest.approx(5000.0)
+    assert result["stiffness_factor_C"] == pytest.approx(0.5)
+
+
 def test_ok_only_when_neither_separates_nor_yields():
     """ok True iff P < P_sep AND bolt_stress <= proof. Construct the three regimes."""
     # Use legacy anchor numbers that give clear separation of regimes (Fi dominates).
@@ -239,7 +263,13 @@ def test_property_c_always_in_unit_interval_for_positive_stiffnesses(kb: float, 
     c=st.floats(min_value=0.0, max_value=1.0),
 )
 def test_property_bolt_load_is_preload_plus_share_and_floor_at_zero_p(fi: float, p: float, c: float):
-    """Invariant: bolt_load(Fi, P, C) == Fi + C·P and bolt_load(Fi, 0, C) == Fi exactly."""
+    """Invariant: bolt_load(Fi, P, C) == Fi + C·P and bolt_load(Fi, 0, C) == Fi exactly.
+
+    WHY c may be 1.0 here (unlike the separation property): bolt_load's documented guard
+    is [0, 1] inclusive. C=1.0 means the bolt takes 100% of any external increment (valid
+    limiting case). The corresponding separation_load is undefined at C=1 (hence its
+    property excludes it).
+    """
     assert math.isclose(bolt_load(fi, p, c), fi + c * p, rel_tol=1e-9, abs_tol=1e-9)
     assert math.isclose(bolt_load(fi, 0.0, c), fi, rel_tol=1e-12, abs_tol=1e-12)
 
@@ -250,7 +280,15 @@ def test_property_bolt_load_is_preload_plus_share_and_floor_at_zero_p(fi: float,
     c=st.floats(min_value=0.0, max_value=0.999999),
 )
 def test_property_member_clamp_force_is_zero_exactly_at_separation(fi: float, c: float):
-    """Invariant: F_m = Fi - (1-C)·P == 0 precisely when P = separation_load(Fi, C)."""
+    """Invariant: F_m = Fi - (1-C)·P == 0 precisely when P = separation_load(Fi, C).
+
+    WHY the upper bound is 0.999999 (not 1.0): separation_load's contract (and implementation)
+    requires C in [0, 1) — C==1 yields division-by-zero / inf (no finite separation load).
+    joint_stiffness_factor with positive kb/km can only *approach* 1.0 (or 0.0) but never reach
+    it under the positive-stiffness guard. This is intentional domain asymmetry, not a bug.
+    bolt_load allows inclusive [0,1] because C==1.0 is a valid physical case for that formula
+    (bolt carries the entire external increment).
+    """
     p_sep = separation_load(fi, c)
     fm = fi - (1.0 - c) * p_sep
     assert math.isclose(fm, 0.0, abs_tol=1e-9)
