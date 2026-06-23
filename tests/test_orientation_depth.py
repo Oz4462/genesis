@@ -229,6 +229,16 @@ def _empty_boolean() -> tuple[GeometryNode, dict[str, Quantity]]:
     return node, qs
 
 
+def test_overhang_check_empty_solid_raises():
+    # overhang_check reads solid.BoundingBox() directly; for the empty boolean that
+    # box is VOID and would raise an opaque kernel error (or, after a successful
+    # bbox, silently report needs_support=False). The Faces() guard must surface the
+    # documented ValueError instead — a degenerate solid fails loud, never silent.
+    node, qs = _empty_boolean()
+    with pytest.raises(ValueError, match="tessellation produced no triangles"):
+        overhang_check(node, qs)
+
+
 def test_first_layer_report_empty_solid_raises():
     node, qs = _empty_boolean()
     with pytest.raises(ValueError, match="tessellation produced no triangles"):

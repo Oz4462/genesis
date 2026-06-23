@@ -109,6 +109,14 @@ def overhang_check(
     """
     _require_cadquery()  # clear error if OCP is missing
     solid = csg_to_solid(node, quantities)
+    # An empty/degenerate boolean (e.g. A − B with B ⊇ A) yields a face-less shape
+    # whose OCCT bounding box is VOID — reading it raises an opaque kernel failure
+    # (Standard_ConstructionError "Bnd_Box is void"). Surface the documented error
+    # up front instead, so a degenerate input fails loud rather than crashing
+    # opaquely or (worse) silently returning needs_support=False. A valid solid
+    # always has ≥1 face, so this guard is a no-op for real geometry.
+    if not solid.Faces():
+        raise ValueError("tessellation produced no triangles")
     bb = solid.BoundingBox()
     zmin = bb.zmin
     extent = max(bb.xmax - bb.xmin, bb.ymax - bb.ymin, bb.zmax - bb.zmin)
@@ -117,6 +125,8 @@ def overhang_check(
     down = _unit(-build_dir[0], -build_dir[1], -build_dir[2])
 
     verts, tris = solid.tessellate(tol)
+    if not tris:  # backstop: faces present but tessellation yielded no triangles
+        raise ValueError("tessellation produced no triangles")
     overhang_area = 0.0
     worst = 0.0
     column_volume = 0.0

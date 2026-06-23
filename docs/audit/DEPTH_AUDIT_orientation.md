@@ -38,29 +38,52 @@ wurde in einen falsifizierbaren Test verwandelt — kein Smoke-Test:
   → `ValueError("tessellation produced no triangles")` aus `first_layer_report` UND
   `bridge_spans`. Kein stiller Fehlverdikt.
 
-## Gefundener Defekt + Fix (minimal, `_mesh`)
+## Gefundener Defekt + Fix (degenerierter Solid → fail-loud, alle drei Pfade)
 
 Der dokumentierte Fehlerpfad war für den natürlichen degenerierten Input **nicht
-erreichbar**: `_mesh` ruft `solid.BoundingBox()` **vor** der Tessellierung auf. Ein
-leeres Boolean liefert einen flächenlosen Shape mit **voider** OCCT-BoundingBox; deren
-Auslesen wirft einen opaken Kernel-Fehler, bevor das `if not tris:`-Gate je erreicht
-wird → der zugesicherte `ValueError("tessellation produced no triangles")` würde für
-genau diesen Fall nie feuern (Verletzung von „keine stillen/opaken Defaults").
+erreichbar**: sowohl `_mesh` (für `first_layer_report`/`bridge_spans`) als auch
+`overhang_check` rufen `solid.BoundingBox()` **vor** der Tessellierung auf. Ein leeres
+Boolean (`A − B` mit `B ⊇ A`) liefert einen flächenlosen `Compound` mit **voider**
+OCCT-BoundingBox; deren Auslesen wirft einen opaken Kernel-Fehler, bevor das
+`if not tris:`-Gate je erreicht wird → der zugesicherte
+`ValueError("tessellation produced no triangles")` würde nie feuern, und
+`overhang_check` würde entweder opak crashen oder (nach erfolgreicher Bbox) **still
+`needs_support=False`** melden — genau der stille Fehlverdikt, den dieses Audit
+beseitigt (Verletzung von „keine stillen/opaken Defaults").
 
-Fix: ein vorgezogener Guard in `_mesh`, direkt nach `csg_to_solid`:
+**Empirisch verifiziert** (cadquery 2.8.0 in `/home/genesis/.venv-cad`):
+`small.cut(big)` → `Compound`; `.Faces()` → `[]` (wirft **nicht**);
+`.BoundingBox()` → `Standard_ConstructionError "Bnd_Box is void"`. Der Crash ist real.
+
+Fix: ein vorgezogener Guard direkt nach `csg_to_solid`, in **`_mesh` UND
+`overhang_check`** (der Review-Befund aus Runde 1 — overhang_check war zunächst
+ungehärtet):
 
 ```python
 if not solid.Faces():
     raise ValueError("tessellation produced no triangles")
 ```
 
-Ein gültiger Solid hat immer ≥1 Fläche → für jede reale Geometrie ein No-op; nur der
-degenerierte/leere Shape wird jetzt deterministisch mit der dokumentierten Meldung
-abgewiesen, statt mit einem Kernel-Crash. Die bestehenden `if not tris:`-Gates in
-`first_layer_report`/`bridge_spans` bleiben als Backstop für den All-Sliver-Fall
-(Flächen vorhanden, aber alle Dreiecke degeneriert) erhalten. Sonst **keine**
-Verhaltensänderung — `overhang_check` und die reichen Bridge-/First-Layer-Pfade
+plus in `overhang_check` ein `if not tris:`-Backstop nach `tessellate` (paritätisch zu
+den `_mesh`-Konsumenten, fängt den All-Sliver-Fall: Flächen vorhanden, aber keine
+verwertbaren Dreiecke). Ein gültiger Solid hat immer ≥1 Fläche und tesselliert zu
+vielen Dreiecken → für jede reale Geometrie ein **No-op** (Kugel-Fixtur weiterhin
+`needs_support=True`, area>0; Box/Zylinder unverändert). Nur der degenerierte/leere
+Shape wird jetzt in allen drei öffentlichen Funktionen deterministisch mit der
+dokumentierten Meldung abgewiesen statt mit einem Kernel-Crash oder stillem `False`.
+Sonst **keine** Verhaltensänderung — die reichen Overhang-/Bridge-/First-Layer-Pfade
 bleiben byte-stabil.
+
+## Verifikation (tatsächlich ausgeführt, nicht nur skip)
+
+cadquery ist im Haupt-venv nicht installierbar (downgradet numpy, bricht den Stack),
+daher `pytest.importorskip` im Test → der volle Gate bleibt grün. Der reale Kernel
+existiert aber isoliert in `/home/genesis/.venv-cad` (cadquery 2.8.0). Alle 14
+Szenarien des Tests (inkl. **aller drei** Negativ-Pfade
+`overhang_check`/`first_layer_report`/`bridge_spans` → `ValueError`) wurden dort über
+einen eigenständigen Treiber gegen den echten OCCT-Kernel ausgeführt: **14 passed, 0
+failed**. Damit ist der dokumentierte `ValueError`-Pfad nicht nur behauptet, sondern
+real durchlaufen.
 
 ## 4 Linsen
 
@@ -72,10 +95,12 @@ bleiben byte-stabil.
 - **L2 Drift-Linse:** Tests fixieren echtes Verhalten (Flip mit `build_dir`,
   Span-Tracking, Probe), nicht Implementierungsdetails. Property-Test deckt den
   Eingaberaum statt weniger Stützstellen ab.
-- **L3 Vollständigkeits-/Naht-Linse:** Negativtest für beide `_mesh`-Konsumenten;
-  Determinismus geprüft; der vorgezogene Guard schließt die Naht zwischen
-  „leeres Boolean" und dokumentiertem Fehlerpfad, ohne die `csg_to_solid`/`brep`- und
-  `pipeline.assess_printability`-Schnittstellen zu verändern.
+- **L3 Vollständigkeits-/Naht-Linse:** Negativtest für **alle drei** öffentlichen
+  Funktionen (`overhang_check` + beide `_mesh`-Konsumenten) — der Runde-1-Befund, dass
+  overhang_check ungehärtet war, ist geschlossen; Determinismus geprüft; der vorgezogene
+  Guard schließt die Naht zwischen „leeres Boolean" und dokumentiertem Fehlerpfad, ohne
+  die `csg_to_solid`/`brep`- und `pipeline.assess_printability`-Schnittstellen zu
+  verändern.
 - **L4 Realisierbarkeits-Linse:** cadquery bleibt optional (lazy, importorskip); der
   Guard nutzt nur die vorhandene cadquery-`Shape.Faces()`-API (keine neue Abhängigkeit).
   Volle Suite bleibt grün, wo der CAD-Extra fehlt.
@@ -83,6 +108,9 @@ bleiben byte-stabil.
 ## Status
 
 - `tests/test_orientation_depth.py`: skippt ohne cadquery (wie `test_orientation.py`);
-  exerziert mit cadquery 12 example-basierte + 1 Property-Test inkl. zwei Negativtests.
-- Quelle: 1 minimaler Guard in `src/gen/orientation.py::_mesh`. Keine
-  Signatur-/Output-Änderung; keine neue Abhängigkeit.
+  exerziert mit cadquery example-basierte Tests + 1 Property-Test inkl. **drei**
+  Negativtests (je einer für overhang_check, first_layer_report, bridge_spans). Real
+  gegen cadquery 2.8.0 ausgeführt: 14/14 grün.
+- Quelle: vorgezogener `Faces()`-Guard in `overhang_check` UND `_mesh`, plus
+  `if not tris`-Backstop in `overhang_check` (paritätisch zu den `_mesh`-Konsumenten).
+  Keine Signatur-/Output-Änderung; keine neue Abhängigkeit.
