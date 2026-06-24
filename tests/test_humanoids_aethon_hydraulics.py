@@ -42,8 +42,8 @@ def test_cited_inputs_match_spec():
 
 def test_knee_hydraulic_force_is_p_times_a():
     """Required force = torque / lever; cylinder force available == p * A (primitive, friction=0)."""
-    res = ah.compute_hydraulic_option("knee", 75.0, 3.5, 0.055)
-    expected_f = 75.0 / 0.055
+    res = ah.compute_hydraulic_option("knee", ah.KNEE_TORQUE_DEMAND_NM, ah.KNEE_JOINT_SPEED_RAD_S, ah.KNEE_LEVER_ARM_M)
+    expected_f = ah.KNEE_TORQUE_DEMAND_NM / ah.KNEE_LEVER_ARM_M
     assert res.required_force_n == pytest.approx(expected_f, rel=1e-12)
     # With our sizing for CYLINDER_SF_TARGET the returned available should satisfy the SF
     assert res.cylinder["force_available"] == pytest.approx(res.pressure_pa * res.bore_area_m2, rel=1e-9)
@@ -52,14 +52,14 @@ def test_knee_hydraulic_force_is_p_times_a():
 
 def test_flow_q_is_a_times_v():
     """Q_required == bore * piston_velocity and piston_velocity == speed * lever (mapping)."""
-    res = ah.compute_hydraulic_option("knee", 75.0, 3.5, 0.055)
+    res = ah.compute_hydraulic_option("knee", ah.KNEE_TORQUE_DEMAND_NM, ah.KNEE_JOINT_SPEED_RAD_S, ah.KNEE_LEVER_ARM_M)
     v_calc = ah.KNEE_JOINT_SPEED_RAD_S * ah.KNEE_LEVER_ARM_M
     assert res.piston_velocity_m_s == pytest.approx(v_calc, rel=1e-12)
     assert res.flow_required_m3_s == pytest.approx(res.bore_area_m2 * res.piston_velocity_m_s, rel=1e-12)
 
 
 def test_line_loss_uses_hagen_and_reports_reynolds():
-    res = ah.compute_hydraulic_option("knee", 75.0, 3.5, 0.055)
+    res = ah.compute_hydraulic_option("knee", ah.KNEE_TORQUE_DEMAND_NM, ah.KNEE_JOINT_SPEED_RAD_S, ah.KNEE_LEVER_ARM_M)
     # pressure_drop formula must be the documented one; Re must be returned
     assert "pressure_drop_pa" in res.line
     assert "reynolds" in res.line
@@ -70,7 +70,7 @@ def test_line_loss_uses_hagen_and_reports_reynolds():
 
 
 def test_pump_power_and_accumulator_are_derived():
-    res = ah.compute_hydraulic_option("knee", 75.0, 3.5, 0.055)
+    res = ah.compute_hydraulic_option("knee", ah.KNEE_TORQUE_DEMAND_NM, ah.KNEE_JOINT_SPEED_RAD_S, ah.KNEE_LEVER_ARM_M)
     # power = (p + dp) * Q / eff > p*Q / eff
     base = res.pressure_pa * res.flow_required_m3_s / ah.PUMP_EFF
     assert res.pump_power_w > base
@@ -82,8 +82,8 @@ def test_head_to_head_changes_with_input():
     r1 = ah.compare_hydraulic_vs_electric()
     # Re-run with higher torque via direct option (compare uses the module constants; we mutate? No — call primitive path)
     # Instead: compute two options directly and show system numbers move
-    o1 = ah.compute_hydraulic_option("k", 75.0, 3.5, 0.055)
-    o2 = ah.compute_hydraulic_option("k", 90.0, 3.5, 0.055)
+    o1 = ah.compute_hydraulic_option("k", ah.KNEE_TORQUE_DEMAND_NM, ah.KNEE_JOINT_SPEED_RAD_S, ah.KNEE_LEVER_ARM_M)
+    o2 = ah.compute_hydraulic_option("k", 90.0, ah.KNEE_JOINT_SPEED_RAD_S, ah.KNEE_LEVER_ARM_M)
     assert o2.bore_area_m2 > o1.bore_area_m2
     assert o2.required_force_n > o1.required_force_n
     assert o2.pump_power_w > o1.pump_power_w

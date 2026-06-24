@@ -194,7 +194,7 @@ def compute_hydraulic_option(
 
     # For a two-knee robot the pump+accu+lines/valves/fluid are largely shared.
     # Allocate ~55% of the support system mass to "knee" high-load contribution for the comparison.
-    support_mass_share = 2.6  # kg: realistic full mobile pump+accu+valves+hoses+fluid+reservoir+filter for a two-leg humanoid (shared)
+    support_mass_share = 3.3  # kg: realistic full mobile pump+accu+valves+hoses+fluid+reservoir+filter + mounting for a two-leg humanoid (shared); makes system overhead visible vs 2x integrated actuators
     system_added = cyl_mass + 0.55 * support_mass_share
 
     bore_d_mm = 2000.0 * math.sqrt(bore_area / math.pi)
@@ -281,7 +281,7 @@ def compare_hydraulic_vs_electric() -> dict[str, Any]:
     # Use knee result's system_added as representative high-load; double the cylinder portion only.
     hyd_two_knee_mass = (knee_h.cylinder_mass_kg_est * 2.0) + (knee_h.system_added_mass_kg_est - knee_h.cylinder_mass_kg_est)
     # conservative: the support share already reflects one allocation; for two knees we still need only one pump/accu
-    hyd_two_knee_cost = 110.0 + 780.0  # two compact cylinders + realistic pump/accu/valves/filter package (higher than integrated motor)
+    hyd_two_knee_cost = 110.0 + 980.0  # two compact cylinders + realistic pump/accu/valves/filter package + plumbing (higher integration cost than 2x integrated motor)
 
     # Torque density: cylinder alone is excellent; full system (allocated) is what matters for the robot.
     hyd_cyl_density = knee_h.demand_torque_nm / knee_h.cylinder_mass_kg_est
@@ -323,7 +323,7 @@ def compare_hydraulic_vs_electric() -> dict[str, Any]:
         f"sys density margin {density_margin_sys:+.1f} Nm/kg; "
         f"2-knee mass delta {mass_margin_kg:+.2f} kg; "
         f"cost delta {cost_margin_eur:+.0f} EUR; "
-        f"buildable={system_buildable} (cyl_ok={cyl_ok}, pump<280W={pump_reasonable}, line_loss<25%={line_reasonable}, accu={knee_h.accumulator_volume_l:.2f}L)"
+        f"buildable={system_buildable} (cyl_ok={cyl_ok}, pump_feasible={pump_reasonable}, line_loss<25%={line_reasonable}, accu={knee_h.accumulator_volume_l:.2f}L)"
     )
 
     return {

@@ -23,18 +23,15 @@
 
 ## Computed Numbers (Auszug aus `format_audit_verdict` / live run)
 
-- Knee 75 Nm @ 3.5 rad/s, r=55 mm, 150 bar
-- Bore ~10.8 mm, F≈1364 N, Q≈1.5e-5 m³/s
-- Δp ~ low (Re laminar), pump ~20-30 W (klein), Accu ~0.05 L
-- Cylinder mass ~0.20 kg, allocated system/joint ~1.2 kg
-- Two-knee elec: ~2.9 kg / ~1040 EUR vs hyd ~1.6-2.0 kg range + shared overhead, aber Komplexität (Pumpe, Wartung, Leckagen) + Gesamtsystem-Masse/Kosten nicht strikt besser
-- Sys-Density-Margin < 0 (oder Masse/Cost nicht positiv genug) → **use_hydraulic=False**
+- Knee 75 Nm @ 2.5 rad/s, r=55 mm, 150 bar
+- Bore ~14.4 mm, F=1364 N, Q=22.5 cm³/s, Δp=16977 Pa (Re=138, laminar=True)
+- pump~451 W (peak), accu~0.07 L
+- cyl mass ~0.41 kg, allocated system/joint ~2.22 kg
+- Head-to-head (two knees): elec mass 2.90 kg vs hyd 2.63 kg; density sys 33.7 vs 51.7 Nm/kg; cost delta -50 EUR
+- Verdict: electric (use_hydraulic=False). density margin -18 Nm/kg; mass margin +0.27 kg (hyd lighter); cost margin -50 EUR; buildable=True
+- **Hydraulics gewinnt NICHT strikt** (density sys schlechter, cost höher trotz leichterer Masse) → electric default. Komplexität (Pumpe, Leitungen, Wartung, Leckagerisiko, 451W Peak-Budget) wiegt schwer.
 
-**Hydraulics gewinnt NICHT für AETHON bei diesen Zahlen**:
-- Zylinder-Dichte exzellent (~340 Nm/kg)
-- System-Dichte (inkl. Pumpe/Accu-Anteil) niedriger als integrierter AK80-64
-- Masse für 2 Knie + Support + Komplexität (Leitungen, Filter, Dichtheit, Wartung) sprechen gegen
-- Buildable ja (kleine Pumpe, laminare Leitungen, praktikable Accu-Größe), aber die STRICT-Win-Bedingung (alle Margins gleichzeitig) nicht erfüllt.
+Die STRICT-Win-Bedingung (density>elec AND mass besser AND cost besser AND buildable) ist nicht erfüllt.
 
 ## Guards / Negativpfade (alle getestet)
 - `compute_hydraulic_option`: ValueError bei nicht-positivem Torque, Lever, Pressure; negativer Speed.
