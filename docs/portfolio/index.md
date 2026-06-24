@@ -11,16 +11,16 @@
 ```mermaid
 kanban
   done
-    nT01[T01: Strengthen AETHON core spec: resolve continuous-knee caveat + thin delta SF]
-    nT02[T02: Strengthen AETHON exo-shell printability (aethon_shells.py) + new watertigh]
+    nT01[T01: AETHON mechanics deep-compute + gate-proven evolution]
+    nT02[T02: AETHON hydraulic knee/ankle option vs electric — honest gated comparison]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | Strengthen AETHON core spec: resolve continuous-knee caveat + thin delta SFs + grounding (genesis_humanoid.py) | done | claude | feature |
-| T02 | Strengthen AETHON exo-shell printability (aethon_shells.py) + new watertight/min-wall test | done | grok | feature |
+| T01 | AETHON mechanics deep-compute + gate-proven evolution | done | claude | feature |
+| T02 | AETHON hydraulic knee/ankle option vs electric — honest gated comparison | done | grok | feature |
 
 ## Decisions
 
@@ -433,6 +433,14 @@ kanban
 - (2026-06-24) aethon_shells uses the optional CadQuery kernel: Task B's test pytest.importorskip('cadquery') for the geometry-build/watertight cross-check so the full pytest gate stays green where the kernel is absent, while any pure min-wall/DFM-threshold logic runs unconditionally as the mandatory negative.
 - (2026-06-24) Route Task A (heavy actuator/physics/grounding logic + gate-and-test-gating) to claude and Task B (printability geometry + audit-doc heavy) to grok, per historical builder strengths; soft preference only, file scopes unchanged.
 - (2026-06-24) Each task writes its honest verdict to its OWN dated docs/audit file (no shared file) so the audit deliverable never collides at merge; BUILD_LOG consolidation is deferred to the integrator.
+- (2026-06-24) Single-writer rule for the spec: only Task A edits src/gen/humanoids/genesis_humanoid.py (mechanics + evolution are inseparable since evolution consumes the FEM/dynamics findings and is gated by the same AETHON tests/5s-stand that live with that file); Task B never edits it — guarantees zero file collision between the two parallel worktrees.
+- (2026-06-24) Mechanics computation lives in a new testable module src/gen/humanoids/aethon_mechanics.py returning structured numbers (stress, safety factor, joint torques, ZMP, mass/inertia budget, scaling-law deltas) rather than inline in the spec, so each number is independently characterization-tested (changes when an input changes) and reused by the evolution step.
+- (2026-06-24) Structural safety factors are computed against the real delta-physics FEM (gmsh+CalculiX) load-bearing-part path and cross-checked to closed-form thin-wall/stress-concentration limits; grounded in arXiv:cond-mat/0502303 (dimension- and interface-dependent mechanical-failure thresholds in nanoscale/thin films) as the honesty anchor for printed thin-wall failure — never assert a SF without the validator producing it.
+- (2026-06-24) Every EVOLVED change must be a grounded/derived Quantity in the ledger that FIRES the existing physics_selection RECIPES (not a docstring claim), so each improvement is gate-checked; keep ONLY gate-proven deltas, reject+log the rest (per 'keine stillen Defaults' / 'kein faktischer Output ohne Quelle').
+- (2026-06-24) Hydraulics is a self-contained module (src/gen/humanoids/aethon_hydraulics.py) that computes via src/gen/actuation.py's existing F=p·A / Q=A·v / Hagen-Poiseuille primitives and takes the knee peak torque (75 Nm) as a cited input/parameter rather than deep-importing Task A's evolving spec internals — so Task B verifies standalone in its own worktree regardless of Task A's concurrent spec edits.
+- (2026-06-24) Honest hydraulics verdict default: electric AK80-64 off-the-shelf stays default; hydraulics is recommended ONLY where the computed torque-density/mass/cost margins strictly win AND the build (pump+accumulator+lines) is feasible — a boolean recommendation with the deciding margins as computed numbers, not a vibe.
+- (2026-06-24) The namesake arXiv:2604.12129 ('Aethon' AI-agent replication primitive) is unrelated to this electromechanical AETHON and is NOT used; arXiv:2411.16583 (FFT chemo-mechanical fracture) is tangential and cited only as fracture-method context if needed.
+- (2026-06-24) preferredBuilder: Task A → claude (heavy FEM/dynamics computation, gate-and-test gating, characterization tests = test strength). Task B → grok (numeric module plus a substantial honest cost/weight/complexity verdict + audit doc = doc-leaning), soft preference only.
 
 ### Architecture Decision Records
 
@@ -490,20 +498,21 @@ kanban
 - 0052. Depth-audit AND FIX (small but meaningful modules the main c
 - 0053. Improve AETHON, our flagship humanoid (src/gen/humanoids/gen
 - 0054. Improve AETHON, our flagship humanoid (src/gen/humanoids/gen
+- 0055. Deeply compute + validate AETHON's MECHANICS and HYDRAULICS
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 47 |
-| Tasks (total) | 219 |
-| Done | 151 |
+| Runs | 48 |
+| Tasks (total) | 221 |
+| Done | 153 |
 | Blocked | 67 |
 | Resolved rate | 69% |
-| Blocked rate | 31% |
-| Merges | 22 |
-| Avg duration | 49.8m |
-| Total cost | 434.64 |
+| Blocked rate | 30% |
+| Merges | 23 |
+| Avg duration | 50.1m |
+| Total cost | 440.24 |
 
 ## Architecture
 
@@ -519,26 +528,26 @@ graph TD
 
 Recent commits:
 
+- `e9f4db5 Merge branch 'crew/T02-grok' into crew/integration`
+- `1433525 Merge branch 'crew/T01-claude' into crew/integration`
+- `3330cfa crew(claude): T01 AETHON mechanics deep-compute + gate-proven evolution [round 3]`
+- `128e4e3 feat(humanoids): AETHON look - 5-round rigorous self-improvement to Booster-T1-class (authentic geometry, physics-locked)`
+- `31c461e crew(grok): T02 AETHON hydraulic knee/ankle option vs electric — honest gated comparison [round 6]`
+- `72e18a2 revert: out-of-scope aethon_shells edits from T02 hydraulics round (per cross-review and task spec; shells owned elsewhere, single-writer rule)`
+- `f560742 crew(claude): T01 AETHON mechanics deep-compute + gate-proven evolution [round 2]`
+- `d2e2953 crew(grok): T02 AETHON hydraulic knee/ankle option vs electric — honest gated comparison [round 5]`
+- `a429292 crew(grok): T02 AETHON hydraulic knee/ankle option vs electric — honest gated comparison [round 4]`
+- `75e2bcd crew(grok): T02 AETHON hydraulic knee/ankle option vs electric — honest gated comparison [round 3]`
+- `a06c35a crew(grok): T02 AETHON hydraulic knee/ankle option vs electric — honest gated comparison [round 2]`
+- `f7556c1 crew(claude): T01 AETHON mechanics deep-compute + gate-proven evolution [round 1]`
+- `40d7850 crew(grok): T02 AETHON hydraulic knee/ankle option vs electric — honest gated comparison [round 1]`
+- `83551fc feat(humanoids): re-author AETHON body as per-segment hard-surface shells (authentic pro geometry)`
+- `0cf23cc feat(aero): train Genesis on real drone data - flight-validator calibration + scaling laws`
+- `61fb530 feat(humanoids): train Genesis on real-robot data + AETHON real-component geometry`
+- `e18084e Merge branch 'crew/integration'`
+- `b4afdc2 crew: scaffold CI/CD + project config`
 - `340b357 Merge branch 'crew/T02-grok' into crew/integration`
 - `b001d0f crew(claude): T01 Strengthen AETHON core spec: resolve continuous-knee caveat + thin delta SFs + grounding (genesis_humanoid.py) [round 3]`
-- `89b9149 crew(grok): T02 Strengthen AETHON exo-shell printability (aethon_shells.py) + new watertight/min-wall test [round 3]`
-- `20de6f5 crew(claude): T01 Strengthen AETHON core spec: resolve continuous-knee caveat + thin delta SFs + grounding (genesis_humanoid.py) [round 2]`
-- `6e5bedb crew(grok): T02 Strengthen AETHON exo-shell printability (aethon_shells.py) + new watertight/min-wall test [round 2]`
-- `87c02c8 crew(claude): T01 Strengthen AETHON core spec: resolve continuous-knee caveat + thin delta SFs + grounding (genesis_humanoid.py) [round 1]`
-- `fac05bc crew(grok): T02 Strengthen AETHON exo-shell printability (aethon_shells.py) + new watertight/min-wall test [round 1]`
-- `c5af4cb feat(humanoids): AETHON organic+industrial styling + off-the-shelf AK80-64 knee`
-- `4bdcbee Merge branch 'crew/integration'`
-- `b296923 crew: scaffold CI/CD + project config`
-- `d9fc3d2 crew: resolve merge conflict for crew/T05-claude`
-- `3a0613e crew(claude): T05 Depth-audit + harden security (closed-form crypto sizing checks) [round 1]`
-- `9c70ed0 crew(claude): T04 Depth-audit + harden section_optimizer (minimum-material proposer behind the yield gate) [round 1]`
-- `fb7abf4 Merge branch 'crew/integration'`
-- `2e648d6 crew: scaffold CI/CD + project config`
-- `991b53a crew: resolve merge conflict for crew/T05-claude`
-- `95acfcb crew: resolve merge conflict for crew/T04-claude`
-- `2b4354b crew: resolve merge conflict for crew/T03-claude`
-- `2b7ff78 crew: resolve merge conflict for crew/T02-grok`
-- `190af0e crew(claude): T05 Depth-audit refinement.py (verify→refine bounded loop) [round 1]`
 
 
 ---
