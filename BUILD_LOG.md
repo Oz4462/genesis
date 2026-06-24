@@ -239,3 +239,17 @@ neu (25) grün. 4 Linsen angewendet. Details: `docs/audit/DEPTH_AUDIT_printabili
 **4 Linsen + Selbstkontrolle:** L1 (verbatim UNSAT detail + ce subs recheck); L2 (status+detail+contract match docstring); L3 (all paths + matrix + properties; legacy protected); L4 (scoped to 0**neg + ce-empty + domain/unknown; no creep; guarded imports). DoD met: facade-detector, property tests, neg tests, explicit REAL verdict, only-justified src delta, audit+log present.
 **Verdict:** T02 COMPLETE. proof_kernels is REAL (z3 is genuine decision proc; Lean stub honest). Guard only for the one undefined-input L4 case.
 **Evidence:** new test (21), DEPTH_AUDIT, this entry, pytest output above. Isolation + "pass using own files + pre-existing" satisfied.
+
+---
+
+## 2026-06-24 — Depth-Audit `ratification.py` (T03, HITL Sign-off-Gate) — REAL, keine Quell-Änderung
+Charakterisierung des No-Default-Approval-Vertrags (Research #5 / Agent-SDK „never fake approval"):
+`ratification_packet` ist nachweislich aus Inputs abgeleitet (mehr Decisions/Gaps → mehr blockierende
+Items mit deren Inhalt; Gate-Verdikt PASS→Evidenz / FAIL→blockierend; Abweichungs-Anzahl aus
+`result.failures` gelesen, nicht hartcodiert). `is_ratified` gepinnt als Property (200 Bsp.):
+`== (benannter Approver) ∧ (jede blockierende Ref explizit signiert)` — anonymer Voll-Sign-off,
+ein fehlendes Item, nicht-signiertes FAILED-Gate und leeres Packet ohne Mensch sind alle NICHT
+„done"; `SignOff` friert mutables Approval-Set zu `frozenset` (kein nachträgliches Nachschmuggeln).
+14 neue Tests (inkl. 2 Hypothesis-Properties) grün, Legacy-Test (9) unverändert grün. Modul war
+bereits korrekt → keine Quell-Edits („change nothing if correct"). 4 Linsen angewendet. Details:
+`docs/audit/DEPTH_AUDIT_ratification.md`.
