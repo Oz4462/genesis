@@ -6,27 +6,38 @@
 
 | Status | Count |
 | --- | --- |
-| done | 5 |
+| done | 2 |
+| blocked | 3 |
 
 ```mermaid
 kanban
   done
-    nT01[T01: Depth-audit printability.py (FDM design-rule validators)]
-    nT02[T02: Depth-audit proof_kernels.py (z3 QF_NRA identity decision procedure)]
-    nT03[T03: Depth-audit ratification.py (human-in-the-loop sign-off gate)]
-    nT04[T04: Depth-audit reality.py (GATE δ⁺ reality proof)]
-    nT05[T05: Depth-audit refinement.py (verify→refine bounded loop)]
+    nT04[T04: Depth-audit + harden section_optimizer (minimum-material proposer behind th]
+    nT05[T05: Depth-audit + harden security (closed-form crypto sizing checks)]
+  blocked
+    nT01[T01: Depth-audit + harden research_promotion (HITL anchor promotion gate)]
+    nT02[T02: Depth-audit + harden runner (reproducibility: lossless checkpoint round-tri]
+    nT03[T03: Depth-audit + harden seams (GATE epsilon cross-domain seam verification)]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | Depth-audit printability.py (FDM design-rule validators) | done | claude | feature |
-| T02 | Depth-audit proof_kernels.py (z3 QF_NRA identity decision procedure) | done | grok | feature |
-| T03 | Depth-audit ratification.py (human-in-the-loop sign-off gate) | done | claude | feature |
-| T04 | Depth-audit reality.py (GATE δ⁺ reality proof) | done | claude | feature |
-| T05 | Depth-audit refinement.py (verify→refine bounded loop) | done | claude | feature |
+| T01 | Depth-audit + harden research_promotion (HITL anchor promotion gate) | blocked | grok | feature |
+| T02 | Depth-audit + harden runner (reproducibility: lossless checkpoint round-trip + deterministic run_id) | blocked | claude | feature |
+| T03 | Depth-audit + harden seams (GATE epsilon cross-domain seam verification) | blocked | claude | feature |
+| T04 | Depth-audit + harden section_optimizer (minimum-material proposer behind the yield gate) | done | claude | feature |
+| T05 | Depth-audit + harden security (closed-form crypto sizing checks) | done | claude | feature |
+
+### Blocked / risks
+
+- **T01** Depth-audit + harden research_promotion (HITL anchor promotion gate)
+  - Cross-review (claude) not approved: reviewer did not return a clean APPROVE verdict
+- **T02** Depth-audit + harden runner (reproducibility: lossless checkpoint round-trip + deterministic run_id)
+  - Cross-review (grok) not approved: reviewer did not return a clean APPROVE verdict
+- **T03** Depth-audit + harden seams (GATE epsilon cross-domain seam verification)
+  - Cross-review (grok) not approved: reviewer did not return a clean APPROVE verdict
 
 ## Decisions
 
@@ -339,6 +350,15 @@ kanban
 - (2026-06-24) BUILD_LOG.md is appended by each task with a short honest entry, but the primary per-module verdict (REAL/PARTIAL/FACADE + what was made real) lives in its own docs/audit/DEPTH_AUDIT_<module>.md to keep the merge clean; the integrator consolidates at merge (a BUILD_LOG conflict is a tolerated trivial merge point, excluded from each task's test-pass criteria).
 - (2026-06-24) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (Specification/Decision/FalsificationExperiment/Measurement/EmpiricalVerdict/EmpiricalStatus/Claim/SourceRef/RunState/Question) and core/interfaces.py (GateResult/GateFailure) — read them, never invent fields — and use only stdlib + already-declared deps (sympy/z3 already declared for proof_kernels).
 - (2026-06-24) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess in the always-run path, matching the historical test→claude routing.
+- (2026-06-24) Split strictly by module across five disjoint source paths; each task adds a uniquely-named tests/test_<module>_characterization.py + docs/audit/DEPTH_AUDIT_<module>.md, so parallel worktrees never collide — and the _characterization suffix leaves the pre-existing legacy tests (test_research_promotion/test_runner/test_inventor_seams/test_section_optimizer/test_security) untouched (no churn).
+- (2026-06-24) Keep each module and ITS new test in the SAME task (the test imports the module under audit) so each task is independently verifiable in its own worktree using only its own files plus pre-existing repo files (identity_research, ratification, core.state, costing, verification.*, materials, demo/ScriptedLLM all already on main).
+- (2026-06-24) research_promotion's facade-killer is the HITL anchor gate: promote_to_established MUST return None without a cas/z3-certified proof OR without a matching human SignOff and return a real PromotionRecord(to_stage=ESTABLISHED, signoff_ref set) only when both hold; autonomous_stage NEVER returns ESTABLISHED (CAS-certified survived → at most HARDENED); and demote_refuted_anchor cascades the anchor→DISPROVED while capping anchor dependents at HARDENED and leaving independent anchors untouched — 'a gate without a test does not exist'.
+- (2026-06-24) runner's facade-killer targets the deterministic reproducibility surface (no network): specification_from_dict(_specification_to_dict(spec)) is lossless (round-trips to an equal Specification incl. quantities/derivation/bom/netlist/site), save_checkpoint→load_checkpoint preserves run_id/config_hash/claims, and make_run_id is deterministic for identical (question,cfg_hash) yet differs when either changes (A5); if a full run() smoke is added it uses pre-existing demo/ScriptedLLM deps and asserts the cross-model audit log line records distinct generator vs verifier model ids.
+- (2026-06-24) seams' facade-killer drives gate_epsilon end-to-end: a spec with two adjacent present domains but NO coupling seam fails MISSING_REQUIRED_SEAM, a dimensionally-valid satisfied seam passes, a violated relation yields SEAM_RELATION_VIOLATION, a cost total that disagrees with bom_cost yields COST_ROLLUP_MISMATCH, and detect_cross_domain_seams emits seams that actually flip the gate outcome (input genuinely consumed); negative: certificate.spec_run_id != spec.run_id → SEAM_SPEC_MISMATCH.
+- (2026-06-24) section_optimizer's facade-killer cross-checks the closed form σ=6·F·L/(b·h²): the returned design genuinely satisfies σ≤sigma_allow, a larger allowable yields a strictly smaller volume (input consumed, not canned), and the INDEPENDENT cantilever_yield_check agrees with gate_passed; negative battery: non-positive force/arm/sigma_allow and safety_factor≤0 and unknown material each raise ValueError, and an over-constrained load returns feasible=False (honest abstention, not a fabricated section).
+- (2026-06-24) security's three validators are cross-checked against their cited closed forms so numbers are proven computed not echoed: birthday p≈q²/2^(n+1) (and clamps at 1.0), key_security RSA-3072≡ECC-256≡AES-128 at the 128-bit level with sub-1024 RSA→0, GCM 2^32 random-IV budget; negative: every documented ValueError fires (non-positive space_bits / negative n_uses / max_collision_prob outside (0,1] / unknown mechanism / non-positive key_bits/required_bits / negative invocations / non-positive budget).
+- (2026-06-24) All five modules read as REAL, so each edits its source ONLY where the new test exposes a genuine defect; builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py, identity_research.py and ratification.py (read them, never invent fields) and use only stdlib + already-declared deps; BUILD_LOG.md is appended with a short honest entry but the primary per-module verdict lives in its own docs/audit/DEPTH_AUDIT_<module>.md to keep the merge clean.
+- (2026-06-24) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess in the always-run path, matching the historical test→claude routing.
 
 ### Architecture Decision Records
 
@@ -380,20 +400,21 @@ kanban
 - 0036. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0037. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0038. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0039. Depth-audit AND FIX (genesis overnight loop). For each modul
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 31 |
-| Tasks (total) | 146 |
-| Done | 144 |
+| Runs | 32 |
+| Tasks (total) | 151 |
+| Done | 149 |
 | Blocked | 1 |
 | Resolved rate | 99% |
 | Blocked rate | 1% |
-| Merges | 20 |
-| Avg duration | 69.7m |
-| Total cost | 379.31 |
+| Merges | 21 |
+| Avg duration | 69.8m |
+| Total cost | 394.11 |
 
 ## Architecture
 
@@ -409,6 +430,11 @@ graph TD
 
 Recent commits:
 
+- `d9fc3d2 crew: resolve merge conflict for crew/T05-claude`
+- `3a0613e crew(claude): T05 Depth-audit + harden security (closed-form crypto sizing checks) [round 1]`
+- `9c70ed0 crew(claude): T04 Depth-audit + harden section_optimizer (minimum-material proposer behind the yield gate) [round 1]`
+- `fb7abf4 Merge branch 'crew/integration'`
+- `2e648d6 crew: scaffold CI/CD + project config`
 - `991b53a crew: resolve merge conflict for crew/T05-claude`
 - `95acfcb crew: resolve merge conflict for crew/T04-claude`
 - `2b4354b crew: resolve merge conflict for crew/T03-claude`
@@ -424,11 +450,6 @@ Recent commits:
 - `37cac1d crew: resolve merge conflict for crew/T05-grok`
 - `e0eec04 Merge branch 'crew/T04-claude' into crew/integration`
 - `f044ae3 Merge branch 'crew/T03-claude' into crew/integration`
-- `95e92e5 Merge branch 'crew/T02-grok' into crew/integration`
-- `d4c732c crew(grok): T05 Depth-audit + fix pressure_vessel.py (hoop-stress closed forms) [round 3]`
-- `4f635b4 crew(grok): T05 Depth-audit + fix pressure_vessel.py (hoop-stress closed forms) [round 2]`
-- `d59c3c6 crew(grok): T05 Depth-audit + fix pressure_vessel.py (hoop-stress closed forms) [round 1]`
-- `c0c4024 crew(claude): T04 Depth-audit + fix plate_hole.py (FEM-computed Kt vs Kirsch bound) [round 1]`
 
 
 ---

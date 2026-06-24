@@ -42,27 +42,38 @@ def optimize_cantilever_section(
     arm: float,
     sigma_allow: float,
     min_wall: float = 1.0,
+    max_wall: float = float("inf"),
     max_aspect: float = 4.0,
     h_steps: int = 400,
 ) -> SectionDesign:
     """Lightest rectangular section ``(b, h)`` for a tip-loaded cantilever keeping ``6·F·L/(b·h²) ≤
-    sigma_allow``, subject to ``b ≥ min_wall``, ``h ≥ min_wall`` and depth/breadth aspect ``h/b ≤
+    sigma_allow``, subject to ``min_wall ≤ b, h ≤ max_wall`` and depth/breadth aspect ``h/b ≤
     max_aspect``. Deterministic grid search over the depth; for each depth the minimal feasible breadth
     is ``b = max(required_b, min_wall, h/max_aspect)``. Returns the minimum-volume feasible design (a
-    PROPOSAL the structural gate re-verifies)."""
+    PROPOSAL the structural gate re-verifies).
+
+    ``max_wall`` is the largest section dimension the process can build (build-volume / max wall bound);
+    it defaults to ``inf`` (unbounded). When no ``(b, h)`` within ``[min_wall, max_wall]`` keeps the
+    stress within ``sigma_allow`` — an over-constrained load — the search finds nothing and the result
+    is the honest ``feasible=False`` abstention (``stress=inf``), never a fabricated section. Without an
+    upper bound the breadth could always grow to absorb any load, so this abstention path is only
+    genuinely reachable once ``max_wall`` is finite (CLAUDE.md §4: honest abstention)."""
     if force <= 0 or arm <= 0 or sigma_allow <= 0:
         raise ValueError("force, arm and sigma_allow must be positive")
     required_bh2 = 6.0 * force * arm / sigma_allow          # need b·h² ≥ this to keep σ ≤ allowable
-    # search depth from the wall up to where even an aspect-limited section comfortably clears the load
+    # search depth from the wall up to where even an aspect-limited section comfortably clears the load,
+    # but never deeper than the build bound — beyond max_wall the depth is unbuildable.
     h_lo = min_wall
-    h_hi = max(min_wall * 2.0, (required_bh2 * max_aspect) ** (1.0 / 3.0) * 2.0)
+    h_hi = min(max(min_wall * 2.0, (required_bh2 * max_aspect) ** (1.0 / 3.0) * 2.0), max_wall)
     best: SectionDesign | None = None
     for k in range(h_steps + 1):
         h = h_lo + (h_hi - h_lo) * k / h_steps
-        if h < min_wall:
+        if h < min_wall or h > max_wall:
             continue
         # smallest breadth that satisfies the stress limit (with a hair of margin), the wall and aspect
         b = max(required_bh2 / (h * h) * (1.0 + 1e-9), min_wall, h / max_aspect)
+        if b > max_wall:                                   # section too wide to build within the bound
+            continue
         if h / b > max_aspect + 1e-9:
             continue
         stress = 6.0 * force * arm / (b * h * h)
@@ -105,6 +116,7 @@ def propose_and_verify(
     arm: float,
     safety_factor: float = 1.0,
     min_wall: float = 1.0,
+    max_wall: float = float("inf"),
     max_aspect: float = 4.0,
     h_steps: int = 400,
 ) -> VerifiedSection:
@@ -124,7 +136,7 @@ def propose_and_verify(
     sigma_allow = material.yield_strength_mpa / safety_factor
     design = optimize_cantilever_section(
         force=force, arm=arm, sigma_allow=sigma_allow,
-        min_wall=min_wall, max_aspect=max_aspect, h_steps=h_steps,
+        min_wall=min_wall, max_wall=max_wall, max_aspect=max_aspect, h_steps=h_steps,
     )
     if not design.feasible:
         return VerifiedSection(
