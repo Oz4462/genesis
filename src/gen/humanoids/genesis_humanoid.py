@@ -40,11 +40,15 @@ from __future__ import annotations
 
 import math
 
-# nosec B405 — xml.etree is used here ONLY to SERIALISE a URDF we build ourselves
-# (ET.Element/SubElement/tostring); it never PARSES untrusted external XML, so the
-# entity-expansion/XXE class that motivates `defusedxml` cannot apply. defusedxml is
-# also not a declared GENESIS dependency, so importing it would itself fail the gates.
-import xml.etree.ElementTree as ET  # noqa: S405
+# xml.etree is used here ONLY to SERIALISE a URDF we build ourselves
+# (ET.Element/SubElement/tostring) — it never PARSES untrusted external XML, so the
+# entity-expansion/XXE/billion-laughs class that motivates `defusedxml` cannot apply
+# (defusedxml only hardens the *parsing* entry points, which we never reach). defusedxml
+# is also not a declared GENESIS dependency, so importing it would itself fail the gates.
+# Suppress the equivalent finding for every scanner: ruff/flake8-bandit (S405), bandit
+# (B405) and semgrep (use-defused-xml) all flag this serialise-only import as a reviewed
+# false positive.
+import xml.etree.ElementTree as ET  # noqa: S405  # nosec B405  # nosemgrep: use-defused-xml
 from dataclasses import dataclass, field
 
 from ..core.state import (
