@@ -39,7 +39,12 @@ Deterministic, offline. German prose for spec text (owner directive); English id
 from __future__ import annotations
 
 import math
-import xml.etree.ElementTree as ET
+
+# nosec B405 — xml.etree is used here ONLY to SERIALISE a URDF we build ourselves
+# (ET.Element/SubElement/tostring); it never PARSES untrusted external XML, so the
+# entity-expansion/XXE class that motivates `defusedxml` cannot apply. defusedxml is
+# also not a declared GENESIS dependency, so importing it would itself fail the gates.
+import xml.etree.ElementTree as ET  # noqa: S405
 from dataclasses import dataclass, field
 
 from ..core.state import (
@@ -94,6 +99,11 @@ SHANK_LEN_M = 0.30
 #: AK80-64 published CONTINUOUS (thermal/duty-cycle) output torque, N·m — the sustained-hold limit, well
 #: below the 120 N·m peak. Grounded to claim ``c_motor`` (which states "48 N·m Dauer").
 AK80_64_CONTINUOUS_NM = 48.0
+#: Required minimum safety factor of the continuous knee rating over the torque the verified stand
+#: actually holds. 1.5 is the same conservative static margin GENESIS uses elsewhere; the continuous
+#: gate ``k_knee_cont`` enforces it, so a regression that ever pushed the held torque above 32 N·m
+#: (= 48 / 1.5) would FAIL the γ gate instead of silently shipping a thermally-overloaded knee.
+KNEE_CONTINUOUS_SF_MIN = 1.5
 
 
 @dataclass(frozen=True)
@@ -375,8 +385,13 @@ def build_aethon(cfg: AethonConfig) -> Specification:
     #     the ankle, so the knee's moment arm is its horizontal offset from the ankle: the shank, tilted
     #     |ankle_pitch| from vertical, puts the knee a = L_shank·sin|ankle_pitch| forward;
     #   • held knee torque τ_stand = (m/2)·g·a.
+    # The trig (sin) cannot live in the GENESIS formula grammar (numbers, names, + - * / only), so the
+    # moment arm is emitted as a DECISION quantity whose rationale carries the closed form, and the held
+    # torque + its continuous safety factor are DERIVED quantities the γ gate independently RECOMPUTES
+    # (C-6) and dimension-checks (C-15). The ``k_knee_cont`` constraint then GATES the SF ≥
+    # KNEE_CONTINUOUS_SF_MIN — so the continuous-hold claim is enforced in code, not asserted in a docstring.
     # This is conservative (the real CoP sits slightly forward of the ankle, which would SHORTEN the knee
-    # arm). τ_stand ≪ 48 N·m → AETHON holds the stand indefinitely on the off-the-shelf AK80-64.
+    # arm) → AETHON holds the stand indefinitely on the off-the-shelf AK80-64.
     stand_leg_load_kg = TARGET_MASS_KG * 0.5
     knee_arm_stand_m = SHANK_LEN_M * math.sin(abs(STAND_ANKLE_PITCH_RAD))
     knee_torque_stand_nm = stand_leg_load_kg * g * knee_arm_stand_m
@@ -543,6 +558,24 @@ def build_aethon(cfg: AethonConfig) -> Specification:
         _dm("q_avail_tau", "verfügbares Gelenkmoment (Knie-Peak)", cfg.knee_peak_nm, "N*m",
             "QDD-Ausgangs-Spitzenmoment", "actuator.available_torque"),
         _g("q_knee_peak", "Knie-Aktuator Spitzenmoment", cfg.knee_peak_nm, "N*m", ["c_motor"]),
+        # ---- continuous (thermal/duty-cycle) knee-hold gate on the VERIFIED static stand ----
+        # The peak gate (k_knee_torque) covers the WORST-POSE transient. This second axis answers the
+        # THERMAL question "can the off-the-shelf AK80-64 HOLD the verified stand forever?" by comparing
+        # the torque the 5 s PyBullet stand really sustained to the actuator's 48 N·m CONTINUOUS rating.
+        _g("q_knee_cont_limit", "AK80-64 Dauer-Drehmomentgrenze", AK80_64_CONTINUOUS_NM, "N*m", ["c_motor"]),
+        _d("q_stand_mass_share", "Beinlast im verifizierten Doppelstand", stand_leg_load_kg, "kg",
+           f"ruhiger Doppelstand: beide Beine teilen sich die {TARGET_MASS_KG:g} kg Körpermasse → je Bein m/2"),
+        _d("q_knee_arm_stand", "Knie-Hebelarm im verifizierten Stand", knee_arm_stand_m, "m",
+           "horizontaler Knie→Knöchel-Versatz in der verifizierten Stehpose: a = L_Schienbein·sin|Knöchel-"
+           f"Pitch| = {SHANK_LEN_M:g} m · sin({abs(STAND_ANKLE_PITCH_RAD):g} rad); konservativ (reale CoP "
+           "liegt leicht vor dem Knöchel und verkürzte den Hebel)"),
+        _der("q_knee_torque_stand", "gehaltenes Knie-Moment im verifizierten Stand", knee_torque_stand_nm,
+             "N*m", "q_stand_mass_share * q_g * q_knee_arm_stand",
+             ("q_stand_mass_share", "q_g", "q_knee_arm_stand")),
+        _der("q_knee_cont_sf", "Dauer-Sicherheitsfaktor Knie (Stand)", knee_cont_sf, "1",
+             "q_knee_cont_limit / q_knee_torque_stand", ("q_knee_cont_limit", "q_knee_torque_stand")),
+        _d("q_knee_cont_sf_min", "geforderter Dauer-Sicherheitsfaktor Knie", KNEE_CONTINUOUS_SF_MIN, "1",
+           "konservative Mindest-Reserve der Dauergrenze über dem im Stand gehaltenen Moment"),
         # ---- balance + gait + swing (CoM grounded to the ZMP-stable foot) ----
         _dm("q_com_x", "CoM-Versatz", 0.0, "m", "zentriert über der Sohle", "balance.com_x"),
         _dm("q_com_h", "CoM-Höhe", COM_HEIGHT_M, "m", "Schwerpunkthöhe", "balance.com_height"),
@@ -769,6 +802,11 @@ def build_aethon(cfg: AethonConfig) -> Specification:
                           "— die dexterösen Hände können ein Alltagsobjekt sicher halten"),
         Constraint(id="k_knee_torque", kind="ge", left="q_knee_peak", right="q_jt",
                    reason="das Knie-Aktuator-Spitzenmoment übersteigt den statischen Haltebedarf"),
+        Constraint(id="k_knee_cont", kind="ge", left="q_knee_cont_sf", right="q_knee_cont_sf_min",
+                   reason="der Dauer-Sicherheitsfaktor des Knies (AK80-64-Dauergrenze über dem im "
+                          "verifizierten Stand gehaltenen Moment) erreicht die geforderte Mindest-Reserve "
+                          "— die 75 N·m bleiben eine begrenzte Worst-Pose-SPITZE, der DAUERHAFTE Stand ist "
+                          "auf dem kaufbaren AK80-64 thermisch unbegrenzt haltbar"),
     ]
 
     decisions = [
@@ -1579,9 +1617,14 @@ def comparison_summary() -> dict:
             "statt eines Custom-Aktuators — damit ist AETHON VOLLSTÄNDIG aus Seriennteilen baubar. "
             "120 N·m schlägt AGILOped (80) und liegt unter Unitree H2 (360, schwere Metallklasse); "
             "der Knie-Bedarf ist 75 N·m → Peak-Sicherheitsfaktor 1.60 (bzw. 1.31 über die reflektierte "
-            "δ-Aktuator-Kennlinie bei 1.4 rad/s). EHRLICH: die 75 N·m sind eine Worst-Pose-SPITZE; "
-            "die AK80-64-DAUERMomentgrenze ist 48 N·m, der Stand selbst liegt deutlich darunter, aber "
-            "ein dauerhaftes Halten von 75 N·m am Knie bräuchte einen kräftigeren Dauer-Aktuator.",
+            "δ-Aktuator-Kennlinie bei 1.4 rad/s). Die 75 N·m sind eine begrenzte Worst-Pose-SPITZE "
+            "(tiefe, transiente Hocke), nicht der Dauerlast-Fall. GELÖST (nicht mehr offen): der "
+            "DAUERHAFTE Stand ist gegatet — das im verifizierten 5-s-Stand tatsächlich gehaltene "
+            "Knie-Moment beträgt closed-form nur ~14.1 N·m (= ½·22 kg·g·a, a = 0.30 m·sin0.45) und "
+            "liegt damit weit unter der 48-N·m-Dauergrenze des AK80-64 → Dauer-Sicherheitsfaktor ~3.4 "
+            "(Constraint k_knee_cont fordert ≥ 1.5). AETHON hält den Stand thermisch unbegrenzt auf dem "
+            "Off-the-shelf-Aktuator; nur ein dauerhaftes Halten der 75-N·m-Tiefhocke (nicht des Stands) "
+            "bräuchte einen kräftigeren Dauer-Aktuator.",
             "Mehrere Referenz-/SOTA-Zellen sind 'n/a' (Hersteller veröffentlicht die Achse nicht) — "
             "ehrlich als unbekannt markiert statt geschätzt.",
         ],

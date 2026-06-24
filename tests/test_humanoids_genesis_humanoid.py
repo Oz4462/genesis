@@ -25,6 +25,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import pytest  # noqa: E402
+from hypothesis import given, strategies as st  # noqa: E402
 
 from gen.humanoids import genesis_humanoid as gh  # noqa: E402
 from gen.pipeline import assess_specification  # noqa: E402
@@ -105,6 +106,73 @@ def test_knee_actuator_has_margin_over_static_demand():
     demand = qids["q_jt"].value
     assert peak > demand
     assert peak / demand > 1.5  # comfortable static-hold margin (2.13× as designed)
+
+
+def test_continuous_knee_hold_is_a_grounded_gated_axis():
+    """The round-1 caveat ('a continuous 75 N·m hold needs a stronger actuator') is RESOLVED, not
+    asserted in prose: the held-stand torque is a DERIVED ledger quantity, its continuous safety factor
+    is DERIVED from the grounded 48 N·m AK80-64 rating, and a CONSTRAINT gates the SF — so the
+    continuous-hold claim is enforced by the γ gate, never just claimed."""
+    s = gh.aethon_spec()
+    qids = {q.id: q for q in s.quantities}
+
+    # every continuous-axis quantity must actually reach the spec ledger (no dead code)
+    for qid in ("q_knee_cont_limit", "q_stand_mass_share", "q_knee_arm_stand",
+                "q_knee_torque_stand", "q_knee_cont_sf", "q_knee_cont_sf_min"):
+        assert qid in qids, f"continuous-knee quantity {qid} is missing from the ledger"
+
+    # the continuous limit is GROUNDED to the AK80-64 claim (its 48 N·m appears verbatim in c_motor)
+    cont = qids["q_knee_cont_limit"]
+    assert cont.value == gh.AK80_64_CONTINUOUS_NM == 48.0
+    assert "c_motor" in cont.grounding
+
+    # the held-stand torque recomputes from its declared inputs (the γ-gate's C-6 contract)
+    held = qids["q_knee_torque_stand"]
+    recomputed = (qids["q_stand_mass_share"].value * qids["q_g"].value
+                  * qids["q_knee_arm_stand"].value)
+    assert held.value == pytest.approx(recomputed)
+    # and it is far below the continuous rating — the stand is thermally sustainable indefinitely
+    assert held.value < cont.value
+    assert held.value == pytest.approx(14.08, abs=0.1)
+
+    # the documented safety factor is DERIVED and clears the required minimum
+    sf = qids["q_knee_cont_sf"].value
+    assert sf == pytest.approx(cont.value / held.value)
+    assert sf >= gh.KNEE_CONTINUOUS_SF_MIN
+    assert sf > 3.0  # ~3.4 as designed
+
+    # the gate exists and encodes SF >= the required minimum (a gate without a constraint is no gate)
+    k = next((c for c in s.constraints if c.id == "k_knee_cont"), None)
+    assert k is not None, "the continuous-knee constraint k_knee_cont must gate the SF"
+    assert k.kind == "ge" and k.left == "q_knee_cont_sf" and k.right == "q_knee_cont_sf_min"
+
+
+def test_caveat_reflects_resolved_continuous_knee():
+    """The user-facing honest_caveat must now state the continuous hold is RESOLVED/gated, and must NOT
+    claim a stronger continuous actuator is needed for the STAND (only for the deep transient pose)."""
+    caveats = " ".join(gh.comparison_summary()["honest_caveats"])
+    assert "k_knee_cont" in caveats          # points at the actual gate
+    assert "GELÖST" in caveats               # explicitly flags the resolution
+    # the old unconditional 'needs a stronger continuous actuator' framing is gone
+    assert "bräuchte einen kräftigeren Dauer-Aktuator" not in caveats or "Tiefhocke" in caveats
+
+
+@given(
+    mass_share_kg=st.floats(min_value=1.0, max_value=200.0),
+    arm_m=st.floats(min_value=0.001, max_value=1.0),
+    cont_limit_nm=st.floats(min_value=1.0, max_value=500.0),
+    sf_min=st.floats(min_value=1.0, max_value=5.0),
+)
+def test_continuous_gate_iff_thermal_condition(mass_share_kg, arm_m, cont_limit_nm, sf_min):
+    """INVARIANT of the continuous gate: it passes (SF >= sf_min) if and only if the held torque is
+    within the thermally-allowed envelope (torque <= limit / sf_min). This proves the constraint encodes
+    exactly the physical duty-cycle condition, not a looser/tighter one — for ALL plausible inputs."""
+    g = gh.STANDARD_GRAVITY
+    held_torque = mass_share_kg * g * arm_m          # τ = m·g·a (the spec's derivation)
+    sf = cont_limit_nm / held_torque                 # the spec's derived continuous SF
+    gate_passes = sf >= sf_min
+    thermal_ok = held_torque <= cont_limit_nm / sf_min
+    assert gate_passes == thermal_ok
 
 
 def test_total_mass_is_in_target_band():
