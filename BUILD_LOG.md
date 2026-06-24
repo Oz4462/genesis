@@ -285,3 +285,20 @@ Regenerator-Stärke getrieben (stark → converged, schwach → nicht), Rundenza
 `ceil((threshold−start)/step)`. Isoliert über ein rein deterministisches, physik-/LLM-freies
 Scripted-Gate (Defekt-Level im realen `Question.run_id`). KEINE Verhaltensänderung nötig (Modul war
 bereits korrekt und ehrlich). 4 Linsen angewendet. Details: `docs/audit/DEPTH_AUDIT_refinement.md`.
+
+---
+
+## 2026-06-24 — Depth-Audit T05: security.py (closed-form Krypto-Sizing) (VERDICT: REAL)
+Tiefen-Audit der drei geschlossenen Krypto-Sizing-Checks (ε-Krypto-Achse, δ-Layer).
+Charakterisierungstest (`tests/test_security_characterization.py`, 16 Tests grün, offline,
+inkl. 6 Negativtests + 5 Hypothesis-Properties) beweist als Facade-Killer, dass die Zahlen
+GERECHNET und nicht geechot sind: (a) Birthday-Bound trägt das q²-Gesetz (Verdopplung von q
+vervierfacht p, Verdreifachung → 9×) und halbiert p pro Extra-Raum-Bit, `safety_factor=max/p`
+trackt p (96 bit / 2^32 Uses → SF 2, 2^33 → SF 0.5), Clamp bei 1.0; (b) SP 800-57 Table 2 als
+echter Tabellen-Lookup — AES-128≡RSA-3072≡ECC-256=128, alle RSA-Zeilen + Granularität
+(3071→112, <1024→0), symmetrisch=Schlüssellänge, ECC=k/2 für beliebige Größen; (c) SP 800-38D
+GCM-Budget=2^32 inklusiv, `safety_factor=max/n`. Jeder dokumentierte Fail-Loud-Pfad feuert
+exakt (`ValueError` bei nicht-positivem space/key/required/budget, negativem n_uses/n_invocations,
+`max_collision_prob∉(0,1]`, unbekanntem Mechanismus → nie geratene Stärke). KEINE Quellcode-
+Änderung nötig (Modul war bereits korrekt und ehrlich; `change nothing if correct`). 4 Linsen
+angewendet. Details: `docs/audit/DEPTH_AUDIT_security.md`.
