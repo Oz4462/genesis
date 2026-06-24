@@ -216,12 +216,17 @@ def part_structural_finding(name: str, *, load_path: str, force_n: float, bendin
 # (3) DRIVETRAIN — every joint vs its real actuator, static + dynamic.
 # ════════════════════════════════════════════════════════════════════════════════════════════════
 
-def _swing_angular_accel(amplitude_rad: float, step_frequency_hz: float) -> float:
-    """Peak angular acceleration of a sinusoidal swing θ(t)=A·sin(ωt): α_peak = A·ω², ω=2π·f.
+def _shm_peak_accel(amplitude: float, frequency_hz: float) -> float:
+    """Peak second-derivative magnitude of simple-harmonic motion x(t)=A·sin(ωt): |ẍ|_peak = A·ω²,
+    ω=2π·f.
 
-    The honest representative dynamic case for a swinging limb — its inertial torque is J·α_peak."""
-    omega = 2.0 * math.pi * step_frequency_hz
-    return amplitude_rad * omega * omega
+    UNIT-GENERIC by construction (the conflation the reviewer flagged is resolved by NOT naming it
+    angular): with an ANGULAR amplitude A in rad it returns an angular acceleration in rad/s² (a
+    swinging limb's α, whose inertial torque is J·α); with a LINEAR amplitude A in m it returns a
+    linear acceleration in m/s² (the CoM sway acceleration the dynamic-ZMP screen needs). It is the
+    same kinematic identity read in two unit systems — the caller fixes which physical quantity it is."""
+    omega = 2.0 * math.pi * frequency_hz
+    return amplitude * omega * omega
 
 
 def joint_drive_finding(joint: str, actuator: str, static_demand_nm: float, rated_peak_nm: float,
@@ -273,29 +278,41 @@ def compute_aethon_mechanics() -> MechanicsReport:
         force_n=design_force_n, bending_arm_mm=70.0,
         width_mm=cfg.thigh_width_mm, thick_mm=cfg.thigh_thick_mm, length_mm=220.0,
         strength_mpa=cfg.material_strength_mpa, e_mpa=cfg.material_e_mpa))
-    # pelvis/hip plate — carries the same body load across the hip bore (shorter bending arm)
+    # pelvis/hip plate — in the single-leg load path; loaded with the FULL design leg load (an upper
+    # bound: the real hip plate sees only the body share above the hip, so this is conservative AND
+    # internally consistent — the applied load no longer contradicts the stated path).
     structural.append(part_structural_finding(
-        "Becken/Hüfte (pelvis)", load_path="Hüftlager trägt die Körperlast; Biegung am Hüft-Loch",
+        "Becken/Hüfte (pelvis)",
+        load_path="Hüftlager im Einbein-Lastpfad — konservativ mit der vollen Auslegungs-Beinlast "
+                  "belastet (obere Schranke); Biegung am Hüft-Loch",
         force_n=design_force_n, bending_arm_mm=65.0,
         width_mm=70.0, thick_mm=22.0, length_mm=170.0,
         strength_mpa=cfg.material_strength_mpa, e_mpa=cfg.material_e_mpa))
-    # spine/torso plate — carries the upper-body share above the waist
+    # spine/torso plate — loaded with the FULL design leg load (an upper bound: the spine actually
+    # carries only the upper-body share above the waist, so this is conservative AND consistent).
     structural.append(part_structural_finding(
-        "Spine/Rumpf (torso)", load_path="Spine trägt Oberkörper über dem Waist-Gelenk; Biegung am Spine-Loch",
+        "Spine/Rumpf (torso)",
+        load_path="Spine über dem Waist-Gelenk — konservativ mit der vollen Auslegungs-Beinlast "
+                  "belastet (obere Schranke statt nur des Oberkörper-Anteils); Biegung am Spine-Loch",
         force_n=design_force_n, bending_arm_mm=85.0,
         width_mm=130.0, thick_mm=22.0, length_mm=210.0,
         strength_mpa=cfg.material_strength_mpa, e_mpa=cfg.material_e_mpa))
-    # shank/knee member — the lower leg below the knee
+    # shank/knee member — the lower leg below the knee. Section read from the EVOLVED cfg geometry
+    # (shank_width_mm/shank_thick_mm) so this analyses the part AETHON actually ships: the round-1
+    # shank (14 mm) was the weakest member (SF≈1.02); the evolution thickened it — see
+    # genesis_humanoid.aethon_evolution_report.
     structural.append(part_structural_finding(
-        "Unterschenkel (shank)", load_path="Knie→Knöchel-Glied unter Stand-Last; Biegung am Knie-Loch",
+        "Unterschenkel (shank)", load_path="Knie→Knöchel-Glied im vollen Einbein-Lastpfad; Biegung am Knie-Loch",
         force_n=design_force_n, bending_arm_mm=80.0,
-        width_mm=38.0, thick_mm=14.0, length_mm=210.0,
+        width_mm=cfg.shank_width_mm, thick_mm=cfg.shank_thick_mm, length_mm=210.0,
         strength_mpa=cfg.material_strength_mpa, e_mpa=cfg.material_e_mpa))
 
     # ---- (2) kinematics / dynamics ----
     # worst static pose: a deep single-leg squat, thigh near-horizontal (θ ≈ 80° from vertical)
     worst_angle = math.radians(80.0)
-    knee_worst = knee_squat_hold_torque(body_mass=gh.TARGET_MASS_KG, thigh_length=gh.SHANK_LEN_M,
+    # the knee's gravity lever is the THIGH length (the mass above the knee hangs off the thigh),
+    # so pass the thigh dimension — NOT the shank constant — even though both happen to be 0.30 m today.
+    knee_worst = knee_squat_hold_torque(body_mass=gh.TARGET_MASS_KG, thigh_length=gh._DIM["thigh_len"],
                                         thigh_angle_from_vertical=worst_angle)
     rc = reach_check(cfg.reach_l1, cfg.reach_l2, cfg.reach_tx, cfg.reach_ty)
     # arm gravity hold: a 2R arm fully extended horizontally carrying a small payload share
@@ -304,8 +321,8 @@ def compute_aethon_mechanics() -> MechanicsReport:
         link_masses=[gh._MASS["uarm"], gh._MASS["farm"]], payload_mass=1.0)
     # static ZMP: CoM centred over the 240 mm sole
     zmp_static = zmp_balance_check(com_x=0.0, com_z=gh.COM_HEIGHT_M, support_min_x=-0.11, support_max_x=0.13)
-    # dynamic ZMP: peak horizontal CoM acceleration of the swaying gait (a = amplitude·ω²)
-    accel_x = _swing_angular_accel(0.022, cfg.step_frequency_hz)   # reuse SHM peak: amp·(2πf)²
+    # dynamic ZMP: peak horizontal CoM acceleration of the swaying gait — LINEAR SHM (A in m → m/s²)
+    accel_x = _shm_peak_accel(0.022, cfg.step_frequency_hz)   # 0.022 m sway amplitude · (2πf)²
     zmp_dyn = zmp_balance_check(com_x=0.0, com_z=gh.COM_HEIGHT_M, support_min_x=-0.11,
                                 support_max_x=0.13, accel_x=accel_x)
     kinematics = KinematicsFinding(
@@ -319,7 +336,7 @@ def compute_aethon_mechanics() -> MechanicsReport:
     # ---- (3) drivetrain: every body joint vs its real actuator ----
     limb_inertia = rod_inertia_about_end(gh._MASS["thigh"] + gh._MASS["shank"],
                                          gh._DIM["thigh_len"] + gh._DIM["shank_len"])
-    alpha = _swing_angular_accel(0.4, cfg.step_frequency_hz)        # leg swing amplitude 0.4 rad
+    alpha = _shm_peak_accel(0.4, cfg.step_frequency_hz)        # ANGULAR SHM: 0.4 rad swing · (2πf)² → rad/s²
     inertial_nm = limb_inertia * alpha
     joints: list[JointDriveFinding] = []
     for group, specs in gh.DOF_MAP.items():
