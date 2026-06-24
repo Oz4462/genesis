@@ -106,11 +106,24 @@ def test_recommendation_contract_electric_default_under_current_params():
 
 def test_fail_loud_on_bad_inputs():
     with pytest.raises(ValueError, match="joint torque demand must be positive"):
-        ah.compute_hydraulic_option("k", 0.0, 3.5, 0.055)
+        ah.compute_hydraulic_option("k", 0.0, ah.KNEE_JOINT_SPEED_RAD_S, ah.KNEE_LEVER_ARM_M)
     with pytest.raises(ValueError, match="lever arm must be positive"):
-        ah.compute_hydraulic_option("k", 75.0, 3.5, 0.0)
+        ah.compute_hydraulic_option("k", ah.KNEE_TORQUE_DEMAND_NM, ah.KNEE_JOINT_SPEED_RAD_S, 0.0)
     with pytest.raises(ValueError, match="joint speed must be non-negative"):
-        ah.compute_hydraulic_option("k", 75.0, -1.0, 0.055)
+        ah.compute_hydraulic_option("k", ah.KNEE_TORQUE_DEMAND_NM, -1.0, ah.KNEE_LEVER_ARM_M)
+
+
+def test_zero_speed_is_valid_for_static_hold():
+    """Speed==0 is valid for static force hold (cylinder pressure delivers torque; zero flow/pump).
+    Must succeed without raising and without leaking internal primitive 'must be positive' error."""
+    res = ah.compute_hydraulic_option("knee", ah.KNEE_TORQUE_DEMAND_NM, 0.0, ah.KNEE_LEVER_ARM_M)
+    assert res.piston_velocity_m_s == pytest.approx(0.0)
+    assert res.flow_required_m3_s == 0.0
+    assert res.pump_power_w == 0.0
+    assert res.cylinder["ok"]  # force hold still works
+    assert res.flow["ok"]
+    # line drop zeroed, no crash on pressure_drop primitive either
+    assert res.line["pressure_drop_pa"] == 0.0
 
 
 def test_determinism_same_inputs_identical_output():

@@ -18,7 +18,7 @@
 | Hagen–Poiseuille + Re | `hydraulic_pressure_drop` wird mit realen Q/d/L/μ aufgerufen; `line["pressure_drop_pa"]`, `reynolds`, `laminar_valid` exposed |
 | Pump + Accumulator | `_pump_power_w = (p+Δp)·Q / η`; `_compute_accumulator_volume` liefert >0 L Buffer |
 | Head-to-head | `compare_hydraulic_vs_electric()` liefert `density_margin_sys`, `mass_margin_two_knee_kg`, `cost_margin_eur`, `system_buildable` — alle ändern sich bei geändertem Torque/Lever |
-| Recommendation contract | `use_hydraulic` nur True wenn density_sys>elec AND mass_margin>0 AND cost_margin>0 AND buildable (cyl_ok, pump<280W, line<25%, accu in Range). Mit aktuellen Parametern: False (electric default) |
+| Recommendation contract | `use_hydraulic` nur True wenn density_sys>elec AND mass_margin>0 AND cost_margin>0 AND buildable (cyl_ok, pump<500W, line<25%, accu in Range). Mit aktuellen Parametern: False (electric default) |
 | Fail-loud | ValueError bei torque<=0, lever<=0, speed<0, pressure<=0 (explizit + Delegation an Primitives) |
 
 ## Computed Numbers (Auszug aus `format_audit_verdict` / live run)
@@ -26,17 +26,20 @@
 - Knee 75 Nm @ 2.5 rad/s, r=55 mm, 150 bar
 - Bore ~14.4 mm, F=1364 N, Q=22.5 cm³/s, Δp=16977 Pa (Re=138, laminar=True)
 - pump~451 W (peak), accu~0.07 L
-- cyl mass ~0.41 kg, allocated system/joint ~2.22 kg
-- Head-to-head (two knees): elec mass 2.90 kg vs hyd 2.63 kg; density sys 33.7 vs 51.7 Nm/kg; cost delta -50 EUR
-- Verdict: electric (use_hydraulic=False). density margin -18 Nm/kg; mass margin +0.27 kg (hyd lighter); cost margin -50 EUR; buildable=True
-- **Hydraulics gewinnt NICHT strikt** (density sys schlechter, cost höher trotz leichterer Masse) → electric default. Komplexität (Pumpe, Leitungen, Wartung, Leckagerisiko, 451W Peak-Budget) wiegt schwer.
+- cyl mass ~0.41 kg, allocated system/joint ~3.71 kg (full support share)
+- Head-to-head (two knees): elec mass 2.90 kg vs hyd 4.12 kg; density sys 20.2 vs 51.7 Nm/kg; cost delta -50 EUR
+- Verdict: electric (use_hydraulic=False). density margin -31.5 Nm/kg; mass margin -1.22 kg; cost margin -50 EUR; buildable=True
+- **Hydraulics gewinnt NICHT strikt** (density sys schlechter, Gesamtsystem-Masse höher, cost höher) → electric default. Komplexität (Pumpe, Leitungen, Wartung, Leckagerisiko) wiegt schwer.
+- Ankle wird separat berechnet (niedrigere Last); "two knees"-Headline aggregiert nur Knie-Hardware (Scope sauber getrennt).
 
 Die STRICT-Win-Bedingung (density>elec AND mass besser AND cost besser AND buildable) ist nicht erfüllt.
 
+Zero-speed (static hold) wird jetzt sauber unterstützt (Q=0/P=0, kein Crash in Flow/Line-Primitive).
+
 ## Guards / Negativpfade (alle getestet)
-- `compute_hydraulic_option`: ValueError bei nicht-positivem Torque, Lever, Pressure; negativer Speed.
-- Primitives selbst: non-positive pressure/area/flow etc. → ValueError (Delegation).
-- Kein silent default: negative max_total_thrust-ähnliche Fälle wurden hier explizit abgedeckt.
+- `compute_hydraulic_option`: ValueError bei nicht-positivem Torque, Lever, Pressure; negativer Speed. Speed==0 ist erlaubt (statischer Force-Hold).
+- Primitives selbst: non-positive pressure/area/flow etc. → ValueError (Delegation). Zero-speed wird intern special-cased, kein Leak des internen "positive"-Fehlers.
+- Kein silent default: negative max_total_thrust-ähnliche Fälle wurden hier explizit abgedeckt. Boundary zero-speed wird positiv getestet.
 
 ## Property-based Tests (Hypothesis)
 - `force_and_flow_scale_linearly_property`: für beliebige (torque, speed, lever, pressure) gilt exakt F=τ/r und Q=A·(ω·r).

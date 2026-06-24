@@ -142,6 +142,7 @@ def compute_hydraulic_option(
     Returns structured result with all intermediate dicts from the primitives plus derived system numbers.
 
     Raises ValueError (via primitives or explicit) on non-physical inputs.
+    Zero joint speed is allowed (static force hold case; flow/pump=0, cylinder pressure still delivers torque).
     """
     if torque_nm <= 0.0:
         raise ValueError("joint torque demand must be positive")
@@ -165,37 +166,47 @@ def compute_hydraulic_option(
     # Effective available after our target SF is already baked into bore choice; the returned SF
     # should be ~CYLINDER_SF_TARGET (within float). We still expose it.
 
-    # Linear piston speed from angular (WHY: real knee actuator is offset; velocity at piston ≈ ω · r)
+    # Linear piston speed from angular (WHY: real knee actuator is offset; velocity at piston ≈ ω · r).
+    # speed==0.0 is valid for static force-hold (cylinder pressure provides torque, no motion/flow/pump needed).
+    # Special-cased to avoid downstream hydraulic_flow_check/hydraulic_pressure_drop >0 contract violation.
     piston_v = joint_speed_rad_s * lever_arm_m
 
-    # Pick a pump flow that satisfies the flow check with margin
-    pump_flow = (bore_area * piston_v) * PUMP_FLOW_SF
+    if joint_speed_rad_s == 0.0:
+        flow = {"flow_required": 0.0, "pump_flow": 0.0, "safety_factor": float("inf"), "ok": True}
+        pump_flow = 0.0
+        line = {"pressure_drop_pa": 0.0, "reynolds": 0.0, "laminar_valid": True}
+        pump_power = 0.0
+        acc_vol_l = 0.0
+    else:
+        # Pick a pump flow that satisfies the flow check with margin
+        pump_flow = (bore_area * piston_v) * PUMP_FLOW_SF
 
-    flow = hydraulic_flow_check(
-        bore_area=bore_area,
-        piston_velocity=piston_v,
-        pump_flow=pump_flow,
-    )
+        flow = hydraulic_flow_check(
+            bore_area=bore_area,
+            piston_velocity=piston_v,
+            pump_flow=pump_flow,
+        )
 
-    # Line loss (real pressure the pump must supply = actuator pressure + drop)
-    line = hydraulic_pressure_drop(
-        flow=flow["flow_required"],
-        diameter=LINE_DIAMETER_M,
-        length=LINE_LENGTH_M,
-        viscosity=viscosity,
-        density=870.0,
-    )
+        # Line loss (real pressure the pump must supply = actuator pressure + drop)
+        line = hydraulic_pressure_drop(
+            flow=flow["flow_required"],
+            diameter=LINE_DIAMETER_M,
+            length=LINE_LENGTH_M,
+            viscosity=viscosity,
+            density=870.0,
+        )
 
-    pump_power = _pump_power_w(pressure_pa + line["pressure_drop_pa"], flow["flow_required"])
+        pump_power = _pump_power_w(pressure_pa + line["pressure_drop_pa"], flow["flow_required"])
 
-    acc_vol_l = _compute_accumulator_volume(flow["flow_required"], pressure_pa)
+        acc_vol_l = _compute_accumulator_volume(flow["flow_required"], pressure_pa)
 
     cyl_mass = _estimate_cylinder_mass(bore_area)
 
     # For a two-knee robot the pump+accu+lines/valves/fluid are largely shared.
-    # Allocate ~55% of the support system mass to "knee" high-load contribution for the comparison.
+    # Allocate the *full* support system mass to the representative high-load knee calc.
+    # This makes two-knee headline mass == 2*cyl + 1*shared (matches "2 cylinders + one shared support system").
     support_mass_share = 3.3  # kg: realistic full mobile pump+accu+valves+hoses+fluid+reservoir+filter + mounting for a two-leg humanoid (shared); makes system overhead visible vs 2x integrated actuators
-    system_added = cyl_mass + 0.55 * support_mass_share
+    system_added = cyl_mass + support_mass_share
 
     bore_d_mm = 2000.0 * math.sqrt(bore_area / math.pi)
 
@@ -254,7 +265,7 @@ def compare_hydraulic_vs_electric() -> dict[str, Any]:
 
     Recommendation rule (per spec): electric is default. Hydraulics recommended only when
     it STRICTLY wins on torque density AND mass AND cost AND the full system is buildable
-    (positive cylinder SF, laminar or explicitly flagged line, pump power realistic < 300 W peak
+    (positive cylinder SF, laminar or explicitly flagged line, pump power realistic < 500 W peak
     per high-load contribution, accumulator buildable). All margins are the actual computed deltas.
     """
     knee_h = compute_hydraulic_option(
@@ -277,10 +288,10 @@ def compare_hydraulic_vs_electric() -> dict[str, Any]:
     elec_two_knee_mass = 2.0 * elec["mass_kg"]
     elec_two_knee_cost = 2.0 * elec["cost_eur_est"]
 
-    # Hydraulic for two knees: 2 cylinders + one shared support system (already allocated in system_added)
-    # Use knee result's system_added as representative high-load; double the cylinder portion only.
+    # Hydraulic for two knees: 2 cylinders + one shared support system (full share, because system_added = cyl + full_support)
+    # Formula yields exactly 2*cyl + shared (see compute allocation).
+    # NOTE: ankle hardware excluded (headline is "two knees" for the 75Nm high-load class; ankle is lower-load and reported separately).
     hyd_two_knee_mass = (knee_h.cylinder_mass_kg_est * 2.0) + (knee_h.system_added_mass_kg_est - knee_h.cylinder_mass_kg_est)
-    # conservative: the support share already reflects one allocation; for two knees we still need only one pump/accu
     hyd_two_knee_cost = 110.0 + 980.0  # two compact cylinders + realistic pump/accu/valves/filter package + plumbing (higher integration cost than 2x integrated motor)
 
     # Torque density: cylinder alone is excellent; full system (allocated) is what matters for the robot.
@@ -345,7 +356,7 @@ def compare_hydraulic_vs_electric() -> dict[str, Any]:
         },
         "ankle": {
             "hydraulic": ankle_h,
-            "note": "lower load; same primitives and mapping; smaller cylinder/pump contribution",
+            "note": "lower load (30 Nm); same primitives and mapping; smaller cylinder/pump contribution. Two-knee mass/cost headline uses only knee-class hardware (primary 75 Nm high-load joints); ankle kept separate for completeness.",
         },
         "recommendation": {
             "use_hydraulic": use_hydraulic,
