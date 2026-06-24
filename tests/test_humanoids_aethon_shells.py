@@ -81,15 +81,28 @@ def test_public_api_surface_unchanged():
 
 
 def test_build_all_error_path_on_bad_output_dir(tmp_path):
-    """Fail-loud on impossible output (target out_dir exists as a file) surfaces in manifest."""
+    """Fail-loud on impossible output (target out_dir exists as a file) surfaces in manifest.
+    Strengthened: every entry records the mkdir error (with exception type), path=None,
+    and crucially no STL files are written (makedirs failure aborts writing)."""
     # Use a clean subdir + a file at the exact target path so makedirs(out_dir) fails.
     out_parent = tmp_path / "out_parent"
     out_parent.mkdir()
     bad_target = out_parent / "bad_is_file"
     bad_target.write_text("block makedirs")
     man = build_all(str(bad_target))
-    # At least one (or all) entries record error
-    assert any("error" in v for v in man.values())
+
+    # All shells must record the error (dir creation root cause affects every shell)
+    assert set(man.keys()) == set(SHELLS.keys())
+    for name, rec in man.items():
+        assert "error" in rec, f"{name} missing error"
+        assert rec.get("path") is None
+        err = rec.get("error", "")
+        assert "mkdir" in err and ("FileExistsError" in err or "OSError" in err or "exists" in err.lower())
+
+    # No files were written (the blocker remains a plain file; no aethon_*_shell.stl siblings)
+    assert bad_target.is_file()  # still the original blocker file
+    written = list(out_parent.glob("aethon_*_shell.stl"))
+    assert len(written) == 0, f"STL files unexpectedly written despite makedirs failure: {written}"
 
 
 # --------------------------------------------------------------------------- #
