@@ -214,3 +214,19 @@ fehlende/inkonsistente Daten → dokumentierter `ValueError`. Hypothesis-Propert
 + Recovery beliebiger Affin-Gesetze. KEINE Verhaltensänderung nötig (Modul war bereits korrekt);
 nur Modul-Docstring-Audit-Notiz ergänzt. 4 Linsen angewendet. Details:
 `docs/audit/symbolic_search.md`.
+
+---
+
+## 2026-06-24 — Depth-Audit T05: refinement.py (VERDICT: REAL)
+Tiefen-Audit des Verify→Refine-Controllers (bounded loop um beliebiges Gate).
+Charakterisierungstest (`tests/test_refinement_characterization.py`, 12 Tests grün, davon
+2 Negativtests + 2 Hypothesis-Properties) beweist einen EHRLICHEN bounded Controller, kein
+Fassaden-Stub: `directives_from_gate` mappt jede Failure (bekannter Code → Template, unbekannter
+→ generische Direktive, die das Detail trägt, nie erfunden); `refine_until_pass` konvergiert nur
+bei echtem Gate-Pass, meldet `stuck=True` bei wiederkehrender Failure-**Signatur** (inkl. A↔B-
+Oszillation, die der mengenbasierte Detektor fängt), `converged=False` mit Residuals bei
+erschöpftem Budget, `ValueError` bei nicht-positivem Budget. Facade-Killer: Outcome wird von der
+Regenerator-Stärke getrieben (stark → converged, schwach → nicht), Rundenzahl = geschlossene Form
+`ceil((threshold−start)/step)`. Isoliert über ein rein deterministisches, physik-/LLM-freies
+Scripted-Gate (Defekt-Level im realen `Question.run_id`). KEINE Verhaltensänderung nötig (Modul war
+bereits korrekt und ehrlich). 4 Linsen angewendet. Details: `docs/audit/DEPTH_AUDIT_refinement.md`.
