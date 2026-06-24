@@ -214,3 +214,15 @@ fehlende/inkonsistente Daten → dokumentierter `ValueError`. Hypothesis-Propert
 + Recovery beliebiger Affin-Gesetze. KEINE Verhaltensänderung nötig (Modul war bereits korrekt);
 nur Modul-Docstring-Audit-Notiz ergänzt. 4 Linsen angewendet. Details:
 `docs/audit/symbolic_search.md`.
+
+## 2026-06-24 — Depth-Audit `ratification.py` (T03, HITL Sign-off-Gate) — REAL, keine Quell-Änderung
+Charakterisierung des No-Default-Approval-Vertrags (Research #5 / Agent-SDK „never fake approval"):
+`ratification_packet` ist nachweislich aus Inputs abgeleitet (mehr Decisions/Gaps → mehr blockierende
+Items mit deren Inhalt; Gate-Verdikt PASS→Evidenz / FAIL→blockierend; Abweichungs-Anzahl aus
+`result.failures` gelesen, nicht hartcodiert). `is_ratified` gepinnt als Property (200 Bsp.):
+`== (benannter Approver) ∧ (jede blockierende Ref explizit signiert)` — anonymer Voll-Sign-off,
+ein fehlendes Item, nicht-signiertes FAILED-Gate und leeres Packet ohne Mensch sind alle NICHT
+„done"; `SignOff` friert mutables Approval-Set zu `frozenset` (kein nachträgliches Nachschmuggeln).
+14 neue Tests (inkl. 2 Hypothesis-Properties) grün, Legacy-Test (9) unverändert grün. Modul war
+bereits korrekt → keine Quell-Edits („change nothing if correct"). 4 Linsen angewendet. Details:
+`docs/audit/DEPTH_AUDIT_ratification.md`.
