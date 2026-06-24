@@ -10,7 +10,7 @@ Die neue `tests/test_pipeline_characterization.py` (10 Tests, davon 2 Hypothesis
 ## Belege, dass der Input wirklich konsumiert wird (kein Konstant-Pick)
 - Trigger + alle Inputs + Werte die den Margin clearen (shaft.torsion 1000 N*mm / d=10 mm / strength=10 MPa) → overall='physics_verified' + physics_ok=True + physics_checked=True + physics_complete=True + gate.passed=True.
 - Dieselbe Geometrie, strength auf 1.0 MPa gesenkt → overall='physics_failed' + physics_ok=False + gate.passed=False (der numerische Wert wird konsumiert, nicht gecached).
-- Trigger vorhanden, ein Input fehlt (z. B. shear_strength) → overall in {needs_clarification, physics_incomplete}, physics_ok=False, gaps oder Fragen nicht leer.
+- Trigger vorhanden, ein Input fehlt (z. B. shear_strength) → overall == 'needs_clarification' (questions have priority over gaps in _overall_status), physics_ok=False, gaps + Fragen nicht leer.
 - Keine trigger-Measurands (z. B. nur geometry.*) → overall='no_physics_indicated', physics_checked=False, physics_ok=False, 0 checks.
 - Widersprüchliche Constraints (ge + lt auf demselben Paar) → overall='inconsistent_constraints' vor jeder Physik.
 - Änderung eines driving Inputs (Measurand hinzufügen/entfernen oder Margin-Wert flippen) ändert overall + Properties signifikant.

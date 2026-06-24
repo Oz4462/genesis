@@ -154,14 +154,17 @@ def test_changing_input_value_flips_verified_to_failed():
 # ---------------------------------------------------------------------------
 
 def test_missing_input_for_indicated_physics_yields_needs_clarification_and_not_ok():
-    """Gap is surfaced, never swallowed as a pass. Clarification has priority over
-    the raw gaps list (documented ladder)."""
+    """Gap is surfaced, never swallowed as a pass.
+    Priority: _overall_status checks 'questions' (from clarifying_questions) BEFORE 'gaps'.
+    Since a missing required input for a present trigger always produces a ClarifyingQuestion,
+    the status is deterministically 'needs_clarification' (the documented first rung of the ladder).
+    """
     spec = _torsion_missing_one()
     a = assess_specification(spec)
 
-    assert a.overall in ("needs_clarification", "physics_incomplete")
+    assert a.overall == "needs_clarification"  # exact per priority (questions before raw gaps)
     assert not a.physics_ok
-    assert len(a.clarification_questions) >= 1 or len(a.physics_gaps) >= 1
+    assert len(a.clarification_questions) >= 1
     # The seam proof: gate on zero checks (gaps prevent check emission) is vacuously passed
     assert a.physics_gate.passed is True
     # ... yet physics_ok is correctly False (the bug this module exists to prevent)

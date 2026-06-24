@@ -214,3 +214,15 @@ fehlende/inkonsistente Daten → dokumentierter `ValueError`. Hypothesis-Propert
 + Recovery beliebiger Affin-Gesetze. KEINE Verhaltensänderung nötig (Modul war bereits korrekt);
 nur Modul-Docstring-Audit-Notiz ergänzt. 4 Linsen angewendet. Details:
 `docs/audit/symbolic_search.md`.
+
+## 2026-06-23 — T02 Depth-Audit: src/gen/pipeline.py (assess_specification honest verdict)
+
+**Verdikt: REAL** — keine Quelländerung (per "change nothing if correct").
+
+- Neue Charakterisierungs-Test `tests/test_pipeline_characterization.py` (10 Tests + 2 Hypothesis-Properties): echte `core.state` Konstruktoren für Specification/Quantity/Constraint; beweist input-getriebenen Priority-Ladder (verified / needs_clarification / no_physics_indicated / inconsistent_constraints / physics_failed); expliziter Seam-Nachweis (gate.passed=True + (gaps|0-checks) ⇒ physics_ok=False); Determinismus + ok<=>verified Invariante.
+- Kein Defekt in Priorität oder Properties gefunden → src/gen/pipeline.py unverändert (byte-identisch).
+- Audit + 4 Linsen: `docs/audit/DEPTH_AUDIT_pipeline.md`.
+- **Tests:** `python3 -m pytest tests/test_pipeline_characterization.py -q` → 10 passed. Legacy `test_pipeline.py` untouched.
+- Fixes per Review: präzises `== "needs_clarification"` (nicht OR; priority: questions vor gaps), BUILD_LOG-Eintrag hinzugefügt.
+
+**4 Linsen + Selbstkontrolle (CLAUDE.md DoD):** L1 Wahrheit (reale Konstruktoren + live Gate-Checks), L2 kein Drift (Docstring-Priorität == Code), L3 Naht geschützt (Seam explicit), L4 scoped (keine Feature-Creep, nur echte Lücken). BUILD-Eintrag + Audit erfüllt. Abgleich GENESIS_PLATFORM_PLAN (Quality-Engine) abgeschlossen. Isolation: standalone mit pre-existing repo files.
