@@ -1349,19 +1349,21 @@ def aethon_urdf(name: str = "aethon", *, dexterous_hands: bool = True,
         lk = ET.SubElement(robot, "link", {"name": palm})
         _add_inertial(lk, _MASS["palm"], _box_inertia(_MASS["palm"], pxh, pyh, pzh), xyz=(0.0, 0.0, -pzh / 2.0))
         _add_box(lk, "collision", (pxh, pyh, pzh), xyz=(0.0, 0.0, -pzh / 2.0))
-        _e = ET.SubElement(lk, "visual")
-        ET.SubElement(_e, "origin", {"xyz": f"0 0 {-pzh / 2.0:g}", "rpy": "0 0 0"})
-        ET.SubElement(ET.SubElement(_e, "geometry"), "box",
-                      {"size": f"{pxh:g} {pyh:g} {pzh:g}"})
-        if _styled:
-            _material(_e, "mat_shell", _COL["shell"])
-            # KNUCKLE ridge: a raised metacarpal bar across the finger-root end of the palm (the dark
-            # machined knuckle block the four fingers hinge from) + a thumb-base boss — turns the bare
-            # palm slab into a structured hand. VISUAL ONLY.
-            _colorize(_add_box(lk, "visual", (pxh * 0.9, pyh * 0.95, pzh * 0.5),
-                               xyz=(0.0, 0.0, -pzh - pzh * 0.25)), _COL["joint"])
-            _colorize(_add_box(lk, "visual", (pxh * 0.7, pyh * 0.28, pzh * 0.7),
-                               xyz=(0.0, -pyh * 0.42, -pzh * 0.5)), _COL["joint"])  # thumb-base boss
+        if _have("palm"):
+            # RE-AUTHORED hand: a real contoured hand-BACK shell (metacarpal knuckle block + thumb web +
+            # tendon grooves + wrist cuff) replaces the bare palm box. Its local frame matches the palm
+            # link (wrist face at z=0, hand to z=−PALM_Z, +X toward the fingertips, −Y the thumb side), so
+            # it mounts at the link origin. VISUAL ONLY — collision box + finger physics unchanged.
+            _add_mesh_visual(lk, "palm", _COL["shell"], xyz=(0.0, 0.0, 0.0))
+            # the dark wrist-roll hub showing in the cuff (exposed mechanics) — a short cylinder along the
+            # wrist X-roll axis, seated at the wrist end of the back.
+            _add_hub(lk, 0.028, 0.013, _COL["joint"], xyz=(-pxh * 0.37, 0.0, -pzh * 0.5),
+                     rpy=(0.0, 1.5708, 0.0))
+        else:
+            _e = ET.SubElement(lk, "visual")
+            ET.SubElement(_e, "origin", {"xyz": f"0 0 {-pzh / 2.0:g}", "rpy": "0 0 0"})
+            ET.SubElement(ET.SubElement(_e, "geometry"), "box",
+                          {"size": f"{pxh:g} {pyh:g} {pzh:g}"})
         _joint(robot, f"{side}_wrist_roll", wl, palm, (0.0, 0.0, 0.0), _AX["roll"], effort=12.0)
         # five fingers off the palm front face (-z tip side, spread in y): thumb opposes
         if dexterous_hands:
@@ -1436,9 +1438,11 @@ def aethon_urdf(name: str = "aethon", *, dexterous_hands: bool = True,
                 # sculpted boot over the FLAT 240 mm sole (collision unchanged & flat → still ZMP-stable);
                 # the shell's flat underside sits on the sole's ground plane (z = -fz)
                 _add_mesh_visual(lk, "foot", _COL["frame"], xyz=(0.03, 0.0, -fz))
-                # a thin dark rubber sole pad just under the boot for contrast
-                _colorize(_add_box(lk, "visual", (fx, fy, 0.006),
-                                   xyz=(0.03, 0.0, -fz + 0.003)), _COL["sole"])
+                # NO separate flat sole-pad visual: the full-footprint black pad made the two close-set feet
+                # merge into one black rectangle that read as a cheap display BASE PLATE (R1→R5's most
+                # persistent flaw). The R5 boot shell is now a slimmer TAPERED shoe (≤92 mm) that reads as a
+                # discrete foot; its own bevelled underside is the contact. No flat plate. (Collision box is
+                # the unchanged flat 240×110 — physics-locked, ZMP-stable.)
             else:
                 _add_box(lk, "visual", (fx, fy, fz), xyz=(0.03, 0.0, -fz / 2.0))
         else:  # ablation: a stub cylinder (no flat sole) to show the box-foot cure matters

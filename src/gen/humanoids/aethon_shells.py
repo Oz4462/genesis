@@ -123,6 +123,39 @@ def _export(solid, path):
     return n
 
 
+# ── R4 micro-detail helpers (booleaned IN → watertight; sized to read as TEXTURE, not lumps) ─────────
+
+def _bolt_row(solid, *, plane, w_offset, points, r=1.6, depth=2.0, axis_into=-1.0):
+    """Cut a row of small recessed FASTENER bolt holes into a face (the Apollo/T1 hardware cue). ``plane``
+    is a CadQuery plane string ("XY"/"XZ"/"YZ"); ``points`` is a list of (u,v) centres on that workplane;
+    ``axis_into`` is the extrude sign (into the solid). Tiny → reads as a fastener, not a hole."""
+    for (u, v) in points:
+        try:
+            tool = (cq.Workplane(plane).workplane(offset=w_offset).center(u, v).circle(r)
+                    .extrude(axis_into * depth))
+            solid = _cut(solid, tool)
+        except Exception:
+            continue
+    return solid
+
+
+def _vent_louvres(solid, *, plane, w_offset, center, n, pitch, slot_w, slot_l, depth=2.2, axis_into=-1.0,
+                  horizontal=True):
+    """Cut a stack of fine VENT LOUVRE slots into a face (cooling-vent texture). ``center`` is (u,v); the
+    slots stack along v (horizontal=True → long axis = u) by ``pitch``. Booleaned IN → watertight."""
+    cu, cv = center
+    for k in range(n):
+        off = (k - (n - 1) / 2.0) * pitch
+        sw, sl = (slot_l, slot_w) if horizontal else (slot_w, slot_l)
+        try:
+            tool = (cq.Workplane(plane).workplane(offset=w_offset).center(cu, cv + off)
+                    .rect(sw, sl).extrude(axis_into * depth))
+            solid = _cut(solid, tool)
+        except Exception:
+            continue
+    return solid
+
+
 # ── the shared HARD-SURFACE limb cover ────────────────────────────────────────────────────────────
 
 def _hard_limb(*, depth_top: float, width_top: float, depth_bot: float, width_bot: float, length: float,
@@ -146,29 +179,39 @@ def _hard_limb(*, depth_top: float, width_top: float, depth_bot: float, width_bo
     oval = (cq.Workplane("XY").ellipse(dt + 6, wt + 6)
             .workplane(offset=-length).ellipse(db + 6, wb + 6)
             .loft(combine=True))
-    # the clip box: constant section sized to the TOP (so the top is the full slab; the loft taper trims
-    # the lower part). Filleted vertical edges keep it hard-but-not-razor.
-    box = (cq.Workplane("XY").box(2 * dt, 2 * wt, length + 30).translate((0, 0, -length / 2.0))
+    # R2: FLATTER FRONT FACET — clip the depth (X) tighter (1.62·dt vs 2·dt) so the front and back read as
+    # distinctly FLAT plated faces, not a round tube, at hero distance. Width (Y) keeps the full slab.
+    box = (cq.Workplane("XY").box(1.62 * dt, 2 * wt, length + 30).translate((0, 0, -length / 2.0))
            .edges("|Z").fillet(edge_r))
     s = oval.intersect(box)
     s = _safe_fillet(s, ">Z", end_r)
     s = _safe_fillet(s, "<Z", end_r * 0.85)
 
-    fx = dt  # the front face x (approx; the box front facet sits near x=+dt)
+    fx = 0.81 * dt  # the front face x (the flatter clip box front facet sits near x=+0.81·dt)
     if front_panel:
-        # two vertical border grooves framing a raised central front panel (the defining cover detail)
+        # R2: a RAISED central front PLATE (relief) framed by two deeper border grooves — reads as a real
+        # bolted-on panel at distance, not just scribed lines. The plate is a thin proud slab (union); the
+        # grooves bite deeper/wider around it (cut).
         zc = -length * 0.5
-        zh = length * 0.60
-        ph = wt * 0.62  # half the panel width
+        zh = length * 0.62
+        ph = wt * 0.58  # half the panel width
+        plate = (cq.Workplane("XY").workplane(offset=zc + zh / 2.0)
+                 .center(fx - 0.5, 0).rect(3.0, 2 * ph).extrude(-zh))
+        s = _union(s, plate)
         for yy in (ph, -ph):
             groove = (cq.Workplane("XY").workplane(offset=zc + zh / 2.0)
-                      .center(fx, yy).rect(6.0, 3.0).extrude(-zh))
+                      .center(fx, yy).rect(8.0, 4.5).extrude(-zh))
             s = _cut(s, groove)
+        # R3: TWO transverse panel-break grooves (at ~1/3 and ~2/3 length) so each limb reads as 3 stacked
+        # panels (the Apollo panel-density cue), not one smooth cover.
+        for fr in (0.36, 0.68):
+            s = _cut(s, (cq.Workplane("XZ").workplane(offset=-fx).center(0, -length * fr).rect(4.0, 2 * ph)
+                         .extrude(7.0)))
     if seam:
-        # a parting groove down each Y flank — the front/back half-cover split line
+        # R2: DEEPER parting groove down each Y flank — the front/back half-cover split (reads at distance)
         for sy in (1, -1):
             g = (cq.Workplane("XY").workplane(offset=-10.0)
-                 .center(0, sy * wt).rect(8.0, 4.0).extrude(-(length - 20.0)))
+                 .center(0, sy * wt).rect(11.0, 5.5).extrude(-(length - 20.0)))
             s = _cut(s, g)
     if rib_z is not None:
         # a raised structural cross-rib band across the front (union — never opens the solid)
@@ -184,6 +227,21 @@ def _hard_limb(*, depth_top: float, width_top: float, depth_bot: float, width_bo
         ring = (cq.Workplane("XY").workplane(offset=-(length - 10.0))
                 .rect(2 * db + 8, 2 * wb + 8).rect(2 * db - 12, 2 * wb - 12).extrude(11.0))
         s = _cut(s, ring)
+    # R4 MICRO-DETAIL: a row of small FASTENER bolts down each side of the raised front plate (reads as a
+    # bolted-on cover at hero distance — the Apollo hardware cue). Booleaned IN → watertight.
+    if front_panel:
+        zc = -length * 0.5
+        ph = wt * 0.58
+        pts = [(fx + 1.0, z) for z in (zc + length * 0.30, zc, zc - length * 0.30)]
+        pts = [(x, y) for (x, y) in pts]
+        # bolts along both plate edges (±ph in Y) at three heights
+        bolts = []
+        for zz in (-length * 0.20, -length * 0.5, -length * 0.80):
+            for yy in (ph - 2.0, -(ph - 2.0)):
+                bolts.append((zz, yy))
+        for (zz, yy) in bolts:
+            tool = (cq.Workplane("XY").workplane(offset=zz).center(fx + 1.0, yy).circle(1.5).extrude(-2.2))
+            s = _cut(s, tool)
     return s
 
 
@@ -221,6 +279,66 @@ def forearm_shell():
                       edge_r=13, rib_z=-150)
 
 
+# ── hand: a real contoured PALM/hand-back with a metacarpal knuckle block + thumb web ───────────────
+# RE-AUTHORED in Round 1: the old hand read as a blocky lump (URDF palm box + raised knuckle box + thumb
+# boss). This builds a genuine hand BACK shell — a contoured slab (rounded back, tapered toward the wrist,
+# widening at the knuckles), a METACARPAL knuckle ridge the four fingers hinge from (with four hinge
+# saddles), a defined THUMB WEB ramp on the −Y side, knuckle tendon grooves and a wrist cuff. VISUAL ONLY:
+# the palm collision box + finger collision/inertials/joints are byte-identical; this is mounted as the
+# palm VISUAL in place of the bare box. Local frame MATCHES the URDF palm box: wrist face at z=0, the hand
+# extends to z=-PALM_Z, fingers root off the +X / −z far edge; +X = the back-of-hand/finger-point side,
+# −Y = the thumb side (the thumb is spread[0] at −pyh·0.38). Units mm.
+PALM_X = 50.0    # length  (wrist→knuckles, local X) — matches _DIM['palm'][0]·1000
+PALM_Y = 85.0    # width   (across the 5 fingers, local Y)
+PALM_Z = 22.0    # thickness (back→palm, local Z)
+
+
+def palm_shell():
+    """A real hand BACK: a contoured slab with a metacarpal knuckle block (4 finger saddles), a thumb-web
+    ramp and a wrist cuff. Authored in the URDF palm frame (wrist at z=0, hand to z=−PALM_Z, +X toward the
+    fingertips, −Y the thumb side). Watertight by construction (ellipse∩box + interior unions/cuts)."""
+    _need()
+    hx, hy, hz = PALM_X * 0.5, PALM_Y * 0.5, PALM_Z
+    # contoured hand back: an ellipse stack (narrow at the wrist, widest at the knuckles) → a hand fan
+    # shape, lofted down −Z then intersected with a thin clip box so the back is a flat-faceted plate.
+    oval = (cq.Workplane("XY")
+            .workplane(offset=0).center(-hx * 0.30, 0).ellipse(hx * 0.72, hy * 0.66)   # wrist (narrow)
+            .workplane(offset=-hz * 0.5).center(hx * 0.30, 0).ellipse(hx * 0.95, hy * 0.95)  # palm
+            .workplane(offset=-hz * 0.5).center(hx * 0.55, 0).ellipse(hx * 0.80, hy * 1.02)  # knuckles
+            .loft(combine=True))
+    box = (cq.Workplane("XY").box(PALM_X + 14, PALM_Y + 6, PALM_Z).translate((6, 0, -hz * 0.5))
+           .edges("|Z").fillet(10))
+    s = oval.intersect(box)
+    s = _safe_fillet(s, ">Z", 6)
+    # METACARPAL KNUCKLE BLOCK: a raised dark-reading ridge across the finger end (+X far edge), at the
+    # palm bottom (−z), where the four fingers hinge. A box union with four shallow hinge saddles cut in.
+    knuckle = (cq.Workplane("XY").workplane(offset=-hz + 1.0)
+               .center(hx * 0.62, 0).box(13.0, PALM_Y * 0.92, 12.0).edges("|Z").fillet(3.0))
+    s = _union(s, knuckle)
+    # four finger hinge saddles (shallow transverse grooves) across the knuckle block so it reads as four
+    # separate knuckles, not one bar — at the index/middle/ring/pinky y positions (thumb is the −Y end).
+    for yo in (-PALM_Y * 0.19, 0.0, PALM_Y * 0.19, PALM_Y * 0.38):
+        saddle = (cq.Workplane("XZ").workplane(offset=-yo)
+                  .center(hx * 0.62, -hz + 1.0).rect(8.0, 4.0).extrude(8.0, both=True))
+        s = _cut(s, saddle)
+    # THUMB WEB: a raised ramp boss on the −Y side at the wrist-third of the palm (the thenar eminence) so
+    # the opposable thumb springs from a real web, not a flat edge.
+    web = (cq.Workplane("XY").workplane(offset=-hz * 0.5)
+           .center(hx * 0.05, -hy * 0.82).box(26.0, 18.0, 16.0).edges("|Z").fillet(6.0))
+    s = _union(s, web)
+    # KNUCKLE TENDON GROOVES on the back (four shallow grooves running from the wrist toward each finger)
+    for yo in (-PALM_Y * 0.19, 0.0, PALM_Y * 0.19, PALM_Y * 0.38):
+        groove = (cq.Workplane("XY").workplane(offset=0.5)
+                  .center(hx * 0.15, yo).rect(PALM_X * 0.55, 2.4).extrude(-3.0))
+        s = _cut(s, groove)
+    # WRIST CUFF: a recessed transverse groove at the wrist end (−X) so the wrist-roll hub reads as
+    # seating into a collar (a simple solid-cut groove — robust, stays watertight).
+    cuff = (cq.Workplane("XY").workplane(offset=0.5)
+            .center(-hx * 0.74, 0).rect(5.0, PALM_Y * 0.66).extrude(-4.0))
+    s = _cut(s, cuff)
+    return s
+
+
 # ── torso: a real chest + back CUIRASS ────────────────────────────────────────────────────────────
 
 def torso_shell():
@@ -234,13 +352,18 @@ def torso_shell():
     # ABSOLUTE z = 6, 95, 175, 222, 262, 292 mm. The last two sections are a NECK/COLLAR RISER that climbs
     # from the shoulder line up toward the neck joint (torso link is 300 mm tall) so the chest flows into a
     # collar instead of leaving a bare-torso gap below the head (the neck hub + head sit just above 292 mm).
+    # R2 reshape: a real ATHLETIC V-taper — a PINCHED WAIST (lower ellipses pulled IN hard) under a broad
+    # chest, so the midsection reads lean and the legs look longer (the R1→R2 torso-too-long fix). The
+    # broadest point stays at mid-chest; the waist is a clear pinch above the hip girdle. Front depth (X)
+    # is reduced too so the chest reads flatter/plated under the clip box (deeper facet).
     oval = (cq.Workplane("XY")
-            .workplane(offset=6).ellipse(64, 98)        # z=6   waist
-            .workplane(offset=89).ellipse(78, 124)       # z=95  belly / lower chest
-            .workplane(offset=80).ellipse(84, 132)       # z=175 mid-chest (broadest)
-            .workplane(offset=47).ellipse(70, 116)       # z=222 shoulder line (still broad)
-            .workplane(offset=40).ellipse(52, 80)        # z=262 upper-chest / clavicle (narrowing)
-            .workplane(offset=30).ellipse(34, 46)        # z=292 collar base (the neck emerges from here)
+            .workplane(offset=6).ellipse(50, 80)         # z=6   WAIST — pinched (was 64,98)
+            .workplane(offset=70).ellipse(58, 96)        # z=76  lower belly (rising)
+            .workplane(offset=70).ellipse(78, 128)       # z=146 chest (broadening)
+            .workplane(offset=44).ellipse(82, 134)       # z=190 mid/upper-chest (broadest)
+            .workplane(offset=42).ellipse(64, 112)       # z=232 shoulder line
+            .workplane(offset=34).ellipse(46, 74)        # z=266 upper-chest / clavicle (narrowing)
+            .workplane(offset=28).ellipse(32, 44)        # z=294 collar base (the neck emerges from here)
             .loft(combine=True))
     # clip box → flat chest (front +X) + flat back (−X) + flat-ish shoulder sides, hard vertical edges.
     # Taller now (to 300 mm) so the collar riser is included in the facet clip.
@@ -259,9 +382,25 @@ def torso_shell():
     _ = sternum
     # pectoral panel split: two vertical grooves framing the two pec panels on the chest
     for yy in (52, -52):
-        s = _cut(s, (cq.Workplane("XY").workplane(offset=150).center(fx, yy).rect(6.0, 3.0).extrude(-120)))
+        s = _cut(s, (cq.Workplane("XY").workplane(offset=150).center(fx, yy).rect(7.0, 4.0).extrude(-120)))
     # a horizontal lower-chest / abdominal seam (groove across the front)
-    s = _cut(s, (cq.Workplane("XZ").workplane(offset=-fx).center(0, 96).rect(3.0, 210.0).extrude(6.0)))
+    s = _cut(s, (cq.Workplane("XZ").workplane(offset=-fx).center(0, 96).rect(4.0, 210.0).extrude(6.0)))
+    # R3 chest PANEL DENSITY: a CLAVICLE break high on the chest + an upper-ab segmentation seam + two
+    # side-RIB VENT slots on each pec — turn the smooth white chest into a paneled mechanical cuirass.
+    s = _cut(s, (cq.Workplane("XZ").workplane(offset=-fx).center(0, 205).rect(3.5, 150.0).extrude(6.0)))  # clavicle
+    s = _cut(s, (cq.Workplane("XZ").workplane(offset=-fx).center(0, 70).rect(3.0, 170.0).extrude(6.0)))   # upper-ab
+    for zz, yy in ((150, 40), (132, 40), (150, -40), (132, -40)):   # pec rib-vent slots (4)
+        s = _cut(s, (cq.Workplane("XY").workplane(offset=zz).center(fx, yy).rect(5.0, 22.0).extrude(-4.0)))
+    # R4 MICRO-DETAIL: fine VENT LOUVRES on the lower-chest sides (cooling vents) + FASTENER bolt rows on
+    # the clavicle bar and along the sternum — Apollo-class hardware texture. Booleaned IN → watertight.
+    for sy in (1, -1):
+        s = _vent_louvres(s, plane="XZ", w_offset=-sy * 120.0, center=(0.0, 110.0), n=5, pitch=9.0,
+                          slot_w=2.4, slot_l=26.0, depth=3.0, axis_into=sy, horizontal=True)
+    # bolt row down the sternum centre + across the clavicle (small recessed heads)
+    for zz in (60, 95, 130, 165, 200):
+        s = _cut(s, (cq.Workplane("XY").workplane(offset=zz).center(fx + 1.0, 0).circle(1.7).extrude(-2.4)))
+    for yy in (-58, -30, 30, 58):  # clavicle bolt row
+        s = _cut(s, (cq.Workplane("XY").workplane(offset=205).center(fx + 1.0, yy).circle(1.6).extrude(-2.4)))
 
     # BACK (−X): a recessed spine channel + two scapula panel grooves.
     bx = -70.0
@@ -287,17 +426,22 @@ def pelvis_shell():
     front pelvic panel split and recessed SIDE hip-actuator wells (the big RMD-X10 hip pancakes seat into
     them, exposed). Centred on the pelvis origin."""
     _need()
-    s = (cq.Workplane("XY").box(90, 172, 100)
-         .edges("|Z").fillet(26).edges(">Z or <Z").fillet(12))
+    # R2: narrower hip girdle (was 90×172) so the waist→hip read is leaner and the legs look longer; a
+    # taller-than-wide block with a defined top rim (where the pinched torso waist seats) and chamfered
+    # bottom corners where the thighs swing out.
+    s = (cq.Workplane("XY").box(84, 150, 104)
+         .edges("|Z").fillet(24).edges(">Z or <Z").fillet(12))
     # recessed circular hip-actuator wells on each side (±Y) so the exposed hip pancake seats in a collar
     for sy in (1, -1):
-        well = (cq.Workplane("XZ").workplane(offset=sy * 86)
-                .center(0, 0).circle(42).extrude(-sy * 9))
+        well = (cq.Workplane("XZ").workplane(offset=sy * 75)
+                .center(0, 0).circle(40).extrude(-sy * 9))
         s = _cut(s, well)
-    # a front pelvic panel split (vertical groove pair) + a centre belt groove
-    for yy in (44, -44):
-        s = _cut(s, (cq.Workplane("XY").workplane(offset=44).center(45, yy).rect(5.0, 3.0).extrude(-72)))
-    s = _cut(s, (cq.Workplane("XZ").workplane(offset=-45).center(0, 0).rect(3.0, 150.0).extrude(5.0)))
+    # a front pelvic panel split (vertical groove pair, deeper) + a centre belt groove
+    for yy in (40, -40):
+        s = _cut(s, (cq.Workplane("XY").workplane(offset=46).center(42, yy).rect(6.0, 4.0).extrude(-76)))
+    s = _cut(s, (cq.Workplane("XZ").workplane(offset=-42).center(0, 0).rect(4.0, 130.0).extrude(6.0)))
+    # a top rim groove (where the torso waist seats into the girdle — reads as a real waist joint)
+    s = _cut(s, (cq.Workplane("XY").workplane(offset=44).rect(80, 146).rect(64, 120).extrude(5.0)))
     s = _safe_chamfer(s, "<Z", 1.5)
     return s
 
@@ -314,39 +458,49 @@ def head_shell():
     depth below the actual front cheek surface, so it reads as a flush sensor band, not a stuck-on plate.
     z is up; face is +X. Centred so the URDF places it at the head origin."""
     _need()
-    # DELTAS → ABSOLUTE z = -58, -20, 20, 58, 84 mm (a ~142 mm head). Oversize then clip to facet.
+    # R3: head ~8% LARGER (it read small atop the broad shoulders) + a NECK-GUARD COLLAR at the base so the
+    # neck stalk doesn't read fragile. DELTAS → ABSOLUTE z = -66, -24, 22, 64, 92 mm (a ~158 mm head).
     oval = (cq.Workplane("XY")
-            .workplane(offset=-58).ellipse(46, 42)        # chin
-            .workplane(offset=38).ellipse(60, 54)         # jaw
-            .workplane(offset=40).ellipse(70, 64)         # cheek / widest
-            .workplane(offset=38).ellipse(66, 60)         # cranium
-            .workplane(offset=26).ellipse(40, 36)         # crown
+            .workplane(offset=-66).ellipse(50, 46)        # chin
+            .workplane(offset=42).ellipse(65, 58)         # jaw
+            .workplane(offset=46).ellipse(76, 69)         # cheek / widest
+            .workplane(offset=42).ellipse(71, 65)         # cranium
+            .workplane(offset=28).ellipse(43, 39)         # crown
             .loft(combine=True))
     # clip box → flat cheeks/temples + a flat-ish face plane, hard-but-rounded vertical edges
-    box = (cq.Workplane("XY").box(120, 116, 168).translate((0, 0, 13)).edges("|Z").fillet(26))
+    box = (cq.Workplane("XY").box(130, 126, 184).translate((0, 0, 13)).edges("|Z").fillet(28))
     s = oval.intersect(box)
-    s = _safe_fillet(s, ">Z", 14)
-    s = _safe_fillet(s, "<Z", 9)
+    s = _safe_fillet(s, ">Z", 15)
+    s = _safe_fillet(s, "<Z", 10)
+    # NECK-GUARD COLLAR: a short faceted ring at the head base (z≈-66..-86) the neck emerges from, so the
+    # neck reads as guarded, not a bare stalk (union, watertight).
+    collar = (cq.Workplane("XY").workplane(offset=-86).ellipse(40, 38)
+              .workplane(offset=22).ellipse(52, 48).loft(combine=True))
+    collarbox = (cq.Workplane("XY").box(96, 92, 40).translate((0, 0, -72)).edges("|Z").fillet(22))
+    collar = collar.intersect(collarbox)
+    s = _union(s, collar)
 
-    # FLUSH VISOR: the clip box flattened the face to ~x=+60 across the eye band; cut a recessed band a
-    # controlled depth INTO that face (booleaned IN). The band spans the cheeks (Y) at eye height (z≈12).
-    # cut from a box whose OUTER face is flush with the cheek and that bites ~9 mm in.
-    face_x = 60.0
-    visor = (cq.Workplane("XY").workplane(offset=12.0)
-             .moveTo(face_x, 0).rect(18.0, 96.0).extrude(40.0, both=True))
+    # FLUSH VISOR: the larger clip box flattened the face to ~x=+65 across the eye band; cut a recessed
+    # band INTO that face (booleaned IN). The band sits at the URDF eye height (z≈14 in the shell frame =
+    # the URDF eyes at head-box z·0.62 minus the shell's +hz/2 mount lift). Spans the cheeks (Y).
+    face_x = 65.0
+    visor = (cq.Workplane("XY").workplane(offset=14.0)
+             .moveTo(face_x, 0).rect(20.0, 104.0).extrude(44.0, both=True))
     # move it so it bites 9 mm into the face (inner wall at x = face_x - 9), outer flush with cheek
     visor = visor.translate((-9.0, 0, 0))
     s = _cut(s, visor)
     # BROW ridge above + a CHIN/jaw step below (raised unions — frame the visor so the camera looks
-    # purposeful, not like a dent)
-    brow = (cq.Workplane("XY").workplane(offset=34.0).moveTo(face_x - 2, 0).rect(9.0, 90.0).extrude(8.0))
+    # purposeful, not like a dent). R3: a touch larger to match the bigger head.
+    brow = (cq.Workplane("XY").workplane(offset=38.0).moveTo(face_x - 2, 0).rect(10.0, 98.0).extrude(9.0))
     s = _union(s, brow)
-    chin = (cq.Workplane("XY").workplane(offset=-30.0).moveTo(face_x - 6, 0).rect(12.0, 72.0).extrude(9.0))
+    chin = (cq.Workplane("XY").workplane(offset=-33.0).moveTo(face_x - 6, 0).rect(13.0, 78.0).extrude(10.0))
     s = _union(s, chin)
+    # a faceted CROWN panel groove + two temple panel lines (R3 head panel density)
+    s = _cut(s, (cq.Workplane("XZ").workplane(offset=-face_x + 4).center(0, 60).rect(3.0, 70.0).extrude(8.0)))
     # SIDE SENSOR PODS at the temples (±Y) — small raised faceted bosses (union, watertight)
     for sy in (1, -1):
-        pod = (cq.Workplane("XY").workplane(offset=22.0)
-               .center(8.0, sy * 58.0).box(34, 22, 30).edges("|Z").fillet(7))
+        pod = (cq.Workplane("XY").workplane(offset=24.0)
+               .center(8.0, sy * 64.0).box(36, 24, 32).edges("|Z").fillet(7))
         s = _union(s, pod)
     s = _safe_fillet(s, ">X", 2.0)
     # left SOLID (a visual mesh; a solid head is trivially watertight and avoids fragile .shell()).
@@ -361,19 +515,31 @@ def shoulder_pauldron():
     armour-seam lip gives it a layered look. Mounts at the shoulder. The dome loft is watertight on its
     own (no box intersect — the earlier oversize clip box added nothing but a non-manifold sliver)."""
     _need()
-    # a slightly squared dome: the wider lower ellipses give it a shouldered (less hemispherical) read.
+    # R3: a LARGER, more SCULPTED shoulder cap that wraps the deltoid (extends DOWN the outside of the arm
+    # a touch) instead of a small dome nub. A squared dome (wide flat-ish lower ellipses) capped over the
+    # shoulder, then a deltoid SKIRT lobe added on the outboard/front so it reads as integrated armour.
     s = (cq.Workplane("XY")
-         .workplane(offset=0).ellipse(52, 50)
-         .workplane(offset=18).ellipse(49, 47)
+         .workplane(offset=-14).ellipse(58, 56)        # skirt base (extends below the shoulder line)
+         .workplane(offset=14).ellipse(60, 58)         # widest (the shoulder shelf)
+         .workplane(offset=18).ellipse(50, 48)
          .workplane(offset=22).ellipse(33, 32)
          .workplane(offset=16).ellipse(11, 11)
          .loft(combine=True))
-    s = _safe_fillet(s, "<Z", 3)
-    # a layered armour-seam ridge around the cap (raised ring via union — watertight, never opens the
-    # solid the way an annular cut can). A thin proud lip at the mid-height of the cap.
-    lip = (cq.Workplane("XY").workplane(offset=13).ellipse(47, 47)
-           .workplane(offset=4).ellipse(45, 45).loft(combine=True))
+    # clip the bottom flat-ish so the skirt has a hard lower rim (a designed armour edge, not a balloon)
+    clip = (cq.Workplane("XY").box(150, 150, 120).translate((0, 0, 60 - 16)).edges("|Z").fillet(40))
+    s = s.intersect(clip)
+    s = _safe_fillet(s, "<Z", 4)
+    # a layered ARMOUR-SEAM ridge around the cap (raised ring via union — watertight). A proud lip near the
+    # shelf height that reads as a two-piece pauldron.
+    lip = (cq.Workplane("XY").workplane(offset=12).ellipse(57, 55)
+           .workplane(offset=5).ellipse(54, 52).loft(combine=True))
     s = _union(s, lip)
+    # a second lower seam at the skirt base (more layered armour)
+    lip2 = (cq.Workplane("XY").workplane(offset=-6).ellipse(58, 56)
+            .workplane(offset=4).ellipse(55, 53).loft(combine=True))
+    s = _union(s, lip2)
+    # a shallow panel groove down the front of the cap (a centre split → reads as a shaped pauldron)
+    s = _cut(s, (cq.Workplane("XZ").workplane(offset=-50).center(0, 6).rect(3.0, 50.0).extrude(8.0)))
     return s
 
 
@@ -386,22 +552,35 @@ def foot_shell():
     forward (toe +X), z = up; the flat underside sits at z=0 so the visual sole stays coincident with the
     collision sole top."""
     _need()
-    base = (cq.Workplane("XY").box(240, 110, 30).translate((0, 0, 15)).edges("|Z").fillet(20))
-    base = _safe_fillet(base, ">Z", 9)
+    # R5: a SLIMMER, TAPERED shoe (NOT the full 240×110 flat collision slab) so the two close-set feet read
+    # as TWO discrete boots instead of merging into one black BASE PLATE. The flat collision box stays
+    # 240×110 (physics-locked, ZMP-stable); this VISIBLE boot is narrower (≤92 mm) with a tapered toe + a
+    # rounded heel + a contoured instep. A lofted plan-form (narrow heel → wide ball → tapered toe) clipped
+    # to a low slab gives a real shoe outline. Underside flat at z=0 (coincident with the sole top).
+    plan = (cq.Workplane("XY")
+            .workplane(offset=0).center(-104, 0).ellipse(20, 38)      # heel (rounded, narrow)
+            .workplane(offset=86).center(-18, 0).ellipse(70, 46)      # arch→ball (widest ≤92 mm)
+            .workplane(offset=92).center(74, 0).ellipse(50, 40)       # ball→toe
+            .workplane(offset=46).center(120, 0).ellipse(8, 28)       # toe tip (tapered)
+            .loft(combine=True))
+    # low slab clip: keep it a flat-bottomed shoe ~30 mm tall, hard-ish edges
+    slab = (cq.Workplane("XY").box(260, 92, 30).translate((6, 0, 15)).edges("|Z").fillet(14))
+    base = plan.intersect(slab)
+    base = _safe_fillet(base, ">Z", 8)
     # ankle collar / instep hump (faceted): a clipped lofted hump where the ankle actuator seats
     hump = (cq.Workplane("XY")
-            .workplane(offset=20).ellipse(80, 52)
-            .workplane(offset=24).ellipse(66, 44)
-            .workplane(offset=20).ellipse(32, 24)
-            .loft(combine=True).translate((-12, 0, 0)))
-    humpbox = (cq.Workplane("XY").box(150, 96, 90).translate((-12, 0, 40)).edges("|Z").fillet(20))
+            .workplane(offset=20).ellipse(74, 46)
+            .workplane(offset=24).ellipse(60, 40)
+            .workplane(offset=20).ellipse(30, 22)
+            .loft(combine=True).translate((-10, 0, 0)))
+    humpbox = (cq.Workplane("XY").box(140, 84, 90).translate((-10, 0, 40)).edges("|Z").fillet(18))
     hump = hump.intersect(humpbox)
     foot = _union(base, hump)
-    foot = _safe_fillet(foot, ">Z", 7)
+    foot = _safe_fillet(foot, ">Z", 6)
     # TOE-CAP split: a transverse groove across the forefoot separating the toe cap from the mid-foot
-    foot = _cut(foot, (cq.Workplane("YZ").workplane(offset=58).center(0, 16).rect(34, 4.0).extrude(112)))
+    foot = _cut(foot, (cq.Workplane("YZ").workplane(offset=64).center(0, 14).rect(30, 4.0).extrude(96)))
     # a heel counter groove (transverse, at the back)
-    foot = _cut(foot, (cq.Workplane("YZ").workplane(offset=-92).center(0, 16).rect(28, 3.0).extrude(108)))
+    foot = _cut(foot, (cq.Workplane("YZ").workplane(offset=-86).center(0, 14).rect(24, 3.0).extrude(92)))
     # sole-edge bevel
     foot = _safe_chamfer(foot, "<Z", 2.0)
     return foot
@@ -417,6 +596,7 @@ SHELLS = {
     "farm": forearm_shell,
     "pauldron": shoulder_pauldron,
     "foot": foot_shell,
+    "palm": palm_shell,
 }
 
 
