@@ -253,3 +253,19 @@ ein fehlendes Item, nicht-signiertes FAILED-Gate und leeres Packet ohne Mensch s
 14 neue Tests (inkl. 2 Hypothesis-Properties) grün, Legacy-Test (9) unverändert grün. Modul war
 bereits korrekt → keine Quell-Edits („change nothing if correct"). 4 Linsen angewendet. Details:
 `docs/audit/DEPTH_AUDIT_ratification.md`.
+
+---
+
+## 2026-06-24 — Depth-Audit T04: reality.py (GATE δ⁺ reality proof) (VERDICT: REAL)
+Tiefen-Audit des deterministischen Reality-Proofs. Charakterisierungstest
+(`tests/test_reality_characterization.py`, 25 Tests grün, offline) beweist als Facade-Killer:
+(a) das Verdikt ist AUS DEN ZAHLEN GERECHNET, kein Konstanten-Stub — Residuum trackt den
+gesweepten Messwert (≥4 verschiedene Werte == `|measured−predicted|`), die Toleranz-Grenze
+flippt den Status inklusiv, und die Einheiten-Skala konvertiert echt (1.5 m == 150 cm ==
+1500 mm korroborieren, 1600 mm → 1.6 m widerlegt); (b) jede Abstention/Fail-loud feuert exakt —
+INCONCLUSIVE bei Dimensions-Mismatch/unparsbar/keine-SI-Skala/keine-Provenance/nicht-finit, und
+`gate_delta_plus` mit allen vier Codes (GROUNDING_UNKNOWN_CLAIM/EXPERIMENT_MISMATCH/
+UNSOURCED_MEASUREMENT/DEAD_MEASUREMENT_SOURCE), Akkumulation ohne Short-Circuit und dem
+Schlüssel-Vertrag „REFUTED lässt das Gate bestehen". Hypothesis-Properties: Residuum==Distanz +
+Status 1:1, m↔cm/mm-Round-Trip, Determinismus (A5). KEINE Quellcode-Änderung nötig (Modul war
+bereits korrekt). 4 Linsen angewendet. Details: `docs/audit/DEPTH_AUDIT_reality.md`.
