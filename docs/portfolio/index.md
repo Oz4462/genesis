@@ -11,22 +11,22 @@
 ```mermaid
 kanban
   done
-    nT01[T01: Depth-audit + fix physics_validation.py (GATE δ-physics aggregator)]
-    nT02[T02: Depth-audit + fix pipeline.py (assess_specification honest verdict)]
-    nT03[T03: Depth-audit + fix plate_bending.py (Kirchhoff circular-plate closed forms)]
-    nT04[T04: Depth-audit + fix plate_hole.py (FEM-computed Kt vs Kirsch bound)]
-    nT05[T05: Depth-audit + fix pressure_vessel.py (hoop-stress closed forms)]
+    nT01[T01: Depth-audit printability.py (FDM design-rule validators)]
+    nT02[T02: Depth-audit proof_kernels.py (z3 QF_NRA identity decision procedure)]
+    nT03[T03: Depth-audit ratification.py (human-in-the-loop sign-off gate)]
+    nT04[T04: Depth-audit reality.py (GATE δ⁺ reality proof)]
+    nT05[T05: Depth-audit refinement.py (verify→refine bounded loop)]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | Depth-audit + fix physics_validation.py (GATE δ-physics aggregator) | done | claude | feature |
-| T02 | Depth-audit + fix pipeline.py (assess_specification honest verdict) | done | grok | feature |
-| T03 | Depth-audit + fix plate_bending.py (Kirchhoff circular-plate closed forms) | done | claude | feature |
-| T04 | Depth-audit + fix plate_hole.py (FEM-computed Kt vs Kirsch bound) | done | claude | feature |
-| T05 | Depth-audit + fix pressure_vessel.py (hoop-stress closed forms) | done | grok | feature |
+| T01 | Depth-audit printability.py (FDM design-rule validators) | done | claude | feature |
+| T02 | Depth-audit proof_kernels.py (z3 QF_NRA identity decision procedure) | done | grok | feature |
+| T03 | Depth-audit ratification.py (human-in-the-loop sign-off gate) | done | claude | feature |
+| T04 | Depth-audit reality.py (GATE δ⁺ reality proof) | done | claude | feature |
+| T05 | Depth-audit refinement.py (verify→refine bounded loop) | done | claude | feature |
 
 ## Decisions
 
@@ -330,6 +330,15 @@ kanban
 - (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (standing 2026-06-23 team decision); each task's honest verdict (REAL/PARTIAL/FACADE + what was made real) + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (the integrator consolidates into BUILD_LOG at merge).
 - (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (Specification/Quantity/Constraint/Claim) and core/interfaces.py (GateResult/GateFailure) and each module's real signatures (PhysicsCheck, plate_bending_check, pressure_vessel_check) — read them, never invent fields — and use only stdlib + already-declared deps (numpy already declared for plate_hole).
 - (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess in the always-run path, matching the historical test→claude routing.
+- (2026-06-24) Split strictly by module (printability / proof_kernels / ratification / reality / refinement): disjoint source paths, each gets a uniquely-named tests/test_<module>_characterization.py + docs/audit/DEPTH_AUDIT_<module>.md — zero path collision across worktrees.
+- (2026-06-24) New test files take the _characterization suffix because every module already has a legacy test on main (test_printability.py, test_proof_kernels.py, test_ratification.py, test_reality.py, test_refinement.py); the new file is the authoritative facade-detector and leaves legacy tests untouched (no churn).
+- (2026-06-24) All five modules read as REAL on inspection, so each task edits its source ONLY where the new characterization test exposes a genuine defect (missing guard, silent wrong/constant value, dead input) — never blanket feature-creep — upholding 'change nothing if correct' and 'keine stillen Defaults'.
+- (2026-06-24) printability's numeric checks are cross-checked against their CLOSED FORM so the numbers are proven computed not echoed: every safety_factor == quantity/limit exactly, bridge/layer-adhesion safety_factor==inf at zero load, layer_adhesion allowed_stress == z_retention*base_strength — and the full set of documented ValueErrors (negative span, unknown fit/kind, non-positive diameter/strength, z_retention outside (0,1], compression/negative stress) is the mandatory negative battery.
+- (2026-06-24) proof_kernels depends on the optional z3 'smt' extra: the test pytest.importorskip('z3') at module top so the full pytest gate stays green where the extra is absent, while really exercising that a TRUE polynomial identity → 'proved' (from z3 UNSAT), a FALSE one → 'refuted' WITH a counterexample, a non-polynomial node (sin) and a declared predicate → 'unsupported', and LeanKernelStub always abstains — proving z3 decides, not a constant.
+- (2026-06-24) ratification, reality and refinement are pure stdlib/core-only so their characterization tests run the full headline claim end-to-end with no optional dep and no network/subprocess.
+- (2026-06-24) BUILD_LOG.md is appended by each task with a short honest entry, but the primary per-module verdict (REAL/PARTIAL/FACADE + what was made real) lives in its own docs/audit/DEPTH_AUDIT_<module>.md to keep the merge clean; the integrator consolidates at merge (a BUILD_LOG conflict is a tolerated trivial merge point, excluded from each task's test-pass criteria).
+- (2026-06-24) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (Specification/Decision/FalsificationExperiment/Measurement/EmpiricalVerdict/EmpiricalStatus/Claim/SourceRef/RunState/Question) and core/interfaces.py (GateResult/GateFailure) — read them, never invent fields — and use only stdlib + already-declared deps (sympy/z3 already declared for proof_kernels).
+- (2026-06-24) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess in the always-run path, matching the historical test→claude routing.
 
 ### Architecture Decision Records
 
@@ -370,20 +379,21 @@ kanban
 - 0035. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0036. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0037. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0038. Depth-audit AND FIX (genesis overnight loop). For each modul
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 30 |
-| Tasks (total) | 141 |
-| Done | 139 |
+| Runs | 31 |
+| Tasks (total) | 146 |
+| Done | 144 |
 | Blocked | 1 |
 | Resolved rate | 99% |
 | Blocked rate | 1% |
-| Merges | 19 |
-| Avg duration | 69.5m |
-| Total cost | 364.16 |
+| Merges | 20 |
+| Avg duration | 69.7m |
+| Total cost | 379.31 |
 
 ## Architecture
 
@@ -399,6 +409,18 @@ graph TD
 
 Recent commits:
 
+- `991b53a crew: resolve merge conflict for crew/T05-claude`
+- `95acfcb crew: resolve merge conflict for crew/T04-claude`
+- `2b4354b crew: resolve merge conflict for crew/T03-claude`
+- `2b7ff78 crew: resolve merge conflict for crew/T02-grok`
+- `190af0e crew(claude): T05 Depth-audit refinement.py (verify→refine bounded loop) [round 1]`
+- `4fded6f crew(claude): T04 Depth-audit reality.py (GATE δ⁺ reality proof) [round 1]`
+- `c10258d crew(grok): T02 Depth-audit proof_kernels.py (z3 QF_NRA identity decision procedure) [round 2]`
+- `5853d7d crew(claude): T03 Depth-audit ratification.py (human-in-the-loop sign-off gate) [round 1]`
+- `2bad9d2 crew(grok): T02 Depth-audit proof_kernels.py (z3 QF_NRA identity decision procedure) [round 1]`
+- `b2f70b1 crew(claude): T01 Depth-audit printability.py (FDM design-rule validators) [round 1]`
+- `684c719 Merge branch 'crew/integration'`
+- `f1ba5ac crew: scaffold CI/CD + project config`
 - `37cac1d crew: resolve merge conflict for crew/T05-grok`
 - `e0eec04 Merge branch 'crew/T04-claude' into crew/integration`
 - `f044ae3 Merge branch 'crew/T03-claude' into crew/integration`
@@ -407,18 +429,6 @@ Recent commits:
 - `4f635b4 crew(grok): T05 Depth-audit + fix pressure_vessel.py (hoop-stress closed forms) [round 2]`
 - `d59c3c6 crew(grok): T05 Depth-audit + fix pressure_vessel.py (hoop-stress closed forms) [round 1]`
 - `c0c4024 crew(claude): T04 Depth-audit + fix plate_hole.py (FEM-computed Kt vs Kirsch bound) [round 1]`
-- `ef5c4aa crew(grok): T02 autofix [round 3]`
-- `b54ed84 crew(grok): T02 Depth-audit + fix pipeline.py (assess_specification honest verdict) [round 3]`
-- `8c3131f crew(claude): T03 Depth-audit + fix plate_bending.py (Kirchhoff circular-plate closed forms) [round 1]`
-- `fdd31b8 crew(grok): T02 Depth-audit + fix pipeline.py (assess_specification honest verdict) [round 2]`
-- `57260ba crew(claude): T01 round 2 — harden physics_validation property test`
-- `dfdc4aa crew(claude): T01 Depth-audit + fix physics_validation.py (GATE δ-physics aggregator) [round 1]`
-- `e0e934f crew(grok): T02 Depth-audit + fix pipeline.py (assess_specification honest verdict) [round 1]`
-- `0ebd0d3 Merge branch 'crew/integration'`
-- `fff2753 crew: scaffold CI/CD + project config`
-- `3334805 crew: resolve merge conflict for crew/T05-grok`
-- `2ded89e crew: resolve merge conflict for crew/T03-grok`
-- `60a70f8 Merge branch 'crew/T04-claude' into crew/integration`
 
 
 ---
