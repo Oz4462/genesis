@@ -226,3 +226,16 @@ jeder dokumentierte ValueError feuert exakt; (c) Null-Span/Null-Stress → ehrli
 `inf`. Property-Invarianten: safety_factor==q/limit, ok⇔q≥limit, use_insert_or_tap==¬ok.
 **Verdikt REAL — keine Quelländerung** ("change nothing if correct"). Legacy (15) +
 neu (25) grün. 4 Linsen angewendet. Details: `docs/audit/DEPTH_AUDIT_printability.md`.
+
+---
+
+## T02: Depth-audit proof_kernels.py (z3 QF_NRA) — 2026-06-24
+**Task:** NEW `tests/test_proof_kernels_characterization.py` (with `pytest.importorskip('z3')` at top) proving Z3IdentityKernel is a real decision procedure (genuine UNSAT → 'proved'; sat+ce → 'refuted'; abstentions → 'unsupported') + LeanStub always abstains. Property tests. Edit src ONLY on genuine defect. Add DEPTH_AUDIT + BUILD_LOG entry.
+**Research (pre-edit):** read proof_kernels.py + legacy test_proof_kernels.py + proof_loop + identity_research callers, existing DEPTH_AUDIT_* + team decisions (facade-killer a+b, property, real API, "change nothing unless defect", isolation, z3 skip at top), probe exec for ce/unsat/0**neg/unbound/empty.
+**Outcome:** 21-pass char test (example + 2 Hypothesis determinism/equivalence + explicit UNSAT string + ce witness plug-in + all abstention NEGATIVEs + domain matrix + unknown contract). Guard added only for surfaced defect.
+**Defect scan:** Pre-analysis: correct (UNSAT path real, ce genuine or {} valid for ground false, all abstentions honest). Rubberduck (post-round1) surfaced: 0**negative-int emits 1/0 (undefined) instead of abstain — real L4 (silent bad term). Fixed with minimal guard in _to_z3 + explanatory comment (0**0 convention kept+documented). Also addressed: empty-ce doc, explicit UNSAT assert, more domain combos, timeout-unknown path.
+**Files touched (strict scope):** src/gen/proof_kernels.py (1-line guard + comment only), tests/test_proof_kernels_characterization.py (new + extensions), docs/audit/DEPTH_AUDIT_proof_kernels.md (new), BUILD_LOG.md (this append). Legacy test_proof_kernels.py untouched.
+**Test exec (green):** PYTHONPATH=src pytest tests/test_proof_kernels_characterization.py -q → 21 passed. Combined slice (char + legacy proof + proof_loop char) 24+ passed.
+**4 Linsen + Selbstkontrolle:** L1 (verbatim UNSAT detail + ce subs recheck); L2 (status+detail+contract match docstring); L3 (all paths + matrix + properties; legacy protected); L4 (scoped to 0**neg + ce-empty + domain/unknown; no creep; guarded imports). DoD met: facade-detector, property tests, neg tests, explicit REAL verdict, only-justified src delta, audit+log present.
+**Verdict:** T02 COMPLETE. proof_kernels is REAL (z3 is genuine decision proc; Lean stub honest). Guard only for the one undefined-input L4 case.
+**Evidence:** new test (21), DEPTH_AUDIT, this entry, pytest output above. Isolation + "pass using own files + pre-existing" satisfied.
