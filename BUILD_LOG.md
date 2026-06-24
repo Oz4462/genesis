@@ -214,3 +214,15 @@ fehlende/inkonsistente Daten → dokumentierter `ValueError`. Hypothesis-Propert
 + Recovery beliebiger Affin-Gesetze. KEINE Verhaltensänderung nötig (Modul war bereits korrekt);
 nur Modul-Docstring-Audit-Notiz ergänzt. 4 Linsen angewendet. Details:
 `docs/audit/symbolic_search.md`.
+
+## 2026-06-24 — Depth-Audit `printability.py` (FDM Design-Regeln) [T01]
+Charakterisierungs-Suite `tests/test_printability_characterization.py` (25 Tests,
+Hypothesis-property-based) für die 7 Closed-Form-FDM-Validatoren (bridge_span,
+fit_clearance, pin_diameter, thread_size, unsupported_wall, emboss_detail,
+layer_adhesion). Fassaden-Killer pro Validator: (a) Output skaliert nachweisbar mit
+dem treibenden Input (doppelter Span → halber safety_factor; fit/kind wählt echten
+Floor; allowed_stress = z_retention×base_strength) — kein gecanntes Konstant; (b)
+jeder dokumentierte ValueError feuert exakt; (c) Null-Span/Null-Stress → ehrliches
+`inf`. Property-Invarianten: safety_factor==q/limit, ok⇔q≥limit, use_insert_or_tap==¬ok.
+**Verdikt REAL — keine Quelländerung** ("change nothing if correct"). Legacy (15) +
+neu (25) grün. 4 Linsen angewendet. Details: `docs/audit/DEPTH_AUDIT_printability.md`.
