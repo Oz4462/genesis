@@ -193,7 +193,6 @@ def test_lean_stub_abstains_even_for_trivial_true_and_ignores_input():
 def test_different_identities_produce_meaningfully_different_results():
     """(a) Driving input changes -> status/kernel/detail differ. Proves consumption, not constant."""
     k = _k()
-    r_true = k.check(*_true_poly()[:2], variables={"x": "real"}, domain_id="R")  # wait, unpack properly below
     lhs_t, rhs_t, v_t, d_t = _true_poly()
     lhs_f, rhs_f, v_f, d_f = _false_poly()
     r_true = k.check(lhs_t, rhs_t, variables=v_t, domain_id=d_t)
@@ -274,3 +273,90 @@ def test_integer_and_positive_domains_are_respected():
     # positive forces >0 constraint; identity still holds
     r = k.check(sp.sympify("x"), sp.sympify("x"), variables={"x": "real"}, domain_id="R+")
     assert r.status == "proved"
+
+
+# ---------------------------------------------------------------------------
+# 7. Explicit genuine UNSAT wording + ground-constant ce validity (L1/L4)
+# ---------------------------------------------------------------------------
+
+def test_z3_proved_uses_exact_unsat_detail_string():
+    """The 'proved' result must carry the precise detail emitted on genuine z3 unsat.
+    This proves we are not faking 'proved' via heuristic."""
+    lhs, rhs, vars_, dom = _true_poly()
+    r = _k().check(lhs, rhs, variables=vars_, domain_id=dom)
+    assert r.status == "proved"
+    assert r.detail == "Not(lhs==rhs) is UNSAT over the declared domain"
+
+
+def test_refuted_ground_constant_falsehood_has_empty_ce_which_is_valid():
+    """When lhs-rhs reduces to a ground falsehood independent of vars (e.g. 0==1),
+    z3 produces sat on the negation with no var assignments needed -> ce={}.
+    This is correct (the identity is false for all assignments); not a missing ce bug.
+    We assert status=refuted and ce is not None (per public contract)."""
+    r = _k().check(sp.sympify("1"), sp.sympify("2"), variables={}, domain_id="R")
+    assert r.status == "refuted"
+    assert r.counterexample is not None  # may be {}; still valid universal refutation
+    # no var to assign; falsehood is unconditional
+
+
+# ---------------------------------------------------------------------------
+# 8. L4 edge: 0 ** negative is now explicitly unsupported (prevents 1/0 term)
+# ---------------------------------------------------------------------------
+
+def test_z3_abstains_on_zero_to_negative_power():
+    """0**(-k) is mathematically undefined; kernel must abstain rather than emit
+    ill-formed 1/0 term into z3 (which previously happened for Integer(0) base)."""
+    # Use unevaluated Pow to prevent sympy eager eval to ComplexInfinity
+    zero = sp.Integer(0)
+    neg1 = sp.Integer(-1)
+    lhs = sp.Pow(zero, neg1, evaluate=False)
+    rhs = sp.Integer(1)
+    r = _k().check(lhs, rhs, variables={}, domain_id="R")
+    assert r.status == "unsupported"
+    assert "0 raised to negative power" in r.detail
+
+
+def test_zero_to_zero_is_conventional_one():
+    """0**0 is treated as 1 (documented convention in source); kernel returns proved for 0**0==1."""
+    # unevaluated to ensure Pow node reaches _to_z3
+    zero = sp.Integer(0)
+    zero_exp = sp.Pow(zero, 0, evaluate=False)
+    r = _k().check(zero_exp, sp.Integer(1), variables={}, domain_id="R")
+    assert r.status == "proved"
+
+
+# ---------------------------------------------------------------------------
+# 9. Extended domain-constraint matrix (real/pos/int cross products)
+# ---------------------------------------------------------------------------
+
+def test_domain_constraint_matrix_variants():
+    """Covers combinations of var type (real/positive/integer) x domain_id (R/R+/N)
+    to ensure constraints are applied from both sources without silent misbehavior."""
+    k = _k()
+    # positive-typed var under R (type drives >0)
+    r = k.check(sp.sympify("p"), sp.sympify("p"), variables={"p": "positive"}, domain_id="R")
+    assert r.status == "proved"
+    # integer var under R+ (domain forces >=? but >0 for R+ takes precedence via or)
+    r = k.check(sp.sympify("n + 1"), sp.sympify("1 + n"), variables={"n": "integer"}, domain_id="R+")
+    assert r.status == "proved"
+    # real var under N (only >=0 if integer type; here no extra)
+    r = k.check(sp.sympify("x + 1"), sp.sympify("1 + x"), variables={"x": "real"}, domain_id="N")
+    assert r.status == "proved"
+
+
+# ---------------------------------------------------------------------------
+# 10. 'unknown' return path contract (timeout/incompleteness)
+# ---------------------------------------------------------------------------
+
+def test_z3_unknown_path_contract_is_supported():
+    """Z3 may return 'unknown' (timeout or incompleteness). The kernel reports it.
+    We exercise the public path; trivial identities decide fast so status may be
+    proved/refuted/unknown depending on z3 timing heuristics. We only assert
+    that 'unknown' if surfaced has the documented wording."""
+    k = Z3IdentityKernel(timeout_ms=0)  # extreme; fast cases often still answer
+    r = k.check(sp.sympify("(x+1)**2"), sp.sympify("x**2 + 2*x + 1"), variables={"x": "real"}, domain_id="R")
+    if r.status == "unknown":
+        assert "timeout" in r.detail or "incompleteness" in r.detail
+    else:
+        # acceptable: decided before timeout enforcement in this trivial case
+        assert r.status in ("proved", "refuted")
