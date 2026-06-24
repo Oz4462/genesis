@@ -176,28 +176,13 @@ def _hard_limb(*, depth_top: float, width_top: float, depth_bot: float, width_bo
                .center(fx - 1.0, 0).rect(7.0, 2 * wt - 16.0).extrude(-11.0).translate((3.0, 0, 0)))
         s = _union(s, rib)
     if cuff_top:
-        # recessed machined end-collar at the top (the exposed actuator hub seats into this rebate).
-        # WHY explicit outer-extrude then cut(inner-extrude): produces a true annular/holed rebate
-        # (frame cut) rather than relying on the chained .rect(outer).rect(inner).extrude() profile rule.
-        # The latter is a CadQuery idiom with no other use in src/; explicit cut makes the hole
-        # intention obvious, robust, and self-documenting. Watertight + mesh_integrity still guard
-        # the result but the construction itself now proves the topology.
-        off = -1.0
-        h = 11.0
-        outer = (cq.Workplane("XY").workplane(offset=off)
-                 .rect(2 * dt + 4, 2 * wt + 4).extrude(h))
-        inner = (cq.Workplane("XY").workplane(offset=off)
-                 .rect(2 * dt - 16, 2 * wt - 16).extrude(h))
-        ring = outer.cut(inner)
+        # recessed machined end-collar at the top (the exposed actuator hub seats into this rebate)
+        ring = (cq.Workplane("XY").workplane(offset=-1.0)
+                .rect(2 * dt + 4, 2 * wt + 4).rect(2 * dt - 16, 2 * wt - 16).extrude(11.0))
         s = _cut(s, ring)
     if cuff_bot:
-        off = -(length - 10.0)
-        h = 11.0
-        outer = (cq.Workplane("XY").workplane(offset=off)
-                 .rect(2 * db + 8, 2 * wb + 8).extrude(h))
-        inner = (cq.Workplane("XY").workplane(offset=off)
-                 .rect(2 * db - 12, 2 * wb - 12).extrude(h))
-        ring = outer.cut(inner)
+        ring = (cq.Workplane("XY").workplane(offset=-(length - 10.0))
+                .rect(2 * db + 8, 2 * wb + 8).rect(2 * db - 12, 2 * wb - 12).extrude(11.0))
         s = _cut(s, ring)
     return s
 
@@ -443,18 +428,9 @@ def build_all(out_dir: str) -> dict:
     STL triangle count + the consuming pipeline's mesh_integrity prove it for the written file. A single
     shell failing must not kill the rest (resilience contract)."""
     manifest = {}
-    # makedirs once, outside per-shell loop: avoids redundant calls (was inside loop on every shell).
-    # If dir creation itself fails we populate the full manifest with the root cause (no partial
-    # success, no files written) while still returning a manifest so callers see consistent error shape.
-    try:
-        os.makedirs(out_dir, exist_ok=True)
-    except Exception as exc:
-        for name in SHELLS:
-            manifest[name] = {"path": None, "error": f"mkdir {type(exc).__name__}: {exc}"}
-        return manifest
-
     for name, fn in SHELLS.items():
         try:
+            os.makedirs(out_dir, exist_ok=True)
             path = os.path.join(out_dir, f"aethon_{name}_shell.stl")
             solid = fn()
             n = _export(solid, path)

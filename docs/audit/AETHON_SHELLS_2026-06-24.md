@@ -19,15 +19,13 @@
 - Neuer `_safe_shell` (analog _safe_fillet) + Aufruf nach jedem Loft/Fillet/Union/Cut in **allen** Public Shell-Fns.
 - Jede Shell ist jetzt ein **hohler Exo-Shell** (äußere Silhouette erhalten, Innenwand offset um Wandstärke). Volumen sinkt dramatisch → weniger Filament, bessere Kühlung, echtes "shell".
 - `build_all`: nach `_export` wird `n < 1` als "empty mesh" Error im Manifest markiert + Datei wird entfernt. Garantiert triangles>0 oder Error-Eintrag.
-- makedirs(out_dir) aus dem per-Shell-Loop nach oben gezogen (einmalig vor der Schleife + frühe Fehler-Population des Manifests bei mkdir-Fehler); vermeidet redundante Aufrufe.
-- Cuff-Ring-Konstruktion (.rect(outer).rect(inner).extrude) durch explizites outer.cut(inner) ersetzt + Kommentar; macht das "gehoelte" Rebate-Volumen offensichtlich (nicht mehr nur von watertight-Tests abhängig).
 - Overhang-Reduktion: zusätzliche Fillets + Base-Chamfer auf pelvis (lower rim); Kommentare erklären WHY (loft profiles + fillet radii halten Oberflächenwinkel flach → weniger 45°-DFM-Verletzungen).
 - Import-Guard umgebaut: SystemExit nur noch bei tatsächlicher Nutzung (nicht beim Import). Ermöglicht unconditional MIN_WALL-Tests ohne cad.
 - Docstring aktualisiert: "hollow exo-shell", "triangles>0 garantiert", watertight-by-construction.
 - Keine Public-Signatur-Änderung — volle Rückwärtskompatibilität.
 
 ## Tests (neu: `tests/test_humanoids_aethon_shells.py`)
-- Unconditional (laufen ohne cad): `MIN_WALL_MM` Vertrag + Alignment mit dfm/print Regeln; Public API Surface; Error-Pfad von build_all (jetzt: alle Einträge mit mkdir-Exception-Typ, path=None, keine Dateien geschrieben).
+- Unconditional (laufen ohne cad): `MIN_WALL_MM` Vertrag + Alignment mit dfm/print Regeln; Public API Surface; Error-Pfad von build_all.
 - Cad-gated (via `pytest.importorskip("cadquery")`): build_all → positive tris + vollständiges Manifest; alle Shells → watertight (via mesh_integrity auf tesselliertem ASCII-STL des exakt gleichen Solids) + n_facets>0; Volumen-Sanity.
 - **Property-based**: `@given(st.sampled_from(...))` über alle 9 Shell-Namen → invariant "watertight && n_facets>0" für jedes.
 - Negative: RuntimeError bei Benutzung ohne _CAD_AVAILABLE (fail-loud, kein silent wrong mesh).
@@ -37,9 +35,9 @@ Alle Tests mit cad-Python + PYTHONPATH grün.
 
 ## 4 Linsen
 - **L1 (Wahrheit):** MIN_WALL explizit dokumentiert + Quellen-Referenz; watertight via mesh_integrity (Euler + edge-walk + signed volume) bewiesen; triangles>0 aus dem tatsächlichen Binary-Export gezählt.
-- **L2 (Drift):** Vorher: "watertight solid" im Docstring, aber solid=keine Wand. Jetzt: Hollow + MIN_WALL + "triangles>0 garantiert" im Code + Doc + Test. Kein silent Default mehr. Cuff-Konstruktion und makedirs-Placement jetzt im Code dokumentiert (kein "nur Test guard").
-- **L3 (Vollständigkeit/Naht):** Alle 9 Shells + build_all + Manifest-Fehlerpfad + Negative + Property über gesamten Domain abgedeckt. Naht zu printability/dfm (Wand-Regel) + mesh_integrity (STL-Beweis) explizit. Error-Test jetzt assertet Exception-Typ + "no files written".
-- **L4 (Realisierbarkeit):** Offline, deterministisch, kernel-gestützt aber mit Fallbacks (_safe_*). Shells bleiben druckbar selbst bei OCCT-Fillet/Shell-Abwehr (dickerer Fallback). Keine Blanket-NaN-Guards. Explizite Ring-Cut verbessert Robustheit der Cuff-Geometrie.
+- **L2 (Drift):** Vorher: "watertight solid" im Docstring, aber solid=keine Wand. Jetzt: Hollow + MIN_WALL + "triangles>0 garantiert" im Code + Doc + Test. Kein silent Default mehr.
+- **L3 (Vollständigkeit/Naht):** Alle 9 Shells + build_all + Manifest-Fehlerpfad + Negative + Property über gesamten Domain abgedeckt. Naht zu printability/dfm (Wand-Regel) + mesh_integrity (STL-Beweis) explizit.
+- **L4 (Realisierbarkeit):** Offline, deterministisch, kernel-gestützt aber mit Fallbacks (_safe_*). Shells bleiben druckbar selbst bei OCCT-Fillet/Shell-Abwehr (dickerer Fallback). Keine Blanket-NaN-Guards.
 
 **Keine Änderungen außerhalb des File-Scopes.** Task isoliert, reproduzierbar in eigenem Worktree.
 
