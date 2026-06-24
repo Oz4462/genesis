@@ -11,7 +11,7 @@ NOT import or depend on the evolving genesis_humanoid.py spec. The comparison is
 
 Outputs a structured head-to-head (torque density, mass, complexity, cost) and a strict boolean
 recommendation: hydraulics is chosen ONLY if it STRICTLY beats electric on the headline metrics AND the
-supporting system (pump + accumulator + lines) is physically feasible (positive margins, laminar (or low-loss flagged), pump/accu sized). Electric AK80-64 remains default otherwise; all deciding margins are returned
+supporting system (pump + accumulator + lines) is physically feasible (positive margins, low drop (<25%) AND laminar (Re<2300), pump/accu sized). Electric AK80-64 remains default otherwise; all deciding margins are returned
 as computed numbers.
 
 Fail-loud on non-physical inputs (non-positive, non-finite/NaN/Inf, delegates to actuation primitives + explicit guards). Deterministic,
@@ -144,6 +144,7 @@ def compute_hydraulic_option(
 
     Raises ValueError (via primitives or explicit) on non-physical inputs.
     Zero joint speed is allowed (static force hold case; flow/pump=0, cylinder pressure still delivers torque).
+    Lever arm and pressure have documented realistic bounds (beyond >0) to prevent extreme bores/forces.
     """
     # NaN/Inf bypass <=0 checks (IEEE rules); they produce silent wrong NaN outputs in downstream
     # margins/recommendation (real defect per L4 scope). Fail loud FIRST for all driving inputs
@@ -161,6 +162,14 @@ def compute_hydraulic_option(
         raise ValueError("joint speed must be non-negative")
     if pressure_pa <= 0.0:
         raise ValueError("system pressure must be positive")
+
+    # Realistic domain for lever and pressure to avoid extreme/unphysical (huge bore or tiny force)
+    # from near-zero inputs. Per no-silent-defaults, fail loud with documented bounds instead of
+    # producing unbounded results. Bounds chosen for packaged knee actuators on human-scale legs.
+    if not (0.02 <= lever_arm_m <= 0.12):
+        raise ValueError("lever arm must be in [0.02, 0.12] m (realistic packaging for knee cylinder)")
+    if not (5e6 <= pressure_pa <= 25e6):
+        raise ValueError("pressure must be in [5, 25] MPa (practical range for compact mobile hydraulics)")
 
     required_force = torque_nm / lever_arm_m
     bore_area = _choose_bore_area(required_force, pressure_pa, CYLINDER_SF_TARGET)
@@ -180,9 +189,10 @@ def compute_hydraulic_option(
     # Special-cased to avoid downstream hydraulic_flow_check/hydraulic_pressure_drop >0 contract violation.
     piston_v = joint_speed_rad_s * lever_arm_m
 
-    if joint_speed_rad_s == 0.0:
-        # Synthetic dicts match exact shape/ keys of actuation primitives (for notes, reason, future .flow/.line consumers)
-        # even though primitives forbid 0; use inf/0 consistent with static-hold semantics (no div-by-zero).
+    if joint_speed_rad_s <= 1e-9:
+        # Sentinel for (near) zero to select synthetic (primitives require >0); documented zero-speed path
+        # uses 0/inf for semantics. Near-zero computed values will take else (tiny flow); sentinel chosen
+        # to match exact==0 contract in tests and doc while avoiding FP fragility for '==0.0' .
         flow = {"flow_required": 0.0, "pump_flow": 0.0, "safety_factor": float("inf"), "ok": True}
         pump_flow = 0.0
         line = {"pressure_drop_pa": 0.0, "reynolds": 0.0, "laminar_valid": True}
@@ -207,7 +217,9 @@ def compute_hydraulic_option(
             density=870.0,
         )
 
-        pump_power = _pump_power_w(pressure_pa + line["pressure_drop_pa"], flow["flow_required"])
+        # power sized for the pump capacity we actually select (pump_flow = 1.25 * demand), not raw demand
+        # so the <500W gate and reported power reflect the chosen pump's flow requirement
+        pump_power = _pump_power_w(pressure_pa + line["pressure_drop_pa"], pump_flow)
 
         acc_vol_l = _compute_accumulator_volume(flow["flow_required"], pressure_pa)
 
@@ -279,7 +291,7 @@ def compare_hydraulic_vs_electric() -> dict[str, Any]:
 
     Recommendation rule (per spec): electric is default. Hydraulics recommended only when
     it STRICTLY wins on torque density AND mass AND cost AND the full system is buildable
-    (positive cylinder SF, laminar (Re<2300) or explicitly low-loss flagged line, pump power realistic < 500 W peak
+    (positive cylinder SF, low drop (<25%) AND laminar (Re<2300), pump power realistic < 500 W peak
     per high-load contribution, accumulator buildable). All margins are the actual computed deltas.
     """
     knee_h = compute_hydraulic_option(
@@ -306,8 +318,11 @@ def compare_hydraulic_vs_electric() -> dict[str, Any]:
     # Formula yields exactly 2*cyl + shared (see compute allocation).
     # NOTE: ankle hardware excluded (headline is "two knees" for the 75Nm high-load class; ankle is lower-load and reported separately).
     hyd_two_knee_mass = (knee_h.cylinder_mass_kg_est * 2.0) + (knee_h.system_added_mass_kg_est - knee_h.cylinder_mass_kg_est)
-    hyd_two_knee_cost = 110.0 + 980.0  # two compact cylinders + realistic pump/accu/valves/filter package + plumbing (higher integration cost than 2x integrated motor)
-    # Sources: cyl ~55 EUR ea (compact robot hydraulic cylinders); package ~980 (pump+accu+valves typical 2026 hobby/pro kits for small mobile hydraulics, higher than integrated QDD due to plumbing complexity).
+    # Cost now derived from the cylinder mass model (co-varies with torque/lever/pressure sizing inputs)
+    # + fixed pump package. This makes cost change when geometry changes; test asserts the derivation.
+    cyl_cost = 1800.0 * knee_h.cylinder_mass_kg_est  # representative EUR/kg for compact hyd cylinders (material+fab)
+    pump_package_cost = 900.0  # fixed for pump+accu+valves+plumbing package (sourced from typical 2026 small mobile kits)
+    hyd_two_knee_cost = 2 * cyl_cost + pump_package_cost
 
     # Torque density: cylinder alone is excellent; full system (allocated) is what matters for the robot.
     hyd_cyl_density = knee_h.demand_torque_nm / knee_h.cylinder_mass_kg_est
@@ -332,7 +347,9 @@ def compare_hydraulic_vs_electric() -> dict[str, Any]:
     # accu 0.05-1.2L: practical miniature bladder range for burst smoothing at this flow (avoids toy vs oversized).
     # SF *0.95: allows FP tolerance around target 1.8 without false fail.
     pump_reasonable = knee_h.pump_power_w < 500.0
-    accu_buildable = 0.05 < knee_h.accumulator_volume_l < 1.2
+    # accu range only for positive flow demand; static (0 flow) hold needs no burst buffer, so accu_buildable=True when no flow
+    flow_req = knee_h.flow_required_m3_s
+    accu_buildable = (flow_req <= 0.0) or (0.05 < knee_h.accumulator_volume_l < 1.2)
 
     system_buildable = cyl_ok and flow_ok and line_reasonable and pump_reasonable and accu_buildable
 

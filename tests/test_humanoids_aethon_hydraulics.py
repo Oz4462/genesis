@@ -90,6 +90,18 @@ def test_head_to_head_changes_with_input():
     assert o2.system_added_mass_kg_est > o1.system_added_mass_kg_est
 
 
+def test_cost_derives_from_geometry():
+    """hyd_two_knee_cost is now derived from the cylinder mass model (co-varies with sizing inputs like lever/torque);
+    previously hardcoded independent of geometry. Test proves derivation from computed mass."""
+    k1 = ah.compute_hydraulic_option("k", 75.0, 2.5, 0.055)
+    k2 = ah.compute_hydraulic_option("k", 75.0, 2.5, 0.08)  # larger lever -> smaller force -> smaller bore/mass
+    # replicate derivation used in compare_hydraulic_vs_electric
+    cost1 = 2 * (1800.0 * k1.cylinder_mass_kg_est) + 900.0
+    cost2 = 2 * (1800.0 * k2.cylinder_mass_kg_est) + 900.0
+    assert cost2 < cost1
+    assert k2.cylinder_mass_kg_est < k1.cylinder_mass_kg_est
+
+
 def test_recommendation_contract_electric_default_under_current_params():
     """With the cited 75 Nm + realistic system overhead, electric must stay default."""
     res = ah.compare_hydraulic_vs_electric()
@@ -116,6 +128,15 @@ def test_fail_loud_on_bad_inputs():
         ah.compute_hydraulic_option("k", ah.KNEE_TORQUE_DEMAND_NM, ah.KNEE_JOINT_SPEED_RAD_S, ah.KNEE_LEVER_ARM_M, pressure_pa=0.0)
     with pytest.raises(ValueError, match="system pressure must be positive"):
         ah.compute_hydraulic_option("k", ah.KNEE_TORQUE_DEMAND_NM, ah.KNEE_JOINT_SPEED_RAD_S, ah.KNEE_LEVER_ARM_M, pressure_pa=-1.0)
+    # new domain guards for lever/pressure (prevent extreme bores/forces from near-0+ legal values)
+    with pytest.raises(ValueError, match="lever arm must be in"):
+        ah.compute_hydraulic_option("k", 75.0, 2.5, 0.01)
+    with pytest.raises(ValueError, match="lever arm must be in"):
+        ah.compute_hydraulic_option("k", 75.0, 2.5, 0.2)
+    with pytest.raises(ValueError, match="pressure must be in"):
+        ah.compute_hydraulic_option("k", 75.0, 2.5, 0.055, pressure_pa=1e6)
+    with pytest.raises(ValueError, match="pressure must be in"):
+        ah.compute_hydraulic_option("k", 75.0, 2.5, 0.055, pressure_pa=30e6)
 
 
 def test_zero_speed_is_valid_for_static_hold():

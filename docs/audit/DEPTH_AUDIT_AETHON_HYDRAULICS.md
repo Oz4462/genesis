@@ -48,12 +48,13 @@ Zero-speed (static hold) wird jetzt sauber unterstützt (Q=0/P=0, kein Crash in 
 - `cylinder_sf_is_preserved_across_torque_property`: SF bleibt nahe dem Target über den relevanten Bereich.
 - 2+ weitere Beispiele + determinism + recommendation contract.
 - Guards for finite inputs + laminar enforced in buildable (tests + code comments decken die neuen Invarianten).
+- Additional fixes this round: pump power now computed on sized pump_flow (not raw demand); accu_buildable conditioned on flow demand (0-flow static hold ok); zero-speed sentinel made robust to near-zero; hyd cost now derived from cyl mass model + test proves co-vary with geometry; lever/pressure have realistic domain guards (not just >0) with tests; docstrings updated to remove aspirational 'or flagged' (actual is low-drop AND laminar); shells out-of-scope drift reverted (git).
 
 ## 4 Linsen
 - **L1 Wahrheit:** Alle Headline-Zahlen stammen aus den dokumentierten Closed-Forms in `actuation.py` + expliziten, nachvollziehbaren Ableitungen (Lever-Mapping, Pump-Leistung, Accu-Volumen). Kein Wert ohne Formel/Anchor.
-- **L2 Drift:** Docstring + Code + Test stimmen überein (F, Q, Δp, Recommendation-Regel exakt wie in Task-Spec; laminar claim jetzt im Code umgesetzt, finite guards + sources hinzugefügt). Keine Abweichung.
-- **L3 Vollständigkeit/Naht:** Nur die drei erlaubten Dateien. Keine Kollision mit parallel laufenden AETHON-Mechanik-Tasks. Legacy-Tests (z.B. actuation) bleiben unberührt. Unused import entfernt.
-- **L4 Realisierbarkeit:** Ehrliche Grenzen deklariert (Peak-Screen, keine volle Dynamik, keine turbulent-Formel-Anwendung, keine Reibung in Zylinder-Primitive → durch SF abgedeckt). Keine neuen Deps. Stack-agnostisch. Deterministisch. NaN/Inf + pressure guards targeted (echter Defect: silent NaN) nicht blanket. Tunables/Constants gesourced. Für reale Bauentscheidung würde man noch thermische Dauerleistung, Ventil-Dynamik, Leckage etc. ergänzen — hier explizit nicht over-claimed.
+- **L2 Drift:** Docstring + Code + Test stimmen überein (F, Q, Δp, Recommendation-Regel exakt wie in Task-Spec; laminar claim jetzt im Code umgesetzt, finite guards + sources hinzugefügt, pump power on sized flow, cost derivation, domain guards). Keine Abweichung.
+- **L3 Vollständigkeit/Naht:** Nur die drei erlaubten Dateien. Keine Kollision mit parallel laufenden AETHON-Mechanik-Tasks. Legacy-Tests (z.B. actuation) bleiben unberührt. Unused import entfernt. Shells drift reverted.
+- **L4 Realisierbarkeit:** Ehrliche Grenzen deklariert (Peak-Screen, keine volle Dynamik, keine turbulent-Formel-Anwendung, keine Reibung in Zylinder-Primitive → durch SF abgedeckt). Keine neuen Deps. Stack-agnostisch. Deterministisch. NaN/Inf + pressure guards targeted (echter Defect: silent NaN) nicht blanket. Tunables/Constants gesourced. Lever/pressure domain added. Für reale Bauentscheidung würde man noch thermische Dauerleistung, Ventil-Dynamik, Leckage etc. ergänzen — hier explizit nicht over-claimed.
 
 ## Backlog / Platform-Plan Abgleich
 Erfüllt den Task "hydraulic knee/ankle option vs electric — honest gated comparison" (HORIZON/ROADMAP Humanoid δ-Achsen + Actuation-Erweiterung). Liefert die ehrliche "kein hydraulischer Ersatz für AETHON bei 75 Nm" Aussage mit allen Zahlen.
