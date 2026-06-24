@@ -290,28 +290,71 @@ def test_check_ok_flips_exactly_at_yield_crossing():
     assert above["ok"] is True
 
 
-# --- accepted documented edge: p<=0 (no guard, yields 'safe' no-stress) ----------
-# Pins the p<=0 behavior explicitly (per finding) so it is not an unverified
-# silent path. This is accepted per the public API contract: docstring lists
-# guards only for r_inner/thickness (GeometryError) and yield_strength (ValueError);
-# pressure has no guard because p<=0 corresponds to the no-burst (max_hoop<=0)
-# special case already present for safety_factor/inf and ok=True.
-# External/negative pressure is disclaimed in module docstring ("does NOT cover
-# external pressure") but the math path accepts it without fabricating a value.
-# Per L4 scoping + "change nothing if correct", we document+test rather than
-# add a source guard (which would be blanket feature-creep).
+# --- property test for finite-positive inputs (post NaN-guard fix) ---------------
+# Hypothesis over finite positive inputs ensures no NaN leaks into outputs and
+# the sf/ok math remains sane (sf >=0, ok consistent with sf>=1 when max>0).
+# Complements the explicit NaN negative tests.
 
-def test_check_non_positive_pressure_is_accepted_no_stress_edge():
-    """p<=0 produces max_hoop<=0, safety_factor=inf, ok=True (no error).
-    This pins the behavior the char test previously left unexercised for <=0.
-    """
-    for p in (0.0, -0.1, -5.0):
-        r = pressure_vessel_check(p, 500.0, 10.0, 600.0, model="thin")
-        assert r["max_hoop"] <= 0.0
-        assert r["safety_factor"] == float("inf")
-        assert r["ok"] is True
+@settings(max_examples=30, deadline=None)
+@given(
+    p=st.floats(min_value=0.01, max_value=100.0, allow_nan=False, allow_infinity=False),
+    ri=st.floats(min_value=10.0, max_value=1000.0, allow_nan=False, allow_infinity=False),
+    t=st.floats(min_value=0.1, max_value=100.0, allow_nan=False, allow_infinity=False),
+    y=st.floats(min_value=10.0, max_value=2000.0, allow_nan=False, allow_infinity=False),
+)
+def test_property_finite_positive_inputs_produce_finite_sane_results(p, ri, t, y):
+    """For finite positive inputs, outputs are finite and ok == (sf >=1) when max>0."""
+    r = pressure_vessel_check(p, ri, t, y, model="thin")
+    assert math.isfinite(r["max_hoop"])
+    if r["max_hoop"] > 0.0:
+        assert math.isfinite(r["safety_factor"])
+        assert r["ok"] == (r["safety_factor"] >= 1.0)
+    # same for thick (exercises the Lame path)
+    r2 = pressure_vessel_check(p, ri, t, y, model="thick")
+    assert math.isfinite(r2["max_hoop"])
+    if r2["max_hoop"] > 0.0:
+        assert math.isfinite(r2["safety_factor"])
+        assert r2["ok"] == (r2["safety_factor"] >= 1.0)
 
-        r2 = pressure_vessel_check(p, 500.0, 10.0, 600.0, model="thick")
-        assert r2["max_hoop"] <= 0.0
-        assert r2["safety_factor"] == float("inf")
-        assert r2["ok"] is True
+
+# --- p<=0 and non-finite edges (NaN/inf guards + internal pressure contract) ----
+# p=0 is accepted (no internal pressure -> max_hoop=0, sf=inf, ok=True).
+# p<0 now raises (genuine semantic contract fix): module + thick docstring
+# specify "internal pressure" / "non-negative"; external disclaimed. This
+# resolves the contract tension (negative p no longer silently "safe").
+# NaN/inf on radius/thickness/pressure/yield now raise (not >0 / >=0 catches
+# them, preventing NaN sf or surprising ok). See source guards + WHY comments.
+# (Legacy test untouched per process rule; some overlap is by-design as char
+# is the authoritative facade-detector for this audit round.)
+
+def test_check_zero_pressure_is_accepted_no_stress_edge():
+    """p=0 (no pressure) produces the documented no-stress safe case."""
+    r = pressure_vessel_check(0.0, 500.0, 10.0, 600.0, model="thin")
+    assert r["max_hoop"] == 0.0
+    assert r["safety_factor"] == float("inf")
+    assert r["ok"] is True
+
+def test_check_negative_pressure_raises_geometry_contract():
+    """p<0 raises (enforces internal-only per docstrings)."""
+    with pytest.raises(GeometryError):
+        pressure_vessel_check(-0.1, 500.0, 10.0, 600.0)
+    with pytest.raises(GeometryError):
+        pressure_vessel_check(-5.0, 500.0, 10.0, 600.0, model="thick")
+
+def test_check_non_finite_inputs_raise():
+    """NaN/-inf bypass old <=0 guards and produced NaN sf or wrong ok; +inf treated as extreme positive (determinate sf).
+    (Per L4: only genuine silent-wrong cases guarded; not blanket.)"""
+    for bad in (float("nan"), float("-inf")):
+        with pytest.raises(GeometryError):
+            pressure_vessel_check(bad, 500.0, 10.0, 600.0)  # pressure nan/-inf
+        with pytest.raises(GeometryError):
+            pressure_vessel_check(10.0, bad, 10.0, 600.0)  # r
+        with pytest.raises(GeometryError):
+            pressure_vessel_check(10.0, 500.0, bad, 600.0)  # t
+        with pytest.raises(ValueError):
+            pressure_vessel_check(10.0, 500.0, 10.0, bad)  # yield
+    # +inf pressure -> extreme (max=inf, ok=False); +inf yield -> sf=inf ok=True (determinate)
+    r_inf_p = pressure_vessel_check(float("inf"), 500.0, 10.0, 600.0)
+    assert r_inf_p["ok"] is False
+    r_inf_y = pressure_vessel_check(10.0, 500.0, 10.0, float("inf"))
+    assert r_inf_y["ok"] is True and r_inf_y["safety_factor"] == float("inf")

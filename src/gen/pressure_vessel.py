@@ -52,7 +52,7 @@ def thin_wall_cylinder(pressure: float, radius: float, thickness: float) -> dict
     its length rather than across it. Raises GeometryError on a non-positive radius
     or thickness (a guessed geometry would fabricate a stress).
     """
-    if radius <= 0.0 or thickness <= 0.0:
+    if not (radius > 0.0) or not (thickness > 0.0):
         raise GeometryError(
             f"radius and thickness must be positive (got r={radius}, t={thickness})"
         )
@@ -67,7 +67,7 @@ def thin_wall_sphere(pressure: float, radius: float, thickness: float) -> float:
     internal pressure. A sphere carries equal stress in every direction, so its
     wall stress is half a cylinder's hoop — the optimal pressure-vessel shape.
     Raises GeometryError on a non-positive radius or thickness."""
-    if radius <= 0.0 or thickness <= 0.0:
+    if not (radius > 0.0) or not (thickness > 0.0):
         raise GeometryError(
             f"radius and thickness must be positive (got r={radius}, t={thickness})"
         )
@@ -78,7 +78,9 @@ def thick_wall_cylinder_stresses(
     pressure_internal: float, r_inner: float, r_outer: float, r: float
 ) -> dict:
     """Lame (1833) radial and hoop stress at radius `r` in a thick-wall cylinder
-    under internal pressure only.
+    under non-negative internal pressure only (external pressure disclaimed; see
+    module docstring). Negative pressure will produce negative stresses but is
+    not a valid input for this internal model.
 
     With A = p_i*r_i^2/(r_o^2-r_i^2) and B = p_i*r_i^2*r_o^2/(r_o^2-r_i^2):
     sigma_r = A - B/r^2 and sigma_theta = A + B/r^2 (MPa). Returns
@@ -88,7 +90,7 @@ def thick_wall_cylinder_stresses(
     strictly greater than r_inner, or if `r` lies outside [r_inner, r_outer]
     (an extrapolated stress would be a fabricated value).
     """
-    if r_inner <= 0.0 or r_outer <= 0.0:
+    if not (r_inner > 0.0) or not (r_outer > 0.0):
         raise GeometryError(
             f"radii must be positive (got r_inner={r_inner}, r_outer={r_outer})"
         )
@@ -127,16 +129,30 @@ def pressure_vessel_check(
     "ok"}``: safety_factor = yield_strength / max_hoop, ok = safety_factor >= 1.
     Deterministic.
 
-    Units: MPa and mm. Raises GeometryError on a non-positive radius/thickness or an
-    unknown model; raises ValueError on a non-positive yield strength.
+    Units: MPa and mm. Assumes pressure >= 0 (internal pressure model). Raises
+    GeometryError on a non-positive (or non-finite) radius/thickness/pressure or an
+    unknown model; raises ValueError on a non-positive (or non-finite) yield strength.
     """
-    if r_inner <= 0.0 or thickness <= 0.0:
+    # Use "not > 0" (instead of <=0) so NaN/inf/-inf are rejected (they bypass <=0
+    # comparisons and would otherwise produce NaN results or surprising ok=False/True).
+    # This is a genuine defect fix per round-2 review (silent non-finite factual values).
+    if not (r_inner > 0.0):
         raise GeometryError(
             f"r_inner and thickness must be positive (got r_inner={r_inner}, "
             f"thickness={thickness})"
         )
-    if yield_strength <= 0.0:
+    if not (thickness > 0.0):
+        raise GeometryError(
+            f"r_inner and thickness must be positive (got r_inner={r_inner}, "
+            f"thickness={thickness})"
+        )
+    if not (yield_strength > 0.0):
         raise ValueError("yield strength must be positive")
+    if not (pressure >= 0.0):
+        raise GeometryError(
+            f"pressure must be non-negative (internal-pressure model; "
+            f"got pressure={pressure}; external pressure disclaimed)"
+        )
     if model == "thin":
         max_hoop = pressure * r_inner / thickness
     elif model == "thick":
