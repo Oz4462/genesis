@@ -609,3 +609,13 @@ All state.log flow, Claim.verif list, Approach/Poss id deterministic. No cycles,
 **Verdict:** REAL. Pure helpers + guards are exactly as documented. Characterization only (no "harden" source change).
 **4 Linsen + Selbstkontrolle:** L1 (exact messages + live execution), L2 (deterministic roundtrips + ctor paths), L3 (offline contract + smoke-used ctor covered), L4 (scoped, real ctors, hypothesis, no feature creep). DoD met: new test facade-detector, neg tests, property test, explicit REAL verdict, BUILD appends.
 **Test:** PYTHONPATH=src python3 -m pytest tests/test_postgres_ledger_characterization.py -q → 17 passed.
+
+## 2026-06-23 — T02 Depth-Audit: src/gen/pipeline.py (assess_specification honest verdict) [BUILD append for review findings]
+
+**Verdikt: REAL** (keine Quell-Änderung; siehe `docs/audit/DEPTH_AUDIT_pipeline.md` für full narrative + 4 Linsen).
+
+- Charakterisierungs-Test (10 + 2 Hypothesis) mit realen core.state Konstruktoren; Priority-Ladder + Seam (physics_ok=False trotz gate.passed) bewiesen.
+- Review-Fixes: Test-Assert präzise auf 'needs_clarification' (priority questions zuerst), BUILD-Einträge in beiden Logs.
+- Keine Änderung an src/gen/pipeline.py (korrekt, byte-identisch).
+- **Test grün:** 10 passed (nach Präzisions-Fix). Commit-Msg-Historik nicht umgeschrieben (out-of-scope).
+- Details + Audit: docs/audit/DEPTH_AUDIT_pipeline.md . (Integrator kann konsolidieren.)
