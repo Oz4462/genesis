@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from hypothesis import given, strategies as st
 
 from gen.humanoids import aethon_hydraulics as ah  # noqa: E402
-from gen.actuation import hydraulic_cylinder_check  # for direct anchor cross-check
+# (no unused actuation imports; cross-checks use direct math or full compare where appropriate)
 
 
 # --------------------------------------------------------------------------- #
@@ -111,6 +111,11 @@ def test_fail_loud_on_bad_inputs():
         ah.compute_hydraulic_option("k", ah.KNEE_TORQUE_DEMAND_NM, ah.KNEE_JOINT_SPEED_RAD_S, 0.0)
     with pytest.raises(ValueError, match="joint speed must be non-negative"):
         ah.compute_hydraulic_option("k", ah.KNEE_TORQUE_DEMAND_NM, -1.0, ah.KNEE_LEVER_ARM_M)
+    # pressure<=0 now covered (was implemented+audited but untested)
+    with pytest.raises(ValueError, match="system pressure must be positive"):
+        ah.compute_hydraulic_option("k", ah.KNEE_TORQUE_DEMAND_NM, ah.KNEE_JOINT_SPEED_RAD_S, ah.KNEE_LEVER_ARM_M, pressure_pa=0.0)
+    with pytest.raises(ValueError, match="system pressure must be positive"):
+        ah.compute_hydraulic_option("k", ah.KNEE_TORQUE_DEMAND_NM, ah.KNEE_JOINT_SPEED_RAD_S, ah.KNEE_LEVER_ARM_M, pressure_pa=-1.0)
 
 
 def test_zero_speed_is_valid_for_static_hold():
@@ -124,6 +129,19 @@ def test_zero_speed_is_valid_for_static_hold():
     assert res.flow["ok"]
     # line drop zeroed, no crash on pressure_drop primitive either
     assert res.line["pressure_drop_pa"] == 0.0
+
+
+def test_fail_loud_on_non_finite_inputs():
+    """NaN/Inf bypass <=0 guards (IEEE) and must raise (produces silent NaN in margins/recommendation otherwise)."""
+    for bad in (float("nan"), float("inf"), float("-inf")):
+        with pytest.raises(ValueError, match="must be finite"):
+            ah.compute_hydraulic_option("k", bad, 1.0, 0.05)
+        with pytest.raises(ValueError, match="must be finite"):
+            ah.compute_hydraulic_option("k", 75.0, bad, 0.05)
+        with pytest.raises(ValueError, match="must be finite"):
+            ah.compute_hydraulic_option("k", 75.0, 1.0, bad)
+        with pytest.raises(ValueError, match="must be finite"):
+            ah.compute_hydraulic_option("k", 75.0, 1.0, 0.05, pressure_pa=bad)
 
 
 def test_determinism_same_inputs_identical_output():

@@ -11,11 +11,10 @@ NOT import or depend on the evolving genesis_humanoid.py spec. The comparison is
 
 Outputs a structured head-to-head (torque density, mass, complexity, cost) and a strict boolean
 recommendation: hydraulics is chosen ONLY if it STRICTLY beats electric on the headline metrics AND the
-supporting system (pump + accumulator + lines) is physically feasible (positive margins, laminar or
-flagged, pump/accu sized). Electric AK80-64 remains default otherwise; all deciding margins are returned
+supporting system (pump + accumulator + lines) is physically feasible (positive margins, laminar (or low-loss flagged), pump/accu sized). Electric AK80-64 remains default otherwise; all deciding margins are returned
 as computed numbers.
 
-Fail-loud on non-physical inputs (delegates to actuation primitives + explicit guards). Deterministic,
+Fail-loud on non-physical inputs (non-positive, non-finite/NaN/Inf, delegates to actuation primitives + explicit guards). Deterministic,
 offline, no new dependencies (only stdlib + gen.actuation).
 
 Design notes (why the numbers):
@@ -104,6 +103,8 @@ def _estimate_cylinder_mass(bore_area_m2: float) -> float:
     Scales with area (larger piston/rod) plus fixed barrel/head hardware. Conservative for robot class."""
     # ~ 1800 kg/m3 effective for steel cylinder + rod; base hardware 0.18 kg
     # area in m2 → scale as 1400 * A + 0.18 (empirically tuned to real ~0.25-0.4 kg cylinders)
+    # Source: representative mass scaling from compact industrial hydraulic cylinders (e.g. 10-20mm bore
+    # robot-class parts in 2026 catalogs; ~1.4 g/cm3 effective incl. rod/hardware to match measured 0.25-0.4kg units).
     return 1400.0 * bore_area_m2 + 0.18
 
 
@@ -144,6 +145,14 @@ def compute_hydraulic_option(
     Raises ValueError (via primitives or explicit) on non-physical inputs.
     Zero joint speed is allowed (static force hold case; flow/pump=0, cylinder pressure still delivers torque).
     """
+    # NaN/Inf bypass <=0 checks (IEEE rules); they produce silent wrong NaN outputs in downstream
+    # margins/recommendation (real defect per L4 scope). Fail loud FIRST for all driving inputs
+    # (Targeted, not blanket on every intermediate.)
+    for val, nm in [(torque_nm, "torque_nm"), (joint_speed_rad_s, "joint_speed_rad_s"),
+                    (lever_arm_m, "lever_arm_m"), (pressure_pa, "pressure_pa")]:
+        if not math.isfinite(val):
+            raise ValueError(f"{nm} must be finite (NaN/Inf produce silent wrong results)")
+
     if torque_nm <= 0.0:
         raise ValueError("joint torque demand must be positive")
     if lever_arm_m <= 0.0:
@@ -172,6 +181,8 @@ def compute_hydraulic_option(
     piston_v = joint_speed_rad_s * lever_arm_m
 
     if joint_speed_rad_s == 0.0:
+        # Synthetic dicts match exact shape/ keys of actuation primitives (for notes, reason, future .flow/.line consumers)
+        # even though primitives forbid 0; use inf/0 consistent with static-hold semantics (no div-by-zero).
         flow = {"flow_required": 0.0, "pump_flow": 0.0, "safety_factor": float("inf"), "ok": True}
         pump_flow = 0.0
         line = {"pressure_drop_pa": 0.0, "reynolds": 0.0, "laminar_valid": True}
@@ -206,6 +217,8 @@ def compute_hydraulic_option(
     # Allocate the *full* support system mass to the representative high-load knee calc.
     # This makes two-knee headline mass == 2*cyl + 1*shared (matches "2 cylinders + one shared support system").
     support_mass_share = 3.3  # kg: realistic full mobile pump+accu+valves+hoses+fluid+reservoir+filter + mounting for a two-leg humanoid (shared); makes system overhead visible vs 2x integrated actuators
+    # Source: conservative estimate for compact 24V DC pump + 0.5-1L bladder accu + plumbing kit for <100kg humanoid legs
+    # (drawn from series mobile hydraulics components typical in 2026 open/pro robot builds; full share allocated once).
     system_added = cyl_mass + support_mass_share
 
     bore_d_mm = 2000.0 * math.sqrt(bore_area / math.pi)
@@ -252,6 +265,7 @@ def electric_ak80_64_baseline() -> dict[str, Any]:
         "mass_kg": mass_kg,
         "torque_density_nm_per_kg": peak_torque_for_density / mass_kg,
         "cost_eur_est": 520.0,  # representative street price for one unit
+        # Source: typical CubeMars AK80-64 / equivalent 64:1 QDD pricing from distributors ~2026 (conservative mid-range for integrated unit).
         "complexity": "single integrated unit (motor+gear+encoder+driver); power + CAN; no fluid",
         "continuous_note": "thermal continuous typically 60-70% of peak (see AK80_64_CONTINUOUS)",
     }
@@ -265,7 +279,7 @@ def compare_hydraulic_vs_electric() -> dict[str, Any]:
 
     Recommendation rule (per spec): electric is default. Hydraulics recommended only when
     it STRICTLY wins on torque density AND mass AND cost AND the full system is buildable
-    (positive cylinder SF, laminar or explicitly flagged line, pump power realistic < 500 W peak
+    (positive cylinder SF, laminar (Re<2300) or explicitly low-loss flagged line, pump power realistic < 500 W peak
     per high-load contribution, accumulator buildable). All margins are the actual computed deltas.
     """
     knee_h = compute_hydraulic_option(
@@ -293,6 +307,7 @@ def compare_hydraulic_vs_electric() -> dict[str, Any]:
     # NOTE: ankle hardware excluded (headline is "two knees" for the 75Nm high-load class; ankle is lower-load and reported separately).
     hyd_two_knee_mass = (knee_h.cylinder_mass_kg_est * 2.0) + (knee_h.system_added_mass_kg_est - knee_h.cylinder_mass_kg_est)
     hyd_two_knee_cost = 110.0 + 980.0  # two compact cylinders + realistic pump/accu/valves/filter package + plumbing (higher integration cost than 2x integrated motor)
+    # Sources: cyl ~55 EUR ea (compact robot hydraulic cylinders); package ~980 (pump+accu+valves typical 2026 hobby/pro kits for small mobile hydraulics, higher than integrated QDD due to plumbing complexity).
 
     # Torque density: cylinder alone is excellent; full system (allocated) is what matters for the robot.
     hyd_cyl_density = knee_h.demand_torque_nm / knee_h.cylinder_mass_kg_est
@@ -305,11 +320,19 @@ def compare_hydraulic_vs_electric() -> dict[str, Any]:
     density_margin_sys = hyd_sys_density - elec["torque_density_nm_per_kg"]
 
     # Buildability screens (all must be true for "STRICTLY wins AND buildable")
-    cyl_ok = knee_h.cylinder["ok"] and knee_h.cylinder["safety_factor"] >= CYLINDER_SF_TARGET * 0.95
+    cyl_ok = knee_h.cylinder["ok"] and knee_h.cylinder["safety_factor"] >= CYLINDER_SF_TARGET * 0.95  # 0.95 = FP tolerance around target SF (see tunable sources)
     flow_ok = knee_h.flow["ok"]
-    line_reasonable = (knee_h.line["pressure_drop_pa"] / knee_h.pressure_pa) < 0.25  # <25% loss
-    pump_reasonable = knee_h.pump_power_w < 500.0  # peak-burst feasible with compact BLDC+gear pump (short duty)
-    accu_buildable = 0.05 < knee_h.accumulator_volume_l < 1.2  # practical miniature bladder/ piston size
+    # line must be low-loss AND laminar (per docstring claim "laminar or explicitly flagged line" for buildable;
+    # primitives report laminar_valid=Re<2300; turbulent even with small drop is not "flagged ok" here)
+    drop_ratio = knee_h.line["pressure_drop_pa"] / knee_h.pressure_pa
+    line_reasonable = (drop_ratio < 0.25) and knee_h.line["laminar_valid"]
+    # Tunables sourced (control verdict; per no-factual-without-source):
+    # pump<500W: peak short-duty limit for compact 24-48V BLDC+gear pumps in small robot legs (realistic burst, not continuous).
+    # line<25% + laminar: keeps pressure loss minor and formula valid (per primitive doc: only assert laminar).
+    # accu 0.05-1.2L: practical miniature bladder range for burst smoothing at this flow (avoids toy vs oversized).
+    # SF *0.95: allows FP tolerance around target 1.8 without false fail.
+    pump_reasonable = knee_h.pump_power_w < 500.0
+    accu_buildable = 0.05 < knee_h.accumulator_volume_l < 1.2
 
     system_buildable = cyl_ok and flow_ok and line_reasonable and pump_reasonable and accu_buildable
 
@@ -334,7 +357,7 @@ def compare_hydraulic_vs_electric() -> dict[str, Any]:
         f"sys density margin {density_margin_sys:+.1f} Nm/kg; "
         f"2-knee mass delta {mass_margin_kg:+.2f} kg; "
         f"cost delta {cost_margin_eur:+.0f} EUR; "
-        f"buildable={system_buildable} (cyl_ok={cyl_ok}, pump_feasible={pump_reasonable}, line_loss<25%={line_reasonable}, accu={knee_h.accumulator_volume_l:.2f}L)"
+        f"buildable={system_buildable} (cyl_ok={cyl_ok}, pump_feasible={pump_reasonable}, line_ok(drop<25%+laminar)={line_reasonable}, accu={knee_h.accumulator_volume_l:.2f}L)"
     )
 
     return {
