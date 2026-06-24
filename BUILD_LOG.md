@@ -285,3 +285,16 @@ Regenerator-Stärke getrieben (stark → converged, schwach → nicht), Rundenza
 `ceil((threshold−start)/step)`. Isoliert über ein rein deterministisches, physik-/LLM-freies
 Scripted-Gate (Defekt-Level im realen `Question.run_id`). KEINE Verhaltensänderung nötig (Modul war
 bereits korrekt und ehrlich). 4 Linsen angewendet. Details: `docs/audit/DEPTH_AUDIT_refinement.md`.
+
+## T04 — Depth-Audit + Härtung `section_optimizer.py` (2026-06-24)
+Proposer/Gate-Split (min-Material-Sektion hinter dem Streckgrenzen-Gate) als **REAL** verifiziert:
+gemeldete `stress` == unabhängige Closed-Form `6·F·L/(b·h²)` (`rel=1e-12`), `gate_passed` bit-für-bit
+durch separaten `cantilever_yield_check` reproduziert (jedes Material), Gate weist unterdimensionierte
+Sektion zurück (kein Gummistempel), `σ_allow` geerdet in der Material-Streckgrenze. **Ein genuiner
+Defekt gefixt:** die dokumentierte Abstention `feasible=False` war toter Code — `b` war nach oben
+unbeschränkt, also wurde selbst eine absurde Überlast immer „lösbar" (Fassade gg. §4). Minimaler Fix:
+`max_wall: float = inf` (reale Bauraumgrenze); Default `inf` → bestehendes Verhalten/Alttests/CLI
+byte-genau unverändert, aber Über-Last in `[min_wall, max_wall]` gibt jetzt ehrlich `feasible=False`
+zurück (kein erfundenes Teil). 22 neue Tests inkl. Hypothesis-Invariante (Proposer u. Gate
+widersprechen sich nie); volle Negative-Batterie. `tests/test_section_optimizer_characterization.py`
++ `tests/test_section_optimizer.py` → **33 passed**. 4 Linsen: `docs/audit/DEPTH_AUDIT_section_optimizer.md`.
