@@ -16,6 +16,7 @@ no parsed model involved) and the closed-form ZMP/torque anchors.
 from __future__ import annotations
 
 from .catalog import ASSETS, SPECS, robots
+from .scaling_laws import summarise as scaling_summary
 from .validation import format_table, validate_all
 
 
@@ -39,6 +40,9 @@ def main() -> None:
 
     print("\n\n--- GENESIS PHYSICS-AXIS  vs  PUBLISHED SPEC  (agreement / gap) ---")
     print(format_table(validate_all()))
+
+    print("\n\n--- DISCOVERED DESIGN LAWS (fitted from the fleet, kept iff out-of-sample valid) ---")
+    print(scaling_summary())
 
     print("\n\n--- HONESTY NOTE ---")
     print("  TienKung/Berkeley/Asimov mass+DOF were read FROM the downloaded model, so their")

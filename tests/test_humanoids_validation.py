@@ -40,14 +40,16 @@ def test_every_catalogued_robot_validates_without_error():
 
 def test_agiloped_actuation_axis_is_physically_sensible_and_independent():
     """AGILOped's specs come from the paper, not from any parsed model, so this is an INDEPENDENT
-    calibration: GENESIS's static leg hip torque must be positive, below the knee's published 80 N·m
-    peak (a real leg holds the static worst case with margin), and on the order of the actuator class."""
+    calibration: GENESIS's static knee SQUAT-hold torque must be positive, below the knee's published
+    80 N·m peak (a real leg holds the representative squat with margin), and on the order of the
+    actuator class. (Post-2026-06-24 the axis is the physically-correct knee squat hold, not the old
+    over-predicting whole-leg-horizontal sizing.)"""
     results = validate_robot("agiloped")
-    torque_checks = [r for r in results if "gravity-hold torque" in r.axis]
-    assert torque_checks, "expected a leg torque axis result for AGILOped"
+    torque_checks = [r for r in results if "knee squat-hold torque" in r.axis]
+    assert torque_checks, "expected a knee squat-hold torque axis result for AGILOped"
     tc = torque_checks[0]
-    assert tc.verdict == "agree"          # capability (80 N·m knee) >= GENESIS demand
-    # the GENESIS demand value is embedded as "<N> N·m demand"
+    assert tc.verdict == "agree"          # capability (80 N·m knee) >= GENESIS 60° squat demand
+    # the GENESIS demand value is embedded as "<N> N·m demand @60° squat"
     val = float(tc.genesis_value.split()[0])
     assert 10.0 < val < 80.0              # within the knee actuator's peak capability
 
@@ -79,7 +81,7 @@ def test_tienkung_structural_cross_check_agrees_on_dof():
     res = structural_cross_check("tienkung")
     dof = [r for r in res if r.axis.startswith("DOF")]
     assert dof and dof[0].verdict == "agree"
-    assert "20 actuated joints" in dof[0].genesis_value
+    assert "20 motorised joints" in dof[0].genesis_value
 
 
 def test_inmoov_is_honestly_all_gaps_no_legs_no_fixed_specs():

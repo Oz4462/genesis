@@ -138,6 +138,43 @@ def static_joint_torques(
     return {"torques": tuple(torques), "max_torque": float(max(abs(t) for t in torques))}
 
 
+def knee_squat_hold_torque(
+    body_mass: float,
+    thigh_length: float,
+    thigh_angle_from_vertical: float,
+    supported_fraction: float = 0.80,
+    g: float = STANDARD_GRAVITY,
+) -> dict:
+    """The static gravity torque a humanoid KNEE must hold in a single-leg squat.
+
+    The case a leg-robot's knee is actually sized for is not a fully-extended horizontal leg (a leg
+    is never loaded that way) but a SQUAT: the thigh inclined ``thigh_angle_from_vertical`` θ from
+    vertical, the body mass above the knee hanging off the knee at horizontal lever ``thigh_length·
+    sin θ``. The knee holds τ = m_supported · g · L_thigh · sin θ, with ``m_supported =
+    supported_fraction · body_mass`` (everything above the knee — torso, arms, head, pelvis, and the
+    opposite leg in single stance ≈ 0.8·m for a human-proportioned humanoid). θ=0 (standing straight)
+    → 0 torque; θ=90° (thigh horizontal, the deepest squat) → the maximum m·g·L.
+
+    Returns ``{"knee_torque", "lever_arm", "supported_mass"}`` (N·m, m, kg). This replaces the earlier
+    "whole leg horizontal, half body at the limb tip" sizing, which over-predicted the knee demand ~2×
+    (it put the full thigh+shank ≈ 0.5·H on the lever and is not a pose a knee ever sees) and was the
+    calibration bug that flagged shipping robots — Apollo, TALOS, H1-2 — as unable to hold their own
+    weight. Honest boundary: planar gravity statics for the worst single-joint static hold; it is NOT
+    a dynamic landing/jump torque (those add J·α and ground-reaction transients and run higher). Raises
+    ValueError on negative mass/length, a fraction outside (0, 1], an angle outside [0, π/2], or g≤0."""
+    if body_mass < 0.0 or thigh_length < 0.0:
+        raise ValueError("body mass and thigh length must be non-negative")
+    if not 0.0 < supported_fraction <= 1.0:
+        raise ValueError("supported_fraction must be in (0, 1]")
+    if not 0.0 <= thigh_angle_from_vertical <= math.pi / 2 + 1e-9:
+        raise ValueError("thigh_angle_from_vertical must be in [0, π/2] radians")
+    if g <= 0.0:
+        raise ValueError("g must be positive")
+    supported = supported_fraction * body_mass
+    lever = thigh_length * math.sin(thigh_angle_from_vertical)
+    return {"knee_torque": supported * g * lever, "lever_arm": lever, "supported_mass": supported}
+
+
 def reach_check(l1: float, l2: float, x: float, y: float) -> dict:
     """Is target (x, y) inside the planar 2R workspace annulus |l₁−l₂| ≤ r ≤ l₁+l₂?
 
