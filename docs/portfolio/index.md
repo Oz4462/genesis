@@ -11,22 +11,22 @@
 ```mermaid
 kanban
   done
-    nT01[T01: Depth-audit + fix montecarlo.py (JCGM 101 Monte-Carlo uncertainty)]
-    nT02[T02: Depth-audit + fix notch_fatigue.py (Peterson notch-sensitivity closed forms]
-    nT03[T03: Depth-audit + fix omega.py (cross-phase completion gate cert-chain)]
-    nT04[T04: Depth-audit + fix orientation.py (BREP overhang / bridge / first-layer DFM)]
-    nT05[T05: Depth-audit + fix physics_selection.py (spec→physics-check auto-selection)]
+    nT01[T01: Depth-audit + fix physics_validation.py (GATE δ-physics aggregator)]
+    nT02[T02: Depth-audit + fix pipeline.py (assess_specification honest verdict)]
+    nT03[T03: Depth-audit + fix plate_bending.py (Kirchhoff circular-plate closed forms)]
+    nT04[T04: Depth-audit + fix plate_hole.py (FEM-computed Kt vs Kirsch bound)]
+    nT05[T05: Depth-audit + fix pressure_vessel.py (hoop-stress closed forms)]
 ```
 
 ## Roadmap / Tasks
 
 | Task | Title | Status | Owner | Kind |
 | --- | --- | --- | --- | --- |
-| T01 | Depth-audit + fix montecarlo.py (JCGM 101 Monte-Carlo uncertainty) | done | claude | feature |
-| T02 | Depth-audit + fix notch_fatigue.py (Peterson notch-sensitivity closed forms) | done | grok | feature |
-| T03 | Depth-audit + fix omega.py (cross-phase completion gate cert-chain) | done | grok | feature |
-| T04 | Depth-audit + fix orientation.py (BREP overhang / bridge / first-layer DFM) | done | claude | feature |
-| T05 | Depth-audit + fix physics_selection.py (spec→physics-check auto-selection) | done | grok | feature |
+| T01 | Depth-audit + fix physics_validation.py (GATE δ-physics aggregator) | done | claude | feature |
+| T02 | Depth-audit + fix pipeline.py (assess_specification honest verdict) | done | grok | feature |
+| T03 | Depth-audit + fix plate_bending.py (Kirchhoff circular-plate closed forms) | done | claude | feature |
+| T04 | Depth-audit + fix plate_hole.py (FEM-computed Kt vs Kirsch bound) | done | claude | feature |
+| T05 | Depth-audit + fix pressure_vessel.py (hoop-stress closed forms) | done | grok | feature |
 
 ## Decisions
 
@@ -320,6 +320,16 @@ kanban
 - (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (standing team decision); each task's honest verdict (REAL/PARTIAL/FACADE + what was made real) + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (the integrator consolidates at merge).
 - (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (RunState/Question/Specification/Quantity/GeometryNode/Decision) and core/interfaces.py (GateResult/GateFailure) — read them, never invent fields — and use only stdlib + already-declared deps (numpy already declared).
 - (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess in the always-run path, matching the historical test→claude routing.
+- (2026-06-23) Split strictly by module (physics_validation / pipeline / plate_bending / plate_hole / pressure_vessel): the five sources are disjoint paths; pipeline imports physics_validation and physics_validation imports plate_bending+pressure_vessel, but NO dependsOn edges — each worktree carries the unmodified pre-existing dependency and each task asserts only against the CURRENT public API of its imports, so no task relies on another's in-flight edits.
+- (2026-06-23) Keep each module and ITS new test in the SAME task (the test imports the module under audit) so each task is independently verifiable in its own worktree using only its own files plus pre-existing repo files (core.state/core.interfaces/core.errors, physics_selection.RECIPES, fem3d already on main).
+- (2026-06-23) New test files take the _characterization suffix because every module already has a legacy test on main (test_physics_validation, test_pipeline, test_plate_bending, test_plate_hole, test_pressure_vessel); the new file is the authoritative facade-detector and leaves legacy tests untouched (no churn).
+- (2026-06-23) Universal facade-killer per module: assert (a) the headline output changes MEANINGFULLY when a driving input changes (proves the input is genuinely consumed, not a canned constant) AND (b) the documented fail-loud/abstention path fires exactly with the correct exception/gate code (the mandatory NEGATIVE test) — per 'keine stillen Defaults' and 'a gate without a test does not exist'.
+- (2026-06-23) The three leaf physics modules are cross-checked against CLOSED FORMS / the exact anchors in their own docstrings so the numbers are proven computed, not echoed: plate_bending clamped anchor (q=0.1,R=100,t=5,E=210000,nu=0.3 → w≈0.065mm, σ≈30MPa) + the (5+ν)/(1+ν)=4.077 softer-rim ratio + D∝t³ + w∝R⁴ scaling; pressure_vessel thin hoop=2·axial, anchor p=10,r=500,t=10→hoop=500, Lamé BCs σ_r(r_i)=−p_i & σ_r(r_o)=0, thick≥thin converging as t/r→0; plate_hole's finite-width Kt~3.1–3.3 converging under mesh refinement.
+- (2026-06-23) plate_hole depends on the OPTIONAL gmsh kernel: its deep Kt-convergence cross-check is pytest.importorskip('gmsh')-guarded so the full pytest gate stays green where gmsh is absent, while the always-available negative (_require_gmsh raising GeometryError, or the importorskip-gated GeometryError path) runs unconditionally as the mandatory fail-loud test.
+- (2026-06-23) All five modules read as REAL on inspection, so each task edits its source ONLY where the new characterization test exposes a genuine defect (missing guard, silent wrong/constant value, dead input) — never blanket feature-creep — upholding 'change nothing if correct'.
+- (2026-06-23) BUILD_LOG.md is deliberately OUT of every task's scope to avoid a shared-file merge collision (standing 2026-06-23 team decision); each task's honest verdict (REAL/PARTIAL/FACADE + what was made real) + 4-Linsen narrative lives in its own docs/audit/DEPTH_AUDIT_<module>.md (the integrator consolidates into BUILD_LOG at merge).
+- (2026-06-23) Builders construct every input through the REAL constructors/field/enum names in src/gen/core/state.py (Specification/Quantity/Constraint/Claim) and core/interfaces.py (GateResult/GateFailure) and each module's real signatures (PhysicsCheck, plate_bending_check, pressure_vessel_check) — read them, never invent fields — and use only stdlib + already-declared deps (numpy already declared for plate_hole).
+- (2026-06-23) preferredBuilder=claude on all five: each is a cleanly-deterministic characterization-test-plus-targeted-fix task with no network/subprocess in the always-run path, matching the historical test→claude routing.
 
 ### Architecture Decision Records
 
@@ -359,20 +369,21 @@ kanban
 - 0034. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0035. Depth-audit AND FIX (genesis overnight loop). For each modul
 - 0036. Depth-audit AND FIX (genesis overnight loop). For each modul
+- 0037. Depth-audit AND FIX (genesis overnight loop). For each modul
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| Runs | 29 |
-| Tasks (total) | 136 |
-| Done | 134 |
+| Runs | 30 |
+| Tasks (total) | 141 |
+| Done | 139 |
 | Blocked | 1 |
 | Resolved rate | 99% |
 | Blocked rate | 1% |
-| Merges | 18 |
+| Merges | 19 |
 | Avg duration | 69.5m |
-| Total cost | 340.51 |
+| Total cost | 364.16 |
 
 ## Architecture
 
@@ -388,27 +399,27 @@ graph TD
 
 Recent commits:
 
+- `37cac1d crew: resolve merge conflict for crew/T05-grok`
+- `e0eec04 Merge branch 'crew/T04-claude' into crew/integration`
+- `f044ae3 Merge branch 'crew/T03-claude' into crew/integration`
+- `95e92e5 Merge branch 'crew/T02-grok' into crew/integration`
+- `d4c732c crew(grok): T05 Depth-audit + fix pressure_vessel.py (hoop-stress closed forms) [round 3]`
+- `4f635b4 crew(grok): T05 Depth-audit + fix pressure_vessel.py (hoop-stress closed forms) [round 2]`
+- `d59c3c6 crew(grok): T05 Depth-audit + fix pressure_vessel.py (hoop-stress closed forms) [round 1]`
+- `c0c4024 crew(claude): T04 Depth-audit + fix plate_hole.py (FEM-computed Kt vs Kirsch bound) [round 1]`
+- `ef5c4aa crew(grok): T02 autofix [round 3]`
+- `b54ed84 crew(grok): T02 Depth-audit + fix pipeline.py (assess_specification honest verdict) [round 3]`
+- `8c3131f crew(claude): T03 Depth-audit + fix plate_bending.py (Kirchhoff circular-plate closed forms) [round 1]`
+- `fdd31b8 crew(grok): T02 Depth-audit + fix pipeline.py (assess_specification honest verdict) [round 2]`
+- `57260ba crew(claude): T01 round 2 — harden physics_validation property test`
+- `dfdc4aa crew(claude): T01 Depth-audit + fix physics_validation.py (GATE δ-physics aggregator) [round 1]`
+- `e0e934f crew(grok): T02 Depth-audit + fix pipeline.py (assess_specification honest verdict) [round 1]`
+- `0ebd0d3 Merge branch 'crew/integration'`
+- `fff2753 crew: scaffold CI/CD + project config`
 - `3334805 crew: resolve merge conflict for crew/T05-grok`
 - `2ded89e crew: resolve merge conflict for crew/T03-grok`
 - `60a70f8 Merge branch 'crew/T04-claude' into crew/integration`
-- `36e8e9c Merge branch 'crew/T02-grok' into crew/integration`
-- `94de37d crew(claude): T04 Depth-audit + fix orientation.py (BREP overhang / bridge / first-layer DFM) [round 4]`
-- `be8cc58 crew(claude): T04 Depth-audit + fix orientation.py (BREP overhang / bridge / first-layer DFM) [round 3]`
-- `06d0551 crew(grok): T05 Depth-audit + fix physics_selection.py (spec→physics-check auto-selection) [round 2]`
-- `7c8d980 crew(claude): T04 Depth-audit + fix orientation.py (BREP overhang / bridge / first-layer DFM) [round 2]`
-- `eedd191 crew(grok): T05 Depth-audit + fix physics_selection.py (spec→physics-check auto-selection) [round 1]`
-- `0dbd6e4 crew(claude): T04 Depth-audit + fix orientation.py (BREP overhang / bridge / first-layer DFM) [round 1]`
-- `2ad4d27 crew(grok): T03 Depth-audit + fix omega.py (cross-phase completion gate cert-chain) [round 1]`
-- `96d83dc crew(claude): T01 Depth-audit + fix montecarlo.py (JCGM 101 Monte-Carlo uncertainty) [round 1]`
-- `8834aea crew(grok): T02 Depth-audit + fix notch_fatigue.py (Peterson notch-sensitivity closed forms) [round 1]`
-- `c75afb1 Merge branch 'crew/integration'`
-- `1847b59 crew: scaffold CI/CD + project config`
-- `95b2ab9 crew: resolve merge conflict for crew/T04-grok`
-- `6de2ed5 Merge branch 'crew/T05-claude' into crew/integration`
-- `c4a45e5 Merge branch 'crew/T03-claude' into crew/integration`
-- `a387d4c Merge branch 'crew/T02-grok' into crew/integration`
-- `56ce203 crew(claude): T05 Depth-audit + fix modal.py (natural-frequency eigenproblem) [round 1]`
 
 
 ---
-_Generated by [crew](https://github.com/) on 2026-06-23. Regenerated each integration._
+_Generated by [crew](https://github.com/) on 2026-06-24. Regenerated each integration._
