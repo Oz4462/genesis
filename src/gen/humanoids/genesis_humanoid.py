@@ -116,7 +116,7 @@ DOF_MAP: dict[str, list[JointSpec]] = {
         JointSpec("hip_yaw", "yaw", 12.0, 120.0, "QDD-L (120 N·m)"),
         JointSpec("hip_roll", "roll", 45.0, 120.0, "QDD-L (120 N·m)"),
         JointSpec("hip_pitch", "pitch", 60.0, 120.0, "QDD-L (120 N·m)"),
-        JointSpec("knee_pitch", "pitch", 75.0, 160.0, "QDD-XL (160 N·m, cycloidal)"),
+        JointSpec("knee_pitch", "pitch", 75.0, 120.0, "CubeMars AK80-64 (120 N·m peak, off-the-shelf)"),
         JointSpec("ankle_pitch", "pitch", 55.0, 90.0, "QDD-L (90 N·m)"),
         JointSpec("ankle_roll", "roll", 20.0, 90.0, "QDD-L (90 N·m)"),
     ],
@@ -169,6 +169,11 @@ class AethonConfig:
     knee_demand_nm: float
     knee_peak_nm: float
     joint_speed_rad_s: float
+    # the knee actuator's drivetrain (CubeMars AK80-64): 64:1 planetary, 75 rpm output no-load. Used to
+    # reflect the published OUTPUT peak/no-load to the motor side for the δ electric_actuator envelope.
+    knee_gear: float
+    knee_eff: float
+    knee_noload_out_rad_s: float   # AK80-64 output no-load 75 rpm = 75·2π/60 rad/s
     # the hand (the dexterity edge)
     tendon_tension_n: float               # servo-driven tendon tension at the proximal pulley
     pulley_radius_mm: float               # finger-base pulley the tendon wraps
@@ -490,14 +495,18 @@ def build_aethon(cfg: AethonConfig) -> Specification:
             "actuator.joint_torque"),
         _dm("q_js", "Gelenkdrehzahl", cfg.joint_speed_rad_s, "rad/s", "Gang", "actuator.joint_speed"),
         # the QDD reflected to a stall/no-load envelope so electric_actuator validates honestly:
-        # a 160 N·m output peak QDD @ 100:1 with η=0.9 implies motor stall ≈ peak/(gear·η). A reflected
-        # ENGINEERING value (a decision derived from the published output peak), not a world-fact.
-        _dm("q_stall", "Motor-Stall-Moment (reflektiert)", cfg.knee_peak_nm / (100.0 * 0.9), "N*m",
-            "rückgerechnet aus dem QDD-Ausgangs-Spitzenmoment durch Getriebe und Wirkungsgrad",
-            "motor.stall_torque"),
-        _dm("q_noload", "Motor-Leerlaufdrehzahl", 600.0, "rad/s", "Kennlinie", "motor.noload_speed"),
-        _dm("q_gear", "Getriebeuntersetzung", 100.0, "1", "Cycloidal 100:1", "drivetrain.gear_ratio"),
-        _dm("q_eff", "Wirkungsgrad", 0.90, "1", "Cycloidal+Lager", "drivetrain.efficiency"),
+        # the CubeMars AK80-64 publishes an OUTPUT peak (120 N·m) and an OUTPUT no-load (75 rpm) through
+        # its 64:1 planetary; backing those out to the motor side gives stall ≈ peak/(gear·η) and motor
+        # no-load ≈ output_noload·gear. Reflected ENGINEERING values (a decision derived from the
+        # published catalogue output figures), not world-facts.
+        _dm("q_stall", "Motor-Stall-Moment (reflektiert)", cfg.knee_peak_nm / (cfg.knee_gear * cfg.knee_eff),
+            "N*m", "rückgerechnet aus dem AK80-64-Ausgangs-Spitzenmoment durch das 64:1-Getriebe und "
+            "den Wirkungsgrad", "motor.stall_torque"),
+        _dm("q_noload", "Motor-Leerlaufdrehzahl", cfg.knee_noload_out_rad_s * cfg.knee_gear, "rad/s",
+            "AK80-64-Ausgangsleerlauf (75 U/min) ×64 auf die Motorseite", "motor.noload_speed"),
+        _dm("q_gear", "Getriebeuntersetzung", cfg.knee_gear, "1", "AK80-64 64:1 Planetengetriebe",
+            "drivetrain.gear_ratio"),
+        _dm("q_eff", "Wirkungsgrad", cfg.knee_eff, "1", "Planetengetriebe+Lager", "drivetrain.efficiency"),
         _dm("q_avail_tau", "verfügbares Gelenkmoment (Knie-Peak)", cfg.knee_peak_nm, "N*m",
             "QDD-Ausgangs-Spitzenmoment", "actuator.available_torque"),
         _g("q_knee_peak", "Knie-Aktuator Spitzenmoment", cfg.knee_peak_nm, "N*m", ["c_motor"]),
@@ -737,7 +746,7 @@ def build_aethon(cfg: AethonConfig) -> Specification:
                  rationale="deckt Vision + Ganzkörper-Policy + Greifplanung mit Reserve",
                  informed_by=["c_chip"]),
         Decision(id="d_actuation", title="Aktuation", choice=cfg.leg_motor_name,
-                 rationale="hohe Drehmomentdichte + Rückfahrbarkeit (QDD/Cycloidal)",
+                 rationale="hohe Drehmomentdichte + Rückfahrbarkeit (QDD; Knie = kaufbarer AK80-64)",
                  informed_by=["c_motor"]),
         Decision(id="d_hand", title="Hand", choice="5-Finger-Sehnenhand, opponierbarer Daumen, "
                  "12 DOF/Paar", rationale="dexteröser Griff bei druckbarer Einfachheit (InMoov-erprobte "
@@ -828,13 +837,14 @@ AETHON = AethonConfig(
     leg_load_kg=22.0,  # full body in single-leg stance + small payload share
     payload_kg=5.0,
     reach_l1=0.30, reach_l2=0.30, reach_tx=0.42, reach_ty=0.18,
-    knee_demand_nm=75.0, knee_peak_nm=160.0, joint_speed_rad_s=1.4,
+    knee_demand_nm=75.0, knee_peak_nm=120.0, joint_speed_rad_s=1.4,
+    knee_gear=64.0, knee_eff=0.90, knee_noload_out_rad_s=7.853981633974483,
     tendon_tension_n=60.0, pulley_radius_mm=8.0, fingertip_moment_arm_mm=30.0,
     compute_workload_tops=140.0, compute_chip_tops=275.0, compute_efficiency=4.5,
     compute_power_budget_w=70.0, compute_inference_ops=5.0e7, compute_throughput=2.75e14,
     control_period_s=0.01, step_frequency_hz=0.9,
     chip_name="NVIDIA Jetson Orin AGX (~275 TOPS @ ~60 W)",
-    leg_motor_name="Bein-QDD + Cycloidal (160 N·m Knie-Peak, rückfahrbar)",
+    leg_motor_name="Bein-QDD (Knie: CubeMars AK80-64, 120 N·m Peak — Seriennteil, rückfahrbar)",
     arm_motor_name="Arm/Achs-QDD (12–60 N·m, rückfahrbar)",
     finger_servo_name="Fingerservo (Dynamixel-Klasse, Sehnenzug)",
     battery_name="Li-Ion-Akkupack 1.5 kWh",
@@ -846,8 +856,9 @@ AETHON = AethonConfig(
         _claim("c_material", "FDM-gedrucktes CF-Nylon, in der Druckebene belastet, hat eine effektive "
                "Festigkeit von etwa 85 MPa."),
         _claim("c_chip", "Das NVIDIA Jetson Orin AGX liefert ~275 INT8-TOPS bei ~60 W."),
-        _claim("c_motor", "Ein QDD/Cycloidal-Bein-Aktuator liefert am Knie ~160 N·m Spitzenmoment, "
-               "rückfahrbar und drehmomentdicht."),
+        _claim("c_motor", "Der CubeMars AK80-64 ist ein als Seriennteil kaufbarer QDD-Aktuator mit "
+               "64:1-Planetengetriebe und liefert am Ausgang 120 N·m Spitzenmoment (48 N·m Dauer, "
+               "75 U/min Leerlauf), rückfahrbar und drehmomentdicht."),
         _claim("c_battery", "Ein 1.5-kWh-Li-Ion-Pack speist Antrieb und Recheneinheit."),
     ],
 )
@@ -931,6 +942,7 @@ def _add_box(link, tag, size, xyz=(0.0, 0.0, 0.0)):
     ET.SubElement(el, "origin", {"xyz": f"{xyz[0]:g} {xyz[1]:g} {xyz[2]:g}", "rpy": "0 0 0"})
     g = ET.SubElement(el, "geometry")
     ET.SubElement(g, "box", {"size": f"{size[0]:g} {size[1]:g} {size[2]:g}"})
+    return el
 
 
 def _add_cyl(link, tag, length, r, xyz=(0.0, 0.0, 0.0), rpy=(0.0, 0.0, 0.0)):
@@ -939,6 +951,7 @@ def _add_cyl(link, tag, length, r, xyz=(0.0, 0.0, 0.0), rpy=(0.0, 0.0, 0.0)):
                                  "rpy": f"{rpy[0]:g} {rpy[1]:g} {rpy[2]:g}"})
     g = ET.SubElement(el, "geometry")
     ET.SubElement(g, "cylinder", {"length": f"{length:g}", "radius": f"{r:g}"})
+    return el
 
 
 def _add_sphere(link, tag, r, xyz=(0.0, 0.0, 0.0)):
@@ -946,6 +959,7 @@ def _add_sphere(link, tag, r, xyz=(0.0, 0.0, 0.0)):
     ET.SubElement(el, "origin", {"xyz": f"{xyz[0]:g} {xyz[1]:g} {xyz[2]:g}", "rpy": "0 0 0"})
     g = ET.SubElement(el, "geometry")
     ET.SubElement(g, "sphere", {"radius": f"{r:g}"})
+    return el
 
 
 def _joint(robot, name, parent, child, origin, axis, *, lower=-1.57, upper=1.57, effort=120.0,
@@ -962,12 +976,72 @@ def _joint(robot, name, parent, child, origin, axis, *, lower=-1.57, upper=1.57,
 
 _AX = {"pitch": (0.0, 1.0, 0.0), "roll": (1.0, 0.0, 0.0), "yaw": (0.0, 0.0, 1.0)}
 
+# ── ORGANIC+INDUSTRIAL styling (visual only; collision + inertials are NEVER changed by styling) ──
+#: Where the CadQuery exo-shell STLs live (generated by ``build_shells`` → aethon_shells.py). The URDF
+#: references them by absolute path with a 0.001 scale (shells are modelled in mm; URDF is SI metres).
+SHELLS_DIR = "/home/genesis/humanoid_assets/aethon/shells"
+_MM = 0.001
 
-def _add_finger(robot, side: str, fname: str, palm_link: str, root_xyz, *, oppose: bool, dexterous: bool):
+#: The exo-shell palette — a high-end mechanical-organic look: a pearl/graphite shell over dark machined
+#: joints, with a warm metallic accent. (r,g,b,a) in 0..1. Tuned to read well under the render lighting.
+_COL = {
+    "shell":    (0.82, 0.84, 0.87, 1.0),   # pearl-graphite exo-shell (organic covers)
+    "shell_dk": (0.30, 0.33, 0.38, 1.0),   # darker shell for torso/pelvis (contrast)
+    "joint":    (0.13, 0.14, 0.16, 1.0),   # near-black machined actuator hubs (industrial, exposed)
+    "accent":   (0.85, 0.52, 0.18, 1.0),   # warm copper accent (eyes / detail)
+    "frame":    (0.45, 0.47, 0.50, 1.0),   # exposed structural frame (titanium-grey)
+    "sole":     (0.10, 0.10, 0.11, 1.0),   # rubber sole
+}
+
+
+def _material(parent, name, rgba):
+    """Attach a <material> with an rgba colour to a visual. The material NAME is derived from the COLOUR
+    (not the caller's label) so two different colours can NEVER alias to one name — URDF material names
+    are GLOBAL references, and PyBullet resolves every same-named material to the LAST definition, so a
+    shared name like "mat_shell" reused for two colours would paint them all one colour (the hand-goes-
+    black bug). A colour-keyed name makes identical colours share safely and distinct colours stay
+    distinct. ``name`` is kept only as a readable prefix."""
+    rgba_name = f"mat_{int(rgba[0]*255):02x}{int(rgba[1]*255):02x}{int(rgba[2]*255):02x}"
+    m = ET.SubElement(parent, "material", {"name": rgba_name})
+    ET.SubElement(m, "color", {"rgba": f"{rgba[0]:g} {rgba[1]:g} {rgba[2]:g} {rgba[3]:g}"})
+
+
+def _add_mesh_visual(link, shell, color, *, xyz=(0.0, 0.0, 0.0), rpy=(0.0, 0.0, 0.0), scale=_MM):
+    """Add a <visual> that references an exo-shell STL (organic cover). VISUAL ONLY — never collision.
+    ``shell`` is the bare shell name (e.g. ``"thigh"``); the file is ``{SHELLS_DIR}/aethon_{shell}_shell.stl``."""
+    el = ET.SubElement(link, "visual")
+    ET.SubElement(el, "origin", {"xyz": f"{xyz[0]:g} {xyz[1]:g} {xyz[2]:g}",
+                                 "rpy": f"{rpy[0]:g} {rpy[1]:g} {rpy[2]:g}"})
+    g = ET.SubElement(el, "geometry")
+    ET.SubElement(g, "mesh", {"filename": f"{SHELLS_DIR}/aethon_{shell}_shell.stl",
+                              "scale": f"{scale:g} {scale:g} {scale:g}"})
+    _material(el, f"mat_{shell}", color)
+
+
+def _add_hub(link, length, r, color, *, xyz=(0.0, 0.0, 0.0), rpy=(0.0, 0.0, 0.0)):
+    """Add an exposed INDUSTRIAL actuator hub (a short dark cylinder) as a VISUAL at a joint — this is
+    what keeps the mechanics visible under the organic shells (a sleek exo-shell over robotic joints)."""
+    el = ET.SubElement(link, "visual")
+    ET.SubElement(el, "origin", {"xyz": f"{xyz[0]:g} {xyz[1]:g} {xyz[2]:g}",
+                                 "rpy": f"{rpy[0]:g} {rpy[1]:g} {rpy[2]:g}"})
+    g = ET.SubElement(el, "geometry")
+    ET.SubElement(g, "cylinder", {"length": f"{length:g}", "radius": f"{r:g}"})
+    _material(el, "mat_joint", color)
+
+
+def _colorize(el, color):
+    """Attach a <material> to an already-created visual element (color is (r,g,b,a) or None=no-op)."""
+    if color is not None:
+        _material(el, "mat_shell", color)
+
+
+def _add_finger(robot, side: str, fname: str, palm_link: str, root_xyz, *, oppose: bool, dexterous: bool,
+                color=None):
     """Add one articulated finger to a palm: 3 phalanges (proximal/middle/distal) chained by revolute
     pitch joints (the tendon-flex DOF is the proximal joint; the middle/distal couple, modeled here as
     driven joints so the engine shows real articulation). The thumb additionally gets an opposition
-    (yaw) joint at its base. Each phalanx is a small cylinder + a knuckle sphere with a real inertia."""
+    (yaw) joint at its base. Each phalanx is a small cylinder + a knuckle sphere with a real inertia.
+    ``color`` (when given) tints the finger visuals to match the exo-shell (styling, visual only)."""
     L = _DIM["phalanx_len"]
     r = _DIM["phalanx_r"]
     m = _MASS["phalanx"]
@@ -981,7 +1055,7 @@ def _add_finger(robot, side: str, fname: str, palm_link: str, root_xyz, *, oppos
         link = ET.SubElement(robot, "link", {"name": carpal})
         _add_inertial(link, m, I)
         _add_sphere(link, "collision", r * 0.9)
-        _add_sphere(link, "visual", r * 0.9)
+        _colorize(_add_sphere(link, "visual", r * 0.9), color)
         _joint(robot, f"{side}_{fname}_oppose", parent, carpal, origin, _AX["yaw"],
                lower=0.0, upper=1.4, effort=6.0, velocity=8.0)
         parent = carpal
@@ -993,8 +1067,8 @@ def _add_finger(robot, side: str, fname: str, palm_link: str, root_xyz, *, oppos
         # phalanx extends along +x (finger points forward off the palm); CoM at mid-length
         _add_inertial(link, m, I, xyz=(L / 2.0, 0.0, 0.0))
         _add_cyl(link, "collision", L, r, xyz=(L / 2.0, 0.0, 0.0), rpy=(0.0, 1.5708, 0.0))
-        _add_cyl(link, "visual", L, r, xyz=(L / 2.0, 0.0, 0.0), rpy=(0.0, 1.5708, 0.0))
-        _add_sphere(link, "visual", r, xyz=(0.0, 0.0, 0.0))  # knuckle
+        _colorize(_add_cyl(link, "visual", L, r, xyz=(L / 2.0, 0.0, 0.0), rpy=(0.0, 1.5708, 0.0)), color)
+        _colorize(_add_sphere(link, "visual", r, xyz=(0.0, 0.0, 0.0)), color)  # knuckle
         # flex joint: pitch about y so the finger curls toward the palm (-z)
         lo, hi = (0.0, 1.5)  # fingers flex one way (closing grip)
         _joint(robot, f"{side}_{fname}_{seg}_flex", parent, child, origin, _AX["pitch"],
@@ -1004,7 +1078,7 @@ def _add_finger(robot, side: str, fname: str, palm_link: str, root_xyz, *, oppos
 
 
 def aethon_urdf(name: str = "aethon", *, dexterous_hands: bool = True,
-                box_feet: bool = True) -> str:
+                box_feet: bool = True, styled: bool = False) -> str:
     """Emit the COMPLETE AETHON body as a URDF string, loadable by PyBullet/MuJoCo/Isaac.
 
     Tree: pelvis(root) → [waist→torso → neck→head; 2×(shoulder3→upper_arm→elbow→forearm→wrist2→palm →
@@ -1014,7 +1088,21 @@ def aethon_urdf(name: str = "aethon", *, dexterous_hands: bool = True,
     ``dexterous_hands``) the finger joints. Set ``dexterous_hands=False`` for a fast structural load
     (palms only) and ``box_feet=False`` to fall back to ankle-stub cylinders (for ablation).
 
+    ``styled=True`` swaps the *visual* geometry of the major members to the ORGANIC+INDUSTRIAL exo-shell
+    meshes (``aethon_shells.py`` → ``SHELLS_DIR``) and adds exposed dark actuator hubs at the joints —
+    a sleek organic skin over visible robotic joints. IMPORTANT: styling is VISUAL ONLY; the COLLISION
+    geometry, masses and inertias are byte-identical to the unstyled URDF, so the validated physics
+    (mass / DOF / actuators / FEM / the 5 s stand) are unchanged. Requires the shell STLs to exist
+    (``build_shells()`` generates them); falls back silently to primitive visuals for any missing shell.
+
     Returns deterministic URDF XML. Raises ValueError on an internal dimension error (defensive)."""
+    from pathlib import Path as _P
+    # styling is only applied when the shell meshes actually exist on disk (honest: no phantom meshes)
+    _styled = styled and _P(SHELLS_DIR).is_dir()
+
+    def _have(shell: str) -> bool:
+        return _styled and _P(f"{SHELLS_DIR}/aethon_{shell}_shell.stl").is_file()
+
     robot = ET.Element("robot", {"name": name})
 
     # ---- pelvis root ----
@@ -1022,14 +1110,21 @@ def aethon_urdf(name: str = "aethon", *, dexterous_hands: bool = True,
     pelvis = ET.SubElement(robot, "link", {"name": "pelvis"})
     _add_inertial(pelvis, _MASS["pelvis"], _box_inertia(_MASS["pelvis"], px, py, pz))
     _add_box(pelvis, "collision", (px, py, pz))
-    _add_box(pelvis, "visual", (px, py, pz))
+    if _have("pelvis"):
+        _add_mesh_visual(pelvis, "pelvis", _COL["shell_dk"])
+    else:
+        _add_box(pelvis, "visual", (px, py, pz))
 
     # ---- waist (yaw) → torso ----
     tx, ty, tz = _DIM["torso"]
     torso = ET.SubElement(robot, "link", {"name": "torso"})
     _add_inertial(torso, _MASS["torso"], _box_inertia(_MASS["torso"], tx, ty, tz), xyz=(0.0, 0.0, tz / 2.0))
     _add_box(torso, "collision", (tx, ty, tz), xyz=(0.0, 0.0, tz / 2.0))
-    _add_box(torso, "visual", (tx, ty, tz), xyz=(0.0, 0.0, tz / 2.0))
+    if _have("torso"):
+        # the chest cuirass rises from the waist joint (z=0) to the shoulders; spine stays exposed
+        _add_mesh_visual(torso, "torso", _COL["shell"], xyz=(0.0, 0.0, 0.0))
+    else:
+        _add_box(torso, "visual", (tx, ty, tz), xyz=(0.0, 0.0, tz / 2.0))
     _joint(robot, "waist_yaw", "pelvis", "torso", (0.0, 0.0, pz / 2.0), _AX["yaw"],
            lower=-1.2, upper=1.2, effort=60.0)
 
@@ -1038,16 +1133,30 @@ def aethon_urdf(name: str = "aethon", *, dexterous_hands: bool = True,
     neck = ET.SubElement(robot, "link", {"name": "neck"})
     _add_inertial(neck, 0.2, _cyl_inertia(0.2, 0.05, 0.025))
     _add_cyl(neck, "collision", 0.05, 0.025)
-    _add_cyl(neck, "visual", 0.05, 0.025)
+    if _styled:
+        _add_hub(neck, 0.05, 0.027, _COL["joint"])   # exposed neck actuator (industrial)
+    else:
+        _add_cyl(neck, "visual", 0.05, 0.025)
     _joint(robot, "neck_yaw", "torso", "neck", (0.0, 0.0, tz), _AX["yaw"], lower=-1.5, upper=1.5,
            effort=4.0)
     head = ET.SubElement(robot, "link", {"name": "head"})
     _add_inertial(head, _MASS["head"], _box_inertia(_MASS["head"], hx, hy, hz), xyz=(0.0, 0.0, hz / 2.0))
     _add_box(head, "collision", (hx, hy, hz), xyz=(0.0, 0.0, hz / 2.0))
-    _add_box(head, "visual", (hx, hy, hz), xyz=(0.0, 0.0, hz / 2.0))
-    # two camera "eyes" (small spheres on the face, +x) — visual marker of the stereo vision
-    _add_sphere(head, "visual", 0.012, xyz=(hx / 2.0, 0.032, hz * 0.6))
-    _add_sphere(head, "visual", 0.012, xyz=(hx / 2.0, -0.032, hz * 0.6))
+    if _have("head"):
+        # organic helmet ovoid over the head; its model centre (~z=0.01) lifts to sit on the head box
+        _add_mesh_visual(head, "head", _COL["shell"], xyz=(0.0, 0.0, hz / 2.0))
+    else:
+        _add_box(head, "visual", (hx, hy, hz), xyz=(0.0, 0.0, hz / 2.0))
+    # two camera "eyes" (small spheres on the face, +x): copper accent when styled (the stereo vision,
+    # an exposed industrial detail in the organic face), plain marker otherwise
+    _eye_c = _COL["accent"] if _styled else None
+    for _ey in (0.032, -0.032):
+        _e = ET.SubElement(head, "visual")
+        ET.SubElement(_e, "origin", {"xyz": f"{hx / 2.0:g} {_ey:g} {hz * 0.6:g}", "rpy": "0 0 0"})
+        _eg = ET.SubElement(_e, "geometry")
+        ET.SubElement(_eg, "sphere", {"radius": "0.014" if _styled else "0.012"})
+        if _eye_c is not None:
+            _material(_e, "mat_accent", _eye_c)
     _joint(robot, "neck_pitch", "neck", "head", (0.0, 0.0, 0.05), _AX["pitch"], lower=-0.8, upper=0.8,
            effort=4.0)
 
@@ -1068,14 +1177,24 @@ def aethon_urdf(name: str = "aethon", *, dexterous_hands: bool = True,
         lk = ET.SubElement(robot, "link", {"name": uarm})
         _add_inertial(lk, _MASS["uarm"], _cyl_inertia(_MASS["uarm"], ual, uar), xyz=(0.0, 0.0, -ual / 2.0))
         _add_cyl(lk, "collision", ual, uar, xyz=(0.0, 0.0, -ual / 2.0))
-        _add_cyl(lk, "visual", ual, uar, xyz=(0.0, 0.0, -ual / 2.0))
+        if _have("uarm"):
+            _add_hub(lk, 0.052, 0.038, _COL["joint"], rpy=(0.0, 1.5708, 0.0))   # exposed shoulder actuator
+            if _have("pauldron"):
+                _add_mesh_visual(lk, "pauldron", _COL["shell"], xyz=(0.0, 0.0, 0.01))  # shoulder cap
+            _add_mesh_visual(lk, "uarm", _COL["shell"], xyz=(0.0, 0.0, 0.0))
+        else:
+            _add_cyl(lk, "visual", ual, uar, xyz=(0.0, 0.0, -ual / 2.0))
         _joint(robot, f"{side}_shoulder_yaw", sh2, uarm, (0.0, 0.0, 0.0), _AX["yaw"], effort=30.0)
         # elbow → forearm
         farm = f"{side}_forearm"; fal = _DIM["farm_len"]; far = _DIM["farm_r"]
         lk = ET.SubElement(robot, "link", {"name": farm})
         _add_inertial(lk, _MASS["farm"], _cyl_inertia(_MASS["farm"], fal, far), xyz=(0.0, 0.0, -fal / 2.0))
         _add_cyl(lk, "collision", fal, far, xyz=(0.0, 0.0, -fal / 2.0))
-        _add_cyl(lk, "visual", fal, far, xyz=(0.0, 0.0, -fal / 2.0))
+        if _have("farm"):
+            _add_hub(lk, 0.046, 0.032, _COL["joint"], rpy=(0.0, 1.5708, 0.0))   # exposed elbow actuator
+            _add_mesh_visual(lk, "farm", _COL["shell"], xyz=(0.0, 0.0, 0.0))
+        else:
+            _add_cyl(lk, "visual", fal, far, xyz=(0.0, 0.0, -fal / 2.0))
         _joint(robot, f"{side}_elbow_pitch", uarm, farm, (0.0, 0.0, -ual), _AX["pitch"], lower=0.0,
                upper=2.4, effort=30.0)
         # wrist pitch/roll → palm
@@ -1086,7 +1205,12 @@ def aethon_urdf(name: str = "aethon", *, dexterous_hands: bool = True,
         lk = ET.SubElement(robot, "link", {"name": palm})
         _add_inertial(lk, _MASS["palm"], _box_inertia(_MASS["palm"], pxh, pyh, pzh), xyz=(0.0, 0.0, -pzh / 2.0))
         _add_box(lk, "collision", (pxh, pyh, pzh), xyz=(0.0, 0.0, -pzh / 2.0))
-        _add_box(lk, "visual", (pxh, pyh, pzh), xyz=(0.0, 0.0, -pzh / 2.0))
+        _e = ET.SubElement(lk, "visual")
+        ET.SubElement(_e, "origin", {"xyz": f"0 0 {-pzh / 2.0:g}", "rpy": "0 0 0"})
+        ET.SubElement(ET.SubElement(_e, "geometry"), "box",
+                      {"size": f"{pxh:g} {pyh:g} {pzh:g}"})
+        if _styled:
+            _material(_e, "mat_shell", _COL["shell"])
         _joint(robot, f"{side}_wrist_roll", wl, palm, (0.0, 0.0, 0.0), _AX["roll"], effort=12.0)
         # five fingers off the palm front face (-z tip side, spread in y): thumb opposes
         if dexterous_hands:
@@ -1094,7 +1218,8 @@ def aethon_urdf(name: str = "aethon", *, dexterous_hands: bool = True,
             for i, yo in enumerate(spread):
                 fname = ["thumb", "index", "middle", "ring", "pinky"][i]
                 root = (pxh * 0.4, yo, -pzh)  # finger root at the palm's far face
-                _add_finger(robot, side, fname, palm, root, oppose=(fname == "thumb"), dexterous=True)
+                _add_finger(robot, side, fname, palm, root, oppose=(fname == "thumb"), dexterous=True,
+                            color=_COL["shell"] if _styled else None)
 
     # ---- legs (hip yaw/roll/pitch → thigh → knee → shank → ankle pitch/roll → FOOT) ----
     for side, sgn in (("l", 1.0), ("r", -1.0)):
@@ -1108,16 +1233,25 @@ def aethon_urdf(name: str = "aethon", *, dexterous_hands: bool = True,
         lk = ET.SubElement(robot, "link", {"name": thigh})
         _add_inertial(lk, _MASS["thigh"], _cyl_inertia(_MASS["thigh"], thl, thr), xyz=(0.0, 0.0, -thl / 2.0))
         _add_cyl(lk, "collision", thl, thr, xyz=(0.0, 0.0, -thl / 2.0))
-        _add_cyl(lk, "visual", thl, thr, xyz=(0.0, 0.0, -thl / 2.0))
+        if _have("thigh"):
+            _add_hub(lk, 0.060, 0.044, _COL["joint"], rpy=(0.0, 1.5708, 0.0))  # exposed hip actuator
+            _add_mesh_visual(lk, "thigh", _COL["shell"], xyz=(0.0, 0.0, 0.0))
+        else:
+            _add_cyl(lk, "visual", thl, thr, xyz=(0.0, 0.0, -thl / 2.0))
         _joint(robot, f"{side}_hip_pitch", h2, thigh, (0.0, 0.0, 0.0), _AX["pitch"], lower=-1.8,
                upper=1.2, effort=120.0)
         shank = f"{side}_shank"; shl = _DIM["shank_len"]; shr = _DIM["shank_r"]
         lk = ET.SubElement(robot, "link", {"name": shank})
         _add_inertial(lk, _MASS["shank"], _cyl_inertia(_MASS["shank"], shl, shr), xyz=(0.0, 0.0, -shl / 2.0))
         _add_cyl(lk, "collision", shl, shr, xyz=(0.0, 0.0, -shl / 2.0))
-        _add_cyl(lk, "visual", shl, shr, xyz=(0.0, 0.0, -shl / 2.0))
+        if _have("shank"):
+            # the AK80-64 knee actuator — exposed as a chunky machined hub at the knee (the PART-A part)
+            _add_hub(lk, 0.066, 0.046, _COL["joint"], rpy=(0.0, 1.5708, 0.0))
+            _add_mesh_visual(lk, "shank", _COL["shell"], xyz=(0.0, 0.0, 0.0))
+        else:
+            _add_cyl(lk, "visual", shl, shr, xyz=(0.0, 0.0, -shl / 2.0))
         _joint(robot, f"{side}_knee_pitch", thigh, shank, (0.0, 0.0, -thl), _AX["pitch"], lower=0.0,
-               upper=2.6, effort=160.0)
+               upper=2.6, effort=120.0)  # CubeMars AK80-64 output peak (off-the-shelf knee actuator)
         # ankle pitch/roll → FOOT (flat box sole, the stand-cure)
         a1 = f"{side}_ankle_pitch_link"
         lk = ET.SubElement(robot, "link", {"name": a1}); _add_inertial(lk, 0.1, (2e-4, 2e-4, 2e-4))
@@ -1130,7 +1264,15 @@ def aethon_urdf(name: str = "aethon", *, dexterous_hands: bool = True,
         _add_inertial(lk, _MASS["foot"], _box_inertia(_MASS["foot"], fx, fy, fz), xyz=(0.03, 0.0, -fz / 2.0))
         if box_feet:
             _add_box(lk, "collision", (fx, fy, fz), xyz=(0.03, 0.0, -fz / 2.0))
-            _add_box(lk, "visual", (fx, fy, fz), xyz=(0.03, 0.0, -fz / 2.0))
+            if _have("foot"):
+                # sculpted boot over the FLAT 240 mm sole (collision unchanged & flat → still ZMP-stable);
+                # the shell's flat underside sits on the sole's ground plane (z = -fz)
+                _add_mesh_visual(lk, "foot", _COL["frame"], xyz=(0.03, 0.0, -fz))
+                # a thin dark rubber sole pad just under the boot for contrast
+                _colorize(_add_box(lk, "visual", (fx, fy, 0.006),
+                                   xyz=(0.03, 0.0, -fz + 0.003)), _COL["sole"])
+            else:
+                _add_box(lk, "visual", (fx, fy, fz), xyz=(0.03, 0.0, -fz / 2.0))
         else:  # ablation: a stub cylinder (no flat sole) to show the box-foot cure matters
             _add_cyl(lk, "collision", 0.06, 0.03, xyz=(0.0, 0.0, -0.03))
             _add_cyl(lk, "visual", 0.06, 0.03, xyz=(0.0, 0.0, -0.03))
@@ -1166,26 +1308,30 @@ def _beauty_pose(robot_joints: set[str]) -> dict[str, float]:
         pose[f"{s}_shoulder_pitch"] = 0.08
         pose[f"{s}_shoulder_roll"] = sgn * -0.06
         pose[f"{s}_elbow_pitch"] = 0.35
-        # curl every finger phalanx into a soft grasp + oppose the thumb
+        # curl every finger phalanx into a soft, OPEN presentation grasp (readable, catches light) +
+        # oppose the thumb. Distal phalanges curl a touch more than proximal (a natural relaxed hand).
         for finger in ("thumb", "index", "middle", "ring", "pinky"):
-            for seg in ("prox", "mid", "dist"):
+            for seg, curl in (("prox", 0.35), ("mid", 0.45), ("dist", 0.5)):
                 jn = f"{s}_{finger}_{seg}_flex"
                 if jn in robot_joints:
-                    pose[jn] = 0.6
+                    pose[jn] = curl
             if f"{s}_{finger}_oppose" in robot_joints:
-                pose[f"{s}_{finger}_oppose"] = 0.8
+                pose[f"{s}_{finger}_oppose"] = 0.7
     return pose
 
 
 def render_aethon(out_dir: str = "/home/genesis/humanoid_assets/_renders",
-                  *, width: int = 720, height: int = 900, settle_seconds: float = 1.5) -> dict:
-    """Render AETHON for visual verification: full-body front + side, a HAND close-up (articulated
-    fingers in a grasp), and a FOOT close-up (the flat 240 mm box sole). Loads the dexterous URDF,
-    holds the beauty pose with a stiff PD on the body joints + the finger flex joints, settles, then
-    captures from framed cameras. Returns ``{view: png_path}``. Raises if PyBullet/Pillow absent.
+                  *, width: int = 800, height: int = 1100, settle_seconds: float = 1.5,
+                  styled: bool = True) -> dict:
+    """Render AETHON for visual verification: a full-body HERO 3/4 view + a side profile, a HAND
+    close-up (articulated fingers in a grasp) and a FOOT close-up (the sculpted boot over the flat
+    240 mm sole). Loads the ``styled`` (organic+industrial exo-shell) URDF, holds the beauty pose with
+    a stiff PD, settles onto the feet, then captures from AUTO-FRAMED cameras (the whole body is fit in
+    frame — no cut-off) with lighting + shadow. Returns ``{view: png_path}``. Raises if PyBullet/Pillow
+    absent. Set ``styled=False`` to render the plain primitive body (for an A/B comparison).
 
-    This is the mandatory visual check (CLAUDE.md: verify before done) — it proves alignment, no floor
-    penetration, realistic human scale and that the hands/feet render as designed."""
+    The mandatory visual check (CLAUDE.md: verify before done) — proves alignment, no floor penetration,
+    realistic human scale, and that the organic shells / hands / feet render as designed."""
     from pathlib import Path
 
     from . import insim
@@ -1194,24 +1340,52 @@ def render_aethon(out_dir: str = "/home/genesis/humanoid_assets/_renders",
         raise RuntimeError("PyBullet unavailable — cannot render AETHON for visual verification")
     if not pillow_available():
         raise RuntimeError("Pillow unavailable — cannot write render PNGs")
+    import math
+
     import numpy as np
     import pybullet as p
     import pybullet_data
     from PIL import Image
 
     Path(out_dir).mkdir(parents=True, exist_ok=True)
-    urdf = str(Path(out_dir).parent / "aethon" / "aethon.urdf")
+    suffix = "" if styled else "_plain"
+    urdf = str(Path(out_dir).parent / "aethon" / f"aethon{'_styled' if styled else ''}.urdf")
     Path(urdf).parent.mkdir(parents=True, exist_ok=True)
-    Path(urdf).write_text(aethon_urdf(dexterous_hands=True, box_feet=True), encoding="utf-8")
+    Path(urdf).write_text(aethon_urdf(dexterous_hands=True, box_feet=True, styled=styled), encoding="utf-8")
 
-    def _cap(client, bid, png, *, target, distance, yaw, pitch, w, h):
+    # a warm key light + soft fill via the tiny renderer's lightDirection/shadow knobs
+    _LIGHT = [0.6, 0.5, 1.0]
+
+    def _body_aabb(client, bid, nj):
+        lo = [1e9, 1e9, 1e9]; hi = [-1e9, -1e9, -1e9]
+        for j in range(-1, nj):
+            amin, amax = p.getAABB(bid, j, physicsClientId=client)
+            lo = [min(lo[k], amin[k]) for k in range(3)]
+            hi = [max(hi[k], amax[k]) for k in range(3)]
+        return lo, hi
+
+    def _cap(client, bid, png, *, target, distance, yaw, pitch, w, h, fov=42.0, shadow=1, light=None):
         view = p.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=list(target), distance=distance,
                                                    yaw=yaw, pitch=pitch, roll=0, upAxisIndex=2)
-        proj = p.computeProjectionMatrixFOV(fov=50.0, aspect=w / h, nearVal=0.02, farVal=10.0)
+        proj = p.computeProjectionMatrixFOV(fov=fov, aspect=w / h, nearVal=0.02, farVal=12.0)
+        # ambient fill (the tiny renderer has no GI, so shadowed surfaces crush to black without it) +
+        # diffuse key + a little specular for the high-end mechanical sheen. Close-ups pass their own
+        # light from the camera side + shadow=0 so the part is well-lit (no self/cast shadow crushing it).
         _, _, rgb, _, _ = p.getCameraImage(w, h, viewMatrix=view, projectionMatrix=proj,
-                                           renderer=p.ER_TINY_RENDERER, physicsClientId=client)
+                                           renderer=p.ER_TINY_RENDERER, shadow=shadow,
+                                           lightDirection=light if light is not None else _LIGHT,
+                                           lightAmbientCoeff=0.55, lightDiffuseCoeff=0.65,
+                                           lightSpecularCoeff=0.30, physicsClientId=client)
         arr = np.reshape(np.asarray(rgb, dtype=np.uint8), (h, w, 4))[:, :, :3]
-        Image.fromarray(arr).save(png)
+        # composite onto a soft vertical graphite gradient (studio backdrop) where the render is the
+        # plain renderer background (near-white): gives the hero shot depth instead of flat white.
+        bg_top = np.array([60, 64, 72], np.float32); bg_bot = np.array([26, 28, 33], np.float32)
+        grad = (bg_top[None, None] + (bg_bot - bg_top)[None, None]
+                * (np.linspace(0, 1, h)[:, None, None])).astype(np.uint8)
+        grad = np.broadcast_to(grad, (h, w, 3))
+        mask = (arr.min(axis=2) > 238)[:, :, None]  # background pixels of the tiny renderer
+        comp = np.where(mask, grad, arr).astype(np.uint8)
+        Image.fromarray(comp).save(png)
         return png
 
     out: dict[str, str] = {}
@@ -1222,21 +1396,19 @@ def render_aethon(out_dir: str = "/home/genesis/humanoid_assets/_renders",
         p.loadURDF("plane.urdf", physicsClientId=cid)
         bid = p.loadURDF(urdf, basePosition=[0, 0, 1.0], useFixedBase=False, physicsClientId=cid)
         nj = p.getNumJoints(bid, physicsClientId=cid)
-        name_to_idx = {p.getJointInfo(bid, j, physicsClientId=cid)[1].decode(): j for j in range(nj)}
-        joint_names = set(name_to_idx)
+        joint_names = {p.getJointInfo(bid, j, physicsClientId=cid)[1].decode() for j in range(nj)}
         pose = _beauty_pose(joint_names)
         movable = [j for j in range(nj)
                    if p.getJointInfo(bid, j, physicsClientId=cid)[2] != p.JOINT_FIXED]
         for j in movable:
             nm = p.getJointInfo(bid, j, physicsClientId=cid)[1].decode()
-            q = pose.get(nm, 0.0)
-            p.resetJointState(bid, j, q, physicsClientId=cid)
+            p.resetJointState(bid, j, pose.get(nm, 0.0), physicsClientId=cid)
         # drop feet to just above ground
         aabb_min = min((p.getAABB(bid, j, physicsClientId=cid)[0][2] for j in range(-1, nj)), default=1.0)
         bp, bo = p.getBasePositionAndOrientation(bid, physicsClientId=cid)
         p.resetBasePositionAndOrientation(bid, (bp[0], bp[1], bp[2] - aabb_min + 0.002), bo,
                                           physicsClientId=cid)
-        # stiff PD hold every movable joint at the beauty pose, settle
+        # stiff PD hold every movable joint at the beauty pose, settle (proves the STYLED robot stands too)
         for j in movable:
             nm = p.getJointInfo(bid, j, physicsClientId=cid)[1].decode()
             p.setJointMotorControl2(bid, j, p.POSITION_CONTROL, targetPosition=pose.get(nm, 0.0),
@@ -1245,27 +1417,41 @@ def render_aethon(out_dir: str = "/home/genesis/humanoid_assets/_renders",
         for _ in range(int(settle_seconds / (1.0 / 240.0))):
             p.stepSimulation(physicsClientId=cid)
         bp = p.getBasePositionAndOrientation(bid, physicsClientId=cid)[0]
-        cz = bp[2]
-        # LINK-name -> index map (PyBullet: joint j's CHILD link name is getJointInfo(j)[12]); the
-        # base link is index -1. Needed to aim the close-up cameras at the palm / foot links.
+        # AUTO-FRAME: fit the whole body in view with generous headroom (no cut-off — the head dome must
+        # always clear the top edge). Use the settled AABB. The 3/4 yaw widens the silhouette, so the
+        # half-extent must cover the larger of body_h (with margin) and body_w·aspect.
+        lo, hi = _body_aabb(cid, bid, nj)
+        body_h = hi[2] - lo[2]
+        body_w = max(hi[0] - lo[0], hi[1] - lo[1])
+        cz = (lo[2] + hi[2]) / 2.0            # vertical centre of the body
+        fov = 42.0
+        # required half-extent: half the body height × 1.30 headroom, vs half the width × aspect × 1.15.
+        half_extent = max(body_h * 0.5 * 1.30, body_w * 0.5 * (height / width) * 1.15)
+        dist = half_extent / math.tan(math.radians(fov / 2.0)) + 0.10
         link_idx = {p.getJointInfo(bid, j, physicsClientId=cid)[12].decode(): j for j in range(nj)}
-        # full body: FRONT = face-on (yaw 90 shows the stereo eyes + both arms); SIDE = yaw 0 (profile)
-        out["full_front"] = _cap(cid, bid, str(Path(out_dir) / "aethon_full_front.png"),
-                                 target=(bp[0], bp[1], cz * 0.62), distance=1.7, yaw=90, pitch=-6,
-                                 w=width, h=height)
-        out["full_side"] = _cap(cid, bid, str(Path(out_dir) / "aethon_full_side.png"),
-                                target=(bp[0], bp[1], cz * 0.62), distance=1.7, yaw=0, pitch=-6,
-                                w=width, h=height)
-        # HAND close-up: aim at the left palm link (shows the five articulated fingers in a grasp)
+        # HERO 3/4 view (yaw 55 = three-quarter front-left, shows face + chest + both arms + the legs);
+        # SIDE profile (yaw 0). Both auto-framed at the body centre.
+        out["full_front"] = _cap(cid, bid, str(Path(out_dir) / f"aethon_full_front{suffix}.png"),
+                                 target=(bp[0], bp[1], cz), distance=dist, yaw=55, pitch=-8,
+                                 w=width, h=height, fov=fov)
+        out["full_side"] = _cap(cid, bid, str(Path(out_dir) / f"aethon_full_side{suffix}.png"),
+                                target=(bp[0], bp[1], cz), distance=dist, yaw=0, pitch=-8,
+                                w=width, h=height, fov=fov)
+        # HAND close-up: aim at the hand centroid (palm→fingertips), framed against the dark backdrop
+        # (not the leg). The hand hangs outboard (-x,+y); shoot from the outboard-front so the top key
+        # light rakes the knuckles. Target a touch below the palm to centre the curled fingers.
         if "l_palm" in link_idx:
             ls = p.getLinkState(bid, link_idx["l_palm"], physicsClientId=cid)[0]
-            out["hand"] = _cap(cid, bid, str(Path(out_dir) / "aethon_hand.png"),
-                               target=ls, distance=0.26, yaw=120, pitch=-12, w=760, h=760)
-        # FOOT close-up: aim at the left foot link (shows the flat 240 mm box sole)
+            out["hand"] = _cap(cid, bid, str(Path(out_dir) / f"aethon_hand{suffix}.png"),
+                               target=(ls[0] - 0.02, ls[1] + 0.01, ls[2] - 0.05), distance=0.30,
+                               yaw=160, pitch=-12, w=860, h=820, fov=38.0, shadow=0,
+                               light=[-0.6, 0.3, 0.8])  # lit from the camera/front-left, no cast shadow
+        # FOOT close-up: aim at the left foot link (the sculpted boot over the flat 240 mm sole)
         if "l_foot" in link_idx:
             fs = p.getLinkState(bid, link_idx["l_foot"], physicsClientId=cid)[0]
-            out["foot"] = _cap(cid, bid, str(Path(out_dir) / "aethon_foot.png"),
-                               target=fs, distance=0.42, yaw=55, pitch=-22, w=820, h=620)
+            out["foot"] = _cap(cid, bid, str(Path(out_dir) / f"aethon_foot{suffix}.png"),
+                               target=(fs[0] + 0.02, fs[1], fs[2]), distance=0.46, yaw=58, pitch=-18,
+                               w=900, h=680, fov=42.0, shadow=0, light=[0.5, 0.4, 0.9])
     finally:
         p.disconnect(cid)
     return out
@@ -1356,9 +1542,13 @@ def comparison_summary() -> dict:
             "AETHON ist KEIN dynamischer Läufer out-of-the-box: der gelernte Ganzkörper-Gang ist ein "
             "RL-Handoff (URDF geliefert), genau wie bei den meisten Referenzen. Der verifizierte Stand "
             "ist statisch (stiff-hold + Box-Füße).",
-            "Drehmoment-Vergleich: AETHONs 160 N·m Knie-Peak schlägt AGILOped (80) und liegt unter "
-            "Unitree H2 (360) — H2 ist eine schwere Metallklasse; AETHON optimiert Dexterität+Gewicht+"
-            "Bezahlbarkeit, nicht rohes Beinmoment. Für die ~22-kg-Druckklasse ist 160 N·m sehr stark.",
+            "Drehmoment-Vergleich: AETHONs Knie nutzt den kaufbaren CubeMars AK80-64 (120 N·m Peak) "
+            "statt eines Custom-Aktuators — damit ist AETHON VOLLSTÄNDIG aus Seriennteilen baubar. "
+            "120 N·m schlägt AGILOped (80) und liegt unter Unitree H2 (360, schwere Metallklasse); "
+            "der Knie-Bedarf ist 75 N·m → Peak-Sicherheitsfaktor 1.60 (bzw. 1.31 über die reflektierte "
+            "δ-Aktuator-Kennlinie bei 1.4 rad/s). EHRLICH: die 75 N·m sind eine Worst-Pose-SPITZE; "
+            "die AK80-64-DAUERMomentgrenze ist 48 N·m, der Stand selbst liegt deutlich darunter, aber "
+            "ein dauerhaftes Halten von 75 N·m am Knie bräuchte einen kräftigeren Dauer-Aktuator.",
             "Mehrere Referenz-/SOTA-Zellen sind 'n/a' (Hersteller veröffentlicht die Achse nicht) — "
             "ehrlich als unbekannt markiert statt geschätzt.",
         ],
