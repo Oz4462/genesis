@@ -175,6 +175,60 @@ def test_continuous_gate_iff_thermal_condition(mass_share_kg, arm_m, cont_limit_
     assert gate_passes == thermal_ok
 
 
+def test_shank_is_an_explicitly_gated_bending_member():
+    """The evolved shank is GATE-PROVEN, not just thickened: a k_shank_stress constraint enforces the
+    shank's peak bending stress at the knee hole stays under the material strength — exactly like the
+    thigh's k_stress. The shipping section clears it; this is the gate the round-2 review found missing."""
+    s = gh.aethon_spec()
+    qids = {q.id: q for q in s.quantities}
+    assert "q_shank_sigma_peak" in qids and "q_strength" in qids
+    k = next((c for c in s.constraints if c.id == "k_shank_stress"), None)
+    assert k is not None, "the shank stress gate k_shank_stress must exist"
+    assert k.kind == "le" and k.left == "q_shank_sigma_peak" and k.right == "q_strength"
+    # the shipping (evolved) shank clears it
+    assert qids["q_shank_sigma_peak"].value < qids["q_strength"].value
+
+
+def _state_for_cfg(cfg):
+    """Build a gate-ready RunState for an arbitrary AethonConfig (mirrors gh.aethon_state, which is
+    pinned to the shipping AETHON) so we can prove the shank gate BITES on an understrength wall."""
+    from gen.core.state import Approach, Question, RunState
+    st = RunState(question=Question(raw=cfg.idea, run_id=cfg.run_id))
+    st.claims = gh._aethon_claims(cfg)
+    st.approaches = [Approach(id="ap_" + cfg.run_id, name="x", grounding=["c_aethon"])]
+    st.specification = gh.build_aethon(cfg)
+    return st
+
+
+def test_understrength_shank_fails_gate_gamma():
+    """The teeth of the gate: reverting the shank wall to a genuinely understrength section (peak stress
+    above the material strength) must FAIL GATE γ on k_shank_stress — proving the evolution is enforced,
+    not asserted (the exact regression the round-2 review flagged as silently passing)."""
+    weak = replace(gh.AETHON, shank_thick_mm=11.0)  # σ_peak ≈ 135 MPa > 85 MPa strength
+    gg = gate_gamma(_state_for_cfg(weak))
+    assert not gg.passed
+    violated = {f.detail.split("'")[1] for f in gg.failures
+                if f.code == "CONSTRAINT_VIOLATION" and "'" in f.detail}
+    assert "k_shank_stress" in violated, f"k_shank_stress must be the failing gate, got {violated}"
+
+
+def test_evolution_report_is_honest_and_reproducible():
+    """aethon_evolution_report recomputes the shank SF before/after through the real mechanics validator:
+    the round-1 14 mm baseline is UNDER-designed (SF≈1.02), the shipping section is OK and strictly
+    stronger. This makes the FEM-driven evolution claim falsifiable, and gives the doc comments a real
+    symbol to reference (the round-2 review found 'aethon_evolution_report' was a dangling name)."""
+    rep = gh.aethon_evolution_report()
+    assert rep["baseline_thick_mm"] == gh.PRE_EVOLUTION_SHANK_THICK_MM == 14.0
+    assert rep["evolved_thick_mm"] == gh.AETHON.shank_thick_mm
+    assert rep["baseline_verdict"] == "under"      # the weakest member, pre-evolution
+    assert rep["evolved_verdict"] == "ok"
+    assert rep["evolved_safety_factor"] > rep["baseline_safety_factor"]
+    assert rep["improved"] is True
+    assert rep["evolved_safety_factor"] >= rep["threshold"]  # clears STRUCT_SF_MIN
+    # deterministic: a second call returns the identical record
+    assert gh.aethon_evolution_report() == rep
+
+
 def test_total_mass_is_in_target_band():
     # the per-link URDF masses sum to the design target (cf. the floating-base load test); the spec
     # target is the lightweight ~22 kg printed class.
