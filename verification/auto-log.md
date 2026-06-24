@@ -713,3 +713,13 @@ f | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detecte
 - 2026-06-24T01:18:25.669414 | run_terminal_command | cmd: wc -l verification/auto-log.md; tail -5 verificati | → /vibe-verify or RecoveryPlaybook
 - 2026-06-24T01:18:28.865769 | run_terminal_command | cmd: grep -l -r --include='*.md' '^<<<<<<< ' . 2>/dev/n | → /vibe-verify or RecoveryPlaybook
 - 2026-06-24T01:18:31.870929 | run_terminal_command | cmd: set -o pipefail; if grep -l -r --include='*.md' '^ | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-24T02:05:46.817906 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T02:05:52.019614 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T02:05:59.420975 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detected - see template)
+- 2026-06-24T02:06:07.101044 | search_replace | tests/test_pressure_vessel_characterization.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-24T02:06:10.193045 | search_replace | tests/test_pressure_vessel_characterization.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-24T02:06:14.318018 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T02:06:18.519207 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T02:06:24.421365 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T02:06:42.117788 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T02:06:44.417909 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook
