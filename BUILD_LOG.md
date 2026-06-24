@@ -214,3 +214,74 @@ fehlende/inkonsistente Daten → dokumentierter `ValueError`. Hypothesis-Propert
 + Recovery beliebiger Affin-Gesetze. KEINE Verhaltensänderung nötig (Modul war bereits korrekt);
 nur Modul-Docstring-Audit-Notiz ergänzt. 4 Linsen angewendet. Details:
 `docs/audit/symbolic_search.md`.
+
+## 2026-06-24 — Depth-Audit `printability.py` (FDM Design-Regeln) [T01]
+Charakterisierungs-Suite `tests/test_printability_characterization.py` (25 Tests,
+Hypothesis-property-based) für die 7 Closed-Form-FDM-Validatoren (bridge_span,
+fit_clearance, pin_diameter, thread_size, unsupported_wall, emboss_detail,
+layer_adhesion). Fassaden-Killer pro Validator: (a) Output skaliert nachweisbar mit
+dem treibenden Input (doppelter Span → halber safety_factor; fit/kind wählt echten
+Floor; allowed_stress = z_retention×base_strength) — kein gecanntes Konstant; (b)
+jeder dokumentierte ValueError feuert exakt; (c) Null-Span/Null-Stress → ehrliches
+`inf`. Property-Invarianten: safety_factor==q/limit, ok⇔q≥limit, use_insert_or_tap==¬ok.
+**Verdikt REAL — keine Quelländerung** ("change nothing if correct"). Legacy (15) +
+neu (25) grün. 4 Linsen angewendet. Details: `docs/audit/DEPTH_AUDIT_printability.md`.
+
+---
+
+## T02: Depth-audit proof_kernels.py (z3 QF_NRA) — 2026-06-24
+**Task:** NEW `tests/test_proof_kernels_characterization.py` (with `pytest.importorskip('z3')` at top) proving Z3IdentityKernel is a real decision procedure (genuine UNSAT → 'proved'; sat+ce → 'refuted'; abstentions → 'unsupported') + LeanStub always abstains. Property tests. Edit src ONLY on genuine defect. Add DEPTH_AUDIT + BUILD_LOG entry.
+**Research (pre-edit):** read proof_kernels.py + legacy test_proof_kernels.py + proof_loop + identity_research callers, existing DEPTH_AUDIT_* + team decisions (facade-killer a+b, property, real API, "change nothing unless defect", isolation, z3 skip at top), probe exec for ce/unsat/0**neg/unbound/empty.
+**Outcome:** 21-pass char test (example + 2 Hypothesis determinism/equivalence + explicit UNSAT string + ce witness plug-in + all abstention NEGATIVEs + domain matrix + unknown contract). Guard added only for surfaced defect.
+**Defect scan:** Pre-analysis: correct (UNSAT path real, ce genuine or {} valid for ground false, all abstentions honest). Rubberduck (post-round1) surfaced: 0**negative-int emits 1/0 (undefined) instead of abstain — real L4 (silent bad term). Fixed with minimal guard in _to_z3 + explanatory comment (0**0 convention kept+documented). Also addressed: empty-ce doc, explicit UNSAT assert, more domain combos, timeout-unknown path.
+**Files touched (strict scope):** src/gen/proof_kernels.py (1-line guard + comment only), tests/test_proof_kernels_characterization.py (new + extensions), docs/audit/DEPTH_AUDIT_proof_kernels.md (new), BUILD_LOG.md (this append). Legacy test_proof_kernels.py untouched.
+**Test exec (green):** PYTHONPATH=src pytest tests/test_proof_kernels_characterization.py -q → 21 passed. Combined slice (char + legacy proof + proof_loop char) 24+ passed.
+**4 Linsen + Selbstkontrolle:** L1 (verbatim UNSAT detail + ce subs recheck); L2 (status+detail+contract match docstring); L3 (all paths + matrix + properties; legacy protected); L4 (scoped to 0**neg + ce-empty + domain/unknown; no creep; guarded imports). DoD met: facade-detector, property tests, neg tests, explicit REAL verdict, only-justified src delta, audit+log present.
+**Verdict:** T02 COMPLETE. proof_kernels is REAL (z3 is genuine decision proc; Lean stub honest). Guard only for the one undefined-input L4 case.
+**Evidence:** new test (21), DEPTH_AUDIT, this entry, pytest output above. Isolation + "pass using own files + pre-existing" satisfied.
+
+---
+
+## 2026-06-24 — Depth-Audit `ratification.py` (T03, HITL Sign-off-Gate) — REAL, keine Quell-Änderung
+Charakterisierung des No-Default-Approval-Vertrags (Research #5 / Agent-SDK „never fake approval"):
+`ratification_packet` ist nachweislich aus Inputs abgeleitet (mehr Decisions/Gaps → mehr blockierende
+Items mit deren Inhalt; Gate-Verdikt PASS→Evidenz / FAIL→blockierend; Abweichungs-Anzahl aus
+`result.failures` gelesen, nicht hartcodiert). `is_ratified` gepinnt als Property (200 Bsp.):
+`== (benannter Approver) ∧ (jede blockierende Ref explizit signiert)` — anonymer Voll-Sign-off,
+ein fehlendes Item, nicht-signiertes FAILED-Gate und leeres Packet ohne Mensch sind alle NICHT
+„done"; `SignOff` friert mutables Approval-Set zu `frozenset` (kein nachträgliches Nachschmuggeln).
+14 neue Tests (inkl. 2 Hypothesis-Properties) grün, Legacy-Test (9) unverändert grün. Modul war
+bereits korrekt → keine Quell-Edits („change nothing if correct"). 4 Linsen angewendet. Details:
+`docs/audit/DEPTH_AUDIT_ratification.md`.
+
+---
+
+## 2026-06-24 — Depth-Audit T04: reality.py (GATE δ⁺ reality proof) (VERDICT: REAL)
+Tiefen-Audit des deterministischen Reality-Proofs. Charakterisierungstest
+(`tests/test_reality_characterization.py`, 25 Tests grün, offline) beweist als Facade-Killer:
+(a) das Verdikt ist AUS DEN ZAHLEN GERECHNET, kein Konstanten-Stub — Residuum trackt den
+gesweepten Messwert (≥4 verschiedene Werte == `|measured−predicted|`), die Toleranz-Grenze
+flippt den Status inklusiv, und die Einheiten-Skala konvertiert echt (1.5 m == 150 cm ==
+1500 mm korroborieren, 1600 mm → 1.6 m widerlegt); (b) jede Abstention/Fail-loud feuert exakt —
+INCONCLUSIVE bei Dimensions-Mismatch/unparsbar/keine-SI-Skala/keine-Provenance/nicht-finit, und
+`gate_delta_plus` mit allen vier Codes (GROUNDING_UNKNOWN_CLAIM/EXPERIMENT_MISMATCH/
+UNSOURCED_MEASUREMENT/DEAD_MEASUREMENT_SOURCE), Akkumulation ohne Short-Circuit und dem
+Schlüssel-Vertrag „REFUTED lässt das Gate bestehen". Hypothesis-Properties: Residuum==Distanz +
+Status 1:1, m↔cm/mm-Round-Trip, Determinismus (A5). KEINE Quellcode-Änderung nötig (Modul war
+bereits korrekt). 4 Linsen angewendet. Details: `docs/audit/DEPTH_AUDIT_reality.md`.
+
+---
+
+## 2026-06-24 — Depth-Audit T05: refinement.py (VERDICT: REAL)
+Tiefen-Audit des Verify→Refine-Controllers (bounded loop um beliebiges Gate).
+Charakterisierungstest (`tests/test_refinement_characterization.py`, 12 Tests grün, davon
+2 Negativtests + 2 Hypothesis-Properties) beweist einen EHRLICHEN bounded Controller, kein
+Fassaden-Stub: `directives_from_gate` mappt jede Failure (bekannter Code → Template, unbekannter
+→ generische Direktive, die das Detail trägt, nie erfunden); `refine_until_pass` konvergiert nur
+bei echtem Gate-Pass, meldet `stuck=True` bei wiederkehrender Failure-**Signatur** (inkl. A↔B-
+Oszillation, die der mengenbasierte Detektor fängt), `converged=False` mit Residuals bei
+erschöpftem Budget, `ValueError` bei nicht-positivem Budget. Facade-Killer: Outcome wird von der
+Regenerator-Stärke getrieben (stark → converged, schwach → nicht), Rundenzahl = geschlossene Form
+`ceil((threshold−start)/step)`. Isoliert über ein rein deterministisches, physik-/LLM-freies
+Scripted-Gate (Defekt-Level im realen `Question.run_id`). KEINE Verhaltensänderung nötig (Modul war
+bereits korrekt und ehrlich). 4 Linsen angewendet. Details: `docs/audit/DEPTH_AUDIT_refinement.md`.

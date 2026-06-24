@@ -81,12 +81,18 @@ def _to_z3(expr: sp.Expr, env: dict):
             n = int(e)
             base = _to_z3(expr.base, env)
             if n == 0:
+                # Convention: 0**0 == 1 (standard in power series, binomial thm, z3).
+                # This is the mathematically conventional choice; not a bug.
                 return z3.RealVal(1)
             if n > 0:
                 acc = base
                 for _ in range(n - 1):
                     acc = acc * base
                 return acc
+            # negative exponent: guard against 0**-k which is undefined (1/0) in reals
+            b = expr.base
+            if (b.is_Integer and int(b) == 0) or (b.is_Rational and getattr(b, "p", 1) == 0):
+                raise _Z3Unsupported("0 raised to negative power is undefined in reals")
             acc = base
             for _ in range(-n - 1):
                 acc = acc * base
