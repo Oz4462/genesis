@@ -38,6 +38,7 @@ Deterministic, offline. German prose for spec text (owner directive); English id
 
 from __future__ import annotations
 
+import math
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 
@@ -80,6 +81,19 @@ TARGET_MASS_KG = 22.0           # printed CF structure → light (cf. N1 38, Asi
 FOOT_LENGTH_M = 0.240           # the ZMP-stable sole the prior physics run found (SF > 1.3)
 FOOT_WIDTH_M = 0.110
 COM_HEIGHT_M = 0.74             # CoM ~0.72-0.78 m band the prior ZMP analysis established
+
+#: The verified static-stand crouch joint angles (rad) — the SINGLE source of truth for both the
+#: ``STANDING_POSE`` the PyBullet 5 s hold uses AND the closed-form continuous-knee-torque derivation in
+#: ``build_aethon``. Tying the derivation to the exact pose that stood is what makes the continuous-torque
+#: gate HONEST (it checks the torque actually held, not a hand-picked number).
+STAND_HIP_PITCH_RAD = -0.45
+STAND_KNEE_PITCH_RAD = 0.9
+STAND_ANKLE_PITCH_RAD = -0.45
+#: Shank link length (m) of the URDF geometry the stand was verified on (matches ``_DIM["shank_len"]``).
+SHANK_LEN_M = 0.30
+#: AK80-64 published CONTINUOUS (thermal/duty-cycle) output torque, N·m — the sustained-hold limit, well
+#: below the 120 N·m peak. Grounded to claim ``c_motor`` (which states "48 N·m Dauer").
+AK80_64_CONTINUOUS_NM = 48.0
 
 
 @dataclass(frozen=True)
@@ -348,6 +362,25 @@ def build_aethon(cfg: AethonConfig) -> Specification:
     # F_tip = T · r_pulley / lever  (a conservative single-joint moment balance, the canonical estimate).
     grasp_tip_n = cfg.tendon_tension_n * (cfg.pulley_radius_mm / cfg.fingertip_moment_arm_mm)
     grasp_total_n = grasp_tip_n * FINGERS_PER_HAND  # whole-hand power grasp (all fingers engaged)
+
+    # ---- continuous (thermal/duty-cycle) knee-torque check on the VERIFIED static stand ----
+    # The 75 N·m knee demand (cfg.knee_demand_nm) is the WORST-POSE static peak (a deep, transient
+    # crouch), covered by the AK80-64's 120 N·m OUTPUT peak (SF 1.6). But "can it HOLD a pose forever?"
+    # is a THERMAL question — it must be checked against the AK80-64's 48 N·m CONTINUOUS rating, not the
+    # peak, and against the torque the robot ACTUALLY holds in the verified stand, not the worst pose.
+    # We derive that held torque closed-form from the verified standing pose (STAND_*_PITCH_RAD) and the
+    # double-support load share, so the number is the one the 5 s PyBullet stand really sustained:
+    #   • in quiet double support the two legs share the body weight equally → each leg carries m/2;
+    #   • with the foot flat and CoM centred (lean ≈ 0.23°), the vertical ground reaction passes ~through
+    #     the ankle, so the knee's moment arm is its horizontal offset from the ankle: the shank, tilted
+    #     |ankle_pitch| from vertical, puts the knee a = L_shank·sin|ankle_pitch| forward;
+    #   • held knee torque τ_stand = (m/2)·g·a.
+    # This is conservative (the real CoP sits slightly forward of the ankle, which would SHORTEN the knee
+    # arm). τ_stand ≪ 48 N·m → AETHON holds the stand indefinitely on the off-the-shelf AK80-64.
+    stand_leg_load_kg = TARGET_MASS_KG * 0.5
+    knee_arm_stand_m = SHANK_LEN_M * math.sin(abs(STAND_ANKLE_PITCH_RAD))
+    knee_torque_stand_nm = stand_leg_load_kg * g * knee_arm_stand_m
+    knee_cont_sf = AK80_64_CONTINUOUS_NM / knee_torque_stand_nm
 
     q = [
         # ---- structural load path on the thigh (σ-checked bending member) ----
@@ -900,7 +933,7 @@ _DIM = {
     "torso":      (0.13, 0.21, 0.30),   # trunk (z up)
     "head":       (0.11, 0.13, 0.12),
     "thigh_len":  0.30, "thigh_r": 0.045,
-    "shank_len":  0.30, "shank_r": 0.040,
+    "shank_len":  SHANK_LEN_M, "shank_r": 0.040,
     "foot":       (FOOT_LENGTH_M, FOOT_WIDTH_M, 0.030),   # the flat BOX sole
     "uarm_len":   0.24, "uarm_r": 0.034,
     "farm_len":   0.22, "farm_r": 0.030,
@@ -1294,9 +1327,9 @@ def aethon_urdf(name: str = "aethon", *, dexterous_hands: bool = True,
 #: The verified crouch standing pose (the proven stiff-hold + box-foot recipe; lean < 1° for 5 s).
 STANDING_POSE: dict[str, float] = {}
 for _s in ("l", "r"):
-    STANDING_POSE[f"{_s}_hip_pitch"] = -0.45
-    STANDING_POSE[f"{_s}_knee_pitch"] = 0.9
-    STANDING_POSE[f"{_s}_ankle_pitch"] = -0.45
+    STANDING_POSE[f"{_s}_hip_pitch"] = STAND_HIP_PITCH_RAD
+    STANDING_POSE[f"{_s}_knee_pitch"] = STAND_KNEE_PITCH_RAD
+    STANDING_POSE[f"{_s}_ankle_pitch"] = STAND_ANKLE_PITCH_RAD
 
 #: A natural relaxed-arm + half-closed-hand grasp pose for the beauty render (shoulders slightly in,
 #: elbows softly bent, fingers curled into a ready grasp — not a contrived crouch).
