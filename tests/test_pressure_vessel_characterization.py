@@ -23,7 +23,7 @@ anchors. Negative tests are mandatory ("a gate without a test does not exist").
 Pure math, offline, deterministic. Uses only stdlib + declared deps (numpy/hypothesis for
 some scaling + properties).
 
-Run:  PYTHONPATH=src python -m pytest tests/test_pressure_vessel_characterization.py -q
+Run:  PYTHONPATH=src python3 -m pytest tests/test_pressure_vessel_characterization.py -q
 """
 
 from __future__ import annotations
@@ -288,3 +288,30 @@ def test_check_ok_flips_exactly_at_yield_crossing():
     assert below["ok"] is False
     assert at["ok"] is True
     assert above["ok"] is True
+
+
+# --- accepted documented edge: p<=0 (no guard, yields 'safe' no-stress) ----------
+# Pins the p<=0 behavior explicitly (per finding) so it is not an unverified
+# silent path. This is accepted per the public API contract: docstring lists
+# guards only for r_inner/thickness (GeometryError) and yield_strength (ValueError);
+# pressure has no guard because p<=0 corresponds to the no-burst (max_hoop<=0)
+# special case already present for safety_factor/inf and ok=True.
+# External/negative pressure is disclaimed in module docstring ("does NOT cover
+# external pressure") but the math path accepts it without fabricating a value.
+# Per L4 scoping + "change nothing if correct", we document+test rather than
+# add a source guard (which would be blanket feature-creep).
+
+def test_check_non_positive_pressure_is_accepted_no_stress_edge():
+    """p<=0 produces max_hoop<=0, safety_factor=inf, ok=True (no error).
+    This pins the behavior the char test previously left unexercised for <=0.
+    """
+    for p in (0.0, -0.1, -5.0):
+        r = pressure_vessel_check(p, 500.0, 10.0, 600.0, model="thin")
+        assert r["max_hoop"] <= 0.0
+        assert r["safety_factor"] == float("inf")
+        assert r["ok"] is True
+
+        r2 = pressure_vessel_check(p, 500.0, 10.0, 600.0, model="thick")
+        assert r2["max_hoop"] <= 0.0
+        assert r2["safety_factor"] == float("inf")
+        assert r2["ok"] is True

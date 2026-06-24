@@ -723,3 +723,16 @@ f | → /vibe-verify or RecoveryPlaybook | RUBBER_DUCK_NEEDED (bug/error detecte
 - 2026-06-24T02:06:24.421365 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook
 - 2026-06-24T02:06:42.117788 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook
 - 2026-06-24T02:06:44.417909 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T02:11:08.819984 | search_replace | tests/test_pressure_vessel_characterization.py | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-24T02:11:14.296342 | search_replace | tests/test_pressure_vessel_characterization.py | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | DOC_UPDATE_NEEDED (code changed – update docs/contracts as you go) | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed) | FORMAT_LINT_NEEDED (run Prettier/ESLint or Ruff as you go for clean code) | SECURITY_SCAN_NEEDED (run Trivy fs . ; consider SonarQube for full scan)
+- 2026-06-24T02:11:18.631700 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T02:11:20.731008 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T02:11:25.479069 | search_replace | docs/audit/DEPTH_AUDIT_pressure_vessel.md | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-24T02:11:31.518348 | search_replace | docs/audit/DEPTH_AUDIT_pressure_vessel.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-24T02:11:34.229957 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T02:11:42.802691 | search_replace | docs/audit/DEPTH_AUDIT_pressure_vessel.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-24T02:11:56.486216 | search_replace | docs/audit/DEPTH_AUDIT_pressure_vessel.md | [Large edit - verify wiring] | → /vibe-verify or RecoveryPlaybook | SCOPE_CHECK_NEEDED (scope/plan change detected – update routing-plan and DoD if needed)
+- 2026-06-24T02:12:03.231270 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T02:12:06.336028 | search_replace | docs/audit/DEPTH_AUDIT_pressure_vessel.md | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T02:12:08.271321 | search_replace | docs/audit/DEPTH_AUDIT_pressure_vessel.md | → /vibe-verify or RecoveryPlaybook
+- 2026-06-24T02:12:12.031454 | run_terminal_command | cmd: cd /home/genesis/genesis/.crew/worktrees/T05-grok  | → /vibe-verify or RecoveryPlaybook
