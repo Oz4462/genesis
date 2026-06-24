@@ -109,6 +109,12 @@ AK80_64_CONTINUOUS_NM = 48.0
 #: (= 48 / 1.5) would FAIL the γ gate instead of silently shipping a thermally-overloaded knee.
 KNEE_CONTINUOUS_SF_MIN = 1.5
 
+#: The round-1 (pre-evolution) shank wall thickness, kept as the documented BASELINE the
+#: ``aethon_evolution_report`` measures the FEM-driven strengthening against. At 14 mm the shank was
+#: the weakest load-bearing member (governing bending SF ≈ 1.02); the shipping ``shank_thick_mm`` was
+#: evolved upward to clear ``aethon_mechanics.STRUCT_SF_MIN`` while staying printable and gate-green.
+PRE_EVOLUTION_SHANK_THICK_MM = 14.0
+
 
 @dataclass(frozen=True)
 class JointSpec:
@@ -222,6 +228,11 @@ class AethonConfig:
     finger_servo_name: str
     battery_name: str
     battery_wh: float
+    # shank (lower-leg) section — EVOLVED from the aethon_mechanics FEM finding (round-1 the 14 mm
+    # shank was the weakest load-bearing member at SF≈1.02; thickened so its now-GATED bending safety
+    # factor clears the margin). Defaulted so dataclasses.replace() call sites + tests stay compatible.
+    shank_width_mm: float = 38.0
+    shank_thick_mm: float = 18.0
     prices: dict = field(default_factory=dict)
     extra_claims: list = field(default_factory=list)
 
@@ -370,6 +381,14 @@ def build_aethon(cfg: AethonConfig) -> Specification:
     force_n = cfg.leg_load_kg * sf * g
     b, h, arm = cfg.thigh_width_mm, cfg.thigh_thick_mm, 70.0
     sigma_nom = 6.0 * force_n * arm / (b * h * h)
+    # ---- EVOLVED shank σ-gate (driven by the aethon_mechanics deep-compute finding) ----
+    # The deep-compute analysis found the round-1 shank (14 mm) was the WEAKEST load-bearing member
+    # (governing bending SF ≈ 1.02). The shipping shank section is now read from cfg (evolved to a
+    # thicker wall) and made an explicitly GATED bending member exactly like the thigh: same single-leg
+    # design load q_force at the knee-hole lever, Kirsch Kt at the bore. The number is recomputed by the
+    # γ gate (C-6) and dimension-checked (C-15); the k_shank_stress constraint enforces σ_peak < strength.
+    shank_b, shank_h, shank_arm = cfg.shank_width_mm, cfg.shank_thick_mm, 80.0
+    shank_sigma_nom = 6.0 * force_n * shank_arm / (shank_b * shank_h * shank_h)
     limb_inertia = rod_inertia_about_end(2.0, 0.18)  # leg swing pendulum about the hip (canonical)
     # hand grasp: tendon tension T at pulley radius r_p makes a finger-base torque T·r_p; reacted at
     # the fingertip over the distal lever (sum of phalanx lengths ~ fingertip_moment_arm) → tip force.
@@ -481,8 +500,17 @@ def build_aethon(cfg: AethonConfig) -> Specification:
              ("q_mount_reaction", "q_n_bolts")),
         # shank
         _d("q_shank_x", "Unterschenkel / size_x", 210.0, "mm", "Knie–Knöchel"),
-        _d("q_shank_y", "Unterschenkel / size_y", 38.0, "mm", "Breite"),
-        _d("q_shank_z", "Unterschenkel / size_z", 14.0, "mm", "Dicke"),
+        _d("q_shank_y", "Unterschenkel / size_y", shank_b, "mm", "Breite"),
+        _d("q_shank_z", "Unterschenkel / size_z", shank_h, "mm",
+           f"Dicke (FEM-evolviert: round-1 {PRE_EVOLUTION_SHANK_THICK_MM:g} mm war SF≈1.02, "
+           "schwächstes Glied → verdickt und gegatet)"),
+        _d("q_shank_arm", "Biege-Hebelarm Unterschenkel", shank_arm, "mm", "Knie-Loch-Abstand"),
+        _der("q_shank_sigma_nom", "nominale Biegespannung Unterschenkel", shank_sigma_nom, "MPa",
+             cantilever_bending_stress_formula("q_force", "q_shank_arm", "q_shank_y", "q_shank_z"),
+             ("q_force", "q_shank_arm", "q_shank_y", "q_shank_z")),
+        _der("q_shank_sigma_peak", "Spitzenspannung am Knie-Loch (Unterschenkel)",
+             STRESS_CONCENTRATION_CIRCULAR_HOLE * shank_sigma_nom, "MPa",
+             peak_stress_formula("q_shank_sigma_nom", "q_kt"), ("q_kt", "q_shank_sigma_nom")),
         _d("q_shank_off", "Unterschenkel-Bohrung +", 80.0, "mm", "+x"),
         _d("q_shank_neg", "Unterschenkel-Bohrung -", -80.0, "mm", "-x"),
         # flat box foot (the ZMP-stable 240mm sole)
@@ -793,6 +821,14 @@ def build_aethon(cfg: AethonConfig) -> Specification:
     constraints = [
         Constraint(id="k_stress", kind="le", left="q_sigma_peak", right="q_strength",
                    reason=f"die Spitzenspannung am Hüft-Loch bleibt unter der {cfg.material_name}-Festigkeit"),
+        # EVOLVED shank σ-gate — makes the FEM-driven shank strengthening GATE-PROVEN: the shank's peak
+        # bending stress at the knee hole is now an enforced inequality exactly like the thigh's k_stress.
+        # An understrength shank wall (e.g. reverting toward the round-1 14 mm section, whose σ_peak rises
+        # toward the material strength) is caught here instead of silently shipping — per Kernprinzip
+        # "Verifikation ist ein Gate, kein Vorschlag".
+        Constraint(id="k_shank_stress", kind="le", left="q_shank_sigma_peak", right="q_strength",
+                   reason=f"die Spitzenspannung am Knie-Loch des Unterschenkels bleibt unter der "
+                          f"{cfg.material_name}-Festigkeit (FEM-evolvierte, gegatete Wanddicke)"),
         Constraint(id="k_dfm_thigh_wall", kind="ge", left="q_thigh_z", right="q_min_wall",
                    reason="die Oberschenkel-Dicke ist mindestens die kleinste druckbare FDM-Wand"),
         Constraint(id="k_dfm_farm_wall", kind="ge", left="q_farm_z", right="q_min_wall",
@@ -959,6 +995,52 @@ def design_summary() -> dict:
                     for grp, js in DOF_MAP.items()},
         "fingers_per_hand": FINGERS_PER_HAND,
         "phalanges_per_finger": PHALANGES_PER_FINGER,
+    }
+
+
+def aethon_evolution_report() -> dict:
+    """Honest before/after record of the one FEM-driven structural change the deep-compute drove: the
+    shank (lower-leg) wall thickness.
+
+    Recomputes the shank's GOVERNING structural safety factor at the round-1 baseline thickness
+    (:data:`PRE_EVOLUTION_SHANK_THICK_MM`) and at the shipping ``AETHON.shank_thick_mm`` through the
+    SAME real ``aethon_mechanics`` structural validator the deep-compute uses (continuum-FEM axial
+    reserve vs closed-form bending, larger mode governs). This makes the evolution claim — "the round-1
+    14 mm shank was the weakest load-bearing member (SF≈1.02) and was thickened until it cleared the
+    margin" — reproducible and falsifiable rather than asserted in prose.
+
+    Returns:
+        A dict with the baseline/evolved thickness, governing safety factors and verdicts, the
+        ``STRUCT_SF_MIN`` threshold the evolved part must clear, and an ``improved`` flag. The verdicts
+        come straight from the validator (``"under"`` / ``"ok"`` / ``"overbuilt"``).
+    """
+    # Lazy import: aethon_mechanics reads THIS module (genesis_humanoid) lazily inside its functions, so
+    # importing it here at module top would be a needless cycle risk — pull it only when the report runs.
+    from . import aethon_mechanics as am
+
+    cfg = AETHON
+    force_n = cfg.leg_load_kg * 2.0 * STANDARD_GRAVITY   # design leg load × static SF (the spec's load)
+
+    def _shank_finding(thick_mm: float):
+        return am.part_structural_finding(
+            "Unterschenkel (shank)",
+            load_path="Knie→Knöchel-Glied im vollen Einbein-Lastpfad; Biegung am Knie-Loch",
+            force_n=force_n, bending_arm_mm=80.0,
+            width_mm=cfg.shank_width_mm, thick_mm=thick_mm, length_mm=210.0,
+            strength_mpa=cfg.material_strength_mpa, e_mpa=cfg.material_e_mpa)
+
+    baseline = _shank_finding(PRE_EVOLUTION_SHANK_THICK_MM)
+    evolved = _shank_finding(cfg.shank_thick_mm)
+    return {
+        "part": "Unterschenkel (shank)",
+        "baseline_thick_mm": PRE_EVOLUTION_SHANK_THICK_MM,
+        "evolved_thick_mm": cfg.shank_thick_mm,
+        "baseline_safety_factor": baseline.safety_factor,
+        "evolved_safety_factor": evolved.safety_factor,
+        "baseline_verdict": baseline.verdict,
+        "evolved_verdict": evolved.verdict,
+        "threshold": am.STRUCT_SF_MIN,
+        "improved": evolved.safety_factor > baseline.safety_factor,
     }
 
 
