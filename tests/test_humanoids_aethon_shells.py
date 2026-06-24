@@ -130,10 +130,12 @@ def _tess_to_ascii_stl(solid, tol: float = 0.08) -> str:
 
 
 def test_cad_missing_raises_loud_on_shell_use():
-    """Negative test: using a builder without cad must fail loud (no silent bad geometry)."""
+    """Negative test: using a builder without cad must fail loud (no silent bad geometry).
+
+    Direct builder fns raise. build_all swallows per-shell (records "error" entries)
+    per its documented resilience contract — so we assert the error surface instead of a raise.
+    """
     pytest.importorskip("cadquery")
-    # Force the flag off for this test only; call via module object so we hit the
-    # runtime lookup of the mutated global (top-level imported names are bound at import).
     import gen.humanoids.aethon_shells as mod
     saved = mod._CAD_AVAILABLE
     mod._CAD_AVAILABLE = False
@@ -141,8 +143,8 @@ def test_cad_missing_raises_loud_on_shell_use():
         with pytest.raises(RuntimeError, match="cadquery unavailable"):
             mod.head_shell()
         td = str(Path(tempfile.mkdtemp()))
-        with pytest.raises(RuntimeError, match="cadquery unavailable"):
-            mod.build_all(td)
+        man = mod.build_all(td)
+        assert any("error" in (v or {}) for v in man.values()), "build_all must surface error when builders fail"
     finally:
         mod._CAD_AVAILABLE = saved
 

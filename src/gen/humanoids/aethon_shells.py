@@ -210,10 +210,17 @@ def shoulder_pauldron():
     organically while leaving the joint axis visible below it. Mounts at the shoulder."""
     if not _CAD_AVAILABLE:
         raise RuntimeError("cadquery unavailable — run with the .venv-cad interpreter")
-    s = (cq.Workplane("XY").sphere(48).intersect(
-        cq.Workplane("XY").box(120, 120, 96).translate((0, 0, 30))))
-    s = s.cut(cq.Workplane("XY").box(140, 140, 60).translate((0, 0, -30)))  # keep upper dome
-    # Dome is naturally low-overhang when printed convex-up; shell keeps it light.
+    # Lofted shallow dome (stacked ellipses) instead of sphere+planar-cut.
+    # WHY: sphere cut produces sliver/degenerate triangles on the flat rim under tessellate;
+    # the loft produces clean manifold faces that survive .shell + stl_integrity (watertight).
+    # Still reads as a rounded pauldron cap; low overhang convex profile when printed base-down.
+    s = (cq.Workplane("XY")
+         .workplane(offset=0).ellipse(48, 48)
+         .workplane(offset=18).ellipse(46, 46)
+         .workplane(offset=22).ellipse(32, 32)
+         .workplane(offset=16).ellipse(10, 10)
+         .loft(combine=True))
+    s = _safe_fillet(s, "<Z", 3)
     s = _safe_shell(s, MIN_WALL_MM)
     return s
 
@@ -262,12 +269,14 @@ def build_all(out_dir: str) -> dict:
     The kernel solids are hollowed with >= MIN_WALL_MM and are manifold by construction
     (loft/shell/fillet preserve watertightness for these topologies); the STL count + later
     mesh_integrity in consuming pipeline prove it for the written file.
+    makedirs is inside per-shell try so a bad out_dir surfaces as manifest error entry
+    rather than escaping (matches the resilience contract used by callers).
     """
-    os.makedirs(out_dir, exist_ok=True)
     manifest = {}
     for name, fn in SHELLS.items():
-        path = os.path.join(out_dir, f"aethon_{name}_shell.stl")
         try:
+            os.makedirs(out_dir, exist_ok=True)
+            path = os.path.join(out_dir, f"aethon_{name}_shell.stl")
             solid = fn()
             n = _export(solid, path)
             if n < 1:
