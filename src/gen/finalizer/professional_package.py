@@ -19,9 +19,15 @@ from __future__ import annotations
 import html
 import json
 import re
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+try:
+    from ..visualization.robust_renderer import RobustVisualizer
+except Exception:
+    RobustVisualizer = None  # graceful if not present
 
 _MISSING = "_(not available in this result)_"
 
@@ -279,6 +285,18 @@ class ProfessionalPackage:
         else:
             print(f"   • PDF: skipped — {pdf_skipped}")
         print(f"   • sections with real content: {len(self.included)} | not available: {len(self.missing)}")
+
+        # Parallel AETHON / general visuals (robust renderer for images)
+        if RobustVisualizer is not None:
+            try:
+                def _vis():
+                    vis = RobustVisualizer()
+                    vis.auto_integrate(r)
+                threading.Thread(target=_vis, daemon=True).start()
+                print("🖼️  Robust visuals started in parallel thread")
+            except Exception as e:
+                print(f"🖼️  Visuals skipped: {e}")
+
         return result
 
 

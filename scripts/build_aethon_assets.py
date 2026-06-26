@@ -48,6 +48,8 @@ def main():
     # This makes it reproducible via script + source.
     shells_dir = out / "shells"
     shells_dir.mkdir(exist_ok=True)
+    local_shells = local_out / "shells"
+    local_shells.mkdir(exist_ok=True)
     try:
         main_shells = ASSETS_ROOT / "aethon" / "shells"
         if main_shells.exists():
@@ -55,8 +57,9 @@ def main():
             copied = 0
             for f in main_shells.glob("*.stl"):
                 shutil.copy2(f, shells_dir / f.name)
+                shutil.copy2(f, local_shells / f.name)
                 copied += 1
-            print(f"Shells copied ({copied}) from main assets to", shells_dir)
+            print(f"Shells copied ({copied}) from main assets to", shells_dir, "and local", local_shells)
         else:
             print("No main shells dir found; shells generation requires cad python (see aethon_shells.py header).")
             # Attempt import if available in this env (unlikely)

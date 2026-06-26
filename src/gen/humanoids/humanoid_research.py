@@ -1307,6 +1307,13 @@ def autonomous_research_agent(iterations: int = 3, focus: str = "continuous_aeth
         print(f"  KB Facts now: {len(mod.facts)}")
 
     print("\nAutonomous agent run complete. All evolved artifacts and claims in place.")
+    # Parallel AETHON visuals
+    try:
+        import threading
+        from ..visualization.robust_renderer import RobustVisualizer
+        threading.Thread(target=lambda: RobustVisualizer().auto_integrate({"name": focus or "AETHON", "type": "humanoid"}), daemon=True).start()
+    except Exception:
+        pass
     return {"iterations": iterations, "focus": focus, "final_facts": len(mod.facts)}
 
 
