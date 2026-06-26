@@ -38,6 +38,8 @@ Deterministic, offline. German prose for spec text (owner directive); English id
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import math
 
 # xml.etree is used here ONLY to SERIALISE a URDF we build ourselves

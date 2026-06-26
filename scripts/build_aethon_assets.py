@@ -22,13 +22,18 @@ REPRO_DIR = ASSETS_ROOT / "aethon_reproduced"
 def main():
     out = REPRO_DIR
     out.mkdir(parents=True, exist_ok=True)
+    # Also produce a local in-repo version inside the genesis project for full self-contained
+    local_out = Path("out/aethon_reproduced")
+    local_out.mkdir(parents=True, exist_ok=True)
 
     # Build URDF using current (possibly promoted) AETHON
     from gen.humanoids.genesis_humanoid import get_aethon
     cfg = get_aethon(promoted=True)
     urdf = gh.aethon_urdf(dexterous_hands=True, box_feet=True)
     (out / "aethon.urdf").write_text(urdf)
-    print("Wrote", out / "aethon.urdf")
+    # Also to local in-repo
+    (local_out / "aethon.urdf").write_text(urdf)
+    print("Wrote", out / "aethon.urdf", "and local", local_out / "aethon.urdf")
     print("Used promoted AETHON config shank:", getattr(cfg, 'shank_thick_mm', None))
 
     # Try full repro: also build a spec for verification
