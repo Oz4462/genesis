@@ -16,6 +16,7 @@ from .base import (
     scripted_architect,
 )
 from .mechatronics import MechatronicsDomain, scripted_mechatronics_architect
+from .thermal import ThermalDomain, scripted_thermal_architect
 
 __all__ = [
     "InventionDomain",
@@ -26,4 +27,6 @@ __all__ = [
     "scripted_architect",
     "MechatronicsDomain",
     "scripted_mechatronics_architect",
+    "ThermalDomain",
+    "scripted_thermal_architect",
 ]

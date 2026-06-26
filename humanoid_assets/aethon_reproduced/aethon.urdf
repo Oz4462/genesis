@@ -1,0 +1,1664 @@
+<?xml version="1.0"?>
+<robot name="aethon">
+  <link name="pelvis">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="2.4" />
+      <inertia ixx="0.00488" iyy="0.00778" izz="0.00866" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.17 0.12 0.1" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.17 0.12 0.1" />
+      </geometry>
+    </visual>
+  </link>
+  <link name="torso">
+    <inertial>
+      <origin xyz="0 0 0.15" rpy="0 0 0" />
+      <mass value="5.2" />
+      <inertia ixx="0.05811" iyy="0.0463233" izz="0.0264333" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0 0 0.15" rpy="0 0 0" />
+      <geometry>
+        <box size="0.13 0.21 0.3" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0.15" rpy="0 0 0" />
+      <geometry>
+        <box size="0.13 0.21 0.3" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="waist_yaw" type="revolute">
+    <parent link="pelvis" />
+    <child link="torso" />
+    <origin xyz="0 0 0.05" rpy="0 0 0" />
+    <axis xyz="0 0 1" />
+    <limit lower="-1.2" upper="1.2" effort="60" velocity="12" />
+  </joint>
+  <link name="neck">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.2" />
+      <inertia ixx="7.29167e-05" iyy="7.29167e-05" izz="6.25e-05" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.05" radius="0.025" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.05" radius="0.025" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="neck_yaw" type="revolute">
+    <parent link="torso" />
+    <child link="neck" />
+    <origin xyz="0 0 0.3" rpy="0 0 0" />
+    <axis xyz="0 0 1" />
+    <limit lower="-1.5" upper="1.5" effort="4" velocity="12" />
+  </joint>
+  <link name="head">
+    <inertial>
+      <origin xyz="0 0 0.06" rpy="0 0 0" />
+      <mass value="1.1" />
+      <inertia ixx="0.00286917" iyy="0.00242917" izz="0.00265833" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0 0 0.06" rpy="0 0 0" />
+      <geometry>
+        <box size="0.11 0.13 0.12" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0.06" rpy="0 0 0" />
+      <geometry>
+        <box size="0.11 0.13 0.12" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.055 0.03 0.0744" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.012" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.055 -0.03 0.0744" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.012" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="neck_pitch" type="revolute">
+    <parent link="neck" />
+    <child link="head" />
+    <origin xyz="0 0 0.05" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="-0.8" upper="0.8" effort="4" velocity="12" />
+  </joint>
+  <link name="l_shoulder_pitch_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.05" />
+      <inertia ixx="0.0001" iyy="0.0001" izz="0.0001" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+  </link>
+  <link name="l_shoulder_roll_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.05" />
+      <inertia ixx="0.0001" iyy="0.0001" izz="0.0001" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+  </link>
+  <joint name="l_shoulder_pitch" type="revolute">
+    <parent link="torso" />
+    <child link="l_shoulder_pitch_link" />
+    <origin xyz="0 0.125 0.27" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1.57" upper="1.57" effort="60" velocity="12" />
+  </joint>
+  <joint name="l_shoulder_roll" type="revolute">
+    <parent link="l_shoulder_pitch_link" />
+    <child link="l_shoulder_roll_link" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <axis xyz="1 0 0" />
+    <limit lower="-1.57" upper="1.57" effort="60" velocity="12" />
+  </joint>
+  <link name="l_upper_arm">
+    <inertial>
+      <origin xyz="0 0 -0.12" rpy="0 0 0" />
+      <mass value="1" />
+      <inertia ixx="0.005089" iyy="0.005089" izz="0.000578" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0 0 -0.12" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.24" radius="0.034" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 -0.12" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.24" radius="0.034" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_shoulder_yaw" type="revolute">
+    <parent link="l_shoulder_roll_link" />
+    <child link="l_upper_arm" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <axis xyz="0 0 1" />
+    <limit lower="-1.57" upper="1.57" effort="30" velocity="12" />
+  </joint>
+  <link name="l_forearm">
+    <inertial>
+      <origin xyz="0 0 -0.11" rpy="0 0 0" />
+      <mass value="0.7" />
+      <inertia ixx="0.00298083" iyy="0.00298083" izz="0.000315" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0 0 -0.11" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.22" radius="0.03" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 -0.11" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.22" radius="0.03" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_elbow_pitch" type="revolute">
+    <parent link="l_upper_arm" />
+    <child link="l_forearm" />
+    <origin xyz="0 0 -0.24" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="2.4" effort="30" velocity="12" />
+  </joint>
+  <link name="l_wrist_pitch_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.04" />
+      <inertia ixx="0.0001" iyy="0.0001" izz="0.0001" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+  </link>
+  <joint name="l_wrist_pitch" type="revolute">
+    <parent link="l_forearm" />
+    <child link="l_wrist_pitch_link" />
+    <origin xyz="0 0 -0.22" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1.57" upper="1.57" effort="12" velocity="12" />
+  </joint>
+  <link name="l_palm">
+    <inertial>
+      <origin xyz="0 0 -0.011" rpy="0 0 0" />
+      <mass value="0.35" />
+      <inertia ixx="0.000224846" iyy="8.70333e-05" izz="0.000283646" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0 0 -0.011" rpy="0 0 0" />
+      <geometry>
+        <box size="0.05 0.085 0.022" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 -0.011" rpy="0 0 0" />
+      <geometry>
+        <box size="0.05 0.085 0.022" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_wrist_roll" type="revolute">
+    <parent link="l_wrist_pitch_link" />
+    <child link="l_palm" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <axis xyz="1 0 0" />
+    <limit lower="-1.57" upper="1.57" effort="12" velocity="12" />
+  </joint>
+  <link name="l_thumb_carpal">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.00765" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.00765" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_thumb_oppose" type="revolute">
+    <parent link="l_palm" />
+    <child link="l_thumb_carpal" />
+    <origin xyz="0.02 -0.0323 -0.022" rpy="0 0 0" />
+    <axis xyz="0 0 1" />
+    <limit lower="0" upper="1.4" effort="6" velocity="8" />
+  </joint>
+  <link name="l_thumb_prox">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_thumb_prox_flex" type="revolute">
+    <parent link="l_thumb_carpal" />
+    <child link="l_thumb_prox" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="l_thumb_mid">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_thumb_mid_flex" type="revolute">
+    <parent link="l_thumb_prox" />
+    <child link="l_thumb_mid" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="l_thumb_dist">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.03 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.008075" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_thumb_dist_flex" type="revolute">
+    <parent link="l_thumb_mid" />
+    <child link="l_thumb_dist" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="l_index_prox">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_index_prox_flex" type="revolute">
+    <parent link="l_palm" />
+    <child link="l_index_prox" />
+    <origin xyz="0.02 -0.01615 -0.022" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="l_index_mid">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_index_mid_flex" type="revolute">
+    <parent link="l_index_prox" />
+    <child link="l_index_mid" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="l_index_dist">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.03 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.008075" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_index_dist_flex" type="revolute">
+    <parent link="l_index_mid" />
+    <child link="l_index_dist" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="l_middle_prox">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_middle_prox_flex" type="revolute">
+    <parent link="l_palm" />
+    <child link="l_middle_prox" />
+    <origin xyz="0.02 0 -0.022" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="l_middle_mid">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_middle_mid_flex" type="revolute">
+    <parent link="l_middle_prox" />
+    <child link="l_middle_mid" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="l_middle_dist">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.03 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.008075" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_middle_dist_flex" type="revolute">
+    <parent link="l_middle_mid" />
+    <child link="l_middle_dist" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="l_ring_prox">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_ring_prox_flex" type="revolute">
+    <parent link="l_palm" />
+    <child link="l_ring_prox" />
+    <origin xyz="0.02 0.01615 -0.022" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="l_ring_mid">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_ring_mid_flex" type="revolute">
+    <parent link="l_ring_prox" />
+    <child link="l_ring_mid" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="l_ring_dist">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.03 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.008075" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_ring_dist_flex" type="revolute">
+    <parent link="l_ring_mid" />
+    <child link="l_ring_dist" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="l_pinky_prox">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_pinky_prox_flex" type="revolute">
+    <parent link="l_palm" />
+    <child link="l_pinky_prox" />
+    <origin xyz="0.02 0.0323 -0.022" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="l_pinky_mid">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_pinky_mid_flex" type="revolute">
+    <parent link="l_pinky_prox" />
+    <child link="l_pinky_mid" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="l_pinky_dist">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.03 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.008075" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_pinky_dist_flex" type="revolute">
+    <parent link="l_pinky_mid" />
+    <child link="l_pinky_dist" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="r_shoulder_pitch_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.05" />
+      <inertia ixx="0.0001" iyy="0.0001" izz="0.0001" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+  </link>
+  <link name="r_shoulder_roll_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.05" />
+      <inertia ixx="0.0001" iyy="0.0001" izz="0.0001" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+  </link>
+  <joint name="r_shoulder_pitch" type="revolute">
+    <parent link="torso" />
+    <child link="r_shoulder_pitch_link" />
+    <origin xyz="0 -0.125 0.27" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1.57" upper="1.57" effort="60" velocity="12" />
+  </joint>
+  <joint name="r_shoulder_roll" type="revolute">
+    <parent link="r_shoulder_pitch_link" />
+    <child link="r_shoulder_roll_link" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <axis xyz="1 0 0" />
+    <limit lower="-1.57" upper="1.57" effort="60" velocity="12" />
+  </joint>
+  <link name="r_upper_arm">
+    <inertial>
+      <origin xyz="0 0 -0.12" rpy="0 0 0" />
+      <mass value="1" />
+      <inertia ixx="0.005089" iyy="0.005089" izz="0.000578" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0 0 -0.12" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.24" radius="0.034" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 -0.12" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.24" radius="0.034" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_shoulder_yaw" type="revolute">
+    <parent link="r_shoulder_roll_link" />
+    <child link="r_upper_arm" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <axis xyz="0 0 1" />
+    <limit lower="-1.57" upper="1.57" effort="30" velocity="12" />
+  </joint>
+  <link name="r_forearm">
+    <inertial>
+      <origin xyz="0 0 -0.11" rpy="0 0 0" />
+      <mass value="0.7" />
+      <inertia ixx="0.00298083" iyy="0.00298083" izz="0.000315" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0 0 -0.11" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.22" radius="0.03" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 -0.11" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.22" radius="0.03" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_elbow_pitch" type="revolute">
+    <parent link="r_upper_arm" />
+    <child link="r_forearm" />
+    <origin xyz="0 0 -0.24" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="2.4" effort="30" velocity="12" />
+  </joint>
+  <link name="r_wrist_pitch_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.04" />
+      <inertia ixx="0.0001" iyy="0.0001" izz="0.0001" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+  </link>
+  <joint name="r_wrist_pitch" type="revolute">
+    <parent link="r_forearm" />
+    <child link="r_wrist_pitch_link" />
+    <origin xyz="0 0 -0.22" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1.57" upper="1.57" effort="12" velocity="12" />
+  </joint>
+  <link name="r_palm">
+    <inertial>
+      <origin xyz="0 0 -0.011" rpy="0 0 0" />
+      <mass value="0.35" />
+      <inertia ixx="0.000224846" iyy="8.70333e-05" izz="0.000283646" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0 0 -0.011" rpy="0 0 0" />
+      <geometry>
+        <box size="0.05 0.085 0.022" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 -0.011" rpy="0 0 0" />
+      <geometry>
+        <box size="0.05 0.085 0.022" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_wrist_roll" type="revolute">
+    <parent link="r_wrist_pitch_link" />
+    <child link="r_palm" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <axis xyz="1 0 0" />
+    <limit lower="-1.57" upper="1.57" effort="12" velocity="12" />
+  </joint>
+  <link name="r_thumb_carpal">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.00765" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.00765" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_thumb_oppose" type="revolute">
+    <parent link="r_palm" />
+    <child link="r_thumb_carpal" />
+    <origin xyz="0.02 -0.0323 -0.022" rpy="0 0 0" />
+    <axis xyz="0 0 1" />
+    <limit lower="0" upper="1.4" effort="6" velocity="8" />
+  </joint>
+  <link name="r_thumb_prox">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_thumb_prox_flex" type="revolute">
+    <parent link="r_thumb_carpal" />
+    <child link="r_thumb_prox" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="r_thumb_mid">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_thumb_mid_flex" type="revolute">
+    <parent link="r_thumb_prox" />
+    <child link="r_thumb_mid" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="r_thumb_dist">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.03 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.008075" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_thumb_dist_flex" type="revolute">
+    <parent link="r_thumb_mid" />
+    <child link="r_thumb_dist" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="r_index_prox">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_index_prox_flex" type="revolute">
+    <parent link="r_palm" />
+    <child link="r_index_prox" />
+    <origin xyz="0.02 -0.01615 -0.022" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="r_index_mid">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_index_mid_flex" type="revolute">
+    <parent link="r_index_prox" />
+    <child link="r_index_mid" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="r_index_dist">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.03 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.008075" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_index_dist_flex" type="revolute">
+    <parent link="r_index_mid" />
+    <child link="r_index_dist" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="r_middle_prox">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_middle_prox_flex" type="revolute">
+    <parent link="r_palm" />
+    <child link="r_middle_prox" />
+    <origin xyz="0.02 0 -0.022" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="r_middle_mid">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_middle_mid_flex" type="revolute">
+    <parent link="r_middle_prox" />
+    <child link="r_middle_mid" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="r_middle_dist">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.03 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.008075" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_middle_dist_flex" type="revolute">
+    <parent link="r_middle_mid" />
+    <child link="r_middle_dist" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="r_ring_prox">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_ring_prox_flex" type="revolute">
+    <parent link="r_palm" />
+    <child link="r_ring_prox" />
+    <origin xyz="0.02 0.01615 -0.022" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="r_ring_mid">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_ring_mid_flex" type="revolute">
+    <parent link="r_ring_prox" />
+    <child link="r_ring_mid" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="r_ring_dist">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.03 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.008075" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_ring_dist_flex" type="revolute">
+    <parent link="r_ring_mid" />
+    <child link="r_ring_dist" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="r_pinky_prox">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_pinky_prox_flex" type="revolute">
+    <parent link="r_palm" />
+    <child link="r_pinky_prox" />
+    <origin xyz="0.02 0.0323 -0.022" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="r_pinky_mid">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_pinky_mid_flex" type="revolute">
+    <parent link="r_pinky_prox" />
+    <child link="r_pinky_mid" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="r_pinky_dist">
+    <inertial>
+      <origin xyz="0.015 0 0" rpy="0 0 0" />
+      <mass value="0.02" />
+      <inertia ixx="1.86125e-06" iyy="1.86125e-06" izz="7.225e-07" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.015 0 0" rpy="0 1.5708 0" />
+      <geometry>
+        <cylinder length="0.03" radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0085" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.03 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.008075" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_pinky_dist_flex" type="revolute">
+    <parent link="r_pinky_mid" />
+    <child link="r_pinky_dist" />
+    <origin xyz="0.03 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="1.5" effort="4" velocity="8" />
+  </joint>
+  <link name="l_hip_yaw_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.1" />
+      <inertia ixx="0.0002" iyy="0.0002" izz="0.0002" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+  </link>
+  <link name="l_hip_roll_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.1" />
+      <inertia ixx="0.0002" iyy="0.0002" izz="0.0002" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+  </link>
+  <joint name="l_hip_yaw" type="revolute">
+    <parent link="pelvis" />
+    <child link="l_hip_yaw_link" />
+    <origin xyz="0 0.03 -0.05" rpy="0 0 0" />
+    <axis xyz="0 0 1" />
+    <limit lower="-1.57" upper="1.57" effort="120" velocity="12" />
+  </joint>
+  <joint name="l_hip_roll" type="revolute">
+    <parent link="l_hip_yaw_link" />
+    <child link="l_hip_roll_link" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <axis xyz="1 0 0" />
+    <limit lower="-1.57" upper="1.57" effort="120" velocity="12" />
+  </joint>
+  <link name="l_thigh">
+    <inertial>
+      <origin xyz="0 0 -0.15" rpy="0 0 0" />
+      <mass value="2" />
+      <inertia ixx="0.0160125" iyy="0.0160125" izz="0.002025" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0 0 -0.15" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.3" radius="0.045" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 -0.15" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.3" radius="0.045" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_hip_pitch" type="revolute">
+    <parent link="l_hip_roll_link" />
+    <child link="l_thigh" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1.8" upper="1.2" effort="120" velocity="12" />
+  </joint>
+  <link name="l_shank">
+    <inertial>
+      <origin xyz="0 0 -0.15" rpy="0 0 0" />
+      <mass value="1.4" />
+      <inertia ixx="0.01106" iyy="0.01106" izz="0.00112" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0 0 -0.15" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.3" radius="0.04" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 -0.15" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.3" radius="0.04" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_knee_pitch" type="revolute">
+    <parent link="l_thigh" />
+    <child link="l_shank" />
+    <origin xyz="0 0 -0.3" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="2.6" effort="120" velocity="12" />
+  </joint>
+  <link name="l_ankle_pitch_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.1" />
+      <inertia ixx="0.0002" iyy="0.0002" izz="0.0002" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+  </link>
+  <joint name="l_ankle_pitch" type="revolute">
+    <parent link="l_shank" />
+    <child link="l_ankle_pitch_link" />
+    <origin xyz="0 0 -0.3" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1" upper="1" effort="90" velocity="12" />
+  </joint>
+  <link name="l_foot">
+    <inertial>
+      <origin xyz="0.03 0 -0.015" rpy="0 0 0" />
+      <mass value="0.6" />
+      <inertia ixx="0.00065" iyy="0.002925" izz="0.003485" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.03 0 -0.015" rpy="0 0 0" />
+      <geometry>
+        <box size="0.24 0.11 0.03" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.03 0 -0.015" rpy="0 0 0" />
+      <geometry>
+        <box size="0.24 0.11 0.03" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="l_ankle_roll" type="revolute">
+    <parent link="l_ankle_pitch_link" />
+    <child link="l_foot" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <axis xyz="1 0 0" />
+    <limit lower="-0.6" upper="0.6" effort="90" velocity="12" />
+  </joint>
+  <link name="r_hip_yaw_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.1" />
+      <inertia ixx="0.0002" iyy="0.0002" izz="0.0002" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+  </link>
+  <link name="r_hip_roll_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.1" />
+      <inertia ixx="0.0002" iyy="0.0002" izz="0.0002" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+  </link>
+  <joint name="r_hip_yaw" type="revolute">
+    <parent link="pelvis" />
+    <child link="r_hip_yaw_link" />
+    <origin xyz="0 -0.03 -0.05" rpy="0 0 0" />
+    <axis xyz="0 0 1" />
+    <limit lower="-1.57" upper="1.57" effort="120" velocity="12" />
+  </joint>
+  <joint name="r_hip_roll" type="revolute">
+    <parent link="r_hip_yaw_link" />
+    <child link="r_hip_roll_link" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <axis xyz="1 0 0" />
+    <limit lower="-1.57" upper="1.57" effort="120" velocity="12" />
+  </joint>
+  <link name="r_thigh">
+    <inertial>
+      <origin xyz="0 0 -0.15" rpy="0 0 0" />
+      <mass value="2" />
+      <inertia ixx="0.0160125" iyy="0.0160125" izz="0.002025" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0 0 -0.15" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.3" radius="0.045" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 -0.15" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.3" radius="0.045" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_hip_pitch" type="revolute">
+    <parent link="r_hip_roll_link" />
+    <child link="r_thigh" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1.8" upper="1.2" effort="120" velocity="12" />
+  </joint>
+  <link name="r_shank">
+    <inertial>
+      <origin xyz="0 0 -0.15" rpy="0 0 0" />
+      <mass value="1.4" />
+      <inertia ixx="0.01106" iyy="0.01106" izz="0.00112" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0 0 -0.15" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.3" radius="0.04" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 -0.15" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="0.3" radius="0.04" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_knee_pitch" type="revolute">
+    <parent link="r_thigh" />
+    <child link="r_shank" />
+    <origin xyz="0 0 -0.3" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="2.6" effort="120" velocity="12" />
+  </joint>
+  <link name="r_ankle_pitch_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.1" />
+      <inertia ixx="0.0002" iyy="0.0002" izz="0.0002" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+  </link>
+  <joint name="r_ankle_pitch" type="revolute">
+    <parent link="r_shank" />
+    <child link="r_ankle_pitch_link" />
+    <origin xyz="0 0 -0.3" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1" upper="1" effort="90" velocity="12" />
+  </joint>
+  <link name="r_foot">
+    <inertial>
+      <origin xyz="0.03 0 -0.015" rpy="0 0 0" />
+      <mass value="0.6" />
+      <inertia ixx="0.00065" iyy="0.002925" izz="0.003485" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <collision>
+      <origin xyz="0.03 0 -0.015" rpy="0 0 0" />
+      <geometry>
+        <box size="0.24 0.11 0.03" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.03 0 -0.015" rpy="0 0 0" />
+      <geometry>
+        <box size="0.24 0.11 0.03" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="r_ankle_roll" type="revolute">
+    <parent link="r_ankle_pitch_link" />
+    <child link="r_foot" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <axis xyz="1 0 0" />
+    <limit lower="-0.6" upper="0.6" effort="90" velocity="12" />
+  </joint>
+</robot>

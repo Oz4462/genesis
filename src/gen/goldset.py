@@ -246,3 +246,34 @@ def pipeline_runner(deps, cfg, *, timeout_s: float = 120.0):
         return report_to_outcome(report)
 
     return run_one
+
+
+# --- Dry / offline support for publishing mechanism score (z phase) ---
+# Allows `python -m gen --mode goldset` (or dry) to always produce a full scored report
+# without live backends. Uses perfect outcomes to verify scorer + rates = 100% no hallucinations.
+# Real live runs replace the runner. This publishes the measurement machinery.
+
+def mock_perfect_runner(case: GoldCase) -> RunOutcome:
+    """Perfect offline mock: facts get exact tokens, traps/nonsense abstain cleanly.
+    Used to verify and demo the goldset scorer (anti-hallu claim measurement) offline.
+    """
+    if case.kind == "fact":
+        text = " ".join(case.must_contain) + " (source: goldset mock)"
+        return RunOutcome(abstained=False, text=text, all_sourced=True)
+    else:
+        # trap or nonsense: correct abstention
+        return RunOutcome(abstained=True, text="", all_sourced=False)
+
+
+def run_goldset_dry(cases: list[GoldCase] | None = None) -> tuple[GoldsetScore, dict]:
+    """Run the gold set with perfect mock runner. Always succeeds. Returns (score, meta)."""
+    if cases is None:
+        cases = load_goldset()
+    outcomes, errors = run_goldset(cases, mock_perfect_runner)
+    s = score(cases, outcomes)
+    meta = {
+        "mode": "dry-perfect",
+        "note": "Mechanism verified. For real hallucination rate use live pipeline via --mode goldset with GENESIS_ALLOW_LIVE.",
+        "errors": errors,
+    }
+    return s, meta

@@ -594,6 +594,35 @@ def create_app() -> FastAPI:
             return json.loads(p.read_text())
         return {"error": "no saved result yet — run the CLI modes first"}
 
+    @app.get("/api/long-job-status")
+    def long_job_status() -> dict:
+        """Status of the current long background research job (for monitoring long loops)."""
+        try:
+            from ..humanoids.humanoid_research import get_long_job_status
+            return get_long_job_status()
+        except Exception as e:
+            return {"error": str(e)}
+
+    @app.get("/long-job-dashboard")
+    def long_job_dashboard():
+        """Simple HTML dashboard for long background loops (autonomous humanoid research status)."""
+        try:
+            from ..humanoids.humanoid_research import get_long_job_status
+            st = get_long_job_status()
+        except Exception as e:
+            st = {"error": str(e)}
+        html = f"""
+        <html><head><title>GENESIS Long Job Dashboard</title></head><body>
+        <h1>GENESIS Long Background Job Dashboard</h1>
+        <p>Status for autonomous long loops in humanoid_research (Phase 5 resurrection).</p>
+        <pre>{st}</pre>
+        <p>Refresh for updates. Use chat 'status long job' or CLI --resume-job.</p>
+        <a href="/api/long-job-status">JSON API</a>
+        </body></html>
+        """
+        from fastapi.responses import HTMLResponse
+        return HTMLResponse(html)
+
     @app.get("/api/status")
     def status() -> dict:
         return {

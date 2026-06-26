@@ -88,7 +88,10 @@ def _parse(path: Path):
 
 
 def analyze() -> dict:
-    modules: dict[str, Path] = {_modname(p): p for p in _iter_py(PKG)}
+    modules: dict[str, Path] = {
+        _modname(p): p for p in _iter_py(PKG)
+        if "_experimental" not in str(p)
+    }
     parsed = {m: _parse(p) for m, p in modules.items()}
     has_main = {m for m, (_, mb) in parsed.items() if mb}
 

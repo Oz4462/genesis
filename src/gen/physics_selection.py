@@ -124,7 +124,7 @@ RECIPES: list[CheckRecipe] = [
         trigger="thermal.power_dissipation",
         inputs={
             "power": ("thermal.power_dissipation", "W"),
-            "conductivity": ("material.thermal_conductivity", "W/(m*K)"),
+            "conductivity": ("material.thermal_conductivity", "W/m/K"),  # parser has no parens; "W/(m*K)" was unparseable -> recipe never fired
             "area": ("thermal.conduction_area", "mm^2"),
             "length": ("thermal.conduction_length", "mm"),
             "ambient": ("thermal.ambient_temp", "K"),

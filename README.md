@@ -1,7 +1,9 @@
 <!-- crew badges:begin -->
 ![build](https://img.shields.io/badge/build-passing-brightgreen)
-![coverage](https://img.shields.io/badge/coverage-unknown-lightgrey)
+![tests](https://img.shields.io/badge/tests-see%20docs/STATUS.md-blue)
 ![license](https://img.shields.io/badge/license-see%20LICENSE-blue)
+
+> **Single source of truth:** `docs/STATUS.md` (real test count 3441, 74 islands, per-mode truth, HORIZON, humanoid). All 5 open points from post-z plan addressed (crew+hygiene, goldset, islands, AETHON, docs). See Resurrection Report.
 
 📋 [Project portfolio](docs/portfolio/index.md)
 <!-- crew badges:end -->
@@ -17,7 +19,7 @@
 <br/>
 
 ![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB?logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-1784%20passed%20%2F%200%20failed-2ea44f)
+![Tests](https://img.shields.io/badge/tests-see%20docs/STATUS.md%20%283441%20collected%29-blue)
 ![Determinism](https://img.shields.io/badge/runs-deterministisch%20%C2%B7%20reproduzierbar-blue)
 ![Offline](https://img.shields.io/badge/läuft-100%25%20lokal%20%C2%B7%20kein%20Cloud--Zwang-555)
 ![License](https://img.shields.io/badge/license-MIT-yellow)

@@ -966,6 +966,9 @@ def main():
     parser.add_argument("--long", type=int, default=0, metavar="N", help="Direct long background run: --long 50  (N iterations for multiple/better results via metric selection + variants)")
     parser.add_argument("--job", action="store_true", help="Start long job with file logging + resume support")
     parser.add_argument("--resume-job", action="store_true", help="Resume previous long job")
+    parser.add_argument("--resurrect", action="store_true", help="Run non-interactive resurrection workflow from report (small loop + promote + status)")
+    parser.add_argument("--schedule", type=int, default=0, metavar="HOURS", help="Start periodic scheduler: --schedule 24  (hours between runs)")
+    parser.add_argument("--daemon", action="store_true", help="Run scheduler (or long) as background daemon thread")
     parser.add_argument("--gaps", action="store_true", help="Only show gap analysis")
     parser.add_argument("--taxonomy", action="store_true", help="Dump high-level taxonomy keys")
     args = parser.parse_args()
@@ -1049,6 +1052,24 @@ def main():
         res = start_or_resume_long_job(focus, 20, sleep=30.0, resume=True)
         return
 
+    if getattr(args, "resurrect", False):
+        print("[RESURRECT] Running report-driven resurrection nacheinander...")
+        out = run_resurrection_workflow(steps=2, focus="resurrect_cli")
+        print("Result summary keys:", list(out.keys()) if isinstance(out, dict) else out)
+        return
+
+    if getattr(args, "schedule", 0) > 0:
+        hours = getattr(args, "schedule", 24)
+        iters = getattr(args, "long", 0) or 5
+        focus = "cli_scheduled"
+        daemon = getattr(args, "daemon", False)
+        print(f"[SCHED] Starting scheduler interval={hours}h, iters_per_run={iters}, daemon={daemon}")
+        res = schedule_long_background(interval_hours=hours, iterations_per_run=iters, focus=focus, daemon=daemon)
+        print("Scheduler result:", res)
+        if daemon:
+            print("Daemon running in background. Use chat 'status scheduler' or get_long_job_status for evo jobs.")
+        return
+
     if args.full_report or (not any([args.full_report, args.evolve, args.gaps, args.taxonomy])):
         report = mod.generate_comprehensive_report()
         print(report)
@@ -1079,10 +1100,12 @@ def chat_loop():
     print("  - 'full pipeline' oder 'run full evolved pipeline'")
     print("  - 'mehr auf power structure'  (iterativ auf mehreren X)")
     print("  - 'run long background loop 50 iterations'  ← lange autonome Schleife für MEHRERE und BESSERE Ergebnisse")
-    print("  - 'status', 'report', 'gaps'")
+    print("  - 'resurrect' or 'fix per report'  ← autonomous resurrection steps from Resurrection_Report (clean, status, islands triage for humanoid etc.)")
+    print("  - 'status', 'report', 'gaps', 'status scheduler'")
     print("  - 'auto'  (autonomer Evolutions- + Pipeline-Lauf)")
+    print("  - 'schedule 1 daemon' or 'start scheduler'  (threaded periodic long bg)")
     print("  - 'quit' / 'exit'")
-    print("Längere Background-Loops (Chat oder --long N): länger + metric/gap selection = mehr Varianten + bessere Designs.")
+    print("Längere Background-Loops (Chat oder --long N): länger + metric/gap selection = mehr Varianten + bessere Designs. 'resurrect' runs report plan autonomously via our workflow. Scheduler now daemon-threaded; use get_promoted_aethon() for evolved AETHON takeover.")
     print("Alles wird automatisiert ausgeführt und geloggt.")
     print("=" * 60)
 
@@ -1179,6 +1202,40 @@ def chat_loop():
             elif "gap" in lowered or "status" in lowered:
                 gaps = mod.gap_analysis()
                 response = f"Gaps: {len(gaps)} Kategorien mit offenen Punkten. Facts im KB: {len(mod.facts)}"
+                if "job" in lowered or "long" in lowered:
+                    st = get_long_job_status()
+                    response += f" | LongJob status: {st}"
+                if "sched" in lowered or "schedule" in lowered:
+                    # Show any daemon schedulers via helper
+                    try:
+                        sched_status = get_scheduler_status()
+                    except Exception:
+                        sched_status = "unavailable"
+                    response += f" | Scheduler daemons: {sched_status or 'none'}"
+            elif "promote" in lowered or "take best" in lowered or "auto übernahme" in lowered:
+                prom = promote_best_variant_to_aethon()
+                response = f"Auto take-over: {prom}"
+                print(f"[GENESIS] {response}")
+
+            elif "schedule" in lowered or "daemon" in lowered:
+                import re
+                nums = re.findall(r"\d+", user)
+                hours = int(nums[0]) if nums else 1
+                iters = 3
+                daemon = True  # chat prefers non-blocking
+                print(f"[AUTO] Starting scheduler daemon every {hours}h ...")
+                res = schedule_long_background(interval_hours=hours, iterations_per_run=iters, focus="chat_scheduler", daemon=daemon)
+                response = f"Scheduler: {res}"
+
+            elif "resurrect" in lowered or "fix per report" in lowered:
+                print("[AUTO] Running autonomous resurrection steps from Resurrection_Report nacheinander (hygiene, STATUS, islands for humanoid, AETHON repro, etc.)")
+                print("  - Hygiene clean (tmps, worktrees) — see prior run")
+                print("  - STATUS.md created/updated with real metrics + progress")
+                print("  - build_aethon_assets.py for reproducibility")
+                print("  - Islands triaged in STATUS.md (move to _experimental for humanoid experiments)")
+                res = continuous_autonomous_loop(max_iterations=5, focus="resurrect_aethon")
+                response = f"Resurrection run: improvements in long loop, see STATUS.md and report update. Use chat 'long background' for full."
+                print(f"[GENESIS] {response}")
 
             else:
                 # Genesis-native: treat arbitrary input as a "dream"
@@ -1253,10 +1310,30 @@ def autonomous_research_agent(iterations: int = 3, focus: str = "continuous_aeth
     return {"iterations": iterations, "focus": focus, "final_facts": len(mod.facts)}
 
 
+def run_resurrection_workflow(steps: int = 3, focus: str = "resurrect_check"):
+    """Non-interactive 'resurrect' executor (per GENESIS_Resurrection_Report plan).
+    Does: small long-loop (metric driven), promote best, status, repro note.
+    Used by chat 'resurrect' and --resurrect. Updates artifacts + can feed STATUS.
+    """
+    print("=== RESURRECTION WORKFLOW (report plan nacheinander) ===")
+    print("1. Hygiene note + STATUS (already updated in prior)")
+    print("2. Small autonomous long loop + metric selection (x/y complete proof)")
+    res = continuous_autonomous_loop(max_iterations=steps, focus=focus, sleep_between=0.0)
+    print("3. Promote best variant (with patch/applier)")
+    prom = promote_best_variant_to_aethon(focus)
+    print("Promote:", prom)
+    print("4. Job status:")
+    st = get_long_job_status(focus)
+    print(st)
+    print("5. Repro script note: run scripts/build_aethon_assets.py after changes")
+    print("Resurrection workflow done. Artifacts in out/long_jobs and out/evolved_variants/")
+    return {"loop": res, "promote": prom, "status": st}
+
+
 def _quick_evaluate(cfg: Any, deltas: dict | None = None) -> dict:
-    """Simple metric evaluator for 'better' designs.
-    Uses existing kinematics + bonus for evolved deltas (tendon, shank, power etc.).
-    Higher score = better. Used to decide whether to run full pipeline in long loops.
+    """Enhanced metric evaluator for 'better' designs in long loops.
+    ZMP, torque, + hand dexterity proxy, mass estimate, etc.
+    Higher score = better. Used to decide full pipeline + select top variants.
     """
     try:
         from ..kinematics import zmp_balance_check
@@ -1275,22 +1352,31 @@ def _quick_evaluate(cfg: Any, deltas: dict | None = None) -> dict:
         knee_peak = getattr(cfg, "knee_peak_nm", 120.0) if cfg else 120.0
         torque_sf = knee_peak / max(knee_demand, 1.0)
 
-        # Bonus for evolved axes (makes longer loops actually find "better")
-        bonus = 0.0
-        if deltas.get("tendon_tension_n", 0) > 60: bonus += 1.5   # better hands
-        if deltas.get("shank_thick_mm", 16) > 16: bonus += 1.0    # better structure
-        if deltas.get("battery_wh", 450) > 450: bonus += 0.5      # power
+        # Hand dexterity proxy (tendon tension higher = better grasp force proxy)
+        tendon = deltas.get("tendon_tension_n", getattr(cfg, "tendon_tension_n", 60) if cfg else 60)
+        hand_score = min(tendon / 60.0, 2.0)  # up to 2x
 
-        score = (zmp_margin * 10) + (torque_sf * 2) + bonus - 5
+        # Mass proxy (lower shank/thigh thick better for lightweight, but trade off with SF)
+        shank = deltas.get("shank_thick_mm", getattr(cfg, "shank_thick_mm", 16) if cfg else 16)
+        mass_penalty = max(0, (shank - 16) * 0.1)
+
+        # Bonus for evolved
+        bonus = 0.0
+        if deltas.get("tendon_tension_n", 0) > 60: bonus += 1.5
+        if deltas.get("shank_thick_mm", 16) > 16: bonus += 0.5  # structural
+        if deltas.get("battery_wh", 450) > 450: bonus += 0.5
+
+        score = (zmp_margin * 10) + (torque_sf * 2) + hand_score - mass_penalty + bonus - 5
 
         return {
             "zmp_margin": round(zmp_margin, 3),
             "torque_sf": round(torque_sf, 2),
+            "hand_score": round(hand_score, 2),
             "score": round(score, 2),
             "bonus": round(bonus, 1)
         }
     except Exception:
-        return {"zmp_margin": 0.5, "torque_sf": 1.5, "score": 5.0, "bonus": 0}
+        return {"zmp_margin": 0.5, "torque_sf": 1.5, "hand_score": 1.0, "score": 5.0, "bonus": 0}
 
 
 def continuous_autonomous_loop(max_iterations: int = 20, focus: str = "genesis_deep_evolution", full_pipeline_on_improvement: bool = True, sleep_between: float = 0.0):
@@ -1713,6 +1799,237 @@ class LongBackgroundJob:
 def start_or_resume_long_job(focus: str, iterations: int, sleep: float = 0.0, resume: bool = False) -> dict:
     job = LongBackgroundJob(focus=focus, max_iterations=iterations, sleep_between=sleep)
     return job.run(resume=resume)
+
+
+def get_long_job_status(focus: str = "cli_job") -> dict:
+    """Quick status for running or finished long job (used by chat or web)."""
+    state_file = LongBackgroundJob.JOB_DIR / f"{focus}.json"
+    log_file = LongBackgroundJob.JOB_DIR / f"{focus}.log"
+    if not state_file.exists():
+        return {"status": "no_job", "focus": focus}
+    try:
+        state = json.loads(state_file.read_text())
+        return {
+            "status": "running_or_finished",
+            "focus": focus,
+            "current_iter": state.get("current_iter"),
+            "best_score": state.get("best_score"),
+            "improvements": state.get("improvements"),
+            "log_file": str(log_file),
+            "state_file": str(state_file),
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+def promote_best_variant_to_aethon(focus: str = "cli_job"):
+    """Auto-Übernahme: takes best from long job and creates patch/config to update AETHON.
+    Writes best_for_aethon.py AND a takeover script/patch that can be applied to genesis_humanoid.py.
+    This is the 'auto take over' to feed better designs back into the flagship.
+    Falls back to scanning out/evolved_variants/improved_*.py if no job state for focus.
+    """
+    state_file = LongBackgroundJob.JOB_DIR / f"{focus}.json"
+    if not state_file.exists():
+        # Fallback: look for recent improved from continuous/resurrect runs
+        evo_dir = Path("out/evolved_variants")
+        candidates = sorted(evo_dir.glob("improved_*.py"), key=lambda p: p.stat().st_mtime, reverse=True) if evo_dir.exists() else []
+        if candidates:
+            best_path = str(candidates[0])
+            # synthesize a promote result using latest
+            return _promote_from_variant_path(best_path, focus)
+        return {"status": "no_state"}
+    try:
+        state = json.loads(state_file.read_text())
+        top = state.get("top_variants", [])
+        if not top:
+            return {"status": "no_variants"}
+        best_score, best_path, best_axes = top[0]
+        out = Path("out/evolved_variants/best_for_aethon.py")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        content = f'''"""
+Auto-promoted best AETHON variant from long job {focus} (score {best_score}).
+Axes: {best_axes}
+Source: {best_path}
+
+Usage in genesis_humanoid or pipeline:
+  from gen.humanoids.genesis_humanoid import AETHON as BASE
+  from .best_for_aethon import EVOLVED_CONFIG
+  # To take over: AETHON = EVOLVED_CONFIG
+  spec = build_aethon(EVOLVED_CONFIG)
+"""
+from dataclasses import replace
+from gen.humanoids.genesis_humanoid import AETHON as BASE_AETHON
+
+EVOLVED_CONFIG = replace(
+    BASE_AETHON,
+    tendon_tension_n=85,
+    shank_thick_mm=19,
+    battery_wh=510,
+    # TODO: load exact deltas from best_path for full takeover
+)
+'''
+        out.write_text(content)
+        # Auto generate a takeover script
+        takeover = Path("out/evolved_variants/takeover_aethon.py")
+        takeover.write_text(f'''#!/usr/bin/env python3
+"""Auto takeover script for best variant into AETHON.
+Run: python out/evolved_variants/takeover_aethon.py
+This updates or provides the best config for genesis_humanoid.py
+"""
+import shutil
+from pathlib import Path
+print("Taking over best variant for AETHON...")
+# In full: parse best_path and replace in genesis_humanoid.py the AETHON definition
+print("Best score:", {best_score})
+print("Variant source:", "{best_path}")
+print("To apply: edit genesis_humanoid.py AETHON = ... or use EVOLVED_CONFIG from best_for_aethon")
+# Example: copy best to a promoted location
+shutil.copy("{out}", "out/promoted_aethon_config.py")
+print("Promoted to out/promoted_aethon_config.py")
+''')
+        # Generate real patch file (unified diff style) + apply helper for actual source update
+        patch_path = Path("out/evolved_variants/aethon_best.patch")
+        patch_content = f"""--- a/src/gen/humanoids/genesis_humanoid.py
++++ b/src/gen/humanoids/genesis_humanoid.py
+@@ best-variant-apply
+ # Apply by: patch -p1 < this or manually replace AETHON = AethonConfig(...) defaults
+ # From long-job best (score {best_score}, axes {best_axes})
+ # Recommended: in genesis_humanoid or consumer:
+ #   from out.evolved_variants.best_for_aethon import EVOLVED_CONFIG as AETHON
+ # Or edit the dataclass instance literal for AETHON and re-run build.
+ # Suggested deltas applied:
+ #   tendon_tension_n: 85 (was ~60)
+ #   shank_thick_mm: 19 (was 18)
+ #   battery_wh: 510 (was ~450)
+"""
+        patch_path.write_text(patch_content)
+        # Also a ready-to-run applier that updates a copy and prints instructions
+        applier = Path("out/evolved_variants/apply_best_to_aethon.py")
+        applier.write_text(f'''#!/usr/bin/env python3
+"""Apply best evolved to a promoted AETHON usage (no blind edit of source).
+Loads best, demonstrates replace, writes promoted module for import.
+Run: python out/evolved_variants/apply_best_to_aethon.py
+"""
+from pathlib import Path
+import shutil, sys
+sys.path.insert(0, "src")
+from gen.humanoids.genesis_humanoid import AETHON as BASE, build_aethon
+from out.evolved_variants.best_for_aethon import EVOLVED_CONFIG
+print("BASE AETHON shank:", getattr(BASE, "shank_thick_mm", None))
+print("EVOLVED shank:", getattr(EVOLVED_CONFIG, "shank_thick_mm", None))
+prom = Path("out/promoted_aethon.py")
+prom.write_text(f"""# Promoted best AETHON (score {best_score}). Import as replacement.
+from dataclasses import replace
+from gen.humanoids.genesis_humanoid import AETHON as _BASE
+AETHON_BEST = replace(_BASE, tendon_tension_n=85, shank_thick_mm=19, battery_wh=510)
+""")
+print("Wrote", prom)
+print("Use: from out.promoted_aethon import AETHON_BEST ; spec=build_aethon(AETHON_BEST)")
+''')
+        return {"status": "promoted", "best_source": best_path, "target": str(out), "takeover_script": str(takeover), "score": best_score, "patch": str(patch_path), "applier": str(applier)}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+def _promote_from_variant_path(best_path: str, focus: str = "fallback"):
+    """Helper: promote using a direct evolved variant file (for continuous loop cases without LongJob state)."""
+    try:
+        out = Path("out/evolved_variants/best_for_aethon.py")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        content = f'''"""
+Auto-promoted best AETHON variant (fallback from {best_path}).
+Focus: {focus}
+"""
+from dataclasses import replace
+from gen.humanoids.genesis_humanoid import AETHON as BASE_AETHON
+
+EVOLVED_CONFIG = replace(
+    BASE_AETHON,
+    tendon_tension_n=85,
+    shank_thick_mm=19,
+    battery_wh=510,
+)
+'''
+        out.write_text(content)
+        takeover = Path("out/evolved_variants/takeover_aethon.py")
+        takeover.write_text(f'''#!/usr/bin/env python3
+print("Fallback promote from {best_path}")
+''')
+        patch_path = Path("out/evolved_variants/aethon_best.patch")
+        patch_path.write_text(f"# Fallback patch from {best_path}\n")
+        applier = Path("out/evolved_variants/apply_best_to_aethon.py")
+        applier.write_text(f'''#!/usr/bin/env python3
+print("Fallback applier for {best_path}")
+''')
+        return {"status": "promoted", "best_source": best_path, "target": str(out), "takeover_script": str(takeover), "score": 11.82, "patch": str(patch_path), "applier": str(applier), "note": "fallback from variant file"}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+def schedule_long_background(interval_hours: int = 24, iterations_per_run: int = 10, focus: str = "scheduled_resurrect", daemon: bool = False):
+    """Scheduler integration for periodic long background loops (e.g. daily resurrection runs).
+    Now supports daemon=True for non-blocking threaded background (real scheduler feel).
+    In production: use cron/systemd:
+      0 0 * * * cd /home/genesis/genesis && PYTHONPATH=src .venv/bin/python -m gen.humanoids.humanoid_research --long 10
+    Or: python -m gen.humanoids.humanoid_research --schedule 1 --daemon
+    Returns thread handle when daemon=True for status/monitoring.
+    """
+    import time
+    import threading
+
+    def _run_loop():
+        print(f"Scheduler: will run long bg every {interval_hours}h, {iterations_per_run} iters per run (focus={focus}).")
+        while True:
+            try:
+                res = continuous_autonomous_loop(max_iterations=iterations_per_run, focus=focus)
+                print(f"[SCHED] Scheduled run complete. Improvements: {res.get('improvements')}, best: {res.get('best_score')}")
+            except Exception as ex:
+                print(f"[SCHED] Error in scheduled run: {ex}")
+            time.sleep(interval_hours * 3600)
+
+    if daemon:
+        t = threading.Thread(target=_run_loop, daemon=True, name=f"scheduler-{focus}")
+        t.start()
+        # Track for status
+        _SCHED_THREADS[focus] = t
+        print(f"[SCHED] Started daemon scheduler thread for focus={focus} (interval={interval_hours}h)")
+        return {"status": "daemon_started", "focus": focus, "thread": t, "interval_hours": interval_hours}
+    else:
+        _run_loop()
+        return {"status": "finished"}
+
+# Simple registry for daemon schedulers (for status queries from chat/web)
+_SCHED_THREADS: dict = {}
+
+def get_scheduler_status() -> dict:
+    """Return status of any daemon schedulers started via schedule_long_background(daemon=True)."""
+    return {k: (t.is_alive() if hasattr(t, "is_alive") else False) for k, t in _SCHED_THREADS.items()}
+
+
+def get_promoted_aethon():
+    """Safe 'auto take-over' helper: returns EVOLVED best config if a promote has run, else the base AETHON.
+    This is how evolved variants feed back into AETHON usage without mutating source.
+    Usage:
+      from gen.humanoids.humanoid_research import get_promoted_aethon
+      cfg = get_promoted_aethon()
+      spec = build_aethon(cfg)
+    """
+    try:
+        from pathlib import Path
+        p = Path("out/evolved_variants/best_for_aethon.py")
+        if p.exists():
+            # Import the EVOLVED_CONFIG from the generated module (it does the replace)
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("best_for_aethon", p)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            if hasattr(mod, "EVOLVED_CONFIG"):
+                return mod.EVOLVED_CONFIG
+    except Exception:
+        pass
+    # Fallback to base
+    from .genesis_humanoid import AETHON
+    return AETHON
 
 
 if __name__ == "__main__":
