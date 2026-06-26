@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from .config import Config, config_hash, default_config
 from .runner import Dependencies, run, run_solution, run_specification
+from .visualization.robust_renderer import RobustVisualizer, enable_for_all_projects
 
 __all__ = [
     "run", "run_solution", "run_specification", "Dependencies",

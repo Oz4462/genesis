@@ -134,7 +134,7 @@ def build_assembly(
 
     quelle = "cad/assembly (first stone) + GENESIS_TODO + Integrator/CAD real + PLAN §3.6"
 
-    return AssemblyArtifact(
+    ret = AssemblyArtifact(
         spec=AssemblySpec(name=name, parts=assembly_parts, zusammenfassung=f"Simple assembly of {len(assembly_parts)} parts from specs/fragments.", run_id=run_id, quelle=quelle),
         combined_stl=combined_stl,
         part_files=part_files,
@@ -142,3 +142,12 @@ def build_assembly(
         run_id=run_id,
         quelle=quelle,
     )
+
+    # Parallel visuals for AETHON/CAD
+    try:
+        from ..visualization.robust_renderer import RobustVisualizer
+        import threading
+        threading.Thread(target=lambda: RobustVisualizer().auto_integrate({"name": name, "type": "cad"}), daemon=True).start()
+    except Exception:
+        pass
+    return ret

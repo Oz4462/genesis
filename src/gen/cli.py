@@ -1796,6 +1796,7 @@ def main(argv: list[str] | None = None) -> int:
         from . import humanoid_research as hr_mod
         from .agents.humanoid_researcher import HumanoidResearcher  # explicit wire for island triage
         from .audit.run_audit import run_audit  # explicit wire for island triage
+        from .visualization.robust_renderer import RobustVisualizer
         mod = hr_mod.create_module()
 
         if args.mode == "humanoid-chat":
@@ -1814,6 +1815,11 @@ def main(argv: list[str] | None = None) -> int:
             print("[deep pipeline] note:", e)
         res = mod.run_full_evolution_cycle()
         print("\n[humanoid-research] cycle:", res["status"], "claims:", res["ledger_claims_added"])
+        # AETHON visuals parallel
+        try:
+            RobustVisualizer().auto_integrate(res)
+        except Exception:
+            pass
         return 0
 
     if args.mode == "humanoid":

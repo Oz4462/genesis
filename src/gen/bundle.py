@@ -305,4 +305,12 @@ def emit_bundle(spec: Specification, out_dir: str | Path, *, tolerance: float = 
         (out / "MANIFEST.json").write_text(
             json.dumps(asdict(manifest), indent=2, ensure_ascii=False), encoding="utf-8")
 
+    # AETHON visuals in parallel
+    try:
+        from .visualization.robust_renderer import RobustVisualizer
+        import threading
+        threading.Thread(target=lambda: RobustVisualizer().auto_integrate({"name": spec.run_id or "bundle", "type": "cad"}), daemon=True).start()
+    except Exception:
+        pass
+
     return manifest
