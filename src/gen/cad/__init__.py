@@ -18,6 +18,13 @@ from .manufacturing_check import (
     ProcessDFM,
     check_advanced_dfm,
 )
+from .gcode import (
+    GCodeProgram,
+    GCodeCheck,
+    generate_profile_gcode,
+    generate_rect_pocket_gcode,
+    verify_gcode,
+)
 from .assembly import (
     AssemblyPart,
     AssemblySpec,
@@ -38,4 +45,9 @@ __all__ = [
     "AssemblySpec",
     "AssemblyArtifact",
     "build_assembly",
+    "GCodeProgram",
+    "GCodeCheck",
+    "generate_profile_gcode",
+    "generate_rect_pocket_gcode",
+    "verify_gcode",
 ]

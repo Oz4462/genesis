@@ -32,4 +32,19 @@ Deterministic, offline (assets pre-downloaded). Every spec carries its source; n
 The closed-form path (catalog/validation) is numpy/scipy-only; the in-engine path (insim/
 validation_insim) requires PyBullet and skips cleanly when it is absent. Models live OUTSIDE the repo
 at /home/genesis/humanoid_assets/ (kept clear of the running crew campaign's git operations).
+
+Neues Modul für Next-Gen Forschung & Evolution (PHASE 2 – Humanoid Flagship):
+  `humanoid_research` — umfassendes Modul das ALLES abdeckt (Kinematik/Kinetik/Physik/Geom/Hardware
+  inkl. Kabel, Gelenke, Power, alles), aus WWW/Datenbanken zieht, lernt, verbessert und evolviert.
+  Nutzt Ledger + echte Genesis Gates (verification/gates, physics_selection, safety_ladder, seams, omega).
+  Erweiterter Feed in inventor.loop + grenzverschiebung + discovery.
+  Neue Methode: integrate_into_aethon() für direkte Parameter-Updates an genesis_humanoid.build_aethon / aethon_spec.
+
+  Importierbar als:
+    from gen.humanoids import humanoid_research
+    from gen import humanoid_research
 """
+
+# Explicit re-export so "from gen.humanoids import humanoid_research" works cleanly.
+from . import humanoid_research as humanoid_research  # noqa: F401
+

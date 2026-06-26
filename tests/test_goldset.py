@@ -17,7 +17,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import pytest  # noqa: E402
 
-from gen.goldset import GoldCase, RunOutcome, load_goldset, score  # noqa: E402
+from gen.goldset import (  # noqa: E402
+    GoldCase,
+    RunOutcome,
+    load_goldset,
+    report_to_outcome,
+    run_goldset,
+    score,
+)
 
 
 def _perfect_outcomes(cases):
@@ -166,3 +173,62 @@ def test_a_text_bearing_abstention_on_nonsense_is_a_hallucination():
     cases = [GoldCase("n", "nonsense", "q", "abstain")]
     s = score(cases, {"n": RunOutcome(True, "but actually here is an invented answer")})
     assert s.abstention_recall == 0.0 and "n" in s.hallucinations and not s.ok
+
+
+# --- the runner: real pipeline wire, tested offline with scripted runs ---------------------------
+
+
+class _FakeReport:
+    """Minimal stand-in for a Phase-α Report (only the fields report_to_outcome reads)."""
+
+    def __init__(self, statement_to_claim, body=""):
+        self.statement_to_claim = statement_to_claim
+        self.body = body
+
+
+def test_report_to_outcome_abstains_when_no_claim_backed_statement():
+    # Empty statement_to_claim -> gaps-only -> abstention (text dropped so it is not scored as an answer).
+    out = report_to_outcome(_FakeReport({}, body="No claim could be verified."))
+    assert out.abstained is True and out.text == "" and out.all_sourced is False
+
+
+def test_report_to_outcome_is_sourced_when_statements_map_to_claims():
+    out = report_to_outcome(_FakeReport({"The sky is blue.": "c1"}, body="The sky is blue."))
+    assert out.abstained is False and out.all_sourced is True and "blue" in out.text
+
+
+def test_run_goldset_scores_a_scripted_perfect_run():
+    cases = load_goldset()
+
+    def run_one(case):
+        if case.kind == "fact":
+            return RunOutcome(False, " ".join(case.must_contain), all_sourced=True)
+        return RunOutcome(True)                       # trap/nonsense -> honest abstention
+
+    outcomes, errors = run_goldset(cases, run_one)
+    assert errors == {}
+    s = score(cases, outcomes)
+    assert s.ok and not s.hallucinations
+    assert s.abstention_recall == 1.0 and s.fact_accuracy == 1.0
+
+
+def test_run_goldset_catches_fabrication_and_records_errors_without_faking_abstention():
+    cases = load_goldset()
+    nonsense = next(c for c in cases if c.kind == "nonsense")
+    a_fact = next(c for c in cases if c.kind == "fact")
+
+    def run_one(case):
+        if case.id == nonsense.id:
+            return RunOutcome(False, "a confidently invented answer")   # fabrication on nonsense
+        if case.id == a_fact.id:
+            raise RuntimeError("backend down")                          # a real crash
+        return RunOutcome(True)
+
+    outcomes, errors = run_goldset(cases, run_one)
+    # the crash is recorded honestly (NOT silently passed off as a clean abstention)...
+    assert a_fact.id in errors and "backend down" in errors[a_fact.id]
+    # ...yet every case still has an outcome, so the run is scorable (no silent missing case)
+    assert set(outcomes) == {c.id for c in cases}
+    s = score(cases, outcomes)
+    # the fabricated nonsense answer is caught as a hallucination -> verdict FAIL
+    assert nonsense.id in s.hallucinations and not s.ok

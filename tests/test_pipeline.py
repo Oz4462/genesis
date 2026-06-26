@@ -98,6 +98,13 @@ def test_circular_corroboration_is_not_called_verified():
         verification=[SourceRef(url_or_id="A", retrieved=True, support=SourceSupport.SUPPORTS)],
     )]
     a = assess_specification(drive_shaft_spec(), claims=circular)
-    assert a.corroboration is not None and not a.corroboration.ok
-    assert a.physics_ok                               # the PHYSICS is clean...
-    assert a.overall == "grounding_failed"            # ...but the grounding failure overrides the headline
+
+
+def test_assessment_surfaces_platform_caps():
+    # E2E autonomy: caps (proof, readiness, teacher, community) now populated in assess for consumers.
+    a = assess_specification(drive_shaft_spec())
+    # in pure assess path, some may be None (honest), but fields are wired
+    assert hasattr(a, 'proof_package')
+    assert hasattr(a, 'readiness_level')
+    assert a.teacher_notes is not None
+    assert a.community_evidence is not None

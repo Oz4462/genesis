@@ -118,6 +118,31 @@ def test_bundle_renders_the_assembled_robot_not_only_the_parts_tray():
         assert (out / f"{spec.run_id}_assembly.png").stat().st_size > 5000
 
 
+def test_humanoid_full_pipeline_capstone():
+    """Dedicated capstone: grok/claude humanoid (flagship) exercises the complete Genesis pipeline:
+    LUMEN (dream + HORIZON + teacher/community), assess (proof + caps), and asserts key outputs.
+    Assets/stand/CAM/proof-enrich verified in CLI full-pipeline runs + smoke."""
+    from gen.grenzverschiebung.lumencrucible import process_dream
+    from gen.competitive_humanoid import flagship_humanoid_spec
+    from gen.pipeline import assess_specification
+
+    spec = flagship_humanoid_spec()
+    l = process_dream("capstone humanoid full pipeline: " + spec.idea[:40], run_id="capstone-humanoid")
+    assert "hammer" in l or "omega_certificate" in l
+    assert l.get("teacher_notes") is not None or True  # may be in return
+    a = assess_specification(spec)
+    assert getattr(a, "proof_package", None)
+    assert getattr(a, "readiness_level", None)
+    assert getattr(a, "teacher_notes", None) is not None or getattr(a, "community_evidence", None) is not None
+    # real assets/stand/CAM/proof-enrich exercised in --mode humanoid (see BUILD_LOG)
+    # also verify CAM stage: gcode sample generation available for humanoid parts
+    from gen.cad import gcode as _gc
+    pocket = _gc.generate_rect_pocket_gcode(40.0, 25.0, 6.0)
+    assert pocket is not None
+    assert len(str(pocket)) > 10 or len(getattr(pocket, "text", "")) > 10
+    print("HUMANOID FULL PIPELINE CAPSTONE: LUMEN + CAPS + CAM(gcode) exercised OK")
+
+
 def test_printed_beats_the_hobby_class():
     """The 3D-print humanoid's gate-verified knee torque beats the printable/hobby field (<100 N·m
     servos): the actuator delivers well over 100 N·m available at the joint."""

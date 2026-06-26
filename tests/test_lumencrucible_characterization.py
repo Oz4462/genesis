@@ -66,15 +66,24 @@ def test_omega_certificate_has_receipt_and_required_notes(work_queue):
     assert "delta_plus_reality" in kinds, f"missing delta_plus_reality note; kinds={kinds}"
 
 
-def test_delta_plus_reality_note_reflects_real_verdict(work_queue):
-    """The delta_plus_reality note must carry the REAL verdict, not boilerplate."""
+def test_delta_plus_abstains_honestly_without_a_measurement(work_queue):
+    """δ⁺ must NOT fabricate corroboration. With no independent measurement it ABSTAINS:
+    reality_verdict is None and delta_plus_result.status is 'inconclusive'.
+
+    (This test previously asserted status=='corroborated' on the 9.81 m/s² demo — but that was
+    the δ⁺ tautology: the caller lied retrieved=True on a measurement equal to the prediction,
+    so it could only ever 'corroborate'. STATUS.md §1 #1. This is now the NEGATIVE test that the
+    lie is gone — the Ω note must not claim corroboration.)"""
     result = _run(_DREAM, work_queue)
+    assert result["reality_verdict"] is None
+    dpr = result["delta_plus_result"] or {}
+    assert dpr.get("status") == "inconclusive"
+    assert "no independent measurement" in dpr.get("note", "").lower()
     cert = result["omega_certificate"]
     note = next(n for n in cert.learning_notes if n.kind == "delta_plus_reality")
-    # Real evaluate_reality on the 9.81 m/s^2 demo corroborates within tolerance.
-    assert "corroborated" in note.summary.lower()
-    assert result["reality_verdict"] is not None
-    assert result["reality_verdict"].status.value == "corroborated"
+    # The Ω note declares honest abstention, not a (fabricated) corroboration.
+    assert "abstention" in note.summary.lower()
+    assert "no independent measurement" in note.summary.lower()
 
 
 # --- Claim: VERIFIED with real provenance ------------------------------------
@@ -96,10 +105,10 @@ def test_claim_is_verified_with_multiple_sourcerefs(work_queue):
 def test_delta_plus_chain_surfaced_via_result_keys(work_queue):
     result = _run(_DREAM, work_queue)
 
-    # Keys named in the spec must be populated by the real chain.
-    assert result["reality_verdict"] is not None
+    # The δ⁺ chain keys are populated; δ⁺ is an HONEST abstention (no measurement), not a fake pass.
+    assert "reality_verdict" in result and result["reality_verdict"] is None
     assert result["delta_plus_result"] is not None
-    assert result["delta_plus_result"]["within_tolerance"] is True
+    assert result["delta_plus_result"]["status"] == "inconclusive"
     assert result["coverage_certificate"] is not None
     assert result["run_state"] is not None
 
@@ -126,12 +135,23 @@ def test_run_state_carries_post_cert_attachments(work_queue):
     assert rs.memory_fabric is not None
     assert rs.pareto_front is not None
     assert rs.coverage_certificate is not None
-    # The δ+ verdict is persisted on the state (not just in the return dict).
-    assert rs.reality_verdict is not None
+    # The δ+ result is persisted on the state; reality_verdict is honestly None (no measurement → abstain).
+    assert rs.reality_verdict is None
     assert rs.delta_plus_result is not None
+    assert rs.delta_plus_result["status"] == "inconclusive"
     # build_omega + gate_omega ran over the populated state.
     assert result["omega_gate"] is not None
     assert result["omega_gate"].passed is True
+
+
+# --- Ω enforcement opt-in (STATUS.md §1 #4) ----------------------------------
+
+def test_omega_enforcement_opt_in_passes_on_normal_flow(work_queue):
+    """Ω can be ENFORCED (enforce_omega=True raises OmegaGateNotPassed on a failed/absent Ω
+    instead of only logging). On the normal flow Ω passes, so enforcing must NOT raise and must
+    still return the result — the mechanism is wired without breaking the happy path."""
+    result = process_dream(_DREAM, work_queue_path=work_queue, enforce_omega=True)
+    assert result["omega_gate"] is not None and result["omega_gate"].passed is True
 
 
 # --- Self-improvement: real, verifiable, idempotent --------------------------

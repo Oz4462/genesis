@@ -1231,12 +1231,18 @@ def _colorize(el, color):
 
 
 def _add_finger(robot, side: str, fname: str, palm_link: str, root_xyz, *, oppose: bool, dexterous: bool,
-                color=None):
+                color=None, styled: bool = False):
     """Add one articulated finger to a palm: 3 phalanges (proximal/middle/distal) chained by revolute
     pitch joints (the tendon-flex DOF is the proximal joint; the middle/distal couple, modeled here as
     driven joints so the engine shows real articulation). The thumb additionally gets an opposition
     (yaw) joint at its base. Each phalanx is a small cylinder + a knuckle sphere with a real inertia.
-    ``color`` (when given) tints the finger visuals to match the exo-shell (styling, visual only)."""
+    ``color`` (when given) tints the finger visuals to match the exo-shell (styling, visual only).
+
+    ``styled=True`` (Round 6) swaps the finger VISUALS to the segmented hard-surface phalanx SHELLS
+    (a light tapering body + a dark machined KNUCKLE collar at each joint → an articulated two-tone
+    mechanical finger, NOT a fused white sausage), when those shell STLs exist. The collision cylinder
+    and the inertials/joints are byte-identical either way (and finger visuals are excluded from the
+    physics SHA), so the validated physics are untouched."""
     L = _DIM["phalanx_len"]
     r = _DIM["phalanx_r"]
     m = _MASS["phalanx"]
@@ -1244,13 +1250,20 @@ def _add_finger(robot, side: str, fname: str, palm_link: str, root_xyz, *, oppos
     parent = palm_link
     origin = root_xyz
     n_phx = PHALANGES_PER_FINGER if dexterous else 1
+    # are the Round-6 segmented finger shells available? (honest: only style if every piece exists)
+    _fshell = styled and all(
+        _P(f"{SHELLS_DIR}/aethon_finger_{s}_shell.stl").is_file()
+        for s in ("prox", "mid", "dist", "knuckle"))
     # thumb opposition: a yaw joint + a tiny carpal link before the first phalanx
     if oppose:
         carpal = f"{side}_{fname}_carpal"
         link = ET.SubElement(robot, "link", {"name": carpal})
         _add_inertial(link, m, I)
         _add_sphere(link, "collision", r * 0.9)
-        _colorize(_add_sphere(link, "visual", r * 0.9), color)
+        if _fshell:   # the thumb base reads as a dark machined knuckle (the carpal/CMC joint axle)
+            _add_mesh_visual(link, "finger_knuckle", _COL["joint"])
+        else:
+            _colorize(_add_sphere(link, "visual", r * 0.9), color)
         _joint(robot, f"{side}_{fname}_oppose", parent, carpal, origin, _AX["yaw"],
                lower=0.0, upper=1.4, effort=6.0, velocity=8.0)
         parent = carpal
@@ -1262,10 +1275,16 @@ def _add_finger(robot, side: str, fname: str, palm_link: str, root_xyz, *, oppos
         # phalanx extends along +x (finger points forward off the palm); CoM at mid-length
         _add_inertial(link, m, I, xyz=(L / 2.0, 0.0, 0.0))
         _add_cyl(link, "collision", L, r, xyz=(L / 2.0, 0.0, 0.0), rpy=(0.0, 1.5708, 0.0))
-        _colorize(_add_cyl(link, "visual", L, r, xyz=(L / 2.0, 0.0, 0.0), rpy=(0.0, 1.5708, 0.0)), color)
-        _colorize(_add_sphere(link, "visual", r, xyz=(0.0, 0.0, 0.0)), color)  # knuckle
-        if seg == "dist":   # rounded FINGERTIP cap on the last phalanx (a real fingertip, not a stub)
-            _colorize(_add_sphere(link, "visual", r * 0.95, xyz=(L, 0.0, 0.0)), color)
+        if _fshell:
+            # DARK machined KNUCKLE collar at the proximal joint (x=0) — the hinge axle (the two-tone cue)
+            _add_mesh_visual(link, "finger_knuckle", _COL["joint"])
+            # LIGHT tapering phalanx BODY shell (authored x=0..PHX_LEN in the link frame → mount at origin)
+            _add_mesh_visual(link, f"finger_{seg}", color or _COL["shell"])
+        else:
+            _colorize(_add_cyl(link, "visual", L, r, xyz=(L / 2.0, 0.0, 0.0), rpy=(0.0, 1.5708, 0.0)), color)
+            _colorize(_add_sphere(link, "visual", r, xyz=(0.0, 0.0, 0.0)), color)  # knuckle
+            if seg == "dist":   # rounded FINGERTIP cap on the last phalanx (a real fingertip, not a stub)
+                _colorize(_add_sphere(link, "visual", r * 0.95, xyz=(L, 0.0, 0.0)), color)
         # flex joint: pitch about y so the finger curls toward the palm (-z)
         lo, hi = (0.0, 1.5)  # fingers flex one way (closing grip)
         _joint(robot, f"{side}_{fname}_{seg}_flex", parent, child, origin, _AX["pitch"],

@@ -19,26 +19,37 @@ from typing import Optional, Any
 
 from .architekt import SystemConcept
 from .ingenieur import IngenieurSpec, MaterialSpec, ToleranceSpec
+
 # Naht to advanced DFM (from prior stone)
 try:
     from gen.cad.manufacturing_check import AdvancedDFMReport
 except Exception:
     AdvancedDFMReport = dict  # type: ignore
+try:
+    from gen.cad.gcode import GCodeProgram  # for real attachment (MODULE-05)
+except Exception:
+    GCodeProgram = None  # type: ignore  # type: ignore
+    GCodeProgram = object  # fallback for annotations
 
 
 @dataclass(frozen=True)
 class FertigungsProzess:
     """Gewählter Fertigungsprozess mit Begründung + Grenzen."""
+
     name: str  # FDM, CNC, Laser, PCB
     begruendung: str
     prozessgrenzen: str  # z.B. "min wall 0.8mm from DFM"
-    datei_stub: str | None = None  # gcode path or description
+    datei_stub: str | None = None  # gcode path or description (legacy for gaps)
+    gcode_program: "GCodeProgram | None" = (
+        None  # real from cad.gcode (MODULE-05: profile + pocket)
+    )
     quelle: str | None = None
 
 
 @dataclass(frozen=True)
 class KostenModell:
     """Kosten + Stückzahl Schätzung (mit Quelle/Schätzung per Gate)."""
+
     material_kosten: str
     prozess_kosten: str
     gesamt_est: str
@@ -49,6 +60,7 @@ class KostenModell:
 @dataclass(frozen=True)
 class QAPlan:
     """Qualitätskontrolle / Prüfplan."""
+
     schritte: list[str]
     gate_kriterien: str
     quelle: str | None = None
@@ -57,6 +69,7 @@ class QAPlan:
 @dataclass(frozen=True)
 class FertigungsSpec:
     """Output der Fertigungs-Pipeline (erster Stein)."""
+
     source_idea: str
     gewaehlte_prozesse: list[FertigungsProzess]
     dfm_report_ref: str | None  # Naht to advanced DFM
@@ -94,16 +107,38 @@ def _fdm_cost_estimate_from_dfm(dfm_report: Optional[Any]) -> str | None:
 # the engineer's REAL tolerance signal, never invented. Tight fits (ISO H/g/k grades),
 # explicit micron specs and ±0.0x callouts cannot be held by hobby-grade FDM.
 _PRECISION_TOLERANCE_MARKERS: tuple[str, ...] = (
-    "h7", "h6", "h5", "g6", "k6", "js", "µm", "um", "micron", "±0.0",
+    "h7",
+    "h6",
+    "h5",
+    "g6",
+    "k6",
+    "js",
+    "µm",
+    "um",
+    "micron",
+    "±0.0",
 )
 # Material name fragments that signal a metallic/composite workpiece — a real signal
 # from ingenieur.material_hinweise that a metal-capable process (CNC) is appropriate.
 _METAL_MATERIAL_MARKERS: tuple[str, ...] = (
-    "alu", "stahl", "steel", "titan", "edelstahl", "messing", "metal", "cfk",
+    "alu",
+    "stahl",
+    "steel",
+    "titan",
+    "edelstahl",
+    "messing",
+    "metal",
+    "cfk",
 )
 # Fragments in a CAD requirement that carry a concrete manufacturing constraint
 # (wall thickness / dimension) we can quote into prozessgrenzen instead of guessing.
-_DIMENSION_REQUIREMENT_MARKERS: tuple[str, ...] = ("wand", "wall", "mm", "fillet", "radius")
+_DIMENSION_REQUIREMENT_MARKERS: tuple[str, ...] = (
+    "wand",
+    "wall",
+    "mm",
+    "fillet",
+    "radius",
+)
 
 
 def _precision_tolerance(ingenieur: IngenieurSpec) -> "ToleranceSpec | None":
@@ -153,7 +188,9 @@ def _derive_generic_processes(
     """
     dimension_reqs = _dimension_requirements(ingenieur)
     if dimension_reqs:
-        fdm_grenzen = "Maß/Wand aus ingenieur.cad_anforderungen: " + "; ".join(dimension_reqs)
+        fdm_grenzen = "Maß/Wand aus ingenieur.cad_anforderungen: " + "; ".join(
+            dimension_reqs
+        )
     else:
         # No silent default: be explicit that the bound is unknown until a DFM/geometry check.
         fdm_grenzen = (
@@ -164,7 +201,9 @@ def _derive_generic_processes(
     lead_assembly = concept.main_assemblies[0] if concept.main_assemblies else None
     fdm_begruendung = f"FDM als Prototyp-Default für »{concept.source_idea}«"
     if lead_assembly is not None:
-        fdm_begruendung += f"; trägt Baugruppe '{lead_assembly.name}' ({lead_assembly.purpose})"
+        fdm_begruendung += (
+            f"; trägt Baugruppe '{lead_assembly.name}' ({lead_assembly.purpose})"
+        )
 
     processes = [
         FertigungsProzess(
@@ -187,7 +226,9 @@ def _derive_generic_processes(
         processes.append(
             FertigungsProzess(
                 name="CNC",
-                begruendung="CNC ergänzt, weil " + " und ".join(reasons) + " (aus ingenieur abgeleitet)",
+                begruendung="CNC ergänzt, weil "
+                + " und ".join(reasons)
+                + " (aus ingenieur abgeleitet)",
                 prozessgrenzen=(
                     "Feinbearbeitung nach realer Toleranz-/Materialvorgabe; "
                     "exakte Maschinenparameter/Aufspannung offen (Lücke)"
@@ -233,15 +274,19 @@ def map_to_fertigungs_spec(
                 name="FDM",
                 begruendung="Primary for prototype (volume ~49cm³, 2mm wall from CAD; printable per advanced DFM)",
                 prozessgrenzen="min wall 0.8mm, bridge <=10mm, layer adhesion warning (from dfm/printability + advanced DFM)",
-                datei_stub="FDM print gcode needs a slicer (per-layer toolpaths) — not generated (honest gap); a real, verified 2.5D CNC profile gcode for the bounding footprint is produced by cad.gcode (AdvancedDFMReport.gcode_program)",
+                datei_stub="FDM print gcode needs a slicer (per-layer toolpaths) — not generated (honest gap)",
+                gcode_program=None,  # FDM slicing external; CNC gcode from dfm below
                 quelle="advanced_dfm (FDM process) + prototype_cad_builder (real STL/volume) + PLAN §4.7",
             ),
             FertigungsProzess(
                 name="CNC",
                 begruendung="Alternative for precision/strength (if FDM layer issues)",
                 prozessgrenzen="min feature 0.5mm, tol ±0.05mm (from advanced DFM CNC stub)",
-                datei_stub="real, verified 2.5D outside-profile CNC gcode via cad.gcode (AdvancedDFMReport.gcode_program); full toolpaths (pockets/holes/3D) need a CAM kernel",
-                quelle="advanced_dfm (CNC) + PLAN §4.7",
+                datei_stub=None,
+                gcode_program=getattr(dfm_report, "gcode_program", None)
+                if dfm_report is not None
+                else None,
+                quelle="advanced_dfm (CNC) + cad.gcode (real profile/pocket) + PLAN §4.7",
             ),
         ]
         dfm_ref = "advanced_dfm report for Jetpack Tether Anchor (printable FDM primary, issues noted)"
@@ -307,7 +352,9 @@ def map_to_fertigungs_spec(
 
         # QA derived from the engineer's REAL tolerances + Prüfplan-Hinweise.
         qa_schritte = ["Maß-/Sichtprüfung der gefertigten Teile"]
-        qa_schritte += [f"Toleranz prüfen: {t.feature} = {t.toleranz}" for t in ingenieur.toleranzen]
+        qa_schritte += [
+            f"Toleranz prüfen: {t.feature} = {t.toleranz}" for t in ingenieur.toleranzen
+        ]
         qa_schritte += list(ingenieur.pruefplan_hinweise)
         qa_gate = (
             "Geometrie-/DFM-Check bestanden + alle deklarierten Toleranzen erfüllt"

@@ -27,8 +27,18 @@ from .core.state import (
     Specification,
 )
 from .costing import bom_cost
-from .verification.derivation import DEFAULT_TOLERANCE, evaluate_formula, referenced_names
-from .verification.units import DIMENSIONLESS, Dimension, formula_dimension, parse_unit, unit_scale
+from .verification.derivation import (
+    DEFAULT_TOLERANCE,
+    evaluate_formula,
+    referenced_names,
+)
+from .verification.units import (
+    DIMENSIONLESS,
+    Dimension,
+    formula_dimension,
+    parse_unit,
+    unit_scale,
+)
 
 
 _CHAIN: tuple[SeamDomain, ...] = (
@@ -77,7 +87,9 @@ def domains_present(spec: Specification) -> set[SeamDomain]:
         present.add(SeamDomain.MECHANICAL)
     if any(_looks_thermal(q) for q in spec.quantities):
         present.add(SeamDomain.THERMAL)
-    if spec.netlist is not None or any(item.domain is BomDomain.ELECTRONIC for item in spec.bom):
+    if spec.netlist is not None or any(
+        item.domain is BomDomain.ELECTRONIC for item in spec.bom
+    ):
         present.add(SeamDomain.ELECTRICAL)
     if spec.code_artifacts:
         present.add(SeamDomain.FIRMWARE)
@@ -399,46 +411,69 @@ def detect_cross_domain_seams(spec: Specification) -> list[DomainSeam]:
                 q = qmap[qid]
                 if q.unit and q.unit.strip() in ("EUR", "USD", "€", "$", "currency"):
                     # distinct right domain from present (non-COST)
-                    right = next((d for d in present if d != SeamDomain.COST), SeamDomain.MECHANICAL)
-                    seams.append(DomainSeam(
-                        id=f"auto_cost_{qid}",
-                        left_domain=SeamDomain.COST,
-                        right_domain=right,
-                        relation=SeamRelation.COST_ROLLUP,
-                        left_expr=qid,
-                        right_expr=q.unit.strip(),
-                        rationale="auto-detected COST_ROLLUP from bom-priced spec total vs bom_cost (from architect spec or assess)",
-                    ))
+                    right = next(
+                        (d for d in present if d != SeamDomain.COST),
+                        SeamDomain.MECHANICAL,
+                    )
+                    seams.append(
+                        DomainSeam(
+                            id=f"auto_cost_{qid}",
+                            left_domain=SeamDomain.COST,
+                            right_domain=right,
+                            relation=SeamRelation.COST_ROLLUP,
+                            left_expr=qid,
+                            right_expr=q.unit.strip(),
+                            rationale="auto-detected COST_ROLLUP from bom-priced spec total vs bom_cost (from architect spec or assess)",
+                        )
+                    )
                     break  # one sufficient
 
     # 2. Cross-domain from constraints (explicit relations in γ spec; kind -> relation)
+    # Enhanced expr support (Return Gate #4 + harness 5.5 Return Gate discipline):
+    # Use referenced_names (already imported) to resolve qids even if left/right are expressions
+    # (e.g. "F_max <= sigma_yield"). Falls back to direct match for simple ids. Keeps exprs as-is.
     kind_to_rel = {
-        "le": SeamRelation.LE, "le=": SeamRelation.LE,
-        "ge": SeamRelation.GE, "ge=": SeamRelation.GE,
-        "eq": SeamRelation.EQ, "=": SeamRelation.EQ, "==": SeamRelation.EQ,
+        "le": SeamRelation.LE,
+        "le=": SeamRelation.LE,
+        "ge": SeamRelation.GE,
+        "ge=": SeamRelation.GE,
+        "eq": SeamRelation.EQ,
+        "=": SeamRelation.EQ,
+        "==": SeamRelation.EQ,
     }
-    for con in (spec.constraints or []):
+    for con in spec.constraints or []:
         left = (con.left or "").strip()
         right = (con.right or "").strip()
-        if left and right and left in qids and right in qids:
-            # infer distinct domains (heuristic via names/measurand + _looks_thermal)
-            lq = qmap.get(left)
-            rq = qmap.get(right)
-            ld = _guess_domain(lq) or SeamDomain.MECHANICAL
-            rd = _guess_domain(rq) or SeamDomain.ELECTRICAL
-            if ld == rd:
-                # force adjacent if possible
-                rd = next((d for d in present if d != ld), SeamDomain.THERMAL)
-            rel = kind_to_rel.get((con.kind or "").strip().lower(), SeamRelation.EQ)
-            seams.append(DomainSeam(
-                id=f"auto_con_{con.id or left}",
-                left_domain=ld,
-                right_domain=rd,
-                relation=rel,
-                left_expr=left,
-                right_expr=right,
-                rationale=f"auto cross-domain seam from spec constraint {con.id}: {con.reason or ''} (post-γ architect)",
-            ))
+        if left and right:
+            lrefs = referenced_names(left) & qids
+            rrefs = referenced_names(right) & qids
+            lqid = (
+                left if left in qids else (next(iter(lrefs), None) if lrefs else None)
+            )
+            rqid = (
+                right if right in qids else (next(iter(rrefs), None) if rrefs else None)
+            )
+            if lqid and rqid and lqid in qids and rqid in qids:
+                # infer distinct domains (heuristic via names/measurand + _looks_thermal)
+                lq = qmap.get(lqid)
+                rq = qmap.get(rqid)
+                ld = _guess_domain(lq) or SeamDomain.MECHANICAL
+                rd = _guess_domain(rq) or SeamDomain.ELECTRICAL
+                if ld == rd:
+                    # force adjacent if possible
+                    rd = next((d for d in present if d != ld), SeamDomain.THERMAL)
+                rel = kind_to_rel.get((con.kind or "").strip().lower(), SeamRelation.EQ)
+                seams.append(
+                    DomainSeam(
+                        id=f"auto_con_{con.id or left}",
+                        left_domain=ld,
+                        right_domain=rd,
+                        relation=rel,
+                        left_expr=left,
+                        right_expr=right,
+                        rationale=f"auto cross-domain seam from spec constraint {con.id}: {con.reason or ''} (post-γ architect; expr support via referenced_names per Return Gate)",
+                    )
+                )
 
     return seams
 
@@ -448,15 +483,46 @@ def _guess_domain(q: Quantity | None) -> SeamDomain | None:
     if not q:
         return None
     text = " ".join(p for p in (q.id, q.name or "", q.measurand or "")).lower()
-    if _looks_thermal(q) or "thermal" in text or "temp" in text or "heat" in text or "expansion" in text:
+    if (
+        _looks_thermal(q)
+        or "thermal" in text
+        or "temp" in text
+        or "heat" in text
+        or "expansion" in text
+    ):
         return SeamDomain.THERMAL
-    if any(m in text for m in ("elec", "power", "current", "volt", "dissip", "electronics")):
+    if any(
+        m in text
+        for m in (
+            "elec",
+            "power",
+            "current",
+            "volt",
+            "dissip",
+            "electronics",
+            "bus",
+            "signal",
+        )
+    ):
         return SeamDomain.ELECTRICAL
-    if any(m in text for m in ("mech", "clearance", "stress", "force", "mechanical", "dim")):
+    if any(
+        m in text
+        for m in (
+            "mech",
+            "clearance",
+            "stress",
+            "force",
+            "mechanical",
+            "dim",
+            "torque",
+            "pressure",
+            "load",
+        )
+    ):
         return SeamDomain.MECHANICAL
     if "fw" in text or "firmware" in text or "code" in text:
         return SeamDomain.FIRMWARE
-    if "cost" in text:
+    if "cost" in text or "bom" in text or "price" in text:
         return SeamDomain.COST
     return None
 

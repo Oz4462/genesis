@@ -20,6 +20,9 @@ from .runner import (
     optimize_params,
     optimize_simulation_params,
     OptimizationResult,
+    ReferenceCase,
+    get_reference_cases,
+    mesh_convergence_gate,
 )
 
 # quantum_opt re-exports its public API via runner for simulation users;
@@ -38,4 +41,7 @@ __all__ = [
     "optimize_simulation_params",
     "OptimizationResult",
     "quantum_opt",
+    "ReferenceCase",
+    "get_reference_cases",
+    "mesh_convergence_gate",
 ]

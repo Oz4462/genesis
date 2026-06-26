@@ -108,6 +108,11 @@ class BundleManifest:
     coverage_certificate: dict | None = None
     reality_verdict: dict | None = None
     delta_plus_result: dict | None = None
+    # Platform Caps (Proof, Readiness, Teacher, Community) for full E2E consumers.
+    proof_package: dict | None = None
+    readiness_level: str | None = None
+    teacher_notes: dict | None = None
+    community_evidence: dict | None = None
 
     @property
     def files_complete(self) -> bool:
@@ -267,6 +272,11 @@ def emit_bundle(spec: Specification, out_dir: str | Path, *, tolerance: float = 
             if getattr(assessment, "reality_verdict", None) else None
         ),
         delta_plus_result=getattr(assessment, "delta_plus_result", None),
+        # Platform Caps (ProofPackage, Readiness, Teacher, Community) - E2E autonomy no-stop
+        proof_package=getattr(assessment, "proof_package", None),
+        readiness_level=getattr(assessment, "readiness_level", None),
+        teacher_notes=getattr(assessment, "teacher_notes", None),
+        community_evidence=getattr(assessment, "community_evidence", None),
     )
     (out / "MANIFEST.json").write_text(
         json.dumps(asdict(manifest), indent=2, ensure_ascii=False), encoding="utf-8")

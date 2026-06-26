@@ -16,5 +16,9 @@ from .scholar import Scholar
 from .scout import Scout
 from .skeptic import Skeptic
 from .synthesizer import Synthesizer
+from .humanoid_researcher import HumanoidResearcher
 
-__all__ = ["Scout", "Scholar", "Skeptic", "Conductor", "Synthesizer", "Architect", "Forge"]
+__all__ = [
+    "Scout", "Scholar", "Skeptic", "Conductor", "Synthesizer", 
+    "Architect", "Forge", "HumanoidResearcher"
+]

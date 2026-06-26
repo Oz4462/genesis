@@ -28,7 +28,7 @@ import os
 
 from .prototype_cad_builder import BuildArtifact
 from .cost_model import CostEstimate, estimate_fdm_cost
-from .gcode import GCodeProgram, generate_profile_gcode
+from .gcode import GCodeProgram, generate_profile_gcode, generate_rect_pocket_gcode
 from gen.dfm import (
     FDM_MIN_WALL_MM,
     FDM_MIN_HOLE_DIAMETER_MM,
@@ -64,6 +64,7 @@ from gen.dfm import (
 @dataclass(frozen=True)
 class ManufacturingCheck:
     """Ergebnis des Manufacturing/Printability-Gates."""
+
     artifact_name: str
     printable: bool
     issues: list[str]
@@ -77,7 +78,11 @@ def check_manufacturing(
     artifact: BuildArtifact,
     *,
     run_id: str | None = None,
-    max_printer_dim_mm: tuple[float, float, float] = (220.0, 220.0, 250.0),  # typical Ender-like
+    max_printer_dim_mm: tuple[float, float, float] = (
+        220.0,
+        220.0,
+        250.0,
+    ),  # typical Ender-like
 ) -> ManufacturingCheck:
     """
     Einfacher aber ehrlicher Manufacturing-Check.
@@ -87,7 +92,9 @@ def check_manufacturing(
     issues: list[str] = []
     details: dict[str, object] = {}
 
-    stl_path = artifact.exports.get("stl") if isinstance(artifact.exports, dict) else None
+    stl_path = (
+        artifact.exports.get("stl") if isinstance(artifact.exports, dict) else None
+    )
     details["stl_claim"] = stl_path
     details["volume_estimate_cm3"] = artifact.volume_estimate_cm3
 
@@ -130,7 +137,9 @@ def check_manufacturing(
     wall = artifact.spec.min_wall_thickness_mm
     details["min_wall_mm"] = wall
     if wall < 1.5:
-        issues.append(f"Very thin walls requested ({wall}mm) — high failure risk on FDM")
+        issues.append(
+            f"Very thin walls requested ({wall}mm) — high failure risk on FDM"
+        )
 
     printable = len(issues) == 0
 
@@ -162,6 +171,7 @@ def check_manufacturing(
 # Printability rules documented in module (we implement the key numeric checks here for determinism;
 # full orientation/bridge logic would live in orientation.py but we reference the thresholds).
 
+
 @dataclass(frozen=True)
 class ProcessDFM:
     process: str  # FDM, CNC, Laser, PCB
@@ -176,9 +186,11 @@ class ProcessDFM:
     # process with open gaps is NOT printable=True — necessary, not sufficient.
     gaps: list[str] = field(default_factory=list)
 
+
 @dataclass(frozen=True)
 class AdvancedDFMReport:
     """Erweiterter DFM-Report (Advanced DFM first stone)."""
+
     artifact_name: str
     overall_printable: bool
     processes: list[ProcessDFM]
@@ -194,9 +206,10 @@ class AdvancedDFMReport:
     # The structured, ranged FDM cost estimate (None if no volume). cost_model_stub
     # is its one-line summary; this carries the band + breakdown + assumptions + gaps.
     cost_estimate: CostEstimate | None = None
-    # A real, verified 2.5D outside-profile CNC program for the bounding footprint
-    # (None if the bbox is degenerate). Internal features / 3D toolpaths are its gaps.
+    # Real verified 2.5D programs (elaboration for MODULE-05 G-Code).
+    # profile: outside footprint; pocket: simple rect clearing (full CAM still gap).
     gcode_program: GCodeProgram | None = None
+    pocket_gcode_program: GCodeProgram | None = None
 
 
 def check_advanced_dfm(
@@ -210,7 +223,9 @@ def check_advanced_dfm(
     Runs base manufacturing_check + dfm/printability rules + multi-process stubs.
     Real STL on disk used where possible.
     """
-    base = check_manufacturing(artifact, run_id=run_id, max_printer_dim_mm=max_printer_dim_mm)
+    base = check_manufacturing(
+        artifact, run_id=run_id, max_printer_dim_mm=max_printer_dim_mm
+    )
     name = artifact.spec.name
     stl_path = base.stl_path
     all_issues = list(base.issues)
@@ -225,7 +240,9 @@ def check_advanced_dfm(
     # dfm rules
     fdm_gaps: list[str] = []
     if wall < FDM_MIN_WALL_MM:
-        fdm_issues.append(f"FDM: wall {wall}mm < min reliable {FDM_MIN_WALL_MM}mm (dfm.py)")
+        fdm_issues.append(
+            f"FDM: wall {wall}mm < min reliable {FDM_MIN_WALL_MM}mm (dfm.py)"
+        )
     # min-hole-diameter rule: the spec carries NO hole geometry (PrototypeSpec is a
     # bounding box + min wall, not a CSG tree with hole radii), so the rule is NOT
     # evaluable here. Declared as a gap with its sourced threshold — never the old
@@ -234,31 +251,43 @@ def check_advanced_dfm(
     fdm_gaps.append(
         f"FDM: min-hole-diameter rule (>= {FDM_MIN_HOLE_DIAMETER_MM}mm, dfm.py) not "
         f"evaluable — the spec carries no hole geometry (CSG hole radii); needs the "
-        f"solid's feature geometry (gmsh/BREP), not a bounding box")
+        f"solid's feature geometry (gmsh/BREP), not a bounding box"
+    )
 
     # printability rules (from documented thresholds in printability.py)
     # bridge (simplified: assume if large flat -> potential)
     if vol > 30:
-        fdm_issues.append("FDM: large volume — check bridge spans >10mm (printability.py rule)")
+        fdm_issues.append(
+            "FDM: large volume — check bridge spans >10mm (printability.py rule)"
+        )
     # layer adhesion (load path across layers is gap for now)
-    fdm_issues.append("FDM: layer adhesion loss >55% Z (printability.py) — load path across layers must be validated or re-oriented (gap)")
+    fdm_issues.append(
+        "FDM: layer adhesion loss >55% Z (printability.py) — load path across layers must be validated or re-oriented (gap)"
+    )
     # mating/pins/walls (examples)
     if wall < 1.0:
-        fdm_issues.append("FDM: free-standing wall <1.0mm risks wobble/delam (printability.py)")
+        fdm_issues.append(
+            "FDM: free-standing wall <1.0mm risks wobble/delam (printability.py)"
+        )
 
     # real, sourced, ranged FDM cost from the solid volume (None if no volume) —
     # replaces the old fabricated "~5-12 EUR est." prose.
     fdm_cost = estimate_fdm_cost(vol, artifact.spec.material_hint) if vol > 0 else None
     fdm_printable = len(fdm_issues) == 0 and not fdm_gaps and base.printable
-    processes.append(ProcessDFM(
-        process="FDM",
-        printable=fdm_printable,
-        issues=fdm_issues,
-        gaps=fdm_gaps,
-        details=fdm_details,
-        cost_hint=fdm_cost.summary() if fdm_cost else None,
-        qa_hints=["Visual + caliper on critical dims", "Pull test sample for layer strength"],
-    ))
+    processes.append(
+        ProcessDFM(
+            process="FDM",
+            printable=fdm_printable,
+            issues=fdm_issues,
+            gaps=fdm_gaps,
+            details=fdm_details,
+            cost_hint=fdm_cost.summary() if fdm_cost else None,
+            qa_hints=[
+                "Visual + caliper on critical dims",
+                "Pull test sample for layer strength",
+            ],
+        )
+    )
 
     # CNC (subtractive milling) — sourced DFM rules (dfm.py). Only wall thickness
     # is evaluable from the spec; the geometric rules (corner radius, pocket
@@ -270,17 +299,21 @@ def check_advanced_dfm(
     cnc_issues: list[str] = []
     cnc_gaps: list[str] = []
     if wall <= 0:
-        cnc_gaps.append("CNC: wall thickness not specified — min-wall rule not evaluable")
+        cnc_gaps.append(
+            "CNC: wall thickness not specified — min-wall rule not evaluable"
+        )
     else:
         if wall < CNC_MIN_WALL_METAL_FLOOR_MM:
             cnc_issues.append(
                 f"CNC: wall {wall}mm below vendor minimum feature "
                 f"~{CNC_MIN_WALL_METAL_FLOOR_MM}mm — needs EDM or special tooling "
-                f"({CNC_DFM_SOURCE})")
+                f"({CNC_DFM_SOURCE})"
+            )
         elif wall < CNC_MIN_WALL_METAL_MM:
             cnc_issues.append(
                 f"CNC: wall {wall}mm < {CNC_MIN_WALL_METAL_MM}mm recommended for metal "
-                f"(conservative advisory) ({CNC_DFM_SOURCE})")
+                f"(conservative advisory) ({CNC_DFM_SOURCE})"
+            )
         # material is unspecified: the thresholds above use the most permissive
         # material (metal). Only where a wall actually PASSES metal but would fail
         # plastic does the material ambiguity change the verdict — declare it there
@@ -288,36 +321,49 @@ def check_advanced_dfm(
         elif wall < CNC_MIN_WALL_PLASTIC_MM:
             cnc_gaps.append(
                 f"CNC: material unspecified — wall {wall}mm passes metal but a plastic "
-                f"part needs ≥ {CNC_MIN_WALL_PLASTIC_MM}mm; verdict assumes metal")
+                f"part needs ≥ {CNC_MIN_WALL_PLASTIC_MM}mm; verdict assumes metal"
+            )
     # envelope fit is per-axis + machine/material-specific — un-evaluable from the
     # bounding box alone; surfaced as a gap stating the part's extents + depth cap.
     bx, by, bz = artifact.spec.bounding_box_hint_mm
     cnc_gaps.append(
         f"CNC: machine envelope fit not evaluable — part {bx}×{by}×{bz}mm must be "
         f"checked against the chosen mill's per-axis travel (3-axis depth cap "
-        f"~{CNC_MAX_MILL_DEPTH_MM}mm/side, Protolabs)")
+        f"~{CNC_MAX_MILL_DEPTH_MM}mm/side, Protolabs)"
+    )
+    # Derived rough aspect check using bbox (additional honesty from existing data)
+    max_dim = max(bx, by, bz)
+    min_dim = min(bx, by, bz) if min(bx, by, bz) > 0 else 1
+    if max_dim / min_dim > 10:
+        cnc_gaps.append(
+            f"CNC: extreme aspect {max_dim / min_dim:.1f}:1 — high risk of deflection/vibration; "
+            "may need fixtures or 5-axis (derived from bbox; not full geometric DFM)"
+        )
     # the spec carries no per-dimension tolerances; the default standard is an
     # assumption, not an evaluated result.
     cnc_gaps.append(
         f"CNC: per-dimension tolerances not specified — {CNC_GENERAL_TOLERANCE_ISO2768} "
-        f"assumed as default, not evaluated")
+        f"assumed as default, not evaluated"
+    )
     cnc_gaps += cnc_geometric_gaps()
     # honest verdict: printable only if NO blocker AND NO un-evaluable rule remains
     cnc_printable = not cnc_issues and not cnc_gaps
-    processes.append(ProcessDFM(
-        process="CNC",
-        printable=cnc_printable,
-        issues=cnc_issues,
-        gaps=cnc_gaps,
-        details={
-            "min_wall_metal_mm": CNC_MIN_WALL_METAL_MM,
-            "min_wall_plastic_mm": CNC_MIN_WALL_PLASTIC_MM,
-            "general_tolerance_assumed": CNC_GENERAL_TOLERANCE_ISO2768,
-            "source": CNC_DFM_SOURCE,
-        },
-        cost_hint=None,  # no CNC cost model yet — separate stone (DOC_CODE_DRIFT §8)
-        qa_hints=["CMM on toleranced dims", "Surface-finish (Ra) check"],
-    ))
+    processes.append(
+        ProcessDFM(
+            process="CNC",
+            printable=cnc_printable,
+            issues=cnc_issues,
+            gaps=cnc_gaps,
+            details={
+                "min_wall_metal_mm": CNC_MIN_WALL_METAL_MM,
+                "min_wall_plastic_mm": CNC_MIN_WALL_PLASTIC_MM,
+                "general_tolerance_assumed": CNC_GENERAL_TOLERANCE_ISO2768,
+                "source": CNC_DFM_SOURCE,
+            },
+            cost_hint=None,  # no CNC cost model yet — separate stone (DOC_CODE_DRIFT §8)
+            qa_hints=["CMM on toleranced dims", "Surface-finish (Ra) check"],
+        )
+    )
 
     # Laser / sheet cutting — a 2D process on constant-thickness stock (dfm.py).
     # The governing quantity is the sheet thickness = the part's smallest extent.
@@ -334,7 +380,8 @@ def check_advanced_dfm(
         laser_issues.append(
             f"Laser: sheet thickness ~{thickness:g}mm exceeds the laser upper bound "
             f"~{LASER_MAX_THICKNESS_STEEL_MM:g}mm (high-power fiber, mild steel) — "
-            f"use waterjet/plasma ({LASER_DFM_SOURCE})")
+            f"use waterjet/plasma ({LASER_DFM_SOURCE})"
+        )
     elif thickness > LASER_MAX_THICKNESS_ALUMINUM_MM:
         # above the most conservative material cap but below the industrial bound:
         # whether it cuts depends on equipment class and material — a gap, not a pass.
@@ -345,27 +392,33 @@ def check_advanced_dfm(
             f"~{LASER_TYPICAL_SHOP_MAX_MM:g}mm, SendCutSend 0.5in) — cuttable higher is "
             f"material and equipment specific (steel ≤ {LASER_MAX_THICKNESS_STEEL_MM:g}, "
             f"stainless ≤ {LASER_MAX_THICKNESS_STAINLESS_MM:g}mm); confirm equipment or "
-            f"use waterjet/plasma")
+            f"use waterjet/plasma"
+        )
     laser_gaps += laser_sheet_gaps(thickness if thickness > 0 else 0.0)
     # honest verdict: printable only if NO blocker AND NO un-evaluable rule remains
     laser_printable = not laser_issues and not laser_gaps
-    processes.append(ProcessDFM(
-        process="Laser",
-        printable=laser_printable,
-        issues=laser_issues,
-        gaps=laser_gaps,
-        details={
-            "sheet_thickness_mm": round(thickness, 3),
-            "shop_max_thickness_mm": LASER_TYPICAL_SHOP_MAX_MM,
-            "industrial_max_steel_mm": LASER_MAX_THICKNESS_STEEL_MM,
-            "industrial_max_stainless_mm": LASER_MAX_THICKNESS_STAINLESS_MM,
-            "industrial_max_aluminum_mm": LASER_MAX_THICKNESS_ALUMINUM_MM,
-            "kerf_mm_typical": f"{LASER_KERF_MIN_MM}-{LASER_KERF_MAX_MM}",
-            "source": LASER_DFM_SOURCE,
-        },
-        cost_hint=None,  # no laser cost model yet — separate stone (DOC_CODE_DRIFT §8)
-        qa_hints=["Visual inspection of cut edge", "Thickness gauge on critical dims"],
-    ))
+    processes.append(
+        ProcessDFM(
+            process="Laser",
+            printable=laser_printable,
+            issues=laser_issues,
+            gaps=laser_gaps,
+            details={
+                "sheet_thickness_mm": round(thickness, 3),
+                "shop_max_thickness_mm": LASER_TYPICAL_SHOP_MAX_MM,
+                "industrial_max_steel_mm": LASER_MAX_THICKNESS_STEEL_MM,
+                "industrial_max_stainless_mm": LASER_MAX_THICKNESS_STAINLESS_MM,
+                "industrial_max_aluminum_mm": LASER_MAX_THICKNESS_ALUMINUM_MM,
+                "kerf_mm_typical": f"{LASER_KERF_MIN_MM}-{LASER_KERF_MAX_MM}",
+                "source": LASER_DFM_SOURCE,
+            },
+            cost_hint=None,  # no laser cost model yet — separate stone (DOC_CODE_DRIFT §8)
+            qa_hints=[
+                "Visual inspection of cut edge",
+                "Thickness gauge on critical dims",
+            ],
+        )
+    )
 
     # PCB — a 2D COPPER layout, NOT a mechanical solid (dfm.py). The mechanical CAD
     # artifact carries no copper geometry (traces/vias/nets), so NO PCB fab rule is
@@ -373,40 +426,45 @@ def check_advanced_dfm(
     # electronics-layer seam (electronics.py netlist/DRC). All rules are declared as
     # gaps with sourced fab-capability references; never a silent/name-based pass.
     pcb_gaps = pcb_dfm_gaps()
-    processes.append(ProcessDFM(
-        process="PCB",
-        printable=False,  # a PCB cannot be certified from a mechanical solid
-        issues=[],
-        gaps=pcb_gaps,
-        details={
-            # nothing here is measured from this artifact — these are reference fab
-            # capabilities, nested so a flat scan cannot misread them as board values.
-            "evaluated": False,
-            "capability_tier": PCB_CAPABILITY_TIER,
-            "reference_capabilities": {
-                "min_trace_mm": PCB_MIN_TRACE_MM,
-                "min_spacing_mm": PCB_MIN_SPACING_MM,
-                "min_copper_to_edge_mm": PCB_MIN_COPPER_TO_EDGE_MM,
-                "min_via_drill_mm": PCB_MIN_VIA_DRILL_MM,
-                "recommended_via_drill_mm": PCB_RECOMMENDED_VIA_DRILL_MM,
-                "min_annular_ring_mm": PCB_MIN_ANNULAR_RING_MM,
-                "max_via_aspect_ratio": PCB_MAX_VIA_ASPECT_RATIO,
-                # a concrete IPC-2221 reference point (computed, sourced) — a guide,
-                # NOT this artifact's value (the spec carries no net currents).
-                "ipc2221_trace_1A_10C_1oz_mm": round(
-                    ipc2221_trace_width_mm(1.0, 10.0, 1.0, external=True), 3),
+    processes.append(
+        ProcessDFM(
+            process="PCB",
+            printable=False,  # a PCB cannot be certified from a mechanical solid
+            issues=[],
+            gaps=pcb_gaps,
+            details={
+                # nothing here is measured from this artifact — these are reference fab
+                # capabilities, nested so a flat scan cannot misread them as board values.
+                "evaluated": False,
+                "capability_tier": PCB_CAPABILITY_TIER,
+                "reference_capabilities": {
+                    "min_trace_mm": PCB_MIN_TRACE_MM,
+                    "min_spacing_mm": PCB_MIN_SPACING_MM,
+                    "min_copper_to_edge_mm": PCB_MIN_COPPER_TO_EDGE_MM,
+                    "min_via_drill_mm": PCB_MIN_VIA_DRILL_MM,
+                    "recommended_via_drill_mm": PCB_RECOMMENDED_VIA_DRILL_MM,
+                    "min_annular_ring_mm": PCB_MIN_ANNULAR_RING_MM,
+                    "max_via_aspect_ratio": PCB_MAX_VIA_ASPECT_RATIO,
+                    # a concrete IPC-2221 reference point (computed, sourced) — a guide,
+                    # NOT this artifact's value (the spec carries no net currents).
+                    "ipc2221_trace_1A_10C_1oz_mm": round(
+                        ipc2221_trace_width_mm(1.0, 10.0, 1.0, external=True), 3
+                    ),
+                },
+                "note": "PCB DFM needs a routed layout (Gerber/KiCad); board path is electronics.py",
+                "source": PCB_DFM_SOURCE,
             },
-            "note": "PCB DFM needs a routed layout (Gerber/KiCad); board path is electronics.py",
-            "source": PCB_DFM_SOURCE,
-        },
-        cost_hint=None,  # no PCB cost model yet — separate stone (DOC_CODE_DRIFT §8)
-        qa_hints=["ERC/DRC on the real netlist", "impedance control if high-speed"],
-    ))
+            cost_hint=None,  # no PCB cost model yet — separate stone (DOC_CODE_DRIFT §8)
+            qa_hints=["ERC/DRC on the real netlist", "impedance control if high-speed"],
+        )
+    )
 
     overall = any(p.printable for p in processes)  # conservative: if any process viable
     # But for strict: require FDM or noted
     if not any(p.process == "FDM" and p.printable for p in processes):
-        all_issues.append("No fully printable primary process without issues (FDM primary for prototype)")
+        all_issues.append(
+            "No fully printable primary process without issues (FDM primary for prototype)"
+        )
 
     quelle = (
         "advanced_dfm (dfm.py + printability.py rules + multi-process) + "
@@ -419,21 +477,26 @@ def check_advanced_dfm(
     cost_summary = (
         f"{fdm_cost.summary()} — FDM only; CNC/laser/PCB cost needs process data "
         f"(toolpath time / cut length / board layers) not in the artifact"
-        if fdm_cost else
-        "cost not estimable — the artifact carries no volume estimate"
+        if fdm_cost
+        else "cost not estimable — the artifact carries no volume estimate"
     )
-    qa_stub = ["FDM: dimensional + pull sample", "CNC: surface + tolerance", "Final: fit to assembly + functional load test"]
+    qa_stub = [
+        "FDM: dimensional + pull sample",
+        "CNC: surface + tolerance",
+        "Final: fit to assembly + functional load test",
+    ]
 
-    # real, verified 2.5D outside-profile CNC program for the bounding footprint (a
-    # runnable starting program); None if the bbox is degenerate. Replaces the prose
-    # "datei_stub" — internal features / 3D toolpaths are declared as its gaps.
+    # real, verified 2.5D outside-profile + simple rect-pocket CNC programs (elaboration MODULE-05).
+    # Pocket for internal clearing example. Full CAM/pockets/3D = honest gap (declared).
     bx, by, bz = artifact.spec.bounding_box_hint_mm
+    gcode_program = None
+    pocket_gcode_program = None
     try:
-        gcode_program = (generate_profile_gcode(bx, by, bz)
-                         if all(isinstance(d, (int, float)) and d > 0 for d in (bx, by, bz))
-                         else None)
+        if all(isinstance(d, (int, float)) and d > 0 for d in (bx, by, bz)):
+            gcode_program = generate_profile_gcode(bx, by, bz)
+            pocket_gcode_program = generate_rect_pocket_gcode(bx, by, bz)
     except (ValueError, TypeError):
-        gcode_program = None
+        pass
 
     return AdvancedDFMReport(
         artifact_name=name,
@@ -448,4 +511,5 @@ def check_advanced_dfm(
         total_gaps=[g for p in processes for g in p.gaps],
         cost_estimate=fdm_cost,
         gcode_program=gcode_program,
+        pocket_gcode_program=pocket_gcode_program,
     )

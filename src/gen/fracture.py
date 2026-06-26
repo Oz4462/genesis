@@ -149,3 +149,20 @@ def paris_life(
         * exponent
     )
     return numerator / denominator
+
+
+def paris_life_m2(
+    paris_coeff_c: float,
+    delta_stress: float,
+    a_initial: float,
+    a_final: float,
+    geometry_factor_y: float = 1.12,
+) -> float:
+    """Special case m==2 Paris law (log form, autonomous support).
+
+    N = ln(a_f / a_i) / (C * (Y * delta_stress * sqrt(pi))**2 )
+    """
+    if paris_coeff_c <= 0.0 or delta_stress <= 0.0 or a_initial <= 0.0 or a_final <= a_initial:
+        raise ValueError("invalid positive inputs for m=2 Paris")
+    denom = paris_coeff_c * (geometry_factor_y * delta_stress * (math.pi ** 0.5)) ** 2
+    return math.log(a_final / a_initial) / denom

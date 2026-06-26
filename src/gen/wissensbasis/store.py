@@ -259,7 +259,7 @@ class SourceConnectorRegistry:
         if not conn:
             return []
         if conn.kind == "arxiv":
-            return [
+            results = [
                 {
                     "id": "arxiv:2024-lightweight-structures",
                     "title": "Lightweight energy storage and structural integration for portable systems",
@@ -279,6 +279,20 @@ class SourceConnectorRegistry:
                     "quelle": "improved arxiv stub for general ideas",
                 },
             ]
+            # Autonomous enhancement (MODULE-06): make stub query-aware for common domains
+            qlower = (query or "").lower()
+            if "diamagnetic" in qlower or "levitation" in qlower or "graphite" in qlower:
+                results.append({
+                    "id": "arxiv:diamag-pyrolytic-levitation",
+                    "title": "Diamagnetic levitation of pyrolytic graphite over permanent magnets (known effect, no new physics)",
+                    "authors": ["Materials + Electrodynamics refs"],
+                    "source": conn.endpoint_hint,
+                    "query": query,
+                    "relevant_for": ["energy", "mech", "breakthrough"],
+                    "formula_hint": "F = (χ V B · ∇B) / μ₀",
+                    "quelle": "wissensbasis arxiv enhancement + breakthrough_bridge",
+                })
+            return results
         if conn.kind == "local_file" or conn.name == "local_out":
             results = [
                 {"path": "out/realization_packages/.../manifest.json", "type": "RealizationPackage", "query": query},
@@ -296,6 +310,7 @@ class SourceConnectorRegistry:
             return results
         if conn.kind == "component_db" or conn.name == "components":
             # Return actual seeded component recipes (best discovery we have)
+            # Deeper live-like: query match + electronics/mech/bio mix for Platform-Demo
             try:
                 recs = query_component_recipes()
                 return [
@@ -321,7 +336,14 @@ class SourceConnectorRegistry:
             ]
             if "bio" in (query or "").lower() or conn.kind == "bio_actuator":
                 base.append({"id": "chem_synth_v1", "name": "Small-scale Chemical Synthesis Actuator", "kind": "chem_actuator", "specs": {"reactor_ml": 500, "yield_pct": 65, "power_w": 30}, "simulation_hints": {"temp_c": 35, "ph": 7.2}, "query": query, "quelle": "internal bio/chem actuator model (C internalized)"})
-            return base
+            # Deeper live-like: simple query relevance scoring for Platform-Demo-Path (no net, but dynamic)
+            q = (query or "").lower()
+            scored = []
+            for item in base:
+                score = sum(1 for kw in ["bio", "energy", "mech", "sw", "control", "actuator"] if kw in q and kw in str(item).lower())
+                item["relevance"] = 0.5 + 0.1 * score
+                scored.append(item)
+            return sorted(scored, key=lambda x: x.get("relevance", 0), reverse=True)[:5]
         return [{"note": f"improved stub for {conn.kind}", "query": query}]
 
     def query_by_connector(self, name: str, fragment_type: Optional[str] = None) -> list[tuple[str, dict[str, Any]]]:

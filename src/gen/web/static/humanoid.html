@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GENESIS — Humanoid Endergebnis</title>
+<style>
+  :root{ --paper:#fbf8f1; --panel:#f4efe4; --card:#fffdf8; --ink:#23203a; --muted:#5f5a75; --indigo:#5646d6; --spark:#f59e3f; --ok:#0c7a52; --border:rgba(35,32,58,.10); }
+  body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.6 system-ui,sans-serif}
+  .wrap{max-width:960px;margin:0 auto;padding:32px 20px}
+  header{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+  .logo{font-size:18px;font-weight:700;letter-spacing:.1em}
+  .logo b{background:linear-gradient(90deg,var(--indigo),var(--spark));-webkit-background-clip:text;background-clip:text;color:transparent}
+  h1{font-size:28px;margin:0 0 8px}
+  .tag{display:inline-block;background:rgba(86,70,214,.1);color:var(--indigo);border:1px solid var(--indigo);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin:24px 0}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.03)}
+  .card h3{margin:0 0 8px;font-size:15px;color:var(--indigo)}
+  pre,code{background:#f8f4ea;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:13px}
+  .file-list{list-style:none;padding:0;margin:8px 0}
+  .file-list li{margin:4px 0}
+  .file-list a{color:#3b3a5c;text-decoration:none}
+  .file-list a:hover{text-decoration:underline}
+  .highlight{background:linear-gradient(90deg,#fff7e6,#fff);padding:14px;border-radius:10px;border:1px solid #f5d99f;margin:16px 0}
+  .meta{color:var(--muted);font-size:13px}
+  footer{margin-top:48px;color:var(--muted);font-size:12px}
+  .btn{display:inline-block;background:var(--indigo);color:white;padding:8px 16px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">GENESIS <b>Atelier</b></div>
+    <div class="tag">Endergebnis • 2026-06-25</div>
+  </header>
+
+  <h1>Humanoid-Roboter durch die <strong>komplette Pipeline</strong></h1>
+  <p class="meta">AETHON (genesis_humanoid) + competitive (printed + flagship) — gebaut mit Grok + Claude, jetzt voll durch GENESIS.</p>
+
+  <div class="highlight">
+    <strong>Was erreicht wurde:</strong><br>
+    • LUMENCRUCIBLE (process_dream → hammer + Ω-Zertifikat + Teacher/Community)<br>
+    • Platform CAPS (ProofPackage, Readiness, TeacherMode, CommunityEvidence)<br>
+    • Integrator + Realisierungspakete<br>
+    • Simulation Gates + echte Stand-Daten (60 Links, 14.1 Nm Knie, SF)<br>
+    • <strong>CAM</strong>: realer G-Code (170×32 mm aus dxf-Assets) in Bundles + Proofs + Receipts
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Reproduktion (lokal)</h3>
+      <pre><code>cd /home/genesis/genesis
+PYTHONPATH=src .venv/bin/python -m gen.cli --mode humanoid
+PYTHONPATH=src .venv/bin/python -m gen.cli --mode aethon</code></pre>
+      <a class="btn" href="/humanoid">Diese Seite (immer aktuell)</a>
+    </div>
+
+    <div class="card">
+      <h3>Artefakte (über /results)</h3>
+      <ul class="file-list">
+        <li><a href="/results/competitive/flagship_humanoid/full_pipeline/">Flagship full_pipeline</a> (URDF + gcode + receipt)</li>
+        <li><a href="/results/competitive/printed_humanoid/full_pipeline/">Printed full_pipeline</a></li>
+        <li><a href="/results/aethon/full_pipeline/">AETHON full_pipeline</a></li>
+        <li><a href="/results/competitive/flagship_humanoid/">Flagship Bundle</a> (inkl. gcode im MANIFEST)</li>
+        <li><a href="/results/proof_packages/flagship_humanoid-assets_proof/">Richer Proof + gcode</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Key Data (aus sim_receipt)</h3>
+    <ul>
+      <li>URDF: 60 Links / 59 Joints</li>
+      <li>Stand: validated (5s + closed-form + FEM)</li>
+      <li>G-Code Dims: 170.0 × 32.0 mm (echt aus dxf)</li>
+      <li>9 G-Code Dateien verteilt auf full_pipeline + Bundle + Proofs</li>
+      <li>Caps: proof_package + readiness + teacher + community in jedem Lauf</li>
+    </ul>
+    <p><strong>Beispiel G-Code (Ausschnitt):</strong></p>
+    <pre style="font-size:12px;overflow:auto"><code>( rect-pocket 170x32mm, depth 6mm, tool d=3mm ... )
+G21
+G90
+G17
+M3 S10000
+... 37 Zeilen ...
+M30</code></pre>
+  </div>
+
+  <div class="card">
+    <h3>Pipeline-Stationen (vollständig durchlaufen)</h3>
+    <ol>
+      <li>LUMENCRUCIBLE (dream → hammer + HORIZON + Teacher/Community)</li>
+      <li>assess_specification (Proof + Readiness + Caps)</li>
+      <li>build_full_mini_realization_package</li>
+      <li>SIM Gates + Stand-Physik</li>
+      <li>Assets (URDF + CAD + dxf + BOM)</li>
+      <li>CAM/G-Code (echte Dims aus Assets)</li>
+      <li>Bundle + MANIFEST (gcode in "written")</li>
+      <li>Richer Proof Packages</li>
+    </ol>
+    <p class="meta">Alle Artefakte sind unter <a href="/results">/results</a> verfügbar, wenn der lokale Web-Server läuft.</p>
+  </div>
+
+  <p><a class="btn" href="/">← Zurück zur GENESIS Startseite</a></p>
+
+  <footer>
+    Gespeichert als Teil der lokalen Web-Seite (static/humanoid.html + /results mount).<br>
+    Start: <code>cd /home/genesis/genesis && python -m gen.web</code> oder die .bat/.ps1<br>
+    9 G-Code-Dateien • 3 Bundles • 3 Proofs • Receipts mit Stand + realen Dims • Capstonetest grün.
+  </footer>
+</div>
+</body>
+</html>
+<!-- Final pipeline result note (added 2026-06-25) -->
+<div style="max-width:800px;margin:20px auto;padding:15px;background:#f0f4ff;border:1px solid #5646d6;border-radius:8px;">
+  <strong>✅ End result saved:</strong> AETHON/competitive humanoid fully through Genesis pipeline (LUMEN + CAPS + CAM real-dims gcode 170x32 + 9 files + stand receipts + proofs). 
+  See the AETHON presentation at http://localhost:8000/ for the integrated view.
+</div>

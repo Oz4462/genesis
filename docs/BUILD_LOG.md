@@ -98,6 +98,39 @@ phi: PASS | chi: PASS | delta+: PASS | gamma+: PASS | epsilon: PASS | zeta: PASS
 - L1: all from source code reads/greps (exact gates/certs cited).
 - L2: no drift, additive to prior cert chain.
 - L3: seams all HORIZON certs + agent (lumen cond arch runner) covered.
+
+## RETURN GATE CLOSE 2026-06-24 — Full Power + Rekursive Selbstverbesserung (H1 + G2)
+
+**Trigger:** User "/home/genesis/genesis /goal" continuation + "bring the todoos to end ... full energy full power full input rekursive selbstverbesserung".
+
+**Harness self-apply (H1 — structured-cycle/SKILL.md):**
+- Added mandatory **5.5 Return Gate + Memory Sync Enforcement** section (post Vibe-Verify, pre-Review).
+- Enforces: mini re-reads of gaps (BUILD/CK/WQ/HORIZON), check for skeleton/demo vs richness, 4L verification per change, structured memory appends (cites, proofs), recursion protocol (apply harness improvement to target project close in same cycle).
+- Files: /home/genesis/.grok/skills/structured-cycle/SKILL.md (additive ~20 lines).
+- Proof: read post-edit; referenced in subagent work.
+- This is the recursive improvement: future "finish todos" campaigns (including this one) now systematically follow it.
+
+**Genesis close G2 (detect expr support + test coverage — Return Gate MEDIUM gap#4):**
+- seams.py: Enhanced `detect_cross_domain_seams` constraint loop to use `referenced_names(left/right) & qids` (already imported from derivation) + fallback. Now supports expr-ish constraints (e.g. "q_heat_power * 1.0") while preserving left_expr/right_expr. Comment cites Return Gate + 5.5.
+- tests/test_phase_epsilon.py: Added `test_detect_cross_domain_seams_with_expr_ish_constraint_roundtrips_to_gate_epsilon` (uses existing _spec + Constraint attach; exercises enhanced path + build + gate_epsilon roundtrip; asserts structure).
+- 4L applied (subagent + main re-verif): L1 cites (BUILD severity table, HORIZON:109, 4LINSEN_REVIEW, CK, loop-plan, seams:427); L2 additive no drift; L3 Naht to architect/pipeline/omega/gate_epsilon; L4 exec proof (deterministic gates).
+- Execution: ruff clean (all checks passed); `pytest test_phase_epsilon.py -q` → 9 passed (new test included); python -c smoke exercising exact expr path + roundtrip (seams emitted with expr preserved, GateResult returned).
+- Wiring proof: referenced_names call site active; same as evaluate_seam_expression; consumers (architect:276, pipeline:157) now better covered.
+- Pre/post: test_phase_epsilon previously 0 direct detect (per all prior Return Gates); now covers producer + expr.
+
+**Other progress in cycle:** Research subagent (thorough+strict) produced cited evidence report (many 06-21 items advanced: state typed, architect real derive; remaining focused). loop-planner produced loop-close-plan.md. H1 used by implementer subagent (5.5 mini re-reads performed before edit). Baseline tests green (151+ on -k delta/gamma/epsilon/lumen/omega/reality/seams).
+
+**Memory impact (this close):**
+- BUILD_LOG (this section).
+- WORK_QUEUE.md (frontier/PAUSE will be appended below with "G2 + H1 advanced; 0 new high open; recursion demonstrated").
+- HORIZON.md / CK (to be synced in final; honest first-stone + now better test/expr).
+- No breakage to any gates or prior behavior.
+
+**Recursion demo:** H1 (new 5.5 in orchestrator) was created, then immediately used by the careful-implementer subagent for the G2 close (explicit mini Return Gate re-reads + cites in the test comments). Before (bare harness) vs after (enforced re-read + memory discipline). This is rekursive selbstverbesserung in action.
+
+**Next in cycle:** Additional memory appends to WQ, one more G (e.g. doc or richer reviewed), strict-reviewer pass(es) until 0 open, final head verification + user summary with full proofs. All per WORKFLOW + structured-cycle + self-apply.
+
+4L on this append: L1 from exact subagent reports + tool outputs + file reads (lines cited); L2 additive honest; L3 seams to all prior Return Gate artifacts + harness; L4 verifiable (commands reproduced above).
 - L4: exec immediate (script runs), tests/smokes pass, logs updated with evidence.
 
 **Verdict:** Task complete. Broader coverage of all HORIZON certs + exec verifier + smokes + log updates done.
@@ -619,3 +652,11 @@ All state.log flow, Claim.verif list, Approach/Poss id deterministic. No cycles,
 - Keine Änderung an src/gen/pipeline.py (korrekt, byte-identisch).
 - **Test grün:** 10 passed (nach Präzisions-Fix). Commit-Msg-Historik nicht umgeschrieben (out-of-scope).
 - Details + Audit: docs/audit/DEPTH_AUDIT_pipeline.md . (Integrator kann konsolidieren.)
+
+## 2026-06-25 — FINAL: Humanoid pipeline end result saved to local web site (aethon_presentation at :8000)
+- Updated index.html with rich static 'End result' box in #pipeline section, including 170x32 gcode, receipt details, 9 files, repro.
+- Copied gcode + sim_receipt + report to assets/pipeline-result/ for self-contained site.
+- Confirmed 9 gcode files, pipeline section, photoreal renders in place.
+- Site now shows the complete result when served (http://localhost:8000/ → scroll to Genesis Pipeline).
+- All previous integrations (CAM real dims, stand data, caps, proofs) persisted.
+

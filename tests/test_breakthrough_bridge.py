@@ -32,16 +32,23 @@ def test_breakthrough_bridge_jetpack_produces_real_artifacts_and_revised_frontie
     assert rep.lern_persisted_key is not None
     assert rep.revised_frontier_gaps_closed >= 0
 
-    # Real CAD + DFM
-    # Real CAD + DFM (tolerant: either direct stl or pkg artifact + gates claim)
-    vol_ok = rep.cad_volume_cm3 is not None and rep.cad_volume_cm3 > 20.0
-    assert vol_ok
-    if rep.cad_stl_path:
-        stl_p = Path(rep.cad_stl_path)
-        if stl_p.exists():
-            size = os.path.getsize(stl_p)
-            assert size > 50_000
-    assert rep.dfm_passed or any("DFM" in g or "print" in g.lower() for g in (rep.gates_passed or []))
+    # CAD + DFM — HONEST contract (STATUS.md §1 #2): the bridge fabricates NOTHING. build123d ships
+    # in the optional `b123d` extra. If a real STL was produced, volume/DFM are real; if NOT, the
+    # report must say "NOT BUILT" and must never claim "DFM PASSED". (Previously this asserted
+    # cad_volume_cm3 > 20.0 — i.e. it validated the hardcoded fake volume of 48.5.)
+    _rt = (Path(rep.package_dir) / "BREAKTHROUGH_REPORT.md").read_text(encoding="utf-8")
+    _built = bool(rep.cad_stl_path) and Path(rep.cad_stl_path).exists()
+    if _built:
+        assert rep.cad_volume_cm3 is not None and rep.cad_volume_cm3 > 0.0
+        assert os.path.getsize(Path(rep.cad_stl_path)) > 50_000
+        assert rep.dfm_passed
+        assert "DFM PASSED" in _rt
+    else:
+        # No geometry → no fabricated volume/DFM. NEGATIVE test that the fabrication is gone.
+        assert rep.cad_volume_cm3 is None
+        assert rep.dfm_passed is False
+        assert "NOT BUILT" in _rt
+        assert "DFM PASSED" not in _rt
 
     # Package + report on disk, self-contained
     pkg = Path(rep.package_dir)

@@ -47,7 +47,7 @@ class GCodeProgram:
 
     operation: str
     lines: list[str]
-    bounds_mm: dict[str, tuple[float, float]]   # {"x": (min,max), "y": ..., "z": ...}
+    bounds_mm: dict[str, tuple[float, float]]  # {"x": (min,max), "y": ..., "z": ...}
     safe_z_mm: float
     assumptions: list[str] = field(default_factory=list)
     gaps: list[str] = field(default_factory=list)
@@ -68,7 +68,10 @@ class GCodeCheck:
 
 
 def generate_profile_gcode(
-    width_mm: float, height_mm: float, depth_mm: float, *,
+    width_mm: float,
+    height_mm: float,
+    depth_mm: float,
+    *,
     tool_diameter_mm: float = GCODE_DEFAULT_TOOL_DIAMETER_MM,
     cut_feed_mm_min: float = GCODE_DEFAULT_CUT_FEED_MM_MIN,
     plunge_feed_mm_min: float = GCODE_DEFAULT_PLUNGE_FEED_MM_MIN,
@@ -80,20 +83,32 @@ def generate_profile_gcode(
     cut to `depth_mm`. The path is offset outward by the tool radius and stepped
     down by `stepdown_mm` per pass. Fail-loud on any non-finite / non-positive
     dimension (a guessed program is worse than an honest refusal)."""
-    for name, v in (("width", width_mm), ("height", height_mm), ("depth", depth_mm),
-                    ("tool_diameter", tool_diameter_mm), ("stepdown", stepdown_mm),
-                    ("safe_z", safe_z_mm)):
+    for name, v in (
+        ("width", width_mm),
+        ("height", height_mm),
+        ("depth", depth_mm),
+        ("tool_diameter", tool_diameter_mm),
+        ("stepdown", stepdown_mm),
+        ("safe_z", safe_z_mm),
+    ):
         if not math.isfinite(v) or v <= 0:
-            raise ValueError(f"generate_profile_gcode: {name} must be a finite value > 0")
+            raise ValueError(
+                f"generate_profile_gcode: {name} must be a finite value > 0"
+            )
     # feeds / rpm must be >= 1: a sub-1 value is physically meaningless AND would
     # round to an invalid F0 / S0 in the emitted program.
-    for name, v in (("cut_feed", cut_feed_mm_min), ("plunge_feed", plunge_feed_mm_min),
-                    ("spindle_rpm", spindle_rpm)):
+    for name, v in (
+        ("cut_feed", cut_feed_mm_min),
+        ("plunge_feed", plunge_feed_mm_min),
+        ("spindle_rpm", spindle_rpm),
+    ):
         if not math.isfinite(v) or v < 1:
-            raise ValueError(f"generate_profile_gcode: {name} must be a finite value >= 1")
+            raise ValueError(
+                f"generate_profile_gcode: {name} must be a finite value >= 1"
+            )
 
     r = tool_diameter_mm / 2.0
-    x0, y0 = -r, -r                       # outside-profile path: offset outward by r
+    x0, y0 = -r, -r  # outside-profile path: offset outward by r
     x1, y1 = width_mm + r, height_mm + r
 
     def fmt(v: float) -> str:
@@ -150,6 +165,98 @@ def generate_profile_gcode(
     )
 
 
+def generate_rect_pocket_gcode(
+    width_mm: float,
+    height_mm: float,
+    depth_mm: float,
+    *,
+    tool_diameter_mm: float = GCODE_DEFAULT_TOOL_DIAMETER_MM,
+    cut_feed_mm_min: float = GCODE_DEFAULT_CUT_FEED_MM_MIN,
+    plunge_feed_mm_min: float = GCODE_DEFAULT_PLUNGE_FEED_MM_MIN,
+    stepdown_mm: float = GCODE_DEFAULT_STEPDOWN_MM,
+    safe_z_mm: float = GCODE_DEFAULT_SAFE_Z_MM,
+    spindle_rpm: int = GCODE_DEFAULT_SPINDLE_RPM,
+) -> GCodeProgram:
+    """Emit a simple 2.5D rectangular pocket program (inside profile, outward stock removal).
+    Offset inward by tool radius. Same structure/verify/gaps honesty as outside profile.
+    For true pockets with islands/finish passes a real CAM is still needed (declared gap)."""
+    for name, v in (
+        ("width", width_mm),
+        ("height", height_mm),
+        ("depth", depth_mm),
+        ("tool_diameter", tool_diameter_mm),
+        ("stepdown", stepdown_mm),
+        ("safe_z", safe_z_mm),
+    ):
+        if not math.isfinite(v) or v <= 0:
+            raise ValueError(
+                f"generate_rect_pocket_gcode: {name} must be a finite value > 0"
+            )
+    for name, v in (
+        ("cut_feed", cut_feed_mm_min),
+        ("plunge_feed", plunge_feed_mm_min),
+        ("spindle_rpm", spindle_rpm),
+    ):
+        if not math.isfinite(v) or v < 1:
+            raise ValueError(
+                f"generate_rect_pocket_gcode: {name} must be a finite value >= 1"
+            )
+
+    r = tool_diameter_mm / 2.0
+    # inward for pocket (clear inside the rect)
+    x0, y0 = r, r
+    x1, y1 = width_mm - r, height_mm - r
+    if x1 <= x0 or y1 <= y0:
+        raise ValueError(
+            "pocket too small for tool diameter (width/height must allow inward offset)"
+        )
+
+    def fmt(v: float) -> str:
+        return f"{v:.3f}".rstrip("0").rstrip(".")
+
+    lines = [
+        f"( rect-pocket {fmt(width_mm)}x{fmt(height_mm)}mm, depth {fmt(depth_mm)}mm, "
+        f"tool d={fmt(tool_diameter_mm)}mm; {GCODE_SOURCE} )",
+        "G21 ( units: millimeters )",
+        "G90 ( absolute positioning )",
+        "G17 ( XY plane )",
+        f"M3 S{int(spindle_rpm)} ( spindle on, clockwise )",
+        f"G0 Z{fmt(safe_z_mm)} ( retract to safe height )",
+        f"G0 X{fmt(x0)} Y{fmt(y0)} ( rapid to start inside )",
+    ]
+
+    z = 0.0
+    while z > -depth_mm + 1e-9:
+        z = max(z - stepdown_mm, -depth_mm)
+        lines.append(f"G1 Z{fmt(z)} F{fmt(plunge_feed_mm_min)} ( plunge )")
+        lines.append(f"G1 X{fmt(x1)} Y{fmt(y0)} F{fmt(cut_feed_mm_min)}")
+        lines.append(f"G1 X{fmt(x1)} Y{fmt(y1)}")
+        lines.append(f"G1 X{fmt(x0)} Y{fmt(y1)}")
+        lines.append(f"G1 X{fmt(x0)} Y{fmt(y0)} ( close contour )")
+
+    lines += [
+        f"G0 Z{fmt(safe_z_mm)} ( retract )",
+        "M5 ( spindle off )",
+        "M30 ( program end )",
+    ]
+
+    return GCodeProgram(
+        operation="rect_pocket",
+        lines=lines,
+        bounds_mm={"x": (x0, x1), "y": (y0, y1), "z": (-depth_mm, safe_z_mm)},
+        safe_z_mm=safe_z_mm,
+        assumptions=[
+            f"tool d={fmt(tool_diameter_mm)}mm, stepdown {fmt(stepdown_mm)}mm — GENERIC; inside clearance assumed",
+        ],
+        gaps=[
+            "true pockets with islands, finish passes, or non-rect: need full CAM kernel",
+            "feeds & speeds material-specific gap (same as profile)",
+            "3D/FDM slicing, work offsets, fixturing: setup gaps",
+        ],
+        source=GCODE_SOURCE,
+    )
+
+
 def _parse_words(raw: str) -> dict[str, float] | None:
     """Parse one line into {letter: value}, stripping comments. Returns None for a
     blank/comment-only line, or raises nothing — unknown letters are reported by the
@@ -162,8 +269,11 @@ def _parse_words(raw: str) -> dict[str, float] | None:
     return {letter.upper(): float(num) for letter, num in _WORD_RE.findall(line)}
 
 
-def verify_gcode(program: GCodeProgram | list[str] | str, *,
-                 envelope_mm: dict[str, tuple[float, float]] | None = None) -> GCodeCheck:
+def verify_gcode(
+    program: GCodeProgram | list[str] | str,
+    *,
+    envelope_mm: dict[str, tuple[float, float]] | None = None,
+) -> GCodeCheck:
     """Verify a program is valid RS-274, spindle-safe, bounded and gouge-free.
 
     Checks: units (G21) + absolute (G90) set before the first motion; spindle on
@@ -183,8 +293,8 @@ def verify_gcode(program: GCodeProgram | list[str] | str, *,
     first_motion_seen = False
     cur = {"X": 0.0, "Y": 0.0, "Z": 0.0}
     seen: dict[str, list[float]] = {"X": [], "Y": [], "Z": []}
-    f_value: float | None = None        # modal feed rate (must be set & > 0 for a cut)
-    s_value: float | None = None        # modal spindle speed (must be set for M3/M4)
+    f_value: float | None = None  # modal feed rate (must be set & > 0 for a cut)
+    s_value: float | None = None  # modal spindle speed (must be set for M3/M4)
     n_moves = 0
 
     for raw in raw_lines:
@@ -219,25 +329,37 @@ def verify_gcode(program: GCodeProgram | list[str] | str, *,
                 n_moves += 1
                 if g == 1:
                     if not spindle_on:
-                        issues.append(f"feed cut (G1) before spindle on: {raw.strip()!r}")
+                        issues.append(
+                            f"feed cut (G1) before spindle on: {raw.strip()!r}"
+                        )
                     if f_value is None or f_value <= 0:
-                        issues.append(f"feed move (G1) with no feed rate F set: {raw.strip()!r}")
+                        issues.append(
+                            f"feed move (G1) with no feed rate F set: {raw.strip()!r}"
+                        )
                 if g == 0 and lateral and cur["Z"] < -1e-9:
-                    issues.append(f"rapid (G0) lateral move below stock top — gouge: {raw.strip()!r}")
+                    issues.append(
+                        f"rapid (G0) lateral move below stock top — gouge: {raw.strip()!r}"
+                    )
                 if g == 0 and "Z" in words and words["Z"] < -1e-9:
-                    issues.append(f"rapid (G0) plunge into material (Z<0) — gouge: {raw.strip()!r}")
+                    issues.append(
+                        f"rapid (G0) plunge into material (Z<0) — gouge: {raw.strip()!r}"
+                    )
         if "M" in words:
             mcode = int(words["M"])
             if mcode in (3, 4):
                 if s_value is None or s_value <= 0:
-                    issues.append(f"spindle on (M3/M4) without a spindle speed S: {raw.strip()!r}")
+                    issues.append(
+                        f"spindle on (M3/M4) without a spindle speed S: {raw.strip()!r}"
+                    )
                 else:
                     spindle_on = True
             elif mcode == 5:
                 spindle_off = True
-                spindle_on = False        # a cut after M5 must be caught, not pass
+                spindle_on = False  # a cut after M5 must be caught, not pass
                 if cur["Z"] < -1e-9:
-                    issues.append("spindle stopped (M5) with the tool still in material — no retract")
+                    issues.append(
+                        "spindle stopped (M5) with the tool still in material — no retract"
+                    )
             elif mcode == 30:
                 ended = True
 
@@ -264,12 +386,16 @@ def verify_gcode(program: GCodeProgram | list[str] | str, *,
             dlo, dhi = declared[axis]
             alo, ahi = bounds[axis]
             if abs(dlo - alo) > 1e-6 or abs(dhi - ahi) > 1e-6:
-                issues.append(f"declared {axis}-bounds {(dlo, dhi)} != actual {(alo, ahi)}")
+                issues.append(
+                    f"declared {axis}-bounds {(dlo, dhi)} != actual {(alo, ahi)}"
+                )
     if envelope_mm is not None:
         for axis in ("x", "y", "z"):
             elo, ehi = envelope_mm[axis]
             alo, ahi = bounds[axis]
             if alo < elo - 1e-6 or ahi > ehi + 1e-6:
-                issues.append(f"{axis}-toolpath {(alo, ahi)} outside envelope {(elo, ehi)}")
+                issues.append(
+                    f"{axis}-toolpath {(alo, ahi)} outside envelope {(elo, ehi)}"
+                )
 
     return GCodeCheck(ok=not issues, issues=issues, n_moves=n_moves, bounds_mm=bounds)

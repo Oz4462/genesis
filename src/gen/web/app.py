@@ -14,11 +14,13 @@ decision). Everything else is deterministic and offline. Run locally with
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from ..core.interfaces import GateResult
@@ -34,6 +36,7 @@ def _live_enabled() -> bool:
 
 
 # --- serializers (dataclasses -> JSON-friendly dicts) ----------------------------
+
 
 def _claim_dict(c: Claim) -> dict:
     return {
@@ -63,27 +66,51 @@ def _spec_dict(spec: Specification) -> dict:
         "idea": spec.idea,
         "quantities": [
             {
-                "id": q.id, "name": q.name, "value": q.value, "unit": q.unit,
-                "origin": q.origin.value, "grounding": q.grounding,
+                "id": q.id,
+                "name": q.name,
+                "value": q.value,
+                "unit": q.unit,
+                "origin": q.origin.value,
+                "grounding": q.grounding,
                 "formula": q.derivation.formula if q.derivation else None,
-                "rationale": q.rationale or None, "measurand": q.measurand,
+                "rationale": q.rationale or None,
+                "measurand": q.measurand,
                 "uncertainty": q.uncertainty,
             }
             for q in spec.quantities
         ],
         "bom": [
-            {"id": b.id, "name": b.name, "role": b.role.value, "count": b.count,
-             "domain": b.domain.value,
-             "sourcing": (f"{b.sourcing.supplier} {b.sourcing.part_number}"
-                          if b.sourcing else None)}
+            {
+                "id": b.id,
+                "name": b.name,
+                "role": b.role.value,
+                "count": b.count,
+                "domain": b.domain.value,
+                "sourcing": (
+                    f"{b.sourcing.supplier} {b.sourcing.part_number}"
+                    if b.sourcing
+                    else None
+                ),
+            }
             for b in spec.bom
         ],
         "steps": [
-            {"index": s.index, "action": s.action, "check": s.check, "tool": s.tool or None}
+            {
+                "index": s.index,
+                "action": s.action,
+                "check": s.check,
+                "tool": s.tool or None,
+            }
             for s in sorted(spec.steps, key=lambda s: s.index)
         ],
         "constraints": [
-            {"id": k.id, "kind": k.kind, "left": k.left, "right": k.right, "reason": k.reason}
+            {
+                "id": k.id,
+                "kind": k.kind,
+                "left": k.left,
+                "right": k.right,
+                "reason": k.reason,
+            }
             for k in spec.constraints
         ],
         "decisions": [
@@ -96,7 +123,8 @@ def _spec_dict(spec: Specification) -> dict:
 
 def _gate_dict(name: str, g: GateResult) -> dict:
     return {
-        "name": name, "passed": g.passed,
+        "name": name,
+        "passed": g.passed,
         "failures": [{"code": f.code, "detail": f.detail} for f in g.failures],
     }
 
@@ -111,16 +139,25 @@ def _assessment_dict(a: Assessment) -> dict:
             {"name": c.name, "validator": c.validator} for c in a.physics_checks
         ],
         "check_results": [
-            {"name": r["name"], "validator": r["validator"], "ok": r["ok"],
-             "safety_factor": (r["result"] or {}).get(
-                 "safety_factor", (r["result"] or {}).get("ratio"))}
+            {
+                "name": r["name"],
+                "validator": r["validator"],
+                "ok": r["ok"],
+                "safety_factor": (r["result"] or {}).get(
+                    "safety_factor", (r["result"] or {}).get("ratio")
+                ),
+            }
             for r in _run_checks(a)
         ],
         "gaps": a.physics_gaps,
         "constraints_consistent": a.constraints_consistent,
         "clarification_questions": [
-            {"measurand": q.measurand, "question": q.question,
-             "unblocks": list(q.unblocks), "priority": q.priority}
+            {
+                "measurand": q.measurand,
+                "question": q.question,
+                "unblocks": list(q.unblocks),
+                "priority": q.priority,
+            }
             for q in a.clarification_questions
         ],
         "corroboration_ok": a.corroboration.ok if a.corroboration else None,
@@ -143,7 +180,9 @@ def _assessment_dict(a: Assessment) -> dict:
                 "num_deposits": len(a.memory_fabric.deposits),
                 "num_recalls": len(a.memory_fabric.recalls),
                 "calibration_ready": a.memory_fabric.calibration_ready,
-                "health": getattr(a.memory_fabric.health, "value", str(a.memory_fabric.health)),
+                "health": getattr(
+                    a.memory_fabric.health, "value", str(a.memory_fabric.health)
+                ),
                 "produced_by": a.memory_fabric.produced_by,
             }
             if a.memory_fabric is not None
@@ -151,20 +190,44 @@ def _assessment_dict(a: Assessment) -> dict:
         ),
         # Full δ+/γ+/Ω for web consumers (closes E2E asymmetry gap#7). Honest None from assess path.
         "pareto_front": (
-            {"n_candidates": len(a.pareto_front.candidates), "n_evaluated": len(a.pareto_front.evaluated_candidates), "gaps": getattr(a.pareto_front, "gaps", [])}
-            if getattr(a, "pareto_front", None) else None
+            {
+                "n_candidates": len(a.pareto_front.candidates),
+                "n_evaluated": len(a.pareto_front.evaluated_candidates),
+                "gaps": getattr(a.pareto_front, "gaps", []),
+            }
+            if getattr(a, "pareto_front", None)
+            else None
         ),
         "omega_certificate": (
-            {"n_receipts": len(getattr(a.omega_certificate, "gate_receipts", []) or []) , "n_notes": len(getattr(a.omega_certificate, "learning_notes", []) or [])}
-            if getattr(a, "omega_certificate", None) else None
+            {
+                "n_receipts": len(
+                    getattr(a.omega_certificate, "gate_receipts", []) or []
+                ),
+                "n_notes": len(
+                    getattr(a.omega_certificate, "learning_notes", []) or []
+                ),
+            }
+            if getattr(a, "omega_certificate", None)
+            else None
         ),
         "coverage_certificate": (
-            {"complete": getattr(getattr(a, "coverage_certificate", None), "complete", None)}
-            if getattr(a, "coverage_certificate", None) else None
+            {
+                "complete": getattr(
+                    getattr(a, "coverage_certificate", None), "complete", None
+                )
+            }
+            if getattr(a, "coverage_certificate", None)
+            else None
         ),
         "reality_verdict": (
-            {"status": getattr(getattr(a, "reality_verdict", None), "status", None), "within_tolerance": getattr(getattr(a, "reality_verdict", None), "within_tolerance", None)}
-            if getattr(a, "reality_verdict", None) else None
+            {
+                "status": getattr(getattr(a, "reality_verdict", None), "status", None),
+                "within_tolerance": getattr(
+                    getattr(a, "reality_verdict", None), "within_tolerance", None
+                ),
+            }
+            if getattr(a, "reality_verdict", None)
+            else None
         ),
         "delta_plus_result": getattr(a, "delta_plus_result", None),
     }
@@ -172,6 +235,7 @@ def _assessment_dict(a: Assessment) -> dict:
 
 def _run_checks(a: Assessment) -> list[dict]:
     from ..physics_validation import run_physics_checks
+
     return run_physics_checks(a.physics_checks)
 
 
@@ -198,24 +262,39 @@ def _research_dict(art, variables: list[str], relation: str) -> dict:
     if art.falsify is not None:
         f = art.falsify
         falsify = {
-            "samples_tested": f.samples_tested, "passed": f.passed,
-            "refutation_mode": f.refutation_mode, "witness": f.witness,
-            "witness_residual": f.witness_residual, "coverage_claim": f.coverage_claim,
+            "samples_tested": f.samples_tested,
+            "passed": f.passed,
+            "refutation_mode": f.refutation_mode,
+            "witness": f.witness,
+            "witness_residual": f.witness_residual,
+            "coverage_claim": f.coverage_claim,
         }
     novelty = None
     if art.search is not None:
         s = art.search
         novelty = {
-            "match_kind": s.match_kind, "hits": s.hits,
-            "nearest_distance": s.nearest_distance, "corpora_checked": list(s.corpora_checked),
+            "match_kind": s.match_kind,
+            "hits": s.hits,
+            "nearest_distance": s.nearest_distance,
+            "corpora_checked": list(s.corpora_checked),
         }
     return {
-        "lhs": art.claim.lhs, "rhs": art.claim.rhs, "relation": relation,
-        "domain_id": art.claim.manifest.domain_id, "variables": variables,
-        "status": art.status, "promotion": art.promotion, "severity": art.severity,
-        "proof": proof, "falsify": falsify, "novelty": novelty, "note": art.note,
-        "honesty_note": ("SURVIVED is finite-grid only, never a universal proof; an "
-                         "ESTABLISHED anchor needs a cas/z3-certified proof AND a human sign-off."),
+        "lhs": art.claim.lhs,
+        "rhs": art.claim.rhs,
+        "relation": relation,
+        "domain_id": art.claim.manifest.domain_id,
+        "variables": variables,
+        "status": art.status,
+        "promotion": art.promotion,
+        "severity": art.severity,
+        "proof": proof,
+        "falsify": falsify,
+        "novelty": novelty,
+        "note": art.note,
+        "honesty_note": (
+            "SURVIVED is finite-grid only, never a universal proof; an "
+            "ESTABLISHED anchor needs a cas/z3-certified proof AND a human sign-off."
+        ),
     }
 
 
@@ -228,8 +307,12 @@ def _files_dict(spec: Specification) -> dict:
     from ..cli import render_spec
 
     out: dict[str, str] = {}
-    for key, fmt in (("bauanleitung.md", "md"), ("modell.scad", "scad"),
-                     ("modell_build123d.py", "b123d"), ("modell.stl", "stl")):
+    for key, fmt in (
+        ("bauanleitung.md", "md"),
+        ("modell.scad", "scad"),
+        ("modell_build123d.py", "b123d"),
+        ("modell.stl", "stl"),
+    ):
         try:
             out[key] = render_spec(spec, fmt)
         except Exception as exc:  # noqa: BLE001 - surfaced per file, never a crash
@@ -246,12 +329,18 @@ def _printability_dict(spec: Specification) -> dict:
     return {
         "status": p.status,
         "ok": p.ok,
-        "mesh": ({
-            "watertight": p.mesh["watertight"],
-            "consistent_winding": p.mesh["consistent_winding"],
-            "genus": p.mesh["genus"], "n_facets": p.mesh["n_facets"],
-            "volume": p.mesh["volume"], "issues": p.mesh["issues"],
-        } if p.mesh is not None else None),
+        "mesh": (
+            {
+                "watertight": p.mesh["watertight"],
+                "consistent_winding": p.mesh["consistent_winding"],
+                "genus": p.mesh["genus"],
+                "n_facets": p.mesh["n_facets"],
+                "volume": p.mesh["volume"],
+                "issues": p.mesh["issues"],
+            }
+            if p.mesh is not None
+            else None
+        ),
         "components": [
             {
                 "component": c["component"],
@@ -259,14 +348,18 @@ def _printability_dict(spec: Specification) -> dict:
                 "footprint": list(c["first_layer"]["footprint"]),
                 "height": c["first_layer"]["height"],
                 "elephant_foot_risk": c["first_layer"]["elephant_foot_risk"],
-                "recommended_base_chamfer": c["first_layer"]["recommended_base_chamfer"],
+                "recommended_base_chamfer": c["first_layer"][
+                    "recommended_base_chamfer"
+                ],
                 "overhang_area": c["overhang"]["overhang_area"],
                 "unsupported_overhang_area": c["unsupported_overhang_area"],
                 # JSON has no Infinity: an unbridgeable span is surfaced as
                 # null + the blocker text, never as a fake number.
                 "worst_bridge_span": (
-                    None if c["bridges"]["worst_span"] in (None, float("inf"))
-                    else c["bridges"]["worst_span"]),
+                    None
+                    if c["bridges"]["worst_span"] in (None, float("inf"))
+                    else c["bridges"]["worst_span"]
+                ),
             }
             for c in p.components
         ],
@@ -277,11 +370,16 @@ def _printability_dict(spec: Specification) -> dict:
 
 # --- invention loop serializers (INVENTOR §3: concept -> grounded spec -> Pareto front) ------
 
+
 def _possibility_dict(p) -> dict:
     """A proposed concept (core.state.Possibility): a direction + the real mechanism it leans on +
     the grounding claim ids. Asserts no new fact — the substance lives in the grounding."""
-    return {"id": p.id, "statement": p.statement, "mechanism": p.mechanism,
-            "grounding": list(p.grounding)}
+    return {
+        "id": p.id,
+        "statement": p.statement,
+        "mechanism": p.mechanism,
+        "grounding": list(p.grounding),
+    }
 
 
 def _invention_dict(inv) -> dict:
@@ -318,8 +416,11 @@ def _invention_dict(inv) -> dict:
 
 
 def _invent_run_dict(run, framing: str, field: str, goal: str, source: str) -> dict:
-    return {
-        "framing": framing, "field": field, "goal": goal, "source": source,
+    d = {
+        "framing": framing,
+        "field": field,
+        "goal": goal,
+        "source": source,
         "refused": run.refused,
         "n_concepts": len(run.concepts),
         "grounded_count": run.grounded_count,
@@ -327,16 +428,32 @@ def _invent_run_dict(run, framing: str, field: str, goal: str, source: str) -> d
         "inventions": [_invention_dict(i) for i in run.inventions],
         "front": [_invention_dict(i) for i in run.front],
     }
+    # γ+ full ParetoFront bridge (from inventor loop): surface real HORIZON γ+ front for web consumers.
+    # Uses the attached run.pareto_front (derived from δ-grounded specs via derive + build_pareto + gate).
+    # Honest: empty front + gaps is valid abstention. Additive, no change to proxy "front".
+    pf = getattr(run, "pareto_front", None)
+    if pf is not None:
+        d["pareto_front"] = {
+            "n_candidates": len(getattr(pf, "candidates", [])),
+            "n_evaluated": len(getattr(pf, "evaluated_candidates", [])),
+            "gaps": getattr(pf, "gaps", []),
+        }
+    return d
 
 
 #: The concepts the offline (scripted) council replays — identical to the CLI's invent path, so a browser
 #: run is byte-for-byte the same deterministic invention the CLI produces (an honest demo of the loop, not live).
 _INVENT_DEMO_CONCEPTS = [
-    {"statement": "Resonanter Sehnen-Greifer-Halter",
-     "mechanism": "gedruckte Flexuren speichern elastische Energie",
-     "grounding": ["https://openalex.org/W-actuator-mount"]},
-    {"statement": "Elektroadhäsions-Greifpad", "mechanism": "elektrostatisches Klemmen",
-     "grounding": ["patentsview:US-electroadhesion"]},
+    {
+        "statement": "Resonanter Sehnen-Greifer-Halter",
+        "mechanism": "gedruckte Flexuren speichern elastische Energie",
+        "grounding": ["https://openalex.org/W-actuator-mount"],
+    },
+    {
+        "statement": "Elektroadhäsions-Greifpad",
+        "mechanism": "elektrostatisches Klemmen",
+        "grounding": ["patentsview:US-electroadhesion"],
+    },
 ]
 
 
@@ -352,29 +469,57 @@ async def _run_invent(field: str, goal: str, constraints: list[str], mode: str) 
     from ..inventor.safety import safety_gate, screen_brief
 
     framing = "Problem" if mode == "solve" else "Feld"
-    brief = InventionBrief(field=field, run_id=f"web-{mode}", goal=goal,
-                           constraints=tuple(constraints), max_concepts=3)
+    brief = InventionBrief(
+        field=field,
+        run_id=f"web-{mode}",
+        goal=goal,
+        constraints=tuple(constraints),
+        max_concepts=3,
+    )
     verdict = screen_brief(brief)
     if verdict.refused:
-        return {"framing": framing, "field": field, "goal": goal, "refused": True,
-                "refused_reason": verdict.reason, "refused_category": verdict.category,
-                "source": "Safety-Gate (deterministisch, vor jeder Konzept-Erzeugung)",
-                "n_concepts": 0, "grounded_count": 0, "concepts": [], "inventions": [], "front": []}
+        return {
+            "framing": framing,
+            "field": field,
+            "goal": goal,
+            "refused": True,
+            "refused_reason": verdict.reason,
+            "refused_category": verdict.category,
+            "source": "Safety-Gate (deterministisch, vor jeder Konzept-Erzeugung)",
+            "n_concepts": 0,
+            "grounded_count": 0,
+            "concepts": [],
+            "inventions": [],
+            "front": [],
+        }
 
     council = scripted_council(_INVENT_DEMO_CONCEPTS)
     architect = scripted_mechatronics_architect(first_natural_hz=150.0)
     domain = MechatronicsDomain()
-    run = await run_invention(brief, domain=domain, council=council, architect=architect,
-                              safety_screen=safety_gate)
-    out = _invent_run_dict(run, framing, field, goal,
-                           "offline-deterministisch (scripted council + δ-Physik-Gate)")
-    out["live_note"] = ("Live-Erzeugung (echter Claude/Grok-Council) läuft über die CLI "
-                        "`genesis --mode invent --live` auf der Owner-Maschine; die Web-Schicht "
-                        "bleibt deterministisch.")
+    run = await run_invention(
+        brief,
+        domain=domain,
+        council=council,
+        architect=architect,
+        safety_screen=safety_gate,
+    )
+    out = _invent_run_dict(
+        run,
+        framing,
+        field,
+        goal,
+        "offline-deterministisch (scripted council + δ-Physik-Gate)",
+    )
+    out["live_note"] = (
+        "Live-Erzeugung (echter Claude/Grok-Council) läuft über die CLI "
+        "`genesis --mode invent --live` auf der Owner-Maschine; die Web-Schicht "
+        "bleibt deterministisch."
+    )
     return out
 
 
 # --- request bodies ---------------------------------------------------------------
+
 
 class SignOffBody(BaseModel):
     approved: list[str] = []
@@ -382,7 +527,7 @@ class SignOffBody(BaseModel):
 
 
 class AnswerBody(BaseModel):
-    answers: dict[str, dict] = {}      # measurand -> {"value": float, "unit": str}
+    answers: dict[str, dict] = {}  # measurand -> {"value": float, "unit": str}
 
 
 def _underspecified_shaft():
@@ -391,37 +536,63 @@ def _underspecified_shaft():
     from ..demo import drive_shaft_spec
 
     spec = drive_shaft_spec()
-    spec.quantities = [q for q in spec.quantities
-                       if q.measurand != "material.shear_strength"]
+    spec.quantities = [
+        q for q in spec.quantities if q.measurand != "material.shear_strength"
+    ]
     return spec
 
 
 class AskBody(BaseModel):
     question: str
-    mode: str = "report"           # report | solution | spec
+    mode: str = "report"  # report | solution | spec
 
 
 class ResearchBody(BaseModel):
     lhs: str
     rhs: str
-    relation: str = "eq"           # eq | ge | gt | le | lt (structured input only — no NL parser)
+    relation: str = (
+        "eq"  # eq | ge | gt | le | lt (structured input only — no NL parser)
+    )
     domain_id: str = "R"
 
 
 class InventBody(BaseModel):
-    field: str                     # the field to invent in (mode=invent) or the problem to solve (mode=solve)
-    goal: str = ""                 # optional explicit goal/success property
-    constraints: list[str] = []    # hard constraints the result must respect
+    field: (
+        str  # the field to invent in (mode=invent) or the problem to solve (mode=solve)
+    )
+    goal: str = ""  # optional explicit goal/success property
+    constraints: list[str] = []  # hard constraints the result must respect
 
 
 # --- the app ------------------------------------------------------------------------
 
+
 def create_app() -> FastAPI:
     app = FastAPI(title="GENESIS", docs_url=None, redoc_url=None)
+
+    # Serve all pipeline / bundle / proof / gcode artifacts under /results so the
+    # local web site can display the saved humanoid end result.
+    # Use absolute path so it works regardless of how the web is started.
+    results_dir = (Path(__file__).parent.parent.parent.parent / "out").resolve()
+    if results_dir.exists():
+        app.mount("/results", StaticFiles(directory=str(results_dir)), name="results")
 
     @app.get("/")
     def index() -> FileResponse:
         return FileResponse(_STATIC / "index.html")
+
+    @app.get("/humanoid")
+    def humanoid_pipeline() -> FileResponse:
+        """The saved end result of the humanoid (AETHON + competitive) through the complete Genesis pipeline."""
+        return FileResponse(_STATIC / "humanoid.html")
+
+    @app.get("/api/humanoid-pipeline-result")
+    def humanoid_result() -> dict:
+        """JSON summary of the saved humanoid full-pipeline end result (for embedding / scripts)."""
+        p = Path("out/humanoid-pipeline-result.json")
+        if p.exists():
+            return json.loads(p.read_text())
+        return {"error": "no saved result yet — run the CLI modes first"}
 
     @app.get("/api/status")
     def status() -> dict:
@@ -438,9 +609,21 @@ def create_app() -> FastAPI:
                 "sich nur mit GENESIS_ALLOW_LIVE=1. Generator und Verifizierer müssen "
                 "verschiedene Modellfamilien sein — das erzwingt der Code."
             ),
-            "offline_modes": ["report", "spec", "capstone", "assess", "eval", "ratification", "research", "invent", "solve"],
-            "note": ("Live-Läufe sind deaktiviert (Owner-Gate). Alle anderen Ansichten "
-                     "sind deterministisch und offline."),
+            "offline_modes": [
+                "report",
+                "spec",
+                "capstone",
+                "assess",
+                "eval",
+                "ratification",
+                "research",
+                "invent",
+                "solve",
+            ],
+            "note": (
+                "Live-Läufe sind deaktiviert (Owner-Gate). Alle anderen Ansichten "
+                "sind deterministisch und offline."
+            ),
         }
 
     @app.get("/api/report/demo")
@@ -460,10 +643,12 @@ def create_app() -> FastAPI:
 
         idea, deps, cfg = build_spec_demo()
         spec = await run_specification(idea, deps, config=cfg, run_id="web-demo-spec")
-        return {"spec": _spec_dict(spec),
-                "assessment": _assessment_dict(assess_specification(spec)),
-                "printability": _printability_dict(spec),
-                "files": _files_dict(spec)}
+        return {
+            "spec": _spec_dict(spec),
+            "assessment": _assessment_dict(assess_specification(spec)),
+            "printability": _printability_dict(spec),
+            "files": _files_dict(spec),
+        }
 
     @app.get("/api/capstone")
     def capstone() -> dict:
@@ -478,25 +663,44 @@ def create_app() -> FastAPI:
             _gate_dict("ERC", gate_erc(state)),
             _gate_dict("CODE", gate_code(state)),
         ]
-        return {"spec": _spec_dict(spec), "gates": gates,
-                "assessment": _assessment_dict(assess_specification(spec)),
-                "printability": _printability_dict(spec),
-                "files": _files_dict(spec)}
+        return {
+            "spec": _spec_dict(spec),
+            "gates": gates,
+            "assessment": _assessment_dict(assess_specification(spec)),
+            "printability": _printability_dict(spec),
+            "files": _files_dict(spec),
+        }
 
     @app.get("/api/assess")
     def assess() -> dict:
         from ..demo import (
-            capstone_claims, capstone_spec, drive_shaft_spec, drive_shaft_state,
+            capstone_claims,
+            capstone_spec,
+            drive_shaft_spec,
+            drive_shaft_state,
         )
 
         out = []
         for label, spec, claims in (
-            ("Antriebswelle (Physik greift)", drive_shaft_spec(), drive_shaft_state().claims),
-            ("LED-Halter (statisch, keine Physik-Tags)", capstone_spec(), capstone_claims()),
+            (
+                "Antriebswelle (Physik greift)",
+                drive_shaft_spec(),
+                drive_shaft_state().claims,
+            ),
+            (
+                "LED-Halter (statisch, keine Physik-Tags)",
+                capstone_spec(),
+                capstone_claims(),
+            ),
         ):
-            out.append({"label": label,
-                        "assessment": _assessment_dict(
-                            assess_specification(spec, claims=claims))})
+            out.append(
+                {
+                    "label": label,
+                    "assessment": _assessment_dict(
+                        assess_specification(spec, claims=claims)
+                    ),
+                }
+            )
         return {"specs": out}
 
     @app.get("/api/printability")
@@ -508,8 +712,9 @@ def create_app() -> FastAPI:
             ("LED-Halter (Geometrie vorhanden)", capstone_spec()),
             ("Antriebswelle (keine Geometrie deklariert)", drive_shaft_spec()),
         ):
-            out.append({"label": label, "run_id": spec.run_id,
-                        **_printability_dict(spec)})
+            out.append(
+                {"label": label, "run_id": spec.run_id, **_printability_dict(spec)}
+            )
         return {"specs": out}
 
     @app.get("/api/eval")
@@ -518,9 +723,12 @@ def create_app() -> FastAPI:
 
         rep = evaluate(all_cases())
         return {
-            "total": rep.total, "correct": rep.correct,
-            "leaks": rep.leaks, "false_alarms": rep.false_alarms,
-            "leak_rate": rep.leak_rate, "false_alarm_rate": rep.false_alarm_rate,
+            "total": rep.total,
+            "correct": rep.correct,
+            "leaks": rep.leaks,
+            "false_alarms": rep.false_alarms,
+            "leak_rate": rep.leak_rate,
+            "false_alarm_rate": rep.false_alarm_rate,
             "verdicts": [
                 {"name": n, "expected_pass": e, "actual_pass": a, "ok": e == a}
                 for n, e, a in rep.verdicts
@@ -533,8 +741,7 @@ def create_app() -> FastAPI:
         from ..verification.gates import gate_gamma
 
         state = capstone_state()
-        packet = ratification_packet(
-            capstone_spec(), {"γ": gate_gamma(state)})
+        packet = ratification_packet(capstone_spec(), {"γ": gate_gamma(state)})
         return {"items": _ratification_dict(packet)}
 
     @app.post("/api/ratification/check")
@@ -546,6 +753,7 @@ def create_app() -> FastAPI:
         packet = ratification_packet(capstone_spec(), {"γ": gate_gamma(state)})
         signoff = SignOff(approved=frozenset(body.approved), approver=body.approver)
         from ..ratification import unratified_items
+
         missing = unratified_items(packet, signoff)
         return {
             "ratified": is_ratified(packet, signoff),
@@ -562,9 +770,13 @@ def create_app() -> FastAPI:
             "idea": spec.idea,
             "assessment": _assessment_dict(a),
             "questions": [
-                {"measurand": q.measurand, "question": q.question,
-                 "unblocks": list(q.unblocks), "priority": q.priority,
-                 "expected_unit": expected_unit(q.measurand)}
+                {
+                    "measurand": q.measurand,
+                    "question": q.question,
+                    "unblocks": list(q.unblocks),
+                    "priority": q.priority,
+                    "expected_unit": expected_unit(q.measurand),
+                }
                 for q in a.clarification_questions
             ],
         }
@@ -591,22 +803,45 @@ def create_app() -> FastAPI:
 
         relation = (body.relation or "eq").lower()
         if relation not in ("eq", "ge", "gt", "le", "lt"):
-            raise HTTPException(status_code=400, detail=f"unknown relation {relation!r} (eq|ge|gt|le|lt)")
+            raise HTTPException(
+                status_code=400,
+                detail=f"unknown relation {relation!r} (eq|ge|gt|le|lt)",
+            )
         if body.domain_id not in ("R", "R+", "N", "Z", "C"):
-            raise HTTPException(status_code=400, detail=f"unknown domain_id {body.domain_id!r}")
+            raise HTTPException(
+                status_code=400, detail=f"unknown domain_id {body.domain_id!r}"
+            )
         try:
-            free = sorted({s.name for s in (sp.sympify(body.lhs).free_symbols
-                                            | sp.sympify(body.rhs).free_symbols)})
+            free = sorted(
+                {
+                    s.name
+                    for s in (
+                        sp.sympify(body.lhs).free_symbols
+                        | sp.sympify(body.rhs).free_symbols
+                    )
+                }
+            )
         except (sp.SympifyError, SyntaxError, TypeError) as exc:
-            raise HTTPException(status_code=400, detail=f"could not parse expressions: {exc}")
-        manifest = ir.AssumptionManifest(domain_id=body.domain_id,
-                                         variables={n: "real" for n in free})
+            raise HTTPException(
+                status_code=400, detail=f"could not parse expressions: {exc}"
+            )
+        manifest = ir.AssumptionManifest(
+            domain_id=body.domain_id, variables={n: "real" for n in free}
+        )
         try:
             if relation == "eq":
-                art = ir.assess_identity("web-research", body.lhs, body.rhs, manifest, register=False)
+                art = ir.assess_identity(
+                    "web-research", body.lhs, body.rhs, manifest, register=False
+                )
             else:
-                art = ir.assess_inequality("web-research", body.lhs, body.rhs, relation, manifest,
-                                           register=False)
+                art = ir.assess_inequality(
+                    "web-research",
+                    body.lhs,
+                    body.rhs,
+                    relation,
+                    manifest,
+                    register=False,
+                )
         except Exception as exc:  # noqa: BLE001 - surface the gate failure honestly, never a fake pass
             raise HTTPException(status_code=422, detail=f"assessment failed: {exc}")
         return _research_dict(art, free, relation)
@@ -617,13 +852,17 @@ def create_app() -> FastAPI:
         # deterministic (scripted council + δ-gate); a weapons brief is refused before generation.
         if not body.field.strip():
             raise HTTPException(status_code=400, detail="field darf nicht leer sein")
-        return await _run_invent(body.field, body.goal, list(body.constraints), "invent")
+        return await _run_invent(
+            body.field, body.goal, list(body.constraints), "invent"
+        )
 
     @app.post("/api/solve")
     async def solve(body: InventBody) -> dict:
         # Problem-driven invention: the SAME loop, framed as "solve P under constraints R".
         if not body.field.strip():
-            raise HTTPException(status_code=400, detail="field (das Problem) darf nicht leer sein")
+            raise HTTPException(
+                status_code=400, detail="field (das Problem) darf nicht leer sein"
+            )
         return await _run_invent(body.field, body.goal, list(body.constraints), "solve")
 
     @app.get("/api/invent/eval")
@@ -633,15 +872,26 @@ def create_app() -> FastAPI:
 
         rep = await evaluate_inventions(default_eval_cases())
         return {
-            "total": rep.total, "safety_correct": rep.safety_correct,
-            "grounding_correct": rep.grounding_correct, "deterministic": rep.deterministic_count,
+            "total": rep.total,
+            "safety_correct": rep.safety_correct,
+            "grounding_correct": rep.grounding_correct,
+            "deterministic": rep.deterministic_count,
             "all_ok": rep.all_ok,
-            "note": ("Integritaets-Eval (Sicherheit / Erdungs-Ehrlichkeit / Determinismus) — "
-                     "offline-deterministisch. Neuheits-/Wert-Qualitaet braucht den Live-Council (CLI --live)."),
+            "note": (
+                "Integritaets-Eval (Sicherheit / Erdungs-Ehrlichkeit / Determinismus) — "
+                "offline-deterministisch. Neuheits-/Wert-Qualitaet braucht den Live-Council (CLI --live)."
+            ),
             "verdicts": [
-                {"name": v.name, "refused": v.refused, "n_concepts": v.n_concepts,
-                 "grounded_count": v.grounded_count, "deterministic": v.deterministic,
-                 "safety_ok": v.safety_ok, "grounding_ok": v.grounding_ok, "ok": v.ok}
+                {
+                    "name": v.name,
+                    "refused": v.refused,
+                    "n_concepts": v.n_concepts,
+                    "grounded_count": v.grounded_count,
+                    "deterministic": v.deterministic,
+                    "safety_ok": v.safety_ok,
+                    "grounding_ok": v.grounding_ok,
+                    "ok": v.ok,
+                }
                 for v in rep.verdicts
             ],
         }
@@ -651,15 +901,18 @@ def create_app() -> FastAPI:
         if not _live_enabled():
             # The honest gate: the button exists, the engine refuses with the reason —
             # never a fabricated offline answer pretending to be research.
-            return JSONResponse(status_code=403, content={
-                "error": "live_disabled",
-                "message": (
-                    "Live-Läufe sind deaktiviert (Owner-Gate: kein Live-Run, bis die "
-                    "Real-Use-Ready-Messung abgeschlossen ist). GENESIS erfindet keine "
-                    "Antwort ohne echte Recherche — setze GENESIS_ALLOW_LIVE=1 und "
-                    "starte Ollama (qwen3.5:9b + gemma4:12b), um den Live-Pfad zu öffnen."
-                ),
-            })
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "error": "live_disabled",
+                    "message": (
+                        "Live-Läufe sind deaktiviert (Owner-Gate: kein Live-Run, bis die "
+                        "Real-Use-Ready-Messung abgeschlossen ist). GENESIS erfindet keine "
+                        "Antwort ohne echte Recherche — setze GENESIS_ALLOW_LIVE=1 und "
+                        "starte Ollama (qwen3.5:9b + gemma4:12b), um den Live-Pfad zu öffnen."
+                    ),
+                },
+            )
         from ..cli import build_live
         from ..runner import run as run_alpha, run_solution, run_specification
 
@@ -669,18 +922,24 @@ def create_app() -> FastAPI:
         )
         if body.mode == "spec":
             spec = await run_specification(body.question, deps, config=cfg)
-            return {"spec": _spec_dict(spec),
-                    "assessment": _assessment_dict(assess_specification(spec)),
-                    "printability": _printability_dict(spec),
-                    "files": _files_dict(spec)}
+            return {
+                "spec": _spec_dict(spec),
+                "assessment": _assessment_dict(assess_specification(spec)),
+                "printability": _printability_dict(spec),
+                "files": _files_dict(spec),
+            }
         if body.mode == "solution":
             sr = await run_solution(body.question, deps, config=cfg)
-            return {"solution": {
-                "problem": sr.problem,
-                "approaches": [{"name": ap.name, "grounding": ap.grounding}
-                               for ap in sr.approaches],
-                "gaps": sr.gaps,
-            }}
+            return {
+                "solution": {
+                    "problem": sr.problem,
+                    "approaches": [
+                        {"name": ap.name, "grounding": ap.grounding}
+                        for ap in sr.approaches
+                    ],
+                    "gaps": sr.gaps,
+                }
+            }
         report = await run_alpha(body.question, deps, config=cfg)
         claims = await deps.ledger.get_claims(report.run_id)
         return _report_dict(report, claims)

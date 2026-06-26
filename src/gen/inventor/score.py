@@ -66,7 +66,14 @@ def _measurand_value(spec: Specification, suffix: str, default: float) -> float:
 
 def _modal_margin(spec: Specification) -> float:
     """Performance proxy for a mechatronic part: first_natural / excitation (a modal safety margin). 1.0 when
-    the resonance quantities are absent — neutral, not a claimed margin."""
+    the resonance quantities are absent — neutral, not a claimed margin.
+    Richer: prefer real δ-physics value from spec (e.g. 'performance' or 'margin' measurand) if present."""
+    real = _measurand_value(spec, "performance", default=None)
+    if real is not None:
+        return float(real)
+    real = _measurand_value(spec, "modal_margin", default=None)
+    if real is not None:
+        return float(real)
     fn = _measurand_value(spec, "first_natural_frequency", default=0.0)
     ex = _measurand_value(spec, "excitation_frequency", default=0.0)
     if fn > 0.0 and ex > 0.0:

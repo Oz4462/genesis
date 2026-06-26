@@ -23,6 +23,8 @@
 
 ## IST-Stand (belegt)
 
+**2026-06-25 Update (autonomous pipeline continuation):** The grok/claude-built humanoids (AETHON via genesis_humanoid + competitive printed/flagship) now run end-to-end through the complete Genesis pipeline in CLI --mode humanoid/aethon: LUMENCRUCIBLE (process_dream + HORIZON + TeacherMode/community_evidence/omega), assess (proof_package, readiness, teacher, community), integrator build_full, sim (refs + mesh gate), bundle with caps in manifest, + real humanoid_assets (aethon.urdf 60 links/59 joints + shells + dxf + BOM) parsed and fed into richer *-assets_proof packages + sim_receipt.json in full_pipeline/. See BUILD_LOG 2026-06-25, out/.../full_pipeline/, proof_packages/*-assets_proof.
+
 GENESIS liefert heute eine **gegatete Erstauslegung**: ~9 druckbare Teile aus
 **CSG-Primitiven** (`export/openscad.py`, `export/build123d.py` auf OCCT, Vokabular
 nur box/cylinder/sphere + boolean + fillet), BOM + Bauanleitung

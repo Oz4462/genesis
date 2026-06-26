@@ -339,6 +339,95 @@ def palm_shell():
     return s
 
 
+# ── fingers: real SEGMENTED phalanx shells (Round 6 — close the worst gap to Apollo) ────────────────
+# The old hand read as smooth fused white SAUSAGES: each finger was three uniform white cylinders butted
+# end-to-end with same-white sphere knuckles → no visible joint, taper or fingertip; four fingers fused
+# into a mitten. Apollo (and any real robot) has ARTICULATED fingers: a dark machined knuckle housing at
+# each joint, a tapering phalanx, a defined fingertip pad, visible hinge gaps. These shells re-author the
+# finger VISUALS only (the cylinder+sphere collision and the inertials/joints are byte-identical and are
+# EXCLUDED from the physics SHA), mounted per phalanx link in genesis_humanoid._add_finger.
+#
+# Local frame MATCHES the phalanx link (genesis_humanoid._add_finger): the proximal joint is at x=0, the
+# phalanx body runs along +X to x=PHX_LEN, the knuckle is at the origin. +Z is the back of the finger.
+# Units mm; the URDF scales 0.001. Two pieces per phalanx are emitted as SEPARATE shells so the URDF can
+# tint them differently: the light tapering BODY and the dark machined KNUCKLE collar at the base. The
+# distal phalanx body additionally gets a rounded fingertip; the proximal is the chunkiest.
+PHX_LEN = 30.0   # one phalanx length [mm] — matches _DIM['phalanx_len']·1000
+PHX_R = 8.5      # the URDF collision capsule radius [mm] — matches _DIM['phalanx_r']·1000
+
+
+def _phalanx_body(*, w_prox: float, w_dist: float, h_prox: float, h_dist: float, tip: bool):
+    """A tapering hard-surface phalanx BODY (light shell): a box-section bone narrowing proximal→distal,
+    with chamfered long edges, a shallow dorsal tendon groove and (distal) a rounded fingertip dome.
+
+    ``w_*`` = half-width (Y), ``h_*`` = half-height/thickness (Z) at each end. Authored x=0..PHX_LEN with
+    a small inset at each end so the dark knuckle collars (mounted separately) show as joints. Watertight."""
+    _need()
+    inset = 2.4                 # leave a gap at the joint so the knuckle collar reads as a hinge
+    x0, x1 = inset, PHX_LEN - (0.0 if tip else inset)
+    L = x1 - x0
+    # tapering bone: a loft from a proximal rounded-rect to a distal rounded-rect (use ellipse loft for a
+    # clean tessellation, then clip to a box for flat-ish faceted faces — the hard-surface look).
+    body = (cq.Workplane("YZ").workplane(offset=x0).ellipse(w_prox + 1.2, h_prox + 1.2)
+            .workplane(offset=L).ellipse(w_dist + 1.2, h_dist + 1.2)
+            .loft(combine=True))
+    clip = (cq.Workplane("YZ").workplane(offset=x0 - 1).box(2 * max(w_prox, w_dist), 1.55 * h_prox, L + 2)
+            .translate((0, 0, 0)))
+    # the clip box must be oriented along X: build it as a plain box spanning x0..x1
+    clip = (cq.Workplane("XY").box(L + 2, 2 * max(w_prox, w_dist), 1.62 * h_prox)
+            .translate(((x0 + x1) / 2.0, 0, 0)).edges("|X").fillet(min(w_dist, h_dist) * 0.7))
+    s = body.intersect(clip)
+    s = _safe_fillet(s, ">X", h_dist * 0.5)
+    # dorsal tendon groove down the back (+Z), a fine scribe (cut → watertight)
+    s = _cut(s, (cq.Workplane("XY").workplane(offset=h_prox * 0.55).center((x0 + x1) / 2.0, 0)
+                 .rect(L * 0.8, 1.6).extrude(h_prox)))
+    if tip:
+        # rounded fingertip pad: a small dome capping the distal end (union)
+        cap = (cq.Workplane("YZ").workplane(offset=x1 - 2.0).ellipse(w_dist + 0.6, h_dist + 0.6)
+               .workplane(offset=2.0).ellipse(w_dist * 0.5, h_dist * 0.55)
+               .workplane(offset=1.6).ellipse(w_dist * 0.18, h_dist * 0.2).loft(combine=True))
+        s = _union(s, cap)
+    return s
+
+
+def _knuckle_collar(*, r_y: float, r_z: float):
+    """A dark machined KNUCKLE housing at a finger joint: a short faceted collar around the proximal end
+    (x≈0) that reads as the hinge axle/bearing block. Mounted by the URDF as the dark (machined-metal)
+    visual at each phalanx base; the body shell (light) butts above it → two-tone articulated finger.
+    Authored centred on the joint at x=0, axle along Y (the flex axis). Watertight."""
+    _need()
+    # a barrel along Y (the pitch flex axis) clipped to a faceted block — reads as a knuckle bearing.
+    barrel = (cq.Workplane("XZ").circle(max(r_y, r_z)).extrude(2 * (r_y + 1.4), both=True))
+    block = (cq.Workplane("XY").box(2 * r_z + 2.4, 2 * (r_y + 1.0), 2 * r_z + 2.4)
+             .edges("|Y").fillet(r_z * 0.5))
+    s = barrel.intersect(block)
+    # a centre groove around the barrel (the two cheek plates of a clevis) — reads as a real hinge
+    s = _cut(s, (cq.Workplane("XZ").circle(max(r_y, r_z) + 0.5).circle(max(r_y, r_z) - 0.9)
+                 .extrude(1.1, both=True)))
+    return s
+
+
+# the four long fingers taper index→pinky lengths via the same phalanx (the URDF spreads them); we author
+# ONE set of three phalanx bodies (prox/mid/dist) + a knuckle, reused for every finger and (slimmer) thumb.
+def finger_prox_shell():
+    return _phalanx_body(w_prox=PHX_R * 0.92, w_dist=PHX_R * 0.80, h_prox=PHX_R * 0.92,
+                         h_dist=PHX_R * 0.78, tip=False)
+
+
+def finger_mid_shell():
+    return _phalanx_body(w_prox=PHX_R * 0.80, w_dist=PHX_R * 0.68, h_prox=PHX_R * 0.80,
+                         h_dist=PHX_R * 0.66, tip=False)
+
+
+def finger_dist_shell():
+    return _phalanx_body(w_prox=PHX_R * 0.68, w_dist=PHX_R * 0.50, h_prox=PHX_R * 0.68,
+                         h_dist=PHX_R * 0.48, tip=True)
+
+
+def finger_knuckle_shell():
+    return _knuckle_collar(r_y=PHX_R * 0.86, r_z=PHX_R * 0.72)
+
+
 # ── torso: a real chest + back CUIRASS ────────────────────────────────────────────────────────────
 
 def torso_shell():
@@ -597,6 +686,11 @@ SHELLS = {
     "pauldron": shoulder_pauldron,
     "foot": foot_shell,
     "palm": palm_shell,
+    # Round 6: segmented finger phalanx shells (light bodies) + the dark machined knuckle collar.
+    "finger_prox": finger_prox_shell,
+    "finger_mid": finger_mid_shell,
+    "finger_dist": finger_dist_shell,
+    "finger_knuckle": finger_knuckle_shell,
 }
 
 

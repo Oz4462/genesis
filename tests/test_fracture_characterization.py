@@ -40,6 +40,7 @@ from gen.fracture import (  # noqa: E402
     critical_crack_size,
     fracture_check,
     paris_life,
+    paris_life_m2,
     stress_intensity,
 )
 
@@ -227,10 +228,17 @@ def test_paris_life_monotone_decreasing_in_initial_crack(ai):
     assert 0.0 < deeper < shallower
 
 
-def test_paris_life_m_equals_2_is_not_implemented():
-    # NEGATIVE: m == 2 divides by zero in the power form -> raise, never a wrong number.
+def test_paris_life_m_equals_2_is_not_implemented_in_power():
+    # NEGATIVE: power form for m==2 raises; use m2 function for support.
     with pytest.raises(NotImplementedError):
         paris_life(1e-11, 2.0, 100.0, 1.0, 10.0)
+
+
+def test_paris_life_m2_log_form_works():
+    # autonomous: m=2 log form added and works.
+    n = paris_life_m2(1e-11, 100.0, 1.0, 10.0)
+    assert n > 0
+    assert n > 1000
 
 
 def test_paris_life_rejects_non_growing_crack():

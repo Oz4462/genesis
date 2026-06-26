@@ -172,7 +172,7 @@ _genesis_stl_path = stl_path
 _genesis_volume = round(assist_plate.part.volume / 1000, 2)
 '''
 
-    volume = 48.5
+    volume = None  # HONEST (STATUS.md §1 #2): no fabricated volume; set ONLY if a real build123d export succeeds
     real_stl = None
 
     try:
@@ -210,11 +210,13 @@ def challenge_impossible(idee: str = "jetpack hover energy impossible with curre
     # 2. Current frontier (explicit NEEDS_BREAKTHROUGH for jetpack energy)
     front: DevelopmentFrontMap = map_development_front(idee, run_id=run_id)
 
-    # 3. Wissensbasis discovery (arxiv stub or local for diamagnetic physics)
+    # 3. Wissensbasis discovery (arxiv + components dynamic for live-like Platform-Demo-Path, autonomy no-stop)
     discoveries: list[str] = []
     try:
         reg = SourceConnectorRegistry()
-        discoveries = reg.fetch("arxiv", "diamagnetic levitation pyrolytic graphite force jetpack") or []
+        arxiv_disc = reg.fetch("arxiv", "diamagnetic levitation pyrolytic graphite force jetpack") or []
+        comp_disc = reg.fetch("components", "diamag energy mech") or []
+        discoveries = [str(d) for d in (arxiv_disc + comp_disc)[:5]]
     except Exception:
         pass
     if not discoveries:
@@ -238,6 +240,9 @@ def challenge_impossible(idee: str = "jetpack hover energy impossible with curre
         # Fallback: ensure we still have a claim with volume
         pkg_stl = None
     stl_path = pkg_stl or stl_path  # prefer the copied one for the report
+    # HONEST (STATUS.md §1 #2): "built" only when a REAL STL exists on disk. build123d ships in the
+    # `b123d` extra; without it no geometry is generated and we must NOT claim "DFM PASSED / Not mock".
+    built = bool(stl_path) and Path(stl_path).exists()
 
     # 5. DFM gate (reuse manufacturing_check + advanced if present)
     # Build a minimal artifact wrapper for gate (re-use existing path)
@@ -254,20 +259,25 @@ def challenge_impossible(idee: str = "jetpack hover energy impossible with curre
         exports={"stl": stl_path or "generated_on_exec.stl"},
         dfm_report=["Diamagnetic pocket array — 2.5mm walls OK for FDM", "Pockets require 4-5 perimeters + slow outer walls"],
         volume_estimate_cm3=volume,
-        is_buildable=True,
+        is_buildable=built,
         run_id=run_id,
         quelle="build123d + BreakthroughBridge",
     )
-    dfm: ManufacturingCheck = check_manufacturing(cad_artifact, run_id=run_id)
-    advanced_pass = True
-    if check_advanced_dfm is not None:
-        try:
-            adv = check_advanced_dfm(cad_artifact)  # type: ignore
-            advanced_pass = getattr(adv, "printable", True) or len(getattr(adv, "issues", [])) == 0
-        except Exception:
-            advanced_pass = True
-
-    dfm_passed = dfm.printable and advanced_pass
+    # HONEST (STATUS.md §1 #2): only run DFM when real geometry exists. With no STL, DFM is NOT
+    # evaluated → dfm_passed=False (the old code ran DFM on a fake artifact pointing at a nonexistent
+    # STL and then reported "DFM PASSED").
+    if built:
+        dfm: ManufacturingCheck = check_manufacturing(cad_artifact, run_id=run_id)
+        advanced_pass = True
+        if check_advanced_dfm is not None:
+            try:
+                adv = check_advanced_dfm(cad_artifact)  # type: ignore
+                advanced_pass = getattr(adv, "printable", True) or len(getattr(adv, "issues", [])) == 0
+            except Exception:
+                advanced_pass = True
+        dfm_passed = dfm.printable and advanced_pass
+    else:
+        dfm_passed = False
 
     # 6. Lern revision of frontier (close energy gap via known diamag effect)
     revised = apply_learning_to_frontier(lern_res, front)
@@ -277,6 +287,31 @@ def challenge_impossible(idee: str = "jetpack hover energy impossible with curre
     before_typ = "NEEDS_BREAKTHROUGH"
     after_typ = "POSSIBLE_BUT_UNSAFE_DIRECTLY"
     assist = 8.5  # modelled 5-15% range; conservative single value for report
+
+    # HONEST report strings (STATUS.md §1 #2): branch every CAD/DFM claim on whether geometry was
+    # actually built. When build123d is absent, say so plainly instead of "Real STL / DFM PASSED".
+    cad_header = (
+        "## Real CAD Artifact (build123d, parametric, export proven)" if built
+        else "## CAD Artifact — NOT BUILT (build123d not installed; `pip install -e .[b123d]` to generate it)"
+    )
+    volume_line = f"- Volume: {volume} cm³" if built else "- Volume: not computed (no geometry generated)"
+    dfm_verdict = (
+        "- Overall: **DFM PASSED** (printable with standard consumer FDM + post-process insert of graphite tiles)."
+        if (built and dfm_passed)
+        else "- Overall: **DFM NOT EVALUATED** — build123d unavailable, so no geometry was generated and nothing was checked."
+    )
+    l4_line = (
+        "- **L4 Realizability/Fidelity:** Real STL on disk (build123d kernel), volume measured, DFM gate executed on the artifact. Not mock."
+        if built
+        else "- **L4 Realizability/Fidelity:** build123d unavailable → NO geometry generated; STL/volume/DFM are honestly ABSENT (not fabricated). Install the `b123d` extra to build + check."
+    )
+    gates = ["Lern 8-step + persist", "apply_to_frontier", "provenance"]
+    if built:
+        gates.append("manufacturing_check")
+        if dfm_passed:
+            gates += ["real STL volume >0", "DFM printable", "advanced_dfm"]
+    else:
+        gates.append("CAD NOT BUILT (build123d unavailable) — no STL/DFM gates claimed")
 
     report_text = f"""# BREAKTHROUGH REPORT — The Impossible Made Possible
 
@@ -322,28 +357,24 @@ Where:
 - New experimentleiter entries derived from Lern steps for "tile array + gradient measurement under load".
 - New Grenztyp for the assist path: {after_typ} (physics known + CAD real + DFM pass, but full operator safety case still missing).
 
-## Real CAD Artifact (build123d, parametric, export proven)
+{cad_header}
 - Plate: 150×150×11 mm with 4×4 pocket array for 12 mm graphite tiles.
 - 4 integrated thick tether lugs (M6+ clearance) + 4 magnet pockets (NdFeB 18 mm).
 - Min wall 2.5 mm, generous fillets, light relief grid.
-- Volume: {volume or 'N/A'} cm³
+{volume_line}
 - STL: {stl_path or 'generated at runtime (see out/genesis_breakthrough_artifacts)'}
 - Gate: manufacturing_check + advanced DFM → printable (FDM primary, multi-process notes).
 
-## DFM / Gates Passed
-- File exists + size plausible (real export).
-- Volume > 0 and within printer envelope.
-- Min-wall respected.
-- Pocket array: 4-5 perimeters recommended, slow outer walls for first layers.
-- Overall: **DFM PASSED** (printable with standard consumer FDM + post-process insert of graphite tiles).
+## DFM / Gates
+{dfm_verdict}
 
-Gates passed: manufacturing_check, Lern gate (8 steps + persist), frontier revision, provenance everywhere.
+Gates passed: {', '.join(gates)}
 
 ## 4 Linsen (enforced by construction)
 - **L1 Truth/Provenance:** Every dataclass, step, report line carries `quelle` (PLAN + prior stones + wissens fetch + build123d docs). No unsourced facts.
 - **L2 Drift/Grounding:** Explicit before/after vs DevelopmentFrontMap (NEEDS_BREAKTHROUGH energy → POSSIBLE_BUT_UNSAFE_DIRECTLY via known effect). No contradiction with prior breakthrough_watch / boundary_reviser / safety_ladder.
 - **L3 Completeness/Seams:** Full chain used (Lern + front + wissens + CAD + DFM + apply + package). Naht closed: Lern delta feeds revised frontier; CAD real on disk; package self-contained.
-- **L4 Realizability/Fidelity:** Real STL on disk (build123d kernel), volume measured, DFM gate executed on the artifact, tests will assert size + content. Not mock.
+{l4_line}
 
 **Selbstkontrolle (extended §0.2 + 4 Linsen):** All checklist items satisfied (see BUILD_LOG entry for this stone). One active module (BreakthroughBridge). Finish-or-Fail. Real artifacts + green tests before claim.
 
@@ -378,7 +409,8 @@ Gates passed: manufacturing_check, Lern gate (8 steps + persist), frontier revis
         "dfm_passed": dfm_passed,
         "report": "BREAKTHROUGH_REPORT.md",
         "provenance": lern_res.quelle,
-        "gates": ["manufacturing_check", "lern_8step", "frontier_revision", "provenance", "dfm"],
+        "gates": gates,
+        "built": built,
         "quelle": "BreakthroughBridge + GENESIS_PLATFORM_PLAN.md §3.3 + §3.8 + prior grenz/pipelines/cad/lern/wissensbasis stones",
     }
     (pkg_root / "manifest.json").write_text(__import__("json").dumps(manifest, indent=2), encoding="utf-8")
@@ -404,10 +436,6 @@ Gates passed: manufacturing_check, Lern gate (8 steps + persist), frontier revis
     except Exception:
         pass
 
-    gates = ["manufacturing_check", "Lern 8-step + persist", "apply_to_frontier", "real STL volume >0", "DFM printable"]
-    if dfm_passed:
-        gates.append("advanced_dfm")
-
     return BreakthroughReport(
         idea=idee,
         before_grenztyp=before_typ,
@@ -422,7 +450,7 @@ Gates passed: manufacturing_check, Lern gate (8 steps + persist), frontier revis
         report_path=str(report_path),
         gates_passed=gates,
         provenance=lern_res.quelle,
-        quelle="BreakthroughBridge (extensions) + deterministic Genesis chain (no LLM in core) + real build123d kernel",
+        quelle="BreakthroughBridge (extensions) + deterministic Genesis chain (no LLM in core); CAD via build123d ONLY when the b123d extra is installed — otherwise honestly NOT BUILT (no fabricated STL/DFM)",
     )
 
 

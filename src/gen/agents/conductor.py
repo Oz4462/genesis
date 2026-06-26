@@ -18,7 +18,14 @@ from __future__ import annotations
 from typing import Any
 
 from ..core.interfaces import Agent
-from ..core.state import Question, Report, RunState, SolutionReport, Specification, SubQuestion
+from ..core.state import (
+    Question,
+    Report,
+    RunState,
+    SolutionReport,
+    Specification,
+    SubQuestion,
+)
 from ..llm.base import LLMClient
 from ..llm.parsing import extract_json
 from ..core.state import ClaimStatus
@@ -27,7 +34,10 @@ from ..verification.gates import gate_alpha, gate_beta, gate_gamma
 
 # HORIZON LUMEN exposure (process_dream entry for conductor/orchestrator register)
 try:
-    from ..grenzverschiebung.lumencrucible import process_dream, LumenCrucible  # HORIZON ε/ζ certs + hammer
+    from ..grenzverschiebung.lumencrucible import (
+        process_dream,
+        LumenCrucible,
+    )  # HORIZON ε/ζ certs + hammer
 except Exception:  # noqa: BLE001
     process_dream = None  # type: ignore
     LumenCrucible = None  # type: ignore
@@ -35,7 +45,12 @@ except Exception:  # noqa: BLE001
 # HORIZON δ+ richer wire (evaluate_reality + reviewed_failure_modes pop) beyond LUMEN.
 # Guarded exactly as lumencrucible.py:84 (first call at 388 pattern). Additive only.
 try:
-    from ..reality import FalsificationExperiment, Measurement, evaluate_reality, gate_delta_plus
+    from ..reality import (
+        FalsificationExperiment,
+        Measurement,
+        evaluate_reality,
+        gate_delta_plus,
+    )
     from ..coverage import build_coverage_certificate, gate_delta_plus_coverage
     from ..core.state import FailureMode, SourceRef
 except Exception:  # noqa: BLE001
@@ -103,7 +118,9 @@ class Conductor:
             await self._scholar.run(state)
             await self._skeptic.run(state)
             self._enrich_delta_plus(state)  # δ+ after claims (guarded, lumen pattern)
-            self._enrich_omega(state)  # intermediate Ω (guarded); final after loop for full post-γ/ε/ζ in MAX AGENTS paths
+            self._enrich_omega(
+                state
+            )  # intermediate Ω (guarded); final after loop for full post-γ/ε/ζ in MAX AGENTS paths
             state.report = self._assemble(state)
 
             result = gate_alpha(state, confidence_threshold=self._tau)
@@ -115,7 +132,9 @@ class Conductor:
                 break
             rounds += 1
             state.refine_round = rounds
-        self._enrich_omega(state)  # final full E2E after loop (ensures post certs for MAX AGENTS; read-write; 4L Return Gate)
+        self._enrich_omega(
+            state
+        )  # final full E2E after loop (ensures post certs for MAX AGENTS; read-write; 4L Return Gate)
         return state
 
     # --- internals ------------------------------------------------------------
@@ -137,7 +156,9 @@ class Conductor:
                 # back to the raw question — same array-shape discipline as
                 # scout._queries / scholar._extract / skeptic._check_queries.
                 value = []
-            subs = [str(s).strip() for s in value if str(s).strip()][:_MAX_SUB_QUESTIONS]
+            subs = [str(s).strip() for s in value if str(s).strip()][
+                :_MAX_SUB_QUESTIONS
+            ]
         except Exception:  # noqa: BLE001 - decomposition is best-effort
             subs = []
         if not subs:
@@ -214,7 +235,9 @@ class Conductor:
             await self._scholar.run(state)
             await self._skeptic.run(state)
             self._enrich_delta_plus(state)  # δ+ after claims (guarded, lumen pattern)
-            self._enrich_omega(state)  # intermediate Ω (guarded); final after loop for full post-γ/ε/ζ in MAX AGENTS paths
+            self._enrich_omega(
+                state
+            )  # intermediate Ω (guarded); final after loop for full post-γ/ε/ζ in MAX AGENTS paths
             await self._synthesizer.run(state)
             state.solution_report = self._assemble_solution(state)
 
@@ -228,7 +251,9 @@ class Conductor:
                 break
             rounds += 1
             state.refine_round = rounds
-        self._enrich_omega(state)  # final full E2E after loop (post-synth certs; MAX AGENTS Return Gate read-write)
+        self._enrich_omega(
+            state
+        )  # final full E2E after loop (post-synth certs; MAX AGENTS Return Gate read-write)
         return state
 
     def _assemble_solution(self, state: RunState) -> SolutionReport:
@@ -278,7 +303,9 @@ class Conductor:
             await self._scholar.run(state)
             await self._skeptic.run(state)
             self._enrich_delta_plus(state)  # δ+ after claims (guarded, lumen pattern)
-            self._enrich_omega(state)  # intermediate Ω (guarded); final after loop for full post-γ/ε/ζ in MAX AGENTS paths
+            self._enrich_omega(
+                state
+            )  # intermediate Ω (guarded); final after loop for full post-γ/ε/ζ in MAX AGENTS paths
             await self._synthesizer.run(state)
             await self._architect.run(state)
             state.specification = self._normalize_specification(state)
@@ -298,7 +325,9 @@ class Conductor:
                 break
             rounds += 1
             state.refine_round = rounds
-        self._enrich_omega(state)  # final full E2E after loop (post-architect γ+ ε ζ certs pop to RunState + omega call; MAX AGENTS + 4L Return Gate)
+        self._enrich_omega(
+            state
+        )  # final full E2E after loop (post-architect γ+ ε ζ certs pop to RunState + omega call; MAX AGENTS + 4L Return Gate)
         return state
 
     def _normalize_specification(self, state: RunState) -> Specification:
@@ -332,46 +361,79 @@ class Conductor:
         coverage_certificate = None
         if FalsificationExperiment is not None and evaluate_reality is not None:
             try:
-                # minimal Falsif/Meas from claims (grounding like lumen; demo values for valid CORROBORATED)
+                # Prefer real numeric data for δ+ ingest when present (spec quantities from architect/γ flows,
+                # or prior sim/runner attach). Fallback to explicit demo + honest note (first-stone per HORIZON/Return Gate).
+                # This advances "use real sim/claims instead of demo 9.81".
                 c = next(
-                    (cc for cc in state.claims if getattr(cc, "status", None) is ClaimStatus.VERIFIED),
+                    (
+                        cc
+                        for cc in state.claims
+                        if getattr(cc, "status", None) is ClaimStatus.VERIFIED
+                    ),
                     state.claims[0] if state.claims else None,
                 )
                 if c:
+                    # Default demo (honest skeleton)
+                    p_val = 9.81
+                    p_unit = "m/s^2"
+                    meas_name = "claim.backed"
+                    method_note = "conductor δ+: predicted from spec; NO independent measurement yet → INCONCLUSIVE (honest, not corroborated)"
+                    # Prefer real if spec has numeric quantity value (common after architect)
+                    try:
+                        if state.specification and getattr(
+                            state.specification, "quantities", None
+                        ):
+                            q0 = state.specification.quantities[0]
+                            if (
+                                q0
+                                and getattr(q0, "value", None) is not None
+                                and isinstance(getattr(q0, "value", None), (int, float))
+                            ):
+                                p_val = float(q0.value)
+                                p_unit = getattr(q0, "unit", None) or p_unit
+                                meas_name = (
+                                    getattr(q0, "measurand", None)
+                                    or getattr(q0, "name", None)
+                                    or meas_name
+                                )
+                                method_note = "conductor δ+ (real value preferred from spec quantity)"
+                    except Exception:
+                        pass
                     exp = FalsificationExperiment(
                         id=f"{state.question.run_id}-delta-demo",
-                        measurand="claim.backed",
-                        predicted_value=9.81,
-                        predicted_unit="m/s^2",
+                        measurand=meas_name,
+                        predicted_value=p_val,
+                        predicted_unit=p_unit,
                         tolerance=0.05,
-                        method="conductor δ+ skeleton (post-claims, from claim grounding)",
+                        method=method_note,
                         grounding=[c.id],
                     )
-                    meas = Measurement(
-                        id=f"{state.question.run_id}-m1",
-                        experiment_id=exp.id,
-                        value=9.81,
-                        unit="m/s^2",
-                        sources=[SourceRef(url_or_id="conductor:delta-demo-retrieved", retrieved=True)],
-                    )
-                    verdict = evaluate_reality(exp, meas)
-                    reality_verdict = verdict
+                    # HONEST δ⁺ (STATUS.md §1 #1): a Measurement is structurally a REAL, retrieved
+                    # reading (core/state.py:441 raises otherwise). With no independent measurement we
+                    # do NOT fabricate one (the old code lied retrieved=True on a value equal to the
+                    # prediction → always "corroborated": the δ⁺ tautology). The experiment is
+                    # designed; the reading is honestly absent → INCONCLUSIVE. Build the Measurement +
+                    # evaluate_reality(exp, meas) only once a real measurement is attached to state.
+                    reality_verdict = None
                     delta_plus_result = {
-                        "status": verdict.status.value,
-                        "within_tolerance": verdict.within_tolerance,
-                        "residual": verdict.residual,
-                        "detail": getattr(verdict, "detail", ""),
+                        "status": "inconclusive",
+                        "experiment_id": exp.id,
+                        "predicted_value": p_val,
+                        "predicted_unit": p_unit,
+                        "note": (
+                            "δ⁺ experiment designed; no independent measurement available → "
+                            "cannot corroborate or refute (honest abstention, HORIZON.md §2B)"
+                        ),
                     }
-                    if gate_delta_plus is not None:
-                        try:
-                            gp = gate_delta_plus(exp, meas, [c])
-                            delta_plus_result["gate_passed"] = gp.passed
-                        except Exception:
-                            pass
             except Exception:
-                delta_plus_result = {"status": "skipped", "note": "skeleton: conductor post-claims"}
+                delta_plus_result = {
+                    "status": "skipped",
+                    "note": "δ⁺ skipped (guarded: partial data) — not corroborated",
+                }
 
-        # populate reviewed_failure_modes from skeptic/consensus (full claims/REFUTED, no break, proper list for build_coverage). Guarded. 4L L1/L2.
+        # populate reviewed_failure_modes from skeptic/consensus (full claims/REFUTED, no break, proper list for build_coverage). Guarded.
+        # Always full collection only (real REFUTED or honest [] — no dummy fallback creation when none).
+        # Addresses Return Gate HIGH gap #3 (CK/ HORIZON). Cite conductor:374.
         reviewed: list = []
         if FailureMode is not None:
             for cc in state.claims:
@@ -388,19 +450,7 @@ class Conductor:
                         # no break: collect richer full set of REFUTED (was thin 0-1)
                     except Exception:
                         pass
-            if not reviewed and state.claims and FailureMode is not None:
-                cc = state.claims[0]
-                try:
-                    reviewed = [
-                        FailureMode(
-                            id=f"reviewed:{cc.id}",
-                            label=str(cc.text),
-                            source="claims",
-                            grounding=[cc.id],
-                        )
-                    ]
-                except Exception:
-                    reviewed = []
+            # NO dummy fallback: empty list is honest when no REFUTED claims present.
 
         if build_coverage_certificate is not None:
             try:
@@ -415,7 +465,9 @@ class Conductor:
                 if gate_delta_plus_coverage is not None:
                     try:
                         _ = gate_delta_plus_coverage(
-                            small_spec, coverage_certificate, reviewed_failure_modes=reviewed
+                            small_spec,
+                            coverage_certificate,
+                            reviewed_failure_modes=reviewed,
                         )
                     except Exception:
                         pass
@@ -431,7 +483,7 @@ class Conductor:
             state.coverage_certificate = coverage_certificate
         state.log.append(
             f"conductor: δ+ evaluate_reality + reviewed_failure_modes (from skeptic/claims, full REFUTED no-break) "
-            f"status={ (delta_plus_result or {}).get('status', 'attached') if isinstance(delta_plus_result, dict) else 'ok' } "
+            f"status={(delta_plus_result or {}).get('status', 'attached') if isinstance(delta_plus_result, dict) else 'ok'} "
             f"cites:agents/conductor.py:372, verification/verification-log.md:228, coverage.py:149 (4L L1 provenance)"
         )
 
@@ -444,6 +496,7 @@ class Conductor:
         """
         try:
             from ..omega import build_omega_certificate, gate_omega
+
             # gate_results None: build pulls artifacts; required empty for non-blocking aggregator
             cert = build_omega_certificate(state)
             res = gate_omega(state, cert, required_gates=())
@@ -452,5 +505,7 @@ class Conductor:
                 f"conductor: Ω build_omega+gate_omega passed={res.passed} "
                 f"notes={len(getattr(cert, 'learning_notes', []))} (4L Return Gate after certs)"
             )
-        except Exception:  # fully guarded; no behavior change on missing omega/partial states
+        except (
+            Exception
+        ):  # fully guarded; no behavior change on missing omega/partial states
             state.log.append("conductor: Ω enrichment skipped (guarded)")

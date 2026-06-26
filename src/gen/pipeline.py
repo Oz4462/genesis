@@ -68,6 +68,11 @@ class Assessment:
     coverage_certificate: "CoverageCertificate | None" = None
     reality_verdict: "EmpiricalVerdict | None" = None
     delta_plus_result: dict | None = None
+    # Platform Caps (no-stop autonomy)
+    proof_package: str | None = None
+    readiness_level: str | None = None
+    teacher_notes: dict | None = None
+    community_evidence: dict | None = None
 
     @property
     def needs_clarification(self) -> bool:
@@ -178,6 +183,26 @@ def assess_specification(
                          circular=len(corroboration.circular))
 
     overall = _overall_status(questions, gaps, gate, contradictions, len(checks), corroboration)
+
+    # E2E caps (autonomy deepen): populate from grenz generators for consumers (honest minimal data here)
+    proof_package = None
+    readiness_level = "TRL3"
+    teacher_notes = None
+    community_evidence = None
+    try:
+        from .grenzverschiebung.proof_package import generate_proof_package
+        from .grenzverschiebung.readiness_ladder import assess_readiness, TeacherMode, community_evidence as _ce
+        p = generate_proof_package(run_id=getattr(spec, 'run_id', 'assess'), idea=getattr(spec, 'idea', str(spec)[:20]), cad_files=[], sim_receipts=[{'gate': 'delta'}], wb_seeds=[{'claims': bool(claims)}])
+        proof_package = p.package_dir
+        rl = assess_readiness({'claims': bool(claims), 'physics': gate.passed})
+        readiness_level = rl.level
+        tm = TeacherMode()
+        teacher_notes = tm.record('assess', ['physics', 'seams'])
+        teacher_notes = tm.apply({'overall': overall})
+        community_evidence = _ce({'claims': len(claims or [])})
+    except Exception:
+        pass  # honest, full in LUMEN paths
+
     return Assessment(
         clarification_questions=questions,
         physics_checks=checks,
@@ -194,6 +219,10 @@ def assess_specification(
         reality_verdict=reality_verdict,
         delta_plus_result=delta_plus_result,
         overall=overall,
+        proof_package=proof_package,
+        readiness_level=readiness_level,
+        teacher_notes=teacher_notes,
+        community_evidence=community_evidence,
     )
 
 

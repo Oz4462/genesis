@@ -20,6 +20,7 @@ from gen.core.state import (  # noqa: E402
     BomRole,
     CodeArtifact,
     Component,
+    Constraint,
     DomainSeam,
     Quantity,
     SeamDomain,
@@ -28,7 +29,12 @@ from gen.core.state import (  # noqa: E402
     Specification,
     ValueOrigin,
 )
-from gen.seams import build_seam_certificate, domains_present, gate_epsilon  # noqa: E402
+from gen.seams import (
+    build_seam_certificate,
+    detect_cross_domain_seams,
+    domains_present,
+    gate_epsilon,
+)  # noqa: E402
 
 
 def _q(qid: str, value: float, unit: str, *, measurand: str | None = None) -> Quantity:
@@ -54,7 +60,9 @@ def _price(qid: str, value: float) -> Quantity:
     )
 
 
-def _spec(*, total_cost: float = 4.0, fw_limit: float = 1.0, expansion_unit: str = "mm") -> Specification:
+def _spec(
+    *, total_cost: float = 4.0, fw_limit: float = 1.0, expansion_unit: str = "mm"
+) -> Specification:
     return Specification(
         run_id="r-epsilon",
         idea="coupled electro-thermal firmware assembly",
@@ -226,3 +234,38 @@ def test_cost_domain_requires_cost_rollup_relation():
     res = gate_epsilon(spec, build_seam_certificate(spec, _seams()[:-1] + [bad]))
     assert not res.passed
     assert any(f.code == "COST_SEAM_REQUIRES_ROLLUP" for f in res.failures)
+
+
+def test_detect_cross_domain_seams_with_expr_ish_constraint_roundtrips_to_gate_epsilon():
+    # Return Gate enforcement (subagent mini re-reads): BUILD_LOG.md severity table
+    # MEDIUM "tests/test_phase_epsilon.py (hardcoded _seams only, no detect import/test)" + gap#4;
+    # HORIZON.md:109 (ε first-stone, "expr support + full auto coverage pending (test_phase_epsilon detects 0 direct)");
+    # prior researcher evidence: verification/4LINSEN_PIPELINES_SEAMS_REVIEW_2026-06-21.md:10 ("do not exercise detect..."), CodeKnowledge-epsilon-zeta-auto-seams.md:84 (smoke uses bare, no expr test), loop-close-plan.md:82 (G2 explicit: "add real detect call + roundtrip gate_epsilon").
+    # Cites seams.py:420+ (new expr support via referenced_names in detect loop).
+    # Exercises enhanced path (not bare-id direct): Constraint right="... * ... " triggers referenced_names & fallback lqid/rqid.
+    # Uses existing _spec helper (no new helpers). Smallest guarded: adds 1 test fn, extends 2 imports only.
+    spec = _spec()
+    spec.constraints = [
+        Constraint(
+            id="c_power_xfer",
+            kind="eq",
+            left="q_elec_power",
+            right="q_heat_power * 1.0",  # expr-ish (not bare qid) to hit seams.py:427-430 refs path
+            reason="electrical power balance to thermal (exercises Return Gate #4 expr)",
+        )
+    ]
+    seams = detect_cross_domain_seams(spec)
+    assert len(seams) >= 1, (
+        "detect_cross_domain_seams must emit >=1 seam from cross-domain constraint"
+    )
+    # prove at least the auto_con seam or cost; structure is list[DomainSeam] with exprs preserved
+    assert any(
+        getattr(s, "left_expr", None) and "q_elec" in str(s.left_expr) for s in seams
+    )
+
+    # roundtrip: feed detected into build+gate (as architect/pipeline/omega do)
+    cert = build_seam_certificate(spec, seams)
+    res = gate_epsilon(spec, cert)
+    # assert structure (GateResult: passed bool + failures list; per core/interfaces + seams gate)
+    assert hasattr(res, "passed") and isinstance(res.passed, bool)
+    assert hasattr(res, "failures") and isinstance(res.failures, (list, tuple))
