@@ -25,6 +25,7 @@ from .core.errors import GenesisError
 from .costing import bom_cost, format_cost
 from .core.state import (
     BomDomain,
+    Divergence,
     Question,
     Report,
     RunState,
@@ -40,7 +41,7 @@ from .export.build123d import specification_to_build123d
 from .export.markdown import BOM_ROLE_LABELS_DE, specification_to_markdown
 from .export.openscad import specification_to_openscad
 from .export.stl import specification_to_stl
-from .runner import Dependencies, run, run_solution, run_specification
+from .runner import Dependencies, run, run_divergence, run_solution, run_specification
 from .tools.http import HttpResponse, default_http_get
 from .tools.formula_backend import FormulaBackend
 from .tools.search import SemanticScholarBackend, WikipediaBackend
@@ -549,6 +550,37 @@ def format_solution(sr: SolutionReport) -> str:
     return "\n".join(lines)
 
 
+def format_divergence(div: Divergence) -> str:
+    """Render a Phase φ divergence (HORIZON.md) — grounded possibilities, each anchored to
+    VERIFIED claims, with the honest grounded-sample disclaimer. Empty = honest abstention."""
+    lines = []
+    lines.append("=" * 64)
+    lines.append("GENESIS — Phase φ: geerdeter Möglichkeitsraum (HORIZON)")
+    lines.append("=" * 64)
+    lines.append(f"Funke: {div.spark.raw}")
+    lines.append("")
+    if div.possibilities:
+        lines.append("Geerdete Möglichkeiten (jede in VERIFIZIERTEN Claims verankert):")
+        for p in div.possibilities:
+            lines.append(f"  • {p.statement}")
+            if p.mechanism:
+                lines.append(f"      Mechanismus: {p.mechanism}")
+            lines.append(f"      Beleg: {', '.join(p.grounding)}")
+    else:
+        lines.append(
+            "Geerdete Möglichkeiten: keine — nichts konnte verankert werden (ehrliche Enthaltung)."
+        )
+    lines.append("")
+    disclaimer = (
+        "geerdete STICHPROBE, nicht der vollständige Raum (HORIZON.md §3)"
+        if div.grounded_sample
+        else "als VOLLSTÄNDIG markiert — unbeweisbar, von GATE φ abgelehnt"
+    )
+    lines.append(f"Hinweis: {disclaimer}.")
+    lines.append("=" * 64)
+    return "\n".join(lines)
+
+
 def _format_geometry(node, indent: int) -> list[str]:
     pad = "  " * indent
     if node.params:
@@ -970,6 +1002,7 @@ def main(argv: list[str] | None = None) -> int:
             "breakthrough",
             "horizon-full",
             "goldset",
+            "divergence",
             "research",
             "discover-ode",
             "invent",
@@ -982,7 +1015,9 @@ def main(argv: list[str] | None = None) -> int:
         "quality engine's honest verdict (clarification + δ-physics + constraints + "
         "grounding) over the demo specs; print = the printability verdict "
         "(overhang/bridges/first layer + STL mesh integrity) over the demo specs; "
-        "realize = Realisierungspaket entry (full chain to package dir with DFM/Lern/drawings/regulatorik) "
+        "realize = Realisierungspaket entry (full chain to package dir with DFM/Lern/drawings/regulatorik); "
+        "divergence = Phase φ — den belegten Möglichkeitsraum zu einer Funke öffnen (cross-model α-Recherche "
+        "→ forge → GATE φ; live, braucht Backends) "
         "(default: report)",
     )
     parser.add_argument(
@@ -2461,6 +2496,18 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
             print(format_solution(sr))
+        elif args.mode == "divergence":
+            idea, deps, cfg = build_spec_demo()
+            div = asyncio.run(
+                run_divergence(
+                    idea,
+                    deps,
+                    config=cfg,
+                    run_id="demo-divergence",
+                    checkpoint_dir=args.checkpoint_dir,
+                )
+            )
+            print(format_divergence(div))
         else:
             idea, deps, cfg = build_spec_demo()
             spec = asyncio.run(
@@ -2495,6 +2542,13 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
             output = format_solution(sr)
+        elif args.mode == "divergence":
+            div = asyncio.run(
+                run_divergence(
+                    args.question, deps, config=cfg, checkpoint_dir=args.checkpoint_dir
+                )
+            )
+            output = format_divergence(div)
         else:
             spec = asyncio.run(
                 run_specification(
