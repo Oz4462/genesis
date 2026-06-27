@@ -43,8 +43,10 @@ from .export.openscad import specification_to_openscad
 from .export.stl import specification_to_stl
 from .runner import Dependencies, run, run_divergence, run_solution, run_specification
 from .tools.http import HttpResponse, default_http_get
+from .tools.arxiv_backend import ArxivBackend
 from .tools.formula_backend import FormulaBackend
 from .tools.search import SemanticScholarBackend, WikipediaBackend
+from .tools.sources import OpenAlexBackend, PatentsViewBackend
 from .verification.cross_model import assert_different_families
 from .verification.gates import (
     gate_code,
@@ -462,17 +464,31 @@ def build_live(generator: str, verifier: str) -> tuple[Dependencies, Config]:
     consistent with reality.
     """
     assert_different_families(generator, verifier)
+    # Wikipedia first: keyless and reliable. Semantic Scholar second: academic depth, but
+    # 429s without a key — it degrades visibly (logged) rather than blocking the run, so a
+    # missing key never fabricates or empties a result. arXiv + OpenAlex add keyless preprint
+    # and scholarly-graph breadth (prior art); every backend skips id-less rows and raises a
+    # loud SearchBackendError on transport/parse failure (never a silent or fabricated hit).
+    backends = [
+        WikipediaBackend(default_http_get),
+        SemanticScholarBackend(default_http_get),
+        FormulaBackend(default_http_get),  # formula-aware: DLMF, CODATA, authoritative laws
+        ArxivBackend(default_http_get),    # preprints (arXiv Atom API, keyless)
+        OpenAlexBackend(default_http_get), # scholarly graph + prior art (OpenAlex, CC0, keyless)
+    ]
+    # PatentsView v1 needs an X-Api-Key header; the key is baked into the injected transport
+    # per the backend's seam note. Register the patent backend ONLY when a key is present — we
+    # do not wire a backend we cannot honestly run (without a key the endpoint just 403s).
+    _patents_key = os.environ.get("PATENTSVIEW_API_KEY")
+    if _patents_key:
+        import functools
+
+        keyed_http_get = functools.partial(
+            default_http_get, headers={"X-Api-Key": _patents_key}
+        )
+        backends.append(PatentsViewBackend(keyed_http_get))
     deps = Dependencies(
-        # Wikipedia first: keyless and reliable. Semantic Scholar second: academic
-        # depth, but 429s without a key — it degrades visibly (logged) rather than
-        # blocking the run, so a missing key never fabricates or empties a result.
-        backends=[
-            WikipediaBackend(default_http_get),
-            SemanticScholarBackend(default_http_get),
-            FormulaBackend(
-                default_http_get
-            ),  # formula-aware: DLMF, CODATA, authoritative laws
-        ],
+        backends=backends,
         http_get=default_http_get,
         generator_llm=make_llm(generator),
         verifier_llm=make_llm(verifier),
