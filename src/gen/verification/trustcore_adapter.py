@@ -1,12 +1,15 @@
-"""Adapter onto `trust-core` verification math (optional `verify` extra).
+"""Adapter onto `trust-core` verification math (OPTIONAL `verify` extra).
 
-GENESIS depends on `trust-core` for the conformal / FDR primitives instead of
-re-deriving them: PoV-1 proved `trust_core.conformal.split.split_conformal_threshold`
-is byte-identical to GENESIS's own split-conformal quantile (0 mismatch / 5000 cases),
-and `trust-core` additionally ships FDR control + CCDD drift detection that GENESIS
-lacked. `trust-core` is a thin, dual-licensed (Apache-2.0 OR MIT) library that VERIDEX
-already consumes; installing it editable makes it the single source of truth for this
-math (no duplicated implementation in `src/gen`).
+HONEST SCOPE (corrected 2026-06-28): GENESIS does NOT depend on `trust-core`. The default,
+always-present implementation of the split-conformal quantile lives in `gen.calibration.
+conformal_quantile` and is the single source of truth for core runs; `trust-core` is a private,
+optional library (not on PyPI, not installed by default) and this adapter is imported ONLY by
+callers that opt into the `verify` extra. So a duplicate implementation DOES exist by design —
+the built-in is canonical; this adapter is a parity bridge, not a dependency. PoV-1 proved
+`trust_core.conformal.split.split_conformal_threshold` is byte-identical to the built-in
+(0 mismatch / 5000 cases); `trust-core` additionally ships FDR control + CCDD drift detection
+that the built-in does not. When the extra is absent, importing this module raises a clear error
+(below) — it never silently swaps the math.
 
 This adapter keeps GENESIS's honesty conventions at the boundary:
   * an under-sized calibration set returns ``None`` (honest abstention), never an

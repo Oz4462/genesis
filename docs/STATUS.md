@@ -25,6 +25,22 @@
 > physics; fixed a dead `overtemperature` recipe unit `W/(m*K)`→`W/m/K`); new **deliverable finalizer**
 > (`finalizer/professional_package.py` + `--deliver`: real Markdown+HTML, no fabricated metrics). First product
 > run: `~/Schreibtisch/GENESIS_Cooling_Solution_DryLoop-ZW.md`.
+>
+> **2026-06-28 — three §4 WIRE islands closed (islands 66 → 62), each closing a doc honesty gap:**
+> (1) **φ `run_divergence` → `genesis --mode divergence`** (was "dangling capability, no CLI route", §3) — live
+> dispatch mirroring report/solution/spec + honest `format_divergence` renderer (empty = honest abstention).
+> (2) **arXiv + OpenAlex backends → `build_live`** (keyless prior-art/scholarly breadth); **PatentsView** registered
+> ONLY when `PATENTSVIEW_API_KEY` is set (keyed transport) — never wire a backend we cannot honestly run. Makes
+> EXTERNAL_INTEGRATION.md's "arXiv/OpenAlex live" claim true. (3) **`dimensional_guard` → GATE δ-physics**: the
+> automatic scale-invariance check now runs in the live gate over the PROVEN input-homogeneous validators
+> (`SCALE_INVARIANT_VALIDATORS`), failing a dimensionally inconsistent formula with `PHYSICS_DIMENSIONAL_INCONSISTENCY`
+> even if its margin clears — safe by construction (validators with a baked dimensional constant are excluded, so it
+> can never cry wolf; 136 gate-consumer tests stay green). Makes CAPABILITIES.md's "automatic dimensional check" true.
+> **§4 dispositions corrected on closer reading:** `trustcore_adapter` is an OPTIONAL `verify`-extra parity bridge, not
+> dead — its misleading "no duplicated implementation" docstring was corrected (the built-in `calibration.conformal_quantile`
+> is canonical). `pipelines/{designer,wirtschaft}` are NOT deleted: they are two of a deliberate **Fach-Pipelines family**
+> (architekt/ingenieur/physiker/techniker/software/regulatorik/lernmaschine siblings) — honest islands awaiting wiring,
+> the owner's "islands are the destination" case.
 
 ---
 
@@ -80,6 +96,7 @@ What each `genesis --mode X` actually does today. Only the 🟢 modes drive the 
 | `realize` | ⚠️ `integrator` — ships `_generate_*_stub` markdown as deliverables |
 | `breakthrough` | 🟡 honest now — reports "NOT BUILT / DFM NOT EVALUATED" when build123d absent (no fabrication; #2 fixed 2026-06-26) |
 | `goldset` | 🟢 **NEW** — scores GENESIS's own anti-hallucination claim over the 24-case set via the real α pipeline (runner offline-tested; full live run needs LLMs; exit 3 on any fabrication) |
+| `divergence` | 🟢 **NEW (2026-06-28)** — Phase φ live: `run_divergence` (cross-model α → forge → GATE φ); offline via `--demo`, else needs backends. Empty divergence = honest abstention |
 
 > Naming traps: **`runner.py` IS the pipeline** (misnamed); `pipeline.py` is a verdict-composer; `simulation/runner.py` is unrelated.
 
@@ -91,7 +108,7 @@ The project's own `HORIZON.md` is honest here ("first-stone / guarded skeleton")
 
 | Phase | Status | Reality |
 |---|---|---|
-| **φ / χ** | ✅ real, gated, tested | (φ has **no CLI route** — dangling capability) |
+| **φ / χ** | ✅ real, gated, tested | φ now routed: **`genesis --mode divergence`** (2026-06-28); χ has no CLI route yet |
 | **δ⁺ reality** | ✅ honest abstain | #1 fixed — abstains (`inconclusive`) when no independent measurement; no longer fabricates corroboration |
 | **δ⁺ coverage** | ✅ gate / ⚠️ input | hard gate; `reviewed_failure_modes` empty in demo |
 | **γ⁺ inverse-design** | ✅ logic / ⚠️ input | real objective-recompute; fed a trivial 1-point front |
@@ -117,8 +134,9 @@ promotion to `gen/` requires a real wire + a CLI/web entry point** (see §5 prev
 
 | Disposition | Modules (clusters) | Why |
 |---|---|---|
-| 🟢 **WIRE** (real product value, just unplugged) | `goldset`→`--mode eval`; `tools/sources/openalex` + `tools/arxiv_backend` + `tools/sources/patents`→`build_live`; φ `runner.run_divergence`→a CLI mode; `dimensional_guard`→`physics_validation.VALIDATORS` (it's a real check the docs already claim is "automatic") | high value, low effort |
-| 🟠 **FIX or DELETE** (dead **and** misleading) | `verification/trustcore_adapter` (dead + false "no duplicate"); `pipelines/designer` + `pipelines/wirtschaft` (facade-only mappers) | actively misleads |
+| ✅ **WIRED 2026-06-28** (was the WIRE backlog) | ✅ `goldset`→`--mode goldset`; ✅ `tools/sources/openalex` + `tools/arxiv_backend` + `tools/sources/patents`→`build_live`; ✅ φ `runner.run_divergence`→`--mode divergence`; ✅ `dimensional_guard`→GATE δ-physics (proven-homogeneous validators only) | done — closed 4 doc honesty gaps |
+| 🟢 **WIRE** (remaining real product value, unplugged) | φ `run_divergence`'s χ frontier-map → a CLI mode; per-Fach-Pipeline CLI entry points (see below) | high value, low effort |
+| 🔧 **FIXED, not deleted** (was "FIX or DELETE") | `verification/trustcore_adapter` — **NOT dead**: an OPTIONAL `verify`-extra parity bridge; its misleading "no duplicated implementation" docstring was corrected 2026-06-28 (the built-in `calibration.conformal_quantile` is canonical). `pipelines/designer` + `pipelines/wirtschaft` — **NOT deleted**: two of a deliberate **Fach-Pipelines family** (architekt/ingenieur/physiker/techniker/software/regulatorik/lernmaschine), honest islands awaiting a pipeline-family wire | the blueprint's "delete" missed context: these are planned product surface, not zombies |
 | 📦 **ARCHIVE → `_experimental/`** (real, built-on-spec, not product yet) | deep-discovery stack (`controller, run, surrogate, tournament, reality_fork, cosmic_insight, assumption_annihilator, first_principles, universe_bridge, active_resolution, composition, multiterm, transcendental, proof_loop, rl_env, simulated_data, srbench_hygiene`); grenz cluster (`bench_test_runner, capability_gap_analyzer, experiment_designer, milestone_builder, technology_builder, technology_roadmapper, teststand_architect`); `inventor/{archive,evolve_engine,refinement}`; humanoid experiments (`aethon_hydraulics, asimov_feet, agiloped_stand, mj_stand, *_feet, *_controller`) | green tests stay; intent becomes honest |
 | 🔌 **KEEP as opt-in external seam** (intentional, just **label**, don't treat as dead) | `simulation/{pybullet_sim,backends,calculix,modelica}`; `ledger/{postgres,qdrant}`; `integration/{audited_run,drift,identity_research_hook}`; `external/materials_oracle`; `mcp/adapter`; `export/{ros2_package,drawing}` | by-design import-gated |
 
@@ -128,21 +146,21 @@ promotion to `gen/` requires a real wire + a CLI/web entry point** (see §5 prev
 ---
 
 <!-- AUTO:BEGIN -->
-_Auto-generated by `scripts/gen_status.py` on **2026-06-26**. Do not edit by hand — re-run the script._
+_Auto-generated by `scripts/gen_status.py` on **2026-06-28**. Do not edit by hand — re-run the script._
 
 ### Reachability (via `scripts/find_islands.py`)
 
 | modules | WIRED | SCRIPT (runnable, not wired) | ISLAND (no caller) | INFRA |
 |--:|--:|--:|--:|--:|
-| 314 | 205 | 11 | 66 | 32 |
+| 315 | 209 | 11 | 62 | 33 |
 
-**Live test suite:** 3432 collected
+**Live test suite:** 3442 collected
 
-**Islands by category** (66 total — real code, no production caller):
+**Islands by category** (62 total — real code, no production caller):
 
-- **facade-only** (imported only by a package `__init__` re-export — false liveness): `gen.discovery.active_resolution`, `gen.discovery.assumption_annihilator`, `gen.discovery.composition`, `gen.discovery.cosmic_insight`, `gen.discovery.first_principles`, `gen.discovery.reality_fork`, `gen.discovery.surrogate`, `gen.discovery.universe_bridge`, `gen.export.drawing`, `gen.integration.audited_run`, `gen.integration.drift`, `gen.ledger.postgres`, `gen.ledger.qdrant`, `gen.mcp.adapter`, `gen.pipelines.designer`, `gen.pipelines.wirtschaft`, `gen.research_promotion`, `gen.tools.arxiv_backend`, `gen.tools.sources.openalex`, `gen.tools.sources.patents`, `gen.tools.wikidata`, `gen.wissensbasis.evidence`
+- **facade-only** (imported only by a package `__init__` re-export — false liveness): `gen.discovery.active_resolution`, `gen.discovery.assumption_annihilator`, `gen.discovery.composition`, `gen.discovery.cosmic_insight`, `gen.discovery.first_principles`, `gen.discovery.reality_fork`, `gen.discovery.surrogate`, `gen.discovery.universe_bridge`, `gen.export.drawing`, `gen.integration.audited_run`, `gen.integration.drift`, `gen.ledger.postgres`, `gen.ledger.qdrant`, `gen.mcp.adapter`, `gen.pipelines.designer`, `gen.pipelines.wirtschaft`, `gen.research_promotion`, `gen.tools.wikidata`, `gen.wissensbasis.evidence`
 
-- **test-only** (imported only by tests): `gen.aero.model_parser`, `gen.bracket_fem`, `gen.calibration`, `gen.cfd`, `gen.dimensional_guard`, `gen.discovery.proof_loop`, `gen.discovery.rl_env`, `gen.discovery.simulated_data`, `gen.discovery.srbench_hygiene`, `gen.discovery.uncertainty`, `gen.export.ros2_package`, `gen.frontier`, `gen.humanoids.agiloped_stand`, `gen.humanoids.asimov_feet`, `gen.humanoids.balance_controller`, `gen.humanoids.insim_mujoco`, `gen.humanoids.mj_stand`, `gen.humanoids.n1_feet`, `gen.integration.identity_research_hook`, `gen.inventor.archive`, `gen.inventor.evolve_engine`, `gen.inventor.refinement`, `gen.montecarlo`, `gen.plate_hole`, `gen.simulation.backends`, `gen.simulation.calculix`, `gen.simulation.modelica`, `gen.simulation.pybullet_sim`, `gen.simulation.surrogate`, `gen.tools.ollama_embedder`, `gen.urdf_bridge`, `gen.verification.trustcore_adapter`
+- **test-only** (imported only by tests): `gen.aero.model_parser`, `gen.bracket_fem`, `gen.calibration`, `gen.cfd`, `gen.discovery.proof_loop`, `gen.discovery.rl_env`, `gen.discovery.simulated_data`, `gen.discovery.srbench_hygiene`, `gen.discovery.uncertainty`, `gen.export.ros2_package`, `gen.frontier`, `gen.humanoids.agiloped_stand`, `gen.humanoids.asimov_feet`, `gen.humanoids.balance_controller`, `gen.humanoids.insim_mujoco`, `gen.humanoids.mj_stand`, `gen.humanoids.n1_feet`, `gen.integration.identity_research_hook`, `gen.inventor.archive`, `gen.inventor.evolve_engine`, `gen.inventor.refinement`, `gen.montecarlo`, `gen.plate_hole`, `gen.simulation.backends`, `gen.simulation.calculix`, `gen.simulation.modelica`, `gen.simulation.pybullet_sim`, `gen.simulation.surrogate`, `gen.tools.ollama_embedder`, `gen.urdf_bridge`, `gen.verification.trustcore_adapter`
 
 - **transitive** (imported only by other islands): `gen.aero.calibration`, `gen.aero.drone_catalog`, `gen.aero.scaling_laws`, `gen.discovery.reward`, `gen.discovery.validation`, `gen.humanoids.coacd_feet`, `gen.humanoids.rl_env`, `gen.humanoids.step_controller`, `gen.humanoids.step_env`, `gen.memory.verified_facts`, `gen.refinement`, `gen.verification.drift_monitor`
 
@@ -162,7 +180,7 @@ _Auto-generated by `scripts/gen_status.py` on **2026-06-26**. Do not edit by han
 | `skeleton` | 38 |
 | `stub` | 104 |
 | `placeholder` | 31 |
-| `demo` | 193 |
+| `demo` | 195 |
 | `hardcoded` | 11 |
 | `HACK` | 5 |
 <!-- AUTO:END -->
