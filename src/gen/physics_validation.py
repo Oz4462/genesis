@@ -35,6 +35,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from .dimensional_guard import scale_invariance_report
 from .bolted_joint import bolted_joint_check
 from .buckling import buckling_check
 from .contact import contact_check
@@ -139,28 +140,82 @@ VALIDATORS = {
 }
 
 
+# Validators PROVEN input-homogeneous: their dimensionless safety_factor stays invariant under a
+# coherent unit rescaling (see tests/test_dimensional_invariance.py). ONLY these are auto-checked by
+# the dimensional guard at gate time. A validator that bakes in a DIMENSIONAL constant it does not
+# take as an argument (e.g. a hard-coded g) is NOT input-homogeneous and would false-alarm — so it
+# is excluded BY CONSTRUCTION (dimensional_guard.py "HONEST SCOPE"). The guard can only ever fire on
+# a genuine dimensional formula bug in one of these, never cry wolf on a correct one. Extending this
+# set requires adding a scale-invariance proof to that test, never a guess.
+SCALE_INVARIANT_VALIDATORS: frozenset[str] = frozenset({
+    "electric_actuator",
+    "hydraulic_cylinder",
+    "hydraulic_flow",
+    "birthday_bound",
+    "gcm_invocation_budget",
+})
+
+
+def _dimensional_ok(validator: str, inputs: dict, input_units: dict, result: dict) -> bool | None:
+    """Run the dimensional guard on an input-homogeneous validator: its dimensionless
+    ``safety_factor`` must be INVARIANT under a coherent unit rescaling (dimensional_guard).
+
+    Returns True/False, or None when the check is not eligible — the validator is not in the
+    proven-homogeneous set, no per-input units were declared, or the result has no numeric
+    safety_factor. A returned False is a real dimensional formula bug in the validator, NOT a
+    physics-margin failure. Non-unit ``extra`` kwargs (dimensionless config like an end-condition)
+    are passed through fixed, only the unit-carrying inputs are rescaled.
+    """
+    if validator not in SCALE_INVARIANT_VALIDATORS:
+        return None
+    sf = result.get("safety_factor")
+    if not isinstance(sf, (int, float)) or isinstance(sf, bool):
+        return None
+    units = {arg: u for arg, u in input_units.items() if arg in inputs}
+    if not units:
+        return None
+    fn = VALIDATORS[validator]
+    extra = {k: v for k, v in inputs.items() if k not in units}
+    guard_inputs = {arg: (inputs[arg], u) for arg, u in units.items()}
+
+    def _fn(**kw):
+        return fn(**kw, **extra)
+
+    try:
+        rep = scale_invariance_report(_fn, guard_inputs)
+    except Exception:
+        return None  # the guard could not run (opaque unit, etc.) — not a dimensional verdict
+    return bool(rep["invariant"])
+
+
 @dataclass(frozen=True)
 class PhysicsCheck:
     """One declared engineering check: run validator `validator` with `inputs`.
 
-    `name`       human label for the location/check (e.g. "drive shaft torsion").
-    `validator`  a key in ``VALIDATORS``.
-    `inputs`     keyword arguments for that validator (resolved numeric values).
+    `name`        human label for the location/check (e.g. "drive shaft torsion").
+    `validator`   a key in ``VALIDATORS``.
+    `inputs`      keyword arguments for that validator (resolved numeric values).
+    `input_units` arg -> unit string (from the recipe), enabling the dimensional guard for the
+                  proven-homogeneous validators. Optional/empty = no dimensional check (backward
+                  compatible — a check built without units behaves exactly as before).
     """
 
     name: str
     validator: str
     inputs: dict = field(default_factory=dict)
+    input_units: dict = field(default_factory=dict)
 
 
 def run_physics_checks(checks: list[PhysicsCheck]) -> list[dict]:
     """Run every check and return per-check evidence (no pass/fail decision here).
 
     Each result dict carries ``{"name", "validator", "status", "ok", "detail",
-    "result"}``: status is "ran" | "unknown" | "error"; ok is the validator's verdict
-    (False for unknown/error); result is the validator's full output dict (or None);
-    detail is a short human reason for unknown/error. Deterministic; runs each validator
-    in a try/except so one bad check cannot abort the batch.
+    "result", "dimensional_ok"}``: status is "ran" | "unknown" | "error"; ok is the
+    validator's verdict (False for unknown/error); result is the validator's full output
+    dict (or None); detail is a short human reason for unknown/error; dimensional_ok is the
+    scale-invariance verdict (True/False) for a proven-homogeneous validator with declared
+    units, else None (not checked). Deterministic; runs each validator in a try/except so one
+    bad check cannot abort the batch.
     """
     out: list[dict] = []
     for check in checks:
@@ -169,7 +224,7 @@ def run_physics_checks(checks: list[PhysicsCheck]) -> list[dict]:
             out.append({
                 "name": check.name, "validator": check.validator, "status": "unknown",
                 "ok": False, "detail": f"no validator named {check.validator!r}",
-                "result": None,
+                "result": None, "dimensional_ok": None,
             })
             continue
         try:
@@ -178,11 +233,15 @@ def run_physics_checks(checks: list[PhysicsCheck]) -> list[dict]:
             out.append({
                 "name": check.name, "validator": check.validator, "status": "error",
                 "ok": False, "detail": f"{type(exc).__name__}: {exc}", "result": None,
+                "dimensional_ok": None,
             })
             continue
         out.append({
             "name": check.name, "validator": check.validator, "status": "ran",
             "ok": bool(result.get("ok", False)), "detail": "", "result": result,
+            "dimensional_ok": _dimensional_ok(
+                check.validator, check.inputs, check.input_units, result
+            ),
         })
     return out
 
@@ -192,9 +251,12 @@ def gate_delta_physics(checks: list[PhysicsCheck]) -> GateResult:
 
     Passes only if EVERY check ran and reported ok. Each non-passing check yields a
     GateFailure: ``PHYSICS_UNKNOWN_VALIDATOR`` (no code to evaluate it),
-    ``PHYSICS_CHECK_ERROR`` (the validator raised — un-evaluatable inputs), or
+    ``PHYSICS_CHECK_ERROR`` (the validator raised — un-evaluatable inputs),
     ``PHYSICS_CHECK_FAILED`` (ran but the margin is not cleared, with the safety factor
-    in the detail). An empty list passes vacuously. Pure; no model calls.
+    in the detail), or ``PHYSICS_DIMENSIONAL_INCONSISTENCY`` (ran and cleared its margin
+    but its safety_factor is NOT scale-invariant — a dimensional formula bug in the
+    validator itself, caught automatically by the dimensional guard). An empty list passes
+    vacuously. Pure; no model calls.
     """
     failures: list[GateFailure] = []
     for r in run_physics_checks(checks):
@@ -214,5 +276,11 @@ def gate_delta_physics(checks: list[PhysicsCheck]) -> GateResult:
             failures.append(GateFailure(
                 code="PHYSICS_CHECK_FAILED",
                 detail=f"{r['name']} ({r['validator']}): not ok (safety_factor={margin})",
+            ))
+        elif r.get("dimensional_ok") is False:
+            failures.append(GateFailure(
+                code="PHYSICS_DIMENSIONAL_INCONSISTENCY",
+                detail=f"{r['name']} ({r['validator']}): safety_factor is not scale-invariant "
+                       "— a dimensionally inconsistent term in the validator formula",
             ))
     return GateResult(gate="delta-physics", passed=not failures, failures=failures)

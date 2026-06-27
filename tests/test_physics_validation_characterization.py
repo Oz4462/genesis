@@ -207,7 +207,9 @@ def test_run_physics_checks_evidence_shape():
             "pressure": 10.0, "r_inner": 500.0, "thickness": 10.0, "yield_strength": 600.0,
         })
     ])
-    assert set(evidence[0]) == {"name", "validator", "status", "ok", "detail", "result"}
+    assert set(evidence[0]) == {
+        "name", "validator", "status", "ok", "detail", "result", "dimensional_ok",
+    }
 
 
 # --- property: pass/fail is monotone in the safety margin (yield strength) ---

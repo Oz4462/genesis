@@ -523,7 +523,12 @@ def select_physics_checks(spec: Specification) -> tuple[list[PhysicsCheck], list
                 f"indiziert, kann aber nicht laufen: {'; '.join(problems)}"
             )
         else:
-            checks.append(PhysicsCheck(recipe.name, recipe.validator, inputs))
+            # Carry each input's declared unit so the gate can run the dimensional guard on the
+            # proven-homogeneous validators (the unit the value was converted INTO, per the recipe).
+            input_units = {arg: unit for arg, (_measurand, unit) in recipe.inputs.items()}
+            checks.append(
+                PhysicsCheck(recipe.name, recipe.validator, inputs, input_units=input_units)
+            )
     return checks, gaps
 
 
