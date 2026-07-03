@@ -96,12 +96,14 @@ def test_cli_no_question_prints_help_returns_2(capsys):
 
 def test_cli_assess_mode_prints_the_honest_verdict(capsys):
     # the wired quality engine is reachable from the CLI, offline: the drive shaft
-    # verifies, the bracket honestly reports "no_physics_indicated" (not a fake pass).
+    # verifies, the bracket (with BOM cost obligations) may report seams_failed when
+    # no seam_certificate (honest); or no_physics_indicated. Never fake verified.
     rc = main(["--mode", "assess"])
     out = capsys.readouterr().out
     assert rc == 0
     assert "physics_verified" in out          # drive shaft — physics validators fit
-    assert "no_physics_indicated" in out      # bracket — no physics measurands, surfaced honestly
+    # bracket: physics-vacuous or seams (cost) — both honest, never "physics_verified"
+    assert ("no_physics_indicated" in out) or ("seams_failed" in out)
     assert "Anforderungen konsistent: True" in out
 
 

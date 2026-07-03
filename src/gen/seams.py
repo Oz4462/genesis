@@ -57,7 +57,11 @@ def _quantity_map(spec: Specification) -> dict[str, Quantity]:
 
 
 def _looks_thermal(q: Quantity) -> bool:
+    """Detect THERMAL domain via unit or markers in id/name/measurand (prefix-aware for robustness)."""
     text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
+    m = q.measurand or ""
+    if m.startswith(("thermal.", "temperature.", "heat.")):
+        return True
     markers = (
         "thermal",
         "temperature",
@@ -72,7 +76,11 @@ def _looks_thermal(q: Quantity) -> bool:
 
 
 def _looks_radiation(q: Quantity) -> bool:
+    """Detect RADIATION domain via unit or markers (hardened with measurand prefix awareness)."""
     text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
+    m = (q.measurand or "").lower()
+    if m.startswith("radiation.") or m.startswith("rad."):
+        return True
     markers = (
         "radiation",
         "dose",
@@ -84,14 +92,50 @@ def _looks_radiation(q: Quantity) -> bool:
     return any(marker in text for marker in markers) or q.unit in {"Sv", "Gy"}
 
 
+def _looks_electrical(q: Quantity) -> bool:
+    """Detect ELECTRICAL domain via unit or markers in id/name/measurand (prefix-aware).
+
+    Ensures T+E specs (even without netlist or ELECTRONIC BomItem) trigger THERMAL-ELECTRICAL
+    seam requirement in required_seam_pairs, so assess_specification always runs gate_epsilon
+    for power->heat couplings (closes Befund 1 hole).
+    """
+    text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
+    m = q.measurand or ""
+    if m.startswith(("electronics.", "elec.", "electrical.", "bus.", "compute.")):
+        return True
+    markers = (
+        "electronics",
+        "elec",
+        "current",
+        "voltage",
+        "dissipat",
+        "bus",
+        "inference",
+        "power_budget",
+    )
+    unit_e = q.unit in {"A", "V"}
+    # W only if explicit elec context (thermal power W must not falsely force ELEC alone)
+    power_elec = q.unit == "W" and ("elec" in text or "electronics" in text or "dissipat" in text)
+    return unit_e or any(marker in text for marker in markers) or power_elec
+
+
 def domains_present(spec: Specification) -> set[SeamDomain]:
-    """Detect which domains are present enough for epsilon seam coverage."""
+    """Detect which domains are present enough for epsilon seam coverage.
+
+    Uses quantity heuristics (measurand-prefix + markers) for THERMAL/RADIATION/ELECTRICAL
+    in addition to structural (components/bom/netlist) so pure quantity-driven T+E specs
+    always produce required THERM-ELEC pair and trigger needs_seams/gate in assess.
+    """
     present: set[SeamDomain] = set()
     if spec.components or any(item.domain is BomDomain.MECHANICAL for item in spec.bom):
         present.add(SeamDomain.MECHANICAL)
     if any(_looks_thermal(q) for q in spec.quantities):
         present.add(SeamDomain.THERMAL)
-    if spec.netlist is not None or any(item.domain is BomDomain.ELECTRONIC for item in spec.bom):
+    if (
+        spec.netlist is not None
+        or any(item.domain is BomDomain.ELECTRONIC for item in spec.bom)
+        or any(_looks_electrical(q) for q in spec.quantities)
+    ):
         present.add(SeamDomain.ELECTRICAL)
     if spec.code_artifacts:
         present.add(SeamDomain.FIRMWARE)

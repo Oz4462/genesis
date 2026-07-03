@@ -150,6 +150,8 @@ def assess_specification(
     # Phase ε seam verification (wired mandatorily per rigorous multi-physics expansion)
     # If the spec has required adjacent domain pairs or COST rollup, run gate_epsilon.
     # Empty cert (when none provided) produces explicit honest failures (MISSING_* etc.).
+    # T+E (THERMAL+ELECTRICAL) always triggers via improved domains_present (quantity measurands)
+    # even without bom/netlist (prevents gate skip for power->heat specs).
     required_pairs = required_seam_pairs(spec)
     needs_seams = bool(required_pairs) or cost_rollup_required(spec)
     seam_gate: GateResult | None = None

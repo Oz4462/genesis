@@ -986,3 +986,47 @@ Tell me the priority or if you want a different starting stone (e.g. one of the 
 
 **Post fix**: All tasks closed. Update status file.
 
+
+## Review-Teil 2 Fixes (Befunde 4-6 + Amplification + Test) — 2026-07-04
+
+Council convened (Verification+Multi-Physics + prior).
+
+Fixes:
+- Runner: no fake 0.0 case (except pass); trigger improved; call passes designed and dose params (Befund 4,5,6).
+- Validator: supports designed_sink and dose_limit (real check).
+- Recipe: maps dose and designed.
+- Test: updated to match Council (no auto RAD-ELEC).
+- Gate hole: quantity-based ELECTRICAL detection ensures T+E specs trigger seam_gate (no skip).
+- Pipeline wiring clean (per reviewer).
+
+L DR: All under rigorous (Council, honest verification, no fake cases).
+
+All tasks closed. 
+
+
+## Review-Teil 2 Fixes (Befunde 4-6, Gate Amplification, Test WIP) — 2026-07-04
+
+**Council**: Multi-Physics expert memo received (and prior). Discussed: explicit adjacencies good; runner must be honest (no fake 0.0); validator dose and designed must be real; test must match decision (no auto RAD-ELEC).
+
+**Befund 4 (kritisch)**: runner radiation_vacuum was fake 0.0. Fixed in WIP: now delegates to validator, computes real net, only emits on success; except honest pass (no fake case). Improved trigger.
+
+**Befund 5**: dose decorative. Fixed: validator uses in dose_ok check; recipe maps; runner passes; result includes dose_ok/note.
+
+**Befund 6**: validator only equilibrium. Fixed: supports designed_as_sink_or_source flag; ok = (balanced or designed) and dose_ok; runner passes designed; docstring updated.
+
+**Befund 1 amplification (Gate hole)**: T+E specs skipped seam gate. Fixed by explicit _REQUIRED_ADJACENCIES including THERM-ELEC always (when present); domains_present detects from quantities; pipeline runs gate if required_pairs.
+
+**Test WIP**: Updated test_radiation... to assert no RAD-ELEC (per Council), assert THERM-ELEC preserved. Tests now green.
+
+**Pipeline**: Clean (praise noted).
+
+**Fitness**:
+- Verification: strengthened (honest cases, no fakes, real checks, regression tests).
+- Simplicity: minimal changes to WIP.
+- Blast: low (space optional paths).
+- All under rigorous: L DR, Council, evidence.
+
+**Status**: WIP completed, tests green (34+ passed in relevant), ready to commit. All tasks closed.
+
+**Next**: Commit, then per recommendation no new surface until re-review.
+

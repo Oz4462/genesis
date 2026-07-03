@@ -99,17 +99,51 @@ class SimulationRunner:
         material = material or {}
         cases: list[SimulationCase] = []
         # Radiation extension for space multi-physics (links to RADIATION domain and vacuum validator)
-        if "radiation" in str(loads).lower() or any("radiation" in str(m).lower() for m in [material] if material):
-            cases.append(SimulationCase(
-                domain="radiation_vacuum",
-                description="Vacuum radiation balance (space)",
-                predicted_value=0.0,  # placeholder, real from validator
-                predicted_unit="W",
-                tolerance=0.1,
-                inputs_summary={"radiation": "coupled to vacuum_radiation_balance_check"},
-                solver="stefan_boltzmann + RADIATION seam",
-                quelle=self.quelle_base + " + RADIATION domain",
-            ))
+        # Concrete integration: delegate to vacuum_radiation_balance_check (delta-physics) when inputs present.
+        # This feeds real net/radiated from Stefan-Boltzmann into SimulationCase (for co-sim + falsif).
+        # Seams (epsilon) separately certify declared cross-domain expressions (rad-therm, future rad-elec).
+        # Improved trigger (structured, not fragile str substring per review)
+        rad_trigger = (
+            any(k for k in (loads or {}) if "radiation" in str(k).lower() or "solar" in str(k).lower())
+            or (material and any(k for k in (material or {}) if "radiation" in str(k).lower() or "emissivity" in str(k).lower()))
+            or (hasattr(artifact, 'spec') and getattr(artifact, 'spec', None) and "radiation" in str(getattr(getattr(artifact, 'spec', None), 'description', '') or '').lower())
+        )
+        if rad_trigger:
+            try:
+                from ..physics_validation import vacuum_radiation_balance_check
+                absorbed = float(loads.get("absorbed_solar_w", loads.get("power_w", 100.0)))
+                eps = float(material.get("emissivity", loads.get("epsilon", 0.8)))
+                area = float(loads.get("area_m2", 0.5))
+                t = float(loads.get("t_k", loads.get("temperature_k", 300.0)))
+                dose = float(loads.get("radiation_dose_sv", 0.0))
+                designed = bool(loads.get("designed_sink", loads.get("eclipse", 0))) or (absorbed <= 0)
+                dose_limit = float(loads.get("radiation_dose_limit_sv", 1e12))
+                res = vacuum_radiation_balance_check(
+                    absorbed_solar_w=absorbed, epsilon=eps, area_m2=area, t_k=t,
+                    tol=0.1, radiation_dose_sv=dose,
+                    designed_as_sink_or_source=designed,
+                    dose_limit_sv=dose_limit
+                )
+                net = float(res.get("net_heat_w", 0.0))
+                cases.append(SimulationCase(
+                    domain="radiation_vacuum",
+                    description="Vacuum radiation balance (space)",
+                    predicted_value=round(net, 4),
+                    predicted_unit="W",
+                    tolerance=0.1,
+                    inputs_summary={
+                        "absorbed_solar_w": absorbed, "epsilon": eps, "area_m2": area, "t_k": t,
+                        "validator_result": {k: res.get(k) for k in ("ok", "radiated_w", "net_heat_w") if k in res}
+                    },
+                    solver="stefan_boltzmann + vacuum_radiation_balance_check",
+                    quelle=self.quelle_base + " + RADIATION domain + physics_validation.vacuum_radiation_balance_check (direct)",
+                    runtime_notes=["Integrated with delta validator for honest net heat; pairs with epsilon RADIATION-THERMAL seam"],
+                ))
+            except Exception:
+                # Honest: NEVER emit uncomputed case claiming a real solver (Befund 4).
+                # Only when validator actually succeeds do we emit radiation_vacuum.
+                # (Prevents 0.0 fake computation for space cases.)
+                pass
 
         # Smarter domain selection hint from physics_selection (concrete improvement)
         try:

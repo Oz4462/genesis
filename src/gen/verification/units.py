@@ -221,6 +221,7 @@ _ATOM_SCALE: dict[str, float] = {
     "pcs": 1.0, "count": 1.0, "x": 1.0,
     "m": 1.0, "g": 1e-3, "s": 1.0, "A": 1.0, "K": 1.0, "mol": 1.0, "cd": 1.0,
     "metre": 1.0, "meter": 1.0,
+    "Sv": 1.0, "Gy": 1.0,  # radiation dose units (scale 1; for RADIATION domain mapping)
     "min": 60.0, "h": 3600.0, "hr": 3600.0, "day": 86400.0,
     "t": 1e3,                                   # tonne = 1000 kg
     "L_vol": 1e-3,                              # litre = 1e-3 m³
