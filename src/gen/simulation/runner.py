@@ -109,41 +109,51 @@ class SimulationRunner:
             or (hasattr(artifact, 'spec') and getattr(artifact, 'spec', None) and "radiation" in str(getattr(getattr(artifact, 'spec', None), 'description', '') or '').lower())
         )
         if rad_trigger:
-            try:
-                from ..physics_validation import vacuum_radiation_balance_check
-                absorbed = float(loads.get("absorbed_solar_w", loads.get("power_w", 100.0)))
-                eps = float(material.get("emissivity", loads.get("epsilon", 0.8)))
-                area = float(loads.get("area_m2", 0.5))
-                t = float(loads.get("t_k", loads.get("temperature_k", 300.0)))
-                dose = float(loads.get("radiation_dose_sv", 0.0))
-                designed = bool(loads.get("designed_sink", loads.get("eclipse", 0))) or (absorbed <= 0)
-                dose_limit = float(loads.get("radiation_dose_limit_sv", 1e12))
-                res = vacuum_radiation_balance_check(
-                    absorbed_solar_w=absorbed, epsilon=eps, area_m2=area, t_k=t,
-                    tol=0.1, radiation_dose_sv=dose,
-                    designed_as_sink_or_source=designed,
-                    dose_limit_sv=dose_limit
-                )
-                net = float(res.get("net_heat_w", 0.0))
-                cases.append(SimulationCase(
-                    domain="radiation_vacuum",
-                    description="Vacuum radiation balance (space)",
-                    predicted_value=round(net, 4),
-                    predicted_unit="W",
-                    tolerance=0.1,
-                    inputs_summary={
-                        "absorbed_solar_w": absorbed, "epsilon": eps, "area_m2": area, "t_k": t,
-                        "validator_result": {k: res.get(k) for k in ("ok", "radiated_w", "net_heat_w") if k in res}
-                    },
-                    solver="stefan_boltzmann + vacuum_radiation_balance_check",
-                    quelle=self.quelle_base + " + RADIATION domain + physics_validation.vacuum_radiation_balance_check (direct)",
-                    runtime_notes=["Integrated with delta validator for honest net heat; pairs with epsilon RADIATION-THERMAL seam"],
-                ))
-            except Exception:
-                # Honest: NEVER emit uncomputed case claiming a real solver (Befund 4).
-                # Only when validator actually succeeds do we emit radiation_vacuum.
-                # (Prevents 0.0 fake computation for space cases.)
+            # Fix Befund 8: no silent defaults; only emit if Pflicht inputs present (absorbed/eps/area/t)
+            # Fix Befund 9: designed only from explicit flag, not auto from absorbed<=0
+            absorbed = loads.get("absorbed_solar_w") or loads.get("power_w")
+            eps = material.get("emissivity") or loads.get("epsilon")
+            area = loads.get("area_m2")
+            t = loads.get("t_k") or loads.get("temperature_k")
+            if absorbed is None or eps is None or area is None or t is None:
+                # missing Pflicht-Inputs -> do not emit case (no invented numbers)
                 pass
+            else:
+                try:
+                    from ..physics_validation import vacuum_radiation_balance_check
+                    absorbed = float(absorbed)
+                    eps = float(eps)
+                    area = float(area)
+                    t = float(t)
+                    dose = float(loads.get("radiation_dose_sv", 0.0))
+                    designed = bool(loads.get("designed_sink", loads.get("eclipse", False)))
+                    dose_limit = float(loads.get("radiation_dose_limit_sv", 1e12))
+                    res = vacuum_radiation_balance_check(
+                        absorbed_solar_w=absorbed, epsilon=eps, area_m2=area, t_k=t,
+                        tol=0.1, radiation_dose_sv=dose,
+                        designed_as_sink_or_source=designed,
+                        dose_limit_sv=dose_limit
+                    )
+                    net = float(res.get("net_heat_w", 0.0))
+                    cases.append(SimulationCase(
+                        domain="radiation_vacuum",
+                        description="Vacuum radiation balance (space)",
+                        predicted_value=round(net, 4),
+                        predicted_unit="W",
+                        tolerance=0.1,
+                        inputs_summary={
+                            "absorbed_solar_w": absorbed, "epsilon": eps, "area_m2": area, "t_k": t,
+                            "validator_result": {k: res.get(k) for k in ("ok", "radiated_w", "net_heat_w") if k in res}
+                        },
+                        solver="stefan_boltzmann + vacuum_radiation_balance_check",
+                        quelle=self.quelle_base + " + RADIATION domain + physics_validation.vacuum_radiation_balance_check (direct)",
+                        runtime_notes=["Integrated with delta validator for honest net heat; pairs with epsilon RADIATION-THERMAL seam"],
+                    ))
+                except Exception:
+                    # Honest: NEVER emit uncomputed case claiming a real solver (Befund 4).
+                    # Only when validator actually succeeds do we emit radiation_vacuum.
+                    # (Prevents 0.0 fake computation for space cases.)
+                    pass
 
         # Smarter domain selection hint from physics_selection (concrete improvement)
         try:
