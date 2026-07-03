@@ -76,13 +76,12 @@ def _looks_radiation(q: Quantity) -> bool:
     markers = (
         "radiation",
         "dose",
-        "rad",
         "gamma",
         "solar_flux",
         "albedo",
         "eclipse",
     )
-    return any(marker in text for marker in markers) or q.unit in {"Sv", "Gy", "rad"}
+    return any(marker in text for marker in markers) or q.unit in {"Sv", "Gy"}
 
 
 def domains_present(spec: Specification) -> set[SeamDomain]:
@@ -104,15 +103,56 @@ def domains_present(spec: Specification) -> set[SeamDomain]:
 
 
 def required_seam_pairs(spec: Specification) -> list[tuple[SeamDomain, SeamDomain]]:
-    """Adjacent chain pairs whose domains are both present and therefore need a seam.
-    Now includes RADIATION (after THERMAL) for space multi-physics (vacuum radiation balance, dose effects).
+    """Required adjacent seam pairs for domains that are both present.
+
+    Core Earth couplings are preserved independently of optional space domains.
+    RADIATION couplings are additive when the domain is present (primarily THERM-RAD
+    for vacuum radiation balance).
+
+    Explicit list (instead of linear chain projection) ensures no regression on
+    fundamental pairs like THERMAL-ELECTRICAL when RADIATION is absent, and avoids
+    unintended bridging when domains are skipped.
     """
     present = domains_present(spec)
-    required: list[tuple[SeamDomain, SeamDomain]] = []
-    for left, right in zip(_CHAIN, _CHAIN[1:], strict=False):
-        if left in present and right in present:
-            required.append(_pair(left, right))
+    # Explicit core + space attachments. Core pairs (THERM-ELEC etc.) are required
+    # whenever their domains are present, regardless of RADIATION.
+    # See L DR 2026-07-04 (council perspectives: explicit preferred for correctness,
+    # simplicity, evolvability for space).
+    _REQUIRED_ADJACENCIES = [
+        (SeamDomain.MECHANICAL, SeamDomain.THERMAL),
+        (SeamDomain.THERMAL, SeamDomain.ELECTRICAL),  # core power->heat, preserved
+        (SeamDomain.ELECTRICAL, SeamDomain.FIRMWARE),
+        (SeamDomain.THERMAL, SeamDomain.RADIATION),   # vacuum radiation primary
+        # RAD-ELEC or MECH-RAD added only if physics justification (dose effects)
+        # is documented and tested.
+    ]
+    required = [_pair(a, b) for a, b in _REQUIRED_ADJACENCIES if a in present and b in present]
     return required
+
+
+# Example radiation-thermal seam for space (vacuum radiation balance)
+# Usage in spec (when RADIATION domain present via dose/solar_flux etc):
+# seam = DomainSeam(
+#     id="rad_thermal_vacuum",
+#     left_domain=SeamDomain.THERMAL,
+#     right_domain=SeamDomain.RADIATION,
+#     left_expr="q_net_heat_w",
+#     right_expr="q_absorbed_w - q_radiated_w",
+#     relation=SeamRelation.EQ,
+#     rationale="Vacuum radiation dominant; links to vacuum_radiation_balance_check"
+# )
+# Future radiation-electrical (dose on electronics):
+# seam = DomainSeam(
+#     id="rad_elec_tid",
+#     left_domain=SeamDomain.RADIATION,
+#     right_domain=SeamDomain.ELECTRICAL,
+#     left_expr="radiation.total_dose_sv",
+#     right_expr="electronics.tid_limit_sv",
+#     relation=SeamRelation.LE,
+#     rationale="TID budget for derating / SEE on electronics in space"
+# )
+# required_seam_pairs uses filtered linear chain so only present domains' consecutive
+# pairs are mandatory (RADIATION optional → no breakage for earth specs).
 
 
 def cost_rollup_required(spec: Specification) -> bool:
