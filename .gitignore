@@ -1,0 +1,61 @@
+# Personal / sensitive / junk (never commit)
+.Xauthority
+.bash_history
+.bash_logout
+.bashrc
+.bashrc.bak.*
+.cache/
+.claude/
+.claude.json
+.config/
+.copilot/
+.dmrc
+.gtkrc*
+.linuxmint/
+.local/
+.profile
+.ssh/
+.sudo_as_admin_successful
+.xsession-errors*
+.Xauthority
+.vscode/
+.vscode-shared/
+*.log
+*.tmp
+
+# Large / unrelated archives and builds
+Downloads/
+Bilder/
+Musik/
+Videos/
+Dokumente/
+Vorlagen/
+Öffentlich/
+aletheia/target/
+rtw89/
+rigorous-test-demo/
+install_archer_tx20uh_driver.sh
+
+# Build artifacts
+target/
+*.o
+*.bin
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+
+# Session / internal state (keep high-level plans, not every session)
+.grok/sessions/
+.grok/logs/
+.grok/active_sessions*
+.grok/upload_queue/
+.grok/tip_cursor.json
+.grok/slash-mru.json
+.grok/models_cache.json
+.grok/managed_config.lock
+.grok/worktrees.db
+
+# OS
+.DS_Store
+Thumbs.db
