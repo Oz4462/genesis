@@ -84,6 +84,42 @@ from .dynamics import (
     zmp_dynamic_check,
 )
 
+def vacuum_radiation_balance_check(
+    absorbed_solar_w: float,
+    epsilon: float,
+    area_m2: float,
+    t_k: float,
+    *,
+    tol: float = 0.1,
+    radiation_dose_sv: float = 0.0,  # optional radiation input for space (links to RADIATION domain)
+) -> dict:
+    """Minimal vacuum radiation balance (Stefan-Boltzmann, honest for space).
+
+    Net heat = absorbed - epsilon * sigma * A * T^4.
+    For space hardware (no convection). Conservative; real includes albedo, view factors, transients.
+    radiation_dose_sv for coupling to RADIATION seam (e.g. electronics derating, material degradation).
+    Returns ok if |net| small relative to absorbed (within tol).
+    """
+    if absorbed_solar_w < 0 or epsilon <= 0 or epsilon > 1 or area_m2 <= 0 or t_k <= 0:
+        return {"ok": False, "error": "invalid_inputs"}
+    sigma = 5.670374419e-8  # W m^-2 K^-4 (exact CODATA)
+    radiated = epsilon * sigma * area_m2 * (t_k ** 4)
+    net = absorbed_solar_w - radiated
+    # ok if net close to zero within tol (balanced) or documented as designed sink/source
+    ok = abs(net) <= tol * max(abs(absorbed_solar_w), 1.0)
+    result = {
+        "ok": ok,
+        "net_heat_w": net,
+        "radiated_w": radiated,
+        "safety_factor": (absorbed_solar_w / (radiated + 1e-9)) if ok else 0.0,
+        "quelle": "Stefan-Boltzmann (vacuum, no convection) + user params",
+    }
+    if radiation_dose_sv > 0:
+        result["radiation_dose_sv"] = radiation_dose_sv
+        result["radiation_note"] = "Coupled to RADIATION domain seam (e.g. for thermal/radiation trade in space)"
+    return result
+
+
 # Registry of validators the gate can run. Each is a *_check function returning a dict
 # that contains at least an "ok" bool (and usually a "safety_factor"). The key is the
 # stable name a PhysicsCheck declares.
@@ -127,6 +163,8 @@ VALIDATORS = {
     "compute_budget": compute_budget_check,
     "inference_power": inference_power_check,
     "inference_latency": inference_latency_check,
+    # space — minimal for multi-planetary (vacuum radiation dominant, no convection)
+    "vacuum_radiation_balance": vacuum_radiation_balance_check,
     "bus_bandwidth": bus_bandwidth_check,
     "bus_latency": bus_latency_check,
     # robot dynamics — motion over a gait cycle (dynamic balance + swing inverse dynamics)

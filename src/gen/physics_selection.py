@@ -364,6 +364,17 @@ RECIPES: list[CheckRecipe] = [
             "available_torque": ("actuator.available_torque", "N*m"),
         },
     ),
+    # ---- space multi-physics (vacuum radiation dominant, for habitats/radiators/TPS) ----
+    CheckRecipe(
+        name="vacuum radiation balance (space thermal)", validator="vacuum_radiation_balance",
+        trigger="thermal.radiation_absorbed",
+        inputs={
+            "absorbed_solar_w": ("thermal.radiation_absorbed", "W"),
+            "epsilon": ("material.emissivity", "1"),
+            "area_m2": ("surface.area", "m^2"),
+            "t_k": ("thermal.temperature", "K"),
+        },
+    ),
 ]
 
 

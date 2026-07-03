@@ -36,16 +36,23 @@ from dataclasses import dataclass
 from .clarification import ClarifyingQuestion, clarifying_questions
 from .constraint_consistency import Contradiction, find_contradictions
 from .core.interfaces import GateResult
-from .core.state import Claim, Specification
+from .core.state import Claim, SeamCertificate, Specification
 from .grounding_integrity import CorroborationReport, corroboration_independence
 from .physics_selection import select_physics_checks
 from .physics_validation import PhysicsCheck, gate_delta_physics
+from .seams import build_seam_certificate, cost_rollup_required, gate_epsilon, required_seam_pairs
 from .telemetry import RunTrace
 
 
 @dataclass(frozen=True)
 class Assessment:
-    """The unified, honest verdict over a Specification's quality axes."""
+    """The unified, honest verdict over a Specification's quality axes.
+
+    Now includes Phase ε seam verification (gate_epsilon) when the spec has
+    required cross-domain obligations (adjacent MECH/THERM/ELEC/FIRM or COST rollup).
+    `seam_gate` is None only for specs with no seam obligations (vacuous case is
+    honest and never turned into a clean pass via other properties).
+    """
 
     clarification_questions: list[ClarifyingQuestion]
     physics_checks: list[PhysicsCheck]
@@ -53,6 +60,7 @@ class Assessment:
     physics_gate: GateResult
     constraint_contradictions: list[Contradiction]
     corroboration: CorroborationReport | None
+    seam_gate: GateResult | None
     overall: str
 
     @property
@@ -80,17 +88,35 @@ class Assessment:
     def constraints_consistent(self) -> bool:
         return not self.constraint_contradictions
 
+    @property
+    def seams_ok(self) -> bool:
+        """True only if this spec had epsilon obligations (required adjacent domain pairs
+        or COST rollup) AND the provided (or auto-built empty) certificate satisfied
+        gate_epsilon with no failures. False for vacuous specs (no obligations) or
+        when seams are required but not satisfied. Never masks a missing seam."""
+        if self.seam_gate is None:
+            return False  # no obligations or not yet computed (honest)
+        return self.seam_gate.passed
+
 
 def _overall_status(
-    questions, gaps, gate: GateResult, contradictions, n_checks: int, corroboration
+    questions, gaps, gate: GateResult, contradictions, n_checks: int, corroboration,
+    seam_gate: GateResult | None
 ) -> str:
-    """The single honest status, in priority order (what must be resolved first)."""
+    """The single honest status, in priority order (what must be resolved first).
+
+    Seams (epsilon) are now part of the honest composition: if a spec has required
+    cross-domain obligations (or cost rollup) and they are not satisfied, this surfaces
+    as "seams_failed" (preventing masked passes on coupling).
+    """
     if questions:
         return "needs_clarification"
     if contradictions:
         return "inconsistent_constraints"
     if corroboration is not None and not corroboration.ok:
         return "grounding_failed"            # claims not independently corroborated (circular)
+    if seam_gate is not None and not seam_gate.passed:
+        return "seams_failed"                # required cross-domain coupling not satisfied (honest)
     if gaps:
         return "physics_incomplete"          # indicated but unrunnable — not a pass
     if not gate.passed:
@@ -105,6 +131,7 @@ def assess_specification(
     *,
     claims: list[Claim] | None = None,
     trace: RunTrace | None = None,
+    seam_certificate: SeamCertificate | None = None,
 ) -> Assessment:
     """Compose the quality engine into one honest Assessment of `spec`.
 
@@ -120,6 +147,16 @@ def assess_specification(
     contradictions = find_contradictions(spec.constraints)
     corroboration = corroboration_independence(claims) if claims is not None else None
 
+    # Phase ε seam verification (wired mandatorily per rigorous multi-physics expansion)
+    # If the spec has required adjacent domain pairs or COST rollup, run gate_epsilon.
+    # Empty cert (when none provided) produces explicit honest failures (MISSING_* etc.).
+    required_pairs = required_seam_pairs(spec)
+    needs_seams = bool(required_pairs) or cost_rollup_required(spec)
+    seam_gate: GateResult | None = None
+    if needs_seams:
+        cert = seam_certificate or build_seam_certificate(spec, [])
+        seam_gate = gate_epsilon(spec, cert)
+
     if trace is not None:
         trace.record("clarify", "clarify", n_questions=len(questions))
         trace.record("select", "select", n_checks=len(checks), n_gaps=len(gaps))
@@ -128,8 +165,10 @@ def assess_specification(
         if corroboration is not None:
             trace.record("grounding", "grounding", status="ok" if corroboration.ok else "error",
                          circular=len(corroboration.circular))
+        if seam_gate is not None:
+            trace.record_gate("epsilon", seam_gate)
 
-    overall = _overall_status(questions, gaps, gate, contradictions, len(checks), corroboration)
+    overall = _overall_status(questions, gaps, gate, contradictions, len(checks), corroboration, seam_gate)
     return Assessment(
         clarification_questions=questions,
         physics_checks=checks,
@@ -137,6 +176,7 @@ def assess_specification(
         physics_gate=gate,
         constraint_contradictions=contradictions,
         corroboration=corroboration,
+        seam_gate=seam_gate,
         overall=overall,
     )
 

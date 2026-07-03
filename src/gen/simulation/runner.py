@@ -98,6 +98,18 @@ class SimulationRunner:
         loads = loads or {}
         material = material or {}
         cases: list[SimulationCase] = []
+        # Radiation extension for space multi-physics (links to RADIATION domain and vacuum validator)
+        if "radiation" in str(loads).lower() or any("radiation" in str(m).lower() for m in [material] if material):
+            cases.append(SimulationCase(
+                domain="radiation_vacuum",
+                description="Vacuum radiation balance (space)",
+                predicted_value=0.0,  # placeholder, real from validator
+                predicted_unit="W",
+                tolerance=0.1,
+                inputs_summary={"radiation": "coupled to vacuum_radiation_balance_check"},
+                solver="stefan_boltzmann + RADIATION seam",
+                quelle=self.quelle_base + " + RADIATION domain",
+            ))
 
         # Smarter domain selection hint from physics_selection (concrete improvement)
         try:

@@ -34,6 +34,7 @@ from .verification.units import DIMENSIONLESS, Dimension, formula_dimension, par
 _CHAIN: tuple[SeamDomain, ...] = (
     SeamDomain.MECHANICAL,
     SeamDomain.THERMAL,
+    SeamDomain.RADIATION,  # space: vacuum radiation couples to thermal (dominant in space, no convection)
     SeamDomain.ELECTRICAL,
     SeamDomain.FIRMWARE,
 )
@@ -70,6 +71,20 @@ def _looks_thermal(q: Quantity) -> bool:
     return q.unit in {"K", "deg"} or any(marker in text for marker in markers)
 
 
+def _looks_radiation(q: Quantity) -> bool:
+    text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
+    markers = (
+        "radiation",
+        "dose",
+        "rad",
+        "gamma",
+        "solar_flux",
+        "albedo",
+        "eclipse",
+    )
+    return any(marker in text for marker in markers) or q.unit in {"Sv", "Gy", "rad"}
+
+
 def domains_present(spec: Specification) -> set[SeamDomain]:
     """Detect which domains are present enough for epsilon seam coverage."""
     present: set[SeamDomain] = set()
@@ -83,11 +98,15 @@ def domains_present(spec: Specification) -> set[SeamDomain]:
         present.add(SeamDomain.FIRMWARE)
     if any(item.role in (BomRole.PART, BomRole.MATERIAL) for item in spec.bom):
         present.add(SeamDomain.COST)
+    if any(_looks_radiation(q) for q in spec.quantities):
+        present.add(SeamDomain.RADIATION)
     return present
 
 
 def required_seam_pairs(spec: Specification) -> list[tuple[SeamDomain, SeamDomain]]:
-    """Adjacent chain pairs whose domains are both present and therefore need a seam."""
+    """Adjacent chain pairs whose domains are both present and therefore need a seam.
+    Now includes RADIATION (after THERMAL) for space multi-physics (vacuum radiation balance, dose effects).
+    """
     present = domains_present(spec)
     required: list[tuple[SeamDomain, SeamDomain]] = []
     for left, right in zip(_CHAIN, _CHAIN[1:], strict=False):
