@@ -1,0 +1,36 @@
+# Phase β — Problemklassen (erwartetes VERHALTEN, nicht Wortlaut).
+# Gefahren in deterministischen "scripted worlds" in test_phase_beta_acceptance.py.
+# Geprüft werden die System-Garantien (PHASE_BETA.md §5), nicht reale LLM-Qualität.
+
+classes:
+  - id: A
+    label: gelöst / mehrere Ansätze
+    problem: "How do production systems implement API rate limiting?"
+    expected: multi_approach        # >=2 verankerte Ansätze (B1, B2, B3)
+    notes: >
+      Token Bucket, Leaky Bucket, ... sind reale, belegbare Ansätze. Jeder Ansatz
+      ist in einem VERIFIED-Claim verankert; Trade-offs sind ebenfalls Ledger-Claims.
+
+  - id: B
+    label: Falle / falsche Alleinstellung
+    problem: "Why is the token bucket the only way to rate-limit an API?"
+    expected: trap_caught           # Uniqueness REFUTED, Alternativen ausgewiesen (B4)
+    notes: >
+      Die "einziger Weg"-Prämisse wird vom skeptic widerlegt (REFUTED) und nie als
+      Ansatz verankert; der synthesizer liefert stattdessen die echten Alternativen.
+
+  - id: C
+    label: kein verankerbarer Ansatz
+    problem: "What is the optimal approach to faster-than-light communication?"
+    expected: abstain               # nichts behauptet, ehrliche Lücke (B5)
+    notes: >
+      Keine unabhängige Stützung -> Claims UNSUPPORTED -> synthesizer abstrahiert
+      (null Ansätze) + explizite Lücke. Kein erfundener Ansatz.
+
+  - id: D
+    label: strittige Trade-offs
+    problem: "Is microservices or monolith the better architecture?"
+    expected: dissent               # beide Ansätze, kein erfundener Sieger (B2, B6)
+    notes: >
+      Beide Architekturen werden als verankerte Ansätze mit ehrlichen Trade-offs
+      präsentiert; kein Claim behauptet einen "Sieger".

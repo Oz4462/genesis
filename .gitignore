@@ -1,13 +1,55 @@
-# Personal / sensitive / junk (never commit)
+# --- Secrets (NIEMALS committen) ---
+.env
+.env.*
+*.key
+*.pem
+secrets/
+config.local.yaml
+credentials*.json
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# --- GENESIS Laufzeit-Artefakte ---
+runs/
+out/
+*.log
+*.checkpoint
+ledger_local.db
+robin_output/
+
+# --- Lokale Claude-/Tooling-Artefakte (Session-Tracking, nicht versionieren) ---
+.claude/
+# MCP-Tool-Schema/-Cache-Dumps (asya-state/pinecone/project-state) — Session-Artefakt, kein Source
+mcps/
+.no-recap
+
+# --- Workspace / Personal (home-genesis dev env protections) ---
 .Xauthority
 .bash_history
 .bash_logout
 .bashrc
 .bashrc.bak.*
 .cache/
-.claude/
-.claude.json
-.config/
 .copilot/
 .dmrc
 .gtkrc*
@@ -17,13 +59,12 @@
 .ssh/
 .sudo_as_admin_successful
 .xsession-errors*
-.Xauthority
 .vscode/
 .vscode-shared/
 *.log
 *.tmp
 
-# Large / unrelated archives and builds
+# Large unrelated or archive material in dev workspace
 Downloads/
 Bilder/
 Musik/
@@ -36,16 +77,10 @@ rtw89/
 rigorous-test-demo/
 install_archer_tx20uh_driver.sh
 
-# Build artifacts
+# Additional build / session state
 target/
 *.o
 *.bin
-__pycache__/
-*.pyc
-.venv/
-node_modules/
-
-# Session / internal state (keep high-level plans, not every session)
 .grok/sessions/
 .grok/logs/
 .grok/active_sessions*
@@ -55,7 +90,3 @@ node_modules/
 .grok/models_cache.json
 .grok/managed_config.lock
 .grok/worktrees.db
-
-# OS
-.DS_Store
-Thumbs.db
