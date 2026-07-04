@@ -135,6 +135,30 @@ def vacuum_radiation_balance_check(
     return result
 
 
+def isru_electrolysis_o2_check(
+    water_kg: float, efficiency: float = 0.80, *, o2_target_kg: float = 0.0
+) -> dict:
+    """Minimal closed-form ISRU-relevant O2 yield via water electrolysis stoichiometry.
+
+    2 H2O -> O2 + 2 H2. Molar: 36 g water -> 32 g O2. Efficiency accounts for real losses.
+    This is a falsifiable physics proxy (stepping stone; full Mars regolith ISRU uses
+    different chemistry e.g. MOXIE but same mass-balance principle). Use with ISRU domain seam.
+    All values recomputable; no invention.
+    """
+    if water_kg <= 0 or not (0 < efficiency <= 1.0):
+        return {"ok": False, "error": "invalid_inputs"}
+    stoich_o2 = (32.0 / 36.0) * water_kg * efficiency
+    ok = (o2_target_kg <= 0.0) or (stoich_o2 >= o2_target_kg * 0.95)
+    return {
+        "ok": ok,
+        "o2_produced_kg": stoich_o2,
+        "water_consumed_kg": water_kg,
+        "efficiency": efficiency,
+        "quelle": "stoichiometry 2H2O -> O2 + 2H2 (exact molar 36->32) * efficiency; ISRU foundation for Mars O2 (extend to Sabatier/regolith)",
+        "safety_factor": (stoich_o2 / max(o2_target_kg, 1e-9)) if o2_target_kg > 0 else 1.0,
+    }
+
+
 # Registry of validators the gate can run. Each is a *_check function returning a dict
 # that contains at least an "ok" bool (and usually a "safety_factor"). The key is the
 # stable name a PhysicsCheck declares.
@@ -182,6 +206,8 @@ VALIDATORS = {
     "vacuum_radiation_balance": vacuum_radiation_balance_check,
     "bus_bandwidth": bus_bandwidth_check,
     "bus_latency": bus_latency_check,
+    # ISRU (complete Genesis / Elon vision): electrolysis O2 as proxy for in-situ propellant/breathable on Mars
+    "isru_electrolysis_o2": isru_electrolysis_o2_check,
     # robot dynamics — motion over a gait cycle (dynamic balance + swing inverse dynamics)
     "swing_resonance": swing_resonance_check,
     "zmp_dynamic": zmp_dynamic_check,

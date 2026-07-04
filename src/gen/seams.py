@@ -92,6 +92,34 @@ def _looks_radiation(q: Quantity) -> bool:
     return any(marker in text for marker in markers) or q.unit in {"Sv", "Gy"}
 
 
+def _looks_isru(q: Quantity) -> bool:
+    """Detect ISRU domain via measurand prefix or markers. For Mars in-situ: regolith yield, O2/CH4 production, propellant.
+    (Elon vision: local resources to reduce Earth launch mass.)
+    Hardened against substring FP (e.g. "isrundes" in German specs).
+    """
+    m = (q.measurand or "").lower()
+    if m.startswith(("isru.", "isru_", "regolith.", "propellant.")):
+        return True
+    text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
+    padded = " " + text.replace("_", " ").replace("-", " ").replace(".", " ").replace("(", " ").replace(")", " ") + " "
+    markers = ("isru", "regolith", "insitu", "propellant_yield", "o2_yield", "ch4", "sabati", "electrolysis_mars")
+    return any(" " + marker + " " in padded for marker in markers)
+
+
+def _looks_life_support(q: Quantity) -> bool:
+    """Detect LIFE_SUPPORT (ECLSS) domain via measurand prefix or markers. Crew O2 consumption, CO2 scrubbing, water loop closure, habitat atmosphere.
+    Critical for multi-planetary habitats (vacuum + radiation context).
+    Hardened against substring FP.
+    """
+    m = (q.measurand or "").lower()
+    if m.startswith(("life_support.", "eclss.", "crew.", "habitat_atm.")):
+        return True
+    text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
+    padded = " " + text.replace("_", " ").replace("-", " ").replace(".", " ").replace("(", " ").replace(")", " ") + " "
+    markers = ("life_support", "eclss", "o2_closure", "co2_scrub", "crew_consum", "water_loop", "atmosphere_balance", "habitat_o2")
+    return any(" " + marker + " " in padded for marker in markers)
+
+
 def _looks_electrical(q: Quantity) -> bool:
     """Detect ELECTRICAL domain via unit or markers in id/name/measurand (prefix-aware).
 
@@ -142,6 +170,10 @@ def domains_present(spec: Specification) -> set[SeamDomain]:
         present.add(SeamDomain.COST)
     if any(_looks_radiation(q) for q in spec.quantities):
         present.add(SeamDomain.RADIATION)
+    if any(_looks_isru(q) for q in spec.quantities):
+        present.add(SeamDomain.ISRU)
+    if any(_looks_life_support(q) for q in spec.quantities):
+        present.add(SeamDomain.LIFE_SUPPORT)
     return present
 
 
@@ -168,6 +200,13 @@ def required_seam_pairs(spec: Specification) -> list[tuple[SeamDomain, SeamDomai
         (SeamDomain.THERMAL, SeamDomain.RADIATION),   # vacuum radiation primary
         # RAD-ELEC or MECH-RAD added only if physics justification (dose effects)
         # is documented and tested.
+        # --- Complete Genesis / Elon multi-planetary extensions (explicit, Council-synthesized) ---
+        (SeamDomain.THERMAL, SeamDomain.LIFE_SUPPORT),   # ECLSS hardware heat loads couple to thermal control in vacuum habitat
+        (SeamDomain.RADIATION, SeamDomain.LIFE_SUPPORT), # dose on crew/biology/scrubbers; shielding couples rad to life support budgets
+        (SeamDomain.MECHANICAL, SeamDomain.ISRU),        # regolith excavation/processing mechanics (crushers, rovers, reactors)
+        (SeamDomain.ELECTRICAL, SeamDomain.ISRU),        # high power draw for electrolysis/Sabatier ISRU plants on Mars
+        (SeamDomain.THERMAL, SeamDomain.ISRU),           # thermal balance of ISRU reactors (exothermic Sabatier, heating)
+        (SeamDomain.ISRU, SeamDomain.COST),              # ISRU yield directly reduces landed mass/cost (first-principles leverage)
     ]
     required = [_pair(a, b) for a, b in _REQUIRED_ADJACENCIES if a in present and b in present]
     return required

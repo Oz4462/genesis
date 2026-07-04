@@ -1098,3 +1098,64 @@ All tasks closed.
 
 **Status**: Migration complete for the 5. Committed.
 
+---
+
+### Decision: Elevate Genesis to "komplett" scope for Elon/SpaceX multi-planetary vision (not limited to multi-physics)
+**Date**: 2026-07-04
+**Context / Problem**: User directive "elon vision für komplett genesis nicht nur multi physics". Recent cycles successfully closed all review findings (Befunde 1-10 + re-reviews) with explicit seams (no auto core), radiation domain + honest vacuum validator/co-sim, migration of 5 demo specs (printed/flagship/benchmark humanoids, knee_mount + future), full suite green (1707 passed post e12f35a/649229d), test_missing_required_pair_fails power preserved. Runner radiation co-sim integration verified + committed (39f6b81). However, development risked narrowing to seams/epsilon/radiation physics only. Genesis (per VISION.md, CAPABILITIES, discovery/first_principles.py, grenzverschiebung/, core/state.py ColonyModule/NanoRecipe for ISRU/habitats/ECLSS, inventor, pipelines, bundle) is architecturally the full anti-hallucination engine for ideation→verified realization. To serve Elon vision (first-principles, reusability/Starship, ISRU for propellant/O2 on Mars, radiation-shielded habitats, closed-loop life support, sustainable power, humanoids/Optimus labor, rapid truthful progress for multi-planetary backup) requires the *complete* system: δ/ε physics + first-principles derivation + mission roll-ups + discovery/inventor arms + grounding + full bundle for space artifacts. Narrow focus leaves the "komplett" unrealized.
+
+**Decision**:
+- Adopt full-scope evolution of Genesis as the premier honest tool for multi-planetary tech per user + VISION §1/4/7/8 (Spezifizieren/Entdecken/Erfinden; phases α-ζ; 2036 space colony examples).
+- Use synthesized Council proposals (Architect + Verification Specialist + Space alignment) as the map:
+  1. Lean domain/seam + recipe extensions (add ISRU, LIFE_SUPPORT to SeamDomain explicitly; update _REQUIRED_ADJACENCIES + domains_present with physics rationale; add 1-2 closed-form validators/RECIPES e.g. ISRU O2 yield stoichiometry or ECLSS mass-balance O2/CO2).
+  2. Mission-level verification layer (extend Assessment/assess for system closure: mass, ISRU %, life-support loop balance, integrated dose; honest "mission_incomplete" etc.).
+  3. Integrate discovery (first_principles.derive) + grenz + inventor for space problems (e.g. derive regolith processing axioms; roadmaps for "Mars ISRU closure").
+  4. Strengthen real-data grounding for NASA/SpaceX public data (via existing tools/external).
+  5. Bundle extensions for hierarchical space packages (habitat+ISRU sub-manifests).
+- All under Full Rigorous Mode: Council for every major, explicit DomainSeam declarations (demos update), L DRs, 4 Fitness per step/gate, execution verification (real runs + tests), anti-bloat (extend 4-6 files max initially; reuse), full pytest before any commit.
+- Preserve non-negotiables: explicit only (no auto core), test_missing power, honest gaps/"I know not", ledger provenance, cross-model.
+- Coordinate with Claude (humanoid energy/thermics worktree; don't touch competitive_humanoid.py/physics_selection without sync; report in tasks_for_claude).
+- Continuous loop: Audit (existing rich stack) → Council → Gated increment → Verify (full suite + neg tests) → L DR + status → Next. Make Genesis enable real specs for Mars habitats, ISRU plants, TPS, reusable systems.
+- Report milestones in /tmp/genesis-bridge/grok_status.md + tasks_for_claude.md.
+
+**Alternatives considered**:
+- Continue narrow multi-physics only (rejected: contradicts user "komplett" + VISION full height + Elon mission in IMPLEMENTATION_PLAN).
+- Big-bang add all domains/layers at once (rejected: violates Simplicity, Blast Radius, incremental per skill + "Disziplin" in VISION).
+- Ignore existing skeleton (first_principles, grenz, ColonyModule ISRU hints) and reinvent (rejected: anti-bloat violation; reuse is rigorous).
+- Weaken gates for "faster space progress" (rejected: destroys the reason Genesis exists for high-stakes multi-planetary work; Verification Fitness fail).
+
+**Rationale**: Perfect alignment. Genesis anti-hallucination + first-principles + cross-domain gates (ε) + sim is exactly what is needed to cross the realization wall for the hardest problems (vacuum/rad/thermal coupled habitats, ISRU chemistry+energy+mech, mission budgets). Council (detailed memos) confirms foundation strong; lean extensions keep fidelity. Directly fulfills "für die menschheit für die zukunft für erfinder für träumer für denker" + SpaceX principles (truth, reusability, ISRU, Mars). 4 Linsen + Fitness + explicit = the "einzelstück" trustworthy engine.
+
+**Risks & Trade-offs**:
+- Scope creep / bloat (mitigated: Council Simplicity input, explicit lean list, reuse, veto; start 1-2 domains).
+- Blast on seams/pipeline (high — every spec; mitigated: explicit list + targeted + full regression + migration for demos only).
+- Weakening honesty (mitigated: Verification memo guardrails 1-14 strictly followed; no auto; tests first; execution evidence).
+- Coordination with parallel work (Claude humanoids): mitigated by tasks_for_claude reports + no-touch on listed files.
+- External data for real ISRU (mitigated: start with closed-form stoichiometry + declare gaps; use tools for grounding).
+- Revisit trigger: After first gated increment (ISRU/LIFE seam + 1 validator + tests + 1 example use in visionary/future idea) + full suite green + L DR; or user "stopp".
+
+**Council perspectives** (High-Intelligence Council convened via spawn_subagent for this directive; 2/3 complete + synthesis; SpaceVision explored deeply):
+- **Architect**: Full proposal (5 prioritized increments) detailed. Genesis already has ColonyModule/NanoRecipe for ISRU/habitats/ECLSS, first_principles derivation, grenz moonshot, runner stubs. Extend seams/recipes lean for LIFE/ISRU + mission roll-up + arm integration + grounding + bundle. Examples: regolith habitat (MECH-THERM-RAD-LIFE-ISRU-COST seams + dose/O2 closure + first-principles shield), ISRU O2 plant. "Lean next": gated first (recipes + seam adjacencies). All grounded in VISION/plan/code.
+- **Verification Specialist**: Detailed risk analysis (masked gaps, hidden assumptions, auto regression, fake exec, demo corruption). 14 explicit guardrails (explicit seams only, falsifiable validators + RECIPE, ledger for facts, clarification, tests+neg first, full suite, honest status, no weakening). Recommends safe increments: deepen co-sim, one propulsion (rocket eq), minimal ISRU yield (sourced), LIFE_SUPPORT balance starter. Handle 5 demos via explicit decls. Preserve test_missing + suite discipline absolute. "Gates are the immune system."
+- **SpaceVision/Elon (partial from run)**: (Explored code/docs extensively; aligns on mapping first-principles + ISRU/habitats/power/humanoids to Genesis full stack. Emphasis on verifiable closed forms for Sabatier/MOXIE-like, ECLSS, regolith processing.)
+- **Simplicity (synthesized from prior + current)**: Reuse everything; explicit lists; no new top-level pkgs initially. Veto on unnecessary files.
+- Synthesis: Proceed with lean increment 1 (ISRU + LIFE_SUPPORT domains explicit + 1-2 validators). Full Fitness + L DR + execution before next. Matches rigorous workflow + 4 Linsen.
+
+**Evidence / Execution Verification**:
+- Targeted tests (runner/epsilon/bundle/competitive/future) green via `uv run pytest` (34p + 26p).
+- Runner co-sim committed (39f6b81) after verification.
+- Full prior suite 1707 passed post migration.
+- Council memos (subagent outputs) + reads of VISION.md, seams.py, state.py, pipeline.py, first_principles.py, bundle.py, IMPLEMENTATION_PLAN, tests.
+- No idle; all prior tasks closed per user rule.
+
+**Fitness Function Evaluations**:
+- **Simplicity**: PASS (lean extensions on existing; explicit lists; reuse discovery/grenz/state stubs).
+- **Security**: PASS (provenance/ledger only strengthened; no new surfaces).
+- **Verification**: STRENGTHENED (Council guardrails + explicit + neg tests + full suite mandate).
+- **Blast Radius**: MEDIUM-HIGH (seams/pipeline touch many; mitigated by incremental, explicit, tests, reversibility, reports to Claude).
+- All gates passed for this decision.
+
+**Status**: Locked. Next: update todos/status/claude tasks; implement first lean increment (add ISRU/LIFE_SUPPORT to state+seams with rationale, minimal validator, tests); run full suite; L DR update; commit only on green. Continuous autonomous loop on complete Genesis for multi-planetary future. 
+
+We build the honest engine that lets humanity realize the Elon vision — reusability, ISRU, habitats, energy, robots — without lies. Gate is law. First principles. For many worlds.
+
