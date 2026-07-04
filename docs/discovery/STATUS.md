@@ -267,22 +267,87 @@
   Sinus-Identitäten der Kanonisierung, OOS-Confirm-Gate, Aliasing-Grenze) sind für den
   nachgeholten Review als Claims-Summary in diesem Absatz fixiert.
 
-## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1–6.7
+- **Tour 6.8 — Additive π-Argumente in EINER Transzendenten** (`additive_argument.py`,
+  2026-07-04): die in 6.7 explizit offen gelassene Grenze (A) — `y = C·f(α·π1 + β·π2) + D`,
+  EIN Transzendent mit additiver Zwei-π-Kombination als Argument (physikalisch: Arrhenius mit
+  zwei Beiträgen in einem Exponenten). Beide π-Gruppen aus dem Nullraum `A·p = 0`; `C` trägt
+  allein die Ziel-Dimension; Fit-Maschinerie 6.6/6.7-Reuse (`ProductForm`, deterministische
+  Starts, Hybrid-LM/TRF); für `f=exp` bei strikt positivem Ziel EXAKTER Log-Linear-SEED
+  `log y = log C + α·π1 + β·π2` (nur Seed, nie Verdikt — mit Offset D ist der Log-Pfad unsound;
+  y≤0 verweigert den Seed, kein stilles `abs()`). **Identifizierbarkeits-Wächter (Design-Kern):**
+  (a) KANONISCHE HEIMAT von `exp·exp`: `exp(α·π1+β·π2) = exp(α·π1)·exp(β·π2)` ist GENAU das
+  Paar, das 6.7 aus seiner Bibliothek ausschloss — 6.8 ist seine eine Darstellung; das
+  entdeckte exp-Gesetz benennt die Produkt-Äquivalenz in `product_equivalent` (nur bei
+  vernachlässigbarem D — mit Offset gilt die Identität nicht), und 6.7 erhebt auf denselben
+  Daten NIE einen rivalisierenden Zwei-Transzendenten-Claim (getestet) — kein Doppel-Claim;
+  (b) AFFINE-RIDGE-Paare übersprungen (`AFFINE_RIDGE_TOL=1e-8`): ist π2 (numerisch) affin in π1
+  (punktweise proportionale Gruppen aus gleich-unit-Konstanten, π1==π2, Konstanten-Gruppen),
+  hat `α·π1+β·π2` weniger identifizierbare Richtungen als Parameter — das affine Analogon des
+  exp·exp-Grats; bewusst eng (Float-Rauschen-Skala): ein schmales, aber echt gekrümmtes Band
+  triggert NICHT (das behandelt die Occam-Leiter); (c) β=0 kollabiert auf 6.3 über die Leiter
+  (`einzel_transzendent` wird exakt → `unentschieden`, nie ein Zwei-Gruppen-Über-Claim);
+  (d) Kanonisierung (`sin(−u+φ)=sin(u+(π−φ))`, `−sin(u)=sin(u+π)`, tanh-Vorzeichen in C;
+  führender Koeffizient α>0, C>0 wo eine Phase das Vorzeichen trägt, Phasen in [0,2π); Paar-
+  Ordnung durch Enumeration i<j fixiert — keine getauschte Duplikat-Parametrisierung). `log` als
+  f bewusst ABWESEND (Positivität eines SIGNIERTEN gefitteten Arguments nicht vorab beweisbar).
+  **Ehrliches Gate (6.7-Pflichten, um eine Sprosse verlängert):** VIER Rivalen über dieselben
+  Gruppen/Paare — pow2 MIT Offset ≻ Ein-Transzendente (Phase+Offset) ≻ 6.6-Produktform ≻
+  6.7-Blind-Paar — UND OOS-Confirm (Train-Refit muss ≥0.99 auf Held-out übertragen, sonst
+  `unentschieden`). **Gemessen (12 Tests grün):** Arrhenius-artig `k = 2·exp(−θ/T − 0.5·P/p0)`
+  (T, P variieren; θ, p0 Konstanten; WEITES zweiseitiges Regime θ/T∈[0.33,4], P/p0∈[0.1,5]) →
+  `bestaetigt` exakt: **C=2, α=−1, β=−0.5, D≈5e-10 je <1e-6** (R²=1.0; Rivalen pow2 0.922 /
+  einzel 0.928 / produkt_potenz 0.984 / blind 0.997; OOS-Confirm 1.0; `product_equivalent`
+  benannt) — auf ENGEM Band (θ/T≈0.8–1.2, beim Bauen gemessen) imitieren tanh/sin das
+  Exponential >0.999 → ehrlich `unentschieden`, Regime-Weite ist die 6.4-Lektion zur
+  Design-Zeit; Chirp `3·sin(1.5x + 0.8√x + 0.4)` (x=t/τ) → `bestaetigt` exakt (C=3, α=1.5,
+  β=0.8, φ=0.4 je <1e-6; Rivalen 0.270/0.997/0.997/0.999 — keine Familie folgt global einer
+  driftenden Frequenz; OOS 1.0); negierter Chirp kanonisch C=+3, α>0, φ∈[0,2π); **δ-Asymmetrie
+  in Reinform:** Ein-Input-Zweiskalen-Exponential `3·exp(−1.2x+2√x)` wird in-family EXAKT
+  gefittet (R²=1.0) und trotzdem NICHT behauptet — ein 6.7-exp·sin-Paar imitiert die
+  Ein-Buckel-Form ≥0.999 → `unentschieden` mit `occam_winner=blind_produkt` (Test pinnt genau
+  das); β=0 (`2·exp(−0.8x)`) → Kollaps `einzel_transzendent`; Ridge (τ1, τ2 gleiche Unit,
+  Daten = EIN Exponential) → Kollaps, kein Grat-Claim; Rauschen → `widerlegt`; Kepler →
+  `widerlegt` („kein dimensionsloses Argument"). **OOS (6.2-Naht):** train→test R²=1.0/1.0,
+  gap<1e-6. **Flip (6.4-Naht):** Chirp-Schmalband t∈[0.8,2.0] (< eine Periode) →
+  `unentschieden` (stärkster einfacher Rivale 0.999998) → `propose_resolution` dispatcht jetzt
+  auch `AdditiveArgumentRival` → wahre Daten am Spread → **flippt zu `bestaetigt`** mit exakten
+  Koeffizienten, einzel/blind kollabieren (<0.999). **(B) echte Komposition
+  `y = C·f(β·g(α·π)) + D` nach Analyse ABGELEHNT (Ehrlichkeit vor Feature-Zahl),** drei
+  konkrete Gründe im Modul-Docstring fixiert: (1) DATENABHÄNGIGER Parameter-Grat — wo g nur im
+  linearen Regime angeregt ist, ist nur `α·β·g′(0)` identifizierbar (der exp·exp-Grat, aber
+  nicht strukturell einmalig ausschließbar, sondern bandabhängig; bräuchte einen Pro-Fit-Beweis
+  der inneren Nichtlinearität); (2) KOLLAPS-AMBIGUITÄT — wo f nur linear angeregt ist, IST die
+  Komposition die 6.3-Einzelform; zwischen (1) und (2) endet fast jedes endliche Band
+  `unentschieden`, kein ehrlich gewinnbarer Fall ohne präzise platzierte 6.4-Messung;
+  (3) KEINE ALLGEMEINE KANONISIERUNG — `exp(−k·sin²θ) = e^(−k/2)·exp((k/2)·cos 2θ)`: dieselbe
+  Klasse hat mehrere exakte In-Familie-Darstellungen, und anders als bei 6.7(c) existiert keine
+  endliche Identitäten-Liste für gemischte f∘g — „genau eine Parametrisierung pro Gesetz" ist
+  nicht garantierbar. Bleibt deklarierte offene Grenze.
+- **Cross-Model-Drift-Check (grok-build): NACHZUHOLEN** — Grok-CLI am 2026-07-04 weiterhin
+  nicht erreichbar (gleicher Outage-Präzedenzfall wie 6.6/6.7). Die Tour-6.8-Claims
+  (exp-additiv = kanonische exp·exp-Heimat, Affine-Ridge-Wächter, Vier-Rivalen-Occam-Leiter,
+  OOS-Confirm, Regime-Weite-Ehrlichkeit, (B)-Ablehnung mit drei Gründen) sind für den
+  nachgeholten Review als Claims-Summary in diesem Absatz fixiert.
+
+## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1–6.8
 
 Der gesamte Mehr-Wochen-Plan aus `GROK_BUILD_GENESIS_UNIVERSE_EXPLORER.md` ist gebaut, getestet,
-grok-build-drift-geprüft (6.6 + 6.7: nachzuholen, s. o.) und committet (lokal, kein Push).
-**169 Discovery-Testfunktionen** über 37 Module (nachgezählt 2026-07-04 nach 6.7,
+grok-build-drift-geprüft (6.6 + 6.7 + 6.8: nachzuholen, s. o.) und committet (lokal, kein Push).
+**181 Discovery-Testfunktionen** über 38 Module (nachgezählt 2026-07-04 nach 6.8,
 `grep -c '^def test_' tests/test_discovery_*.py`);
-`rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Mit Frontier 6.1–6.7 sind nun
+`rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Mit Frontier 6.1–6.8 sind nun
 **Summen mehrerer dimensional-gültiger Terme** (inkl. OOS), **transzendente Formen**, die **Active
 Resolution of Uncertainty**, **Minimal-Correction bei Komposition** (Residuen-SR auf gequellte
 Gesetze, signed lstsq + strenges Gate `residual_explained≥0.9` ∧ `ΔR²>1e-3` ∧ Leave-One-Out),
 **multiplikative Kopplungen** (Produktformen `C·π1^a·f(α·π2)` + Ratio-Korrektur `y ≈ y_base·m(π)`
-unter denselben Gates) UND **blinde Zwei-Transzendenten-Produkte** (`C·f(α·π1)·g(β·π2)` ohne
-Baseline, Identifizierbarkeits-Wächter + Occam-Leiter + OOS-Confirm) abgedeckt.
-Volle Offline-Suite **2047 passed / 0 failed / 43 skipped** (gemessen 2026-07-04, nach 6.7).
-Ehrliche verbleibende Grenze: Kompositionen von Transzendenten ineinander (`f(g(·))`), additive
-π-Kombinationen als Argument (`exp(α·π1+β·π2)`) und die volle GP-Suche über offene Formräume.
+unter denselben Gates), **blinde Zwei-Transzendenten-Produkte** (`C·f(α·π1)·g(β·π2)` ohne
+Baseline, Identifizierbarkeits-Wächter + Occam-Leiter + OOS-Confirm) UND **additive π-Argumente
+in einer Transzendenten** (`C·f(α·π1+β·π2)+D`, kanonische exp·exp-Heimat, Vier-Rivalen-Leiter +
+OOS-Confirm) abgedeckt.
+Volle Offline-Suite **2059 passed / 0 failed / 43 skipped** (gemessen 2026-07-04, nach 6.8).
+Ehrliche verbleibende Grenze: Kompositionen von Transzendenten ineinander (`f(g(·))` — in Tour
+6.8 analysiert und mit drei konkreten Gründen ABGELEHNT statt unehrlich gebaut, s. o.) und die
+volle GP-Suche über offene Formräume.
 
 ## Drift-Kontroll-Protokoll (jede Tour)
 

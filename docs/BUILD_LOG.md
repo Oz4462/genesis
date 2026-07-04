@@ -7905,3 +7905,54 @@ Validation-Typ re-used); __init__-Exporte lazy; verbleibende Grenze ehrlich neu 
 deterministisch, Laufzeit begrenzt (Pair-Guard, Reduced-Lattice-Tests wie 6.6); volle Suite grün
 (s. STATUS). Abgleich GENESIS_PLATFORM_PLAN: Grenzverschiebungs-Modul im Discovery-Arm, kein
 neuer Framework-Lock-in. Grok-Drift-Check: NACHZUHOLEN (CLI-Outage, Präzedenz 6.6/WORK_QUEUE).
+
+## 2026-07-04 — Frontier 6.8: Additive π-Argumente (`discovery/additive_argument.py`)
+
+**Was:** Die in 6.7 offen deklarierte Grenze (A): `y = C·f(α·π1 + β·π2) + D` — EIN Transzendent
+(f ∈ {exp, sin, tanh}) mit additiver Zwei-π-Kombination als Argument (Arrhenius mit zwei
+Beiträgen; Chirp mit driftender Frequenz). π-Paare aus dem Nullraum `A·p = 0` (unordered, i<j);
+Fit-Maschinerie 6.6/6.7-Reuse (`ProductForm`, `_fit_product`, Hybrid-LM/TRF, deterministische
+Starts); exp-Log-Linear-SEED nur bei strikt positivem y (nur Seed, nie Verdikt — D macht den
+Log-Pfad unsound; y≤0 verweigert, kein `abs()`). 12 neue Tests, `__init__`-Exporte lazy,
+`active_resolution` dispatcht `AdditiveArgumentRival` (reiner Typ-Dispatch).
+
+- Identifizierbarkeits-Wächter: (a) KANONISCHE HEIMAT von `exp·exp` — `exp(α·π1+β·π2) =
+  exp(α·π1)·exp(β·π2)` ist genau das von 6.7 ausgeschlossene Paar; `product_equivalent` benennt
+  die Äquivalenz (nur bei vernachlässigbarem D), 6.7 claimt dieselben Daten nie (getestet) —
+  kein Doppel-Claim; (b) AFFINE-RIDGE-Paare übersprungen (`AFFINE_RIDGE_TOL=1e-8`, bewusst eng:
+  nur echte Degeneration, ein gekrümmtes Schmalband geht an die Occam-Leiter); (c) β=0 →
+  Kollaps auf 6.3 über die Leiter; (d) Kanonisierung (führendes α>0, C>0 wo Phase das
+  Vorzeichen trägt, Phasen [0,2π); Paar-Ordnung = Enumeration). `log` als f bewusst abwesend
+  (Positivität eines signierten Arguments nicht vorab beweisbar).
+- Ehrliches Gate: Occam-Leiter mit VIER Rivalen (pow2 MIT Offset ≻ Einzel-Transzendente ≻
+  6.6-Produktform ≻ 6.7-Blind-Paar) + OOS-Confirm ≥0.99 (6.7-Verschärfung übernommen).
+- (B) echte Komposition `y = C·f(β·g(α·π)) + D` nach Analyse ABGELEHNT (Ehrlichkeit vor
+  Feature-Zahl), drei Gründe im Modul-Docstring: datenabhängiger Parameter-Grat (nur α·β·g′(0)
+  identifizierbar wo g linear angeregt), Kollaps-Ambiguität (f linear → 6.3-Einzelform; fast
+  jedes endliche Band endet `unentschieden`), keine allgemeine Kanonisierung
+  (`exp(−k·sin²θ) = e^(−k/2)·exp((k/2)cos2θ)` — mehrere exakte In-Familie-Darstellungen, keine
+  endliche Identitäten-Liste für f∘g). Bleibt deklarierte offene Grenze.
+
+**Gemessen:** Arrhenius `k = 2·exp(−θ/T − 0.5·P/p0)` (weites zweiseitiges Regime) →
+`bestaetigt` exakt C=2, α=−1, β=−0.5 je <1e-6 (Rivalen 0.922/0.928/0.984/0.997, OOS 1.0);
+enges Regime (θ/T≈0.8–1.2, beim Bauen gemessen) ehrlich `unentschieden` (tanh/sin imitieren
+>0.999) — Regime-Weite als 6.4-Lektion zur Design-Zeit dokumentiert. Chirp
+`3·sin(1.5x+0.8√x+0.4)` → `bestaetigt` exakt (Rivalen 0.270/0.997/0.997/0.999, OOS 1.0);
+negiert kanonisch C=+3. δ-Asymmetrie pur: `3·exp(−1.2x+2√x)` in-family EXAKT (R²=1.0) und
+trotzdem `unentschieden` (`occam_winner=blind_produkt`, exp·sin imitiert die Ein-Buckel-Form
+≥0.999) — kein Claim, den die Daten nicht trennen. β=0 & Ridge → Kollaps einzel_transzendent;
+Rauschen `widerlegt`; Kepler `widerlegt`; OOS train→test 1.0/1.0; Flip: Chirp-Schmalband
+`unentschieden` (Rivale 0.999998) → Spread → `bestaetigt` exakt.
+
+**4 Linsen:** L1 (Wahrheit): jede Zahl aus eigenem Messlauf; exp·exp-Äquivalenz und die
+(B)-Ablehnung mathematisch begründet (Produktidentität, Doppelwinkel-Gegenbeispiel); Verdikt
+nur hinter hartem Gate + OOS; Rausch-Negativtest. L2 (Drift): kein bestehendes Gate
+aufgeweicht — 6.3/6.6/6.7-Module funktional unverändert (nur Boundary-Docstring in
+`blind_product.py` nachgeführt), `active_resolution` reiner Typ-Dispatch; Geschwister-Tests
+grün. L3 (Vollständigkeit/Naht): Nähte zu 6.2 (OOS-Validator), 6.3 (Schwellen/Bibliothek),
+6.4 (Flip live), 6.6/6.7 (Fitter, Rivalen, `ProductValidation`, `_oos_confirm` re-used statt
+dupliziert); Doku STATUS/CLAUDE.md/README nachgeführt; neue Grenze ehrlich deklariert
+(`f(g(·))` ABGELEHNT mit Begründung + volle GP-Suche offen). L4 (Realisierbarkeit): offline,
+deterministisch, Pair-Guard + Reduced-Lattice-Tests wie die Geschwister; volle Suite grün
+(s. STATUS). Abgleich GENESIS_PLATFORM_PLAN: Grenzverschiebungs-Modul im Discovery-Arm, kein
+neuer Framework-Lock-in. Grok-Drift-Check: NACHZUHOLEN (CLI-Outage, Präzedenz 6.6/6.7).
