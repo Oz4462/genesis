@@ -128,9 +128,22 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
 - D11: Audit-Log-Lücken (Grok, low, A5): scout._queries + skeptic._judge schlucken LLM/Parse-Fehler ohne log
   (best-effort, kein Fabrication-Risiko, aber schwer reproduzierbar) — state.log threaden. Auch: skeptic.claim.verification
   nur aus Primary-Verifier → bei extra_judges/Panel fehlen Second/Extra-Quellen in der Audit-Spur (Union dedup-by-URL).
+  **→ ERLEDIGT 2026-07-04:** `state` in `scout._queries` + `skeptic._judge`/`_check_queries` gethreadet; jeder
+  verschluckte LLM-/Parse-Fehler UND jede non-array-Shape-Degradation loggt nach `state.log` (Verhalten unverändert:
+  best-effort-Fallback bleibt, nur sichtbar). `claim.verification` jetzt Union über ALLE Judges (primary+second+extra),
+  dedup-by-URL in first-seen-Order; pro URL gewinnt konservativ CONTRADICTS (spiegelt das REFUTED-Veto). Neue
+  Negativtests in test_scout.py/test_skeptic.py/test_skeptic_consensus.py.
 - D12 (→ ergänzt D7): inter-judge Familien-Dedup (verifier≠second≠extra) im Skeptic/consensus fehlt (nur vs. Generator
   geprüft) — Grok korrobiert das frühere consensus-Finding. Auch: independence nur exakte-URL (Mirror/CDN-Dupes), Canonical/
   content_hash-Dedup gegen Scholar-Quellen.
+  **→ Kern-Teil ERLEDIGT 2026-07-04:** `assert_pairwise_different_families` (cross_model.py, exportiert) erzwingt
+  verifier≠second≠extra paarweise — in `Skeptic.run` (einmal, claim-unabhängig, up front) UND intra-panel in
+  `consensus_verdict` (ModelConflictError statt stillem Dedup: ein still gedroppter Judge würde den Config-Fehler
+  verstecken; gleiche Philosophie wie der Generator-Check). Erledigt damit auch den „intra-panel Familien-Dedup"-Teil
+  von D7. **OFFEN bleibt der „Auch"-Teil** (Mirror/CDN-URL-Kanonisierung + content_hash-Dedup gegen Scholar-Quellen):
+  zu vage für eine eindeutige, konservative Umsetzung — welche URL-Normalisierungen (Query-Params? Scheme? www?) als
+  „gleiche Quelle" gelten und wo der content_hash der Scholar-Quellen herkommt (Ledger-/SourceRef-Shape) braucht ein
+  eigenes kleines Design; geratenes Verhalten im Independence-Kern wäre schlimmer als die dokumentierte Lücke.
 - D13 (cross-cutting synthesizer+forge, Claude×Grok-einig, aus dem agents-Review deferred — bewusst NICHT piecemeal
   gefixt, um Schwester-Divergenz zu vermeiden): (a) `approach_id`/`possibility_id` hashen nur (name/statement, sorted
   grounding) und ignorieren das Sekundärfeld (tradeoffs/mechanism) → zwei Zeilen, die sich nur darin unterscheiden,

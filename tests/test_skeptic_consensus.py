@@ -18,6 +18,7 @@ from gen.core.state import (
     RunState,
     SourceCandidate,
     SourceRef,
+    SourceSupport,
 )
 from gen.ledger.store import InMemoryLedgerStore
 from gen.llm.base import ScriptedLLM
@@ -90,3 +91,8 @@ def test_consensus_verified_when_panel_supports():
 def test_consensus_refuted_when_one_judge_contradicts():
     claim = _run_panel(_contradicts)
     assert claim.status is ClaimStatus.REFUTED
+    # D11: the audit trail is the URL-deduped union over ALL judges — the extra
+    # judge's contradictions must be visible, not only the primary's supports.
+    assert {r.url_or_id for r in claim.verification} == set(INDEP)
+    assert len(claim.verification) == len(INDEP)  # deduped: one ref per URL
+    assert all(r.support is SourceSupport.CONTRADICTS for r in claim.verification)

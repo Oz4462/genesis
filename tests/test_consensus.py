@@ -60,6 +60,17 @@ def test_cross_model_enforced():
         consensus_verdict(generator_model=GEN, judgments=panel)
 
 
+def test_intra_panel_same_family_rejected():
+    """D12: two judges from ONE family are not independent — their agreement
+    would corroborate (noisy-OR) as if it were two opinions. Config error."""
+    panel = [
+        _j(ClaimStatus.VERIFIED, 0.9, "claude-x"),
+        _j(ClaimStatus.VERIFIED, 0.9, "claude-y"),  # same family as judge 1
+    ]
+    with pytest.raises(ModelConflictError):
+        consensus_verdict(generator_model=GEN, judgments=panel)
+
+
 def test_weights_and_validation():
     panel = _panel((ClaimStatus.VERIFIED, 0.9), (ClaimStatus.UNSUPPORTED, 0.0))
     # upweight the verified judge -> clears threshold

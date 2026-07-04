@@ -193,6 +193,50 @@ def test_verifier_parse_error_is_treated_as_irrelevant():
     run(sk.run(st))
     assert c.status is ClaimStatus.UNSUPPORTED  # no fabricated support on parse failure
     assert c.verification == []
+    # D11: the swallowed judge parse error is visible in the audit log.
+    assert any("skeptic: judge 'gpt-4o' failed" in line for line in st.log)
+
+
+def test_judge_exception_is_logged_and_never_fabricates_support():
+    # D11 negative test: a judge LLM raising a transport error still degrades to
+    # 'irrelevant' (behavior unchanged) but leaves a log entry per failed call.
+    def boom(system, user):
+        raise RuntimeError("judge down")
+
+    ledger = InMemoryLedgerStore()
+    st, c = _state_with_claim(ledger)
+    backend = FakeBackend("b", ["https://i1"])
+    fetch = WebFetchTool(http_serving({"https://i1": "SUPPORT: content"}))
+    sk = Skeptic([backend], fetch, ScriptedLLM("gpt-4o", boom), ledger)
+    run(sk.run(st))
+    assert c.status is ClaimStatus.UNSUPPORTED
+    assert c.verification == []
+    assert any(
+        "skeptic: judge 'gpt-4o' failed" in line and "judge down" in line for line in st.log
+    )
+
+
+def test_query_reformulation_failure_is_logged():
+    # D11: _check_queries falls back to the verbatim claim (behavior unchanged)
+    # but the swallowed LLM error must be visible in state.log.
+    def responder(system, user):
+        if "search queries" in system.lower():
+            raise RuntimeError("reformulation down")
+        if "SUPPORT" in user:
+            return json.dumps({"relation": "supports", "confidence": 0.8})
+        return json.dumps({"relation": "irrelevant", "confidence": 0.0})
+
+    ledger = InMemoryLedgerStore()
+    st, c = _state_with_claim(ledger)
+    backend = FakeBackend("b", ["https://i1", "https://i2"])
+    fetch = WebFetchTool(http_serving({
+        "https://i1": "SUPPORT one", "https://i2": "SUPPORT two",
+    }))
+    sk = Skeptic([backend], fetch, ScriptedLLM("gpt-4o", responder), ledger,
+                 min_sources_for_verified=2)
+    run(sk.run(st))
+    assert c.status is ClaimStatus.VERIFIED  # verbatim fallback still works
+    assert any("skeptic: query reformulation failed" in line for line in st.log)
 
 
 def test_status_update_is_persisted_to_ledger():
@@ -239,6 +283,44 @@ def test_second_judge_agreement_keeps_verified():
     run(sk.run(st))
     assert c.status is ClaimStatus.VERIFIED       # both agree -> verified, corroborated
     assert c.confidence > 0.9
+
+
+def test_verification_audit_includes_second_judge_sources_union_dedup():
+    """D11: claim.verification is the union across ALL judges, deduped by URL.
+
+    The primary supports both sources, the second judge contradicts them. The
+    audit trail must show the contradiction (conservative: contradicts wins per
+    URL) instead of pretending only the primary's SUPPORTS existed — and each
+    URL appears exactly once despite two judges seeing it."""
+    ledger = InMemoryLedgerStore()
+    st, c = _state_with_claim(ledger, model="claude-opus-4-8")
+    backend = FakeBackend("b", ["https://i1", "https://i2"])
+    fetch = WebFetchTool(http_serving({"https://i1": "SUPPORT a", "https://i2": "SUPPORT b"}))
+    verifier = verifier_by_marker("gpt-4o")  # supports both
+    second = ScriptedLLM(
+        "llama3.1:70b",
+        json.dumps({"relation": "contradicts", "confidence": 0.9}),
+    )
+    sk = Skeptic([backend], fetch, verifier, ledger,
+                 second_judge=second, min_sources_for_verified=2)
+    run(sk.run(st))
+    urls = [r.url_or_id for r in c.verification]
+    assert sorted(urls) == ["https://i1", "https://i2"]  # union, deduped by URL
+    assert all(r.support is SourceSupport.CONTRADICTS for r in c.verification)
+
+
+def test_two_judges_same_family_is_config_error():
+    """D12: judges must be pairwise different families among THEMSELVES —
+    verifier and second judge from one family are not independent opinions."""
+    ledger = InMemoryLedgerStore()
+    st, c = _state_with_claim(ledger, model="claude-opus-4-8")
+    backend = FakeBackend("b", ["https://i1"])
+    fetch = WebFetchTool(http_serving({"https://i1": "SUPPORT"}))
+    verifier = verifier_by_marker("gpt-4o")
+    same_family_second = verifier_by_marker("gpt-4o-mini")  # also 'openai'
+    sk = Skeptic([backend], fetch, verifier, ledger, second_judge=same_family_second)
+    with pytest.raises(ModelConflictError):
+        run(sk.run(st))
 
 
 def test_second_judge_same_family_as_generator_raises():

@@ -13,7 +13,12 @@ The heart of GENESIS. For each UNVERIFIED claim it:
      doubt, and cross-model disagreement lowers confidence / forces abstention.
 
 It adds no new facts. It only sets status, confidence and the independent
-verification sources on existing claims.
+verification sources on existing claims. The verification sources are the
+URL-deduped UNION over ALL judges (primary + second + extra) so the audit trail
+shows every judge's evidence (D11); judges must be pairwise different families
+among themselves, not only vs. the generator (D12). Best-effort steps (query
+reformulation, per-source judging) never crash the run, but every swallowed
+LLM/parse error is logged to ``state.log`` (D11 — visible degradation).
 """
 
 from __future__ import annotations
@@ -33,6 +38,7 @@ from ..verification.consensus import consensus_verdict
 from ..verification.cross_model import (
     Judgment,
     assert_different_families,
+    assert_pairwise_different_families,
     corroborated_confidence,
     verify_confidence,
 )
@@ -94,6 +100,16 @@ class Skeptic:
         self._max_verify_sources = max_verify_sources
 
     async def run(self, state: RunState) -> RunState:
+        # D12: judges must ALSO be pairwise different families among THEMSELVES
+        # (verifier != second != extra) — two same-family judges share blind spots
+        # and would corroborate as if they were independent opinions. This is a
+        # claim-independent configuration error, checked once and loudly.
+        judge_models = [self._verifier.model]
+        if self._second is not None:
+            judge_models.append(self._second.model)
+        judge_models.extend(ex.model for ex in self._extra)
+        assert_pairwise_different_families(judge_models)
+
         for claim in state.claims:
             if claim.status is not ClaimStatus.UNVERIFIED:
                 continue
@@ -124,18 +140,22 @@ class Skeptic:
                 evidence.append((cand.url_or_id, readable_text(result.content)))
 
             verifier_verdicts = [
-                await self._judge(self._verifier, claim.text, content, url)
+                await self._judge(self._verifier, claim.text, content, url, state)
                 for url, content in evidence
             ]
             primary = self._aggregate(verifier_verdicts, self._verifier.model)
+            # Audit trail across ALL judges (D11): collect every verdict so the
+            # verification sources are not just the primary verifier's view.
+            all_verdicts: list[_Verdict] = list(verifier_verdicts)
 
             second_judgment = None
             if self._second is not None:
                 # A REAL second opinion: the second model judges the same evidence.
                 second_verdicts = [
-                    await self._judge(self._second, claim.text, content, url)
+                    await self._judge(self._second, claim.text, content, url, state)
                     for url, content in evidence
                 ]
+                all_verdicts.extend(second_verdicts)
                 second_judgment = self._aggregate(second_verdicts, self._second.model)
 
             if self._extra:
@@ -147,9 +167,10 @@ class Skeptic:
                     judgments.append(second_judgment)
                 for ex in self._extra:
                     verdicts = [
-                        await self._judge(ex, claim.text, content, url)
+                        await self._judge(ex, claim.text, content, url, state)
                         for url, content in evidence
                     ]
+                    all_verdicts.extend(verdicts)
                     judgments.append(self._aggregate(verdicts, ex.model))
                 cv = consensus_verdict(generator_model=gen_model, judgments=judgments)
                 claim.status = cv.status
@@ -162,9 +183,7 @@ class Skeptic:
                 )
                 claim.status = final.status
                 claim.confidence = final.confidence
-            claim.verification = [
-                self._fetch_ref(v) for v in verifier_verdicts if v.relation != "irrelevant"
-            ]
+            claim.verification = self._verification_refs(all_verdicts)
             await self._ledger.update_claim(claim)
         return state
 
@@ -173,7 +192,7 @@ class Skeptic:
     async def _independent_candidates(self, claim_text, scholar_urls, state):
         seen: set[str] = set()
         out = []
-        for query in await self._check_queries(claim_text):
+        for query in await self._check_queries(claim_text, state):
             for backend in self._backends:
                 try:
                     cands = await backend.search(query, self._per_query_limit)
@@ -189,12 +208,13 @@ class Skeptic:
                     out.append(c)
         return out
 
-    async def _check_queries(self, claim_text: str) -> list[str]:
+    async def _check_queries(self, claim_text: str, state: RunState) -> list[str]:
         # Model-driven reformulation for stronger INDEPENDENT retrieval: the verifier
         # proposes a few keyword queries that could confirm or refute the claim. The
         # verbatim claim is always kept as a baseline, and any failure falls back to
-        # it alone — never an empty query, never a fabricated one. (Recall tuning:
-        # verbatim claim text alone often misses corroborating sources.)
+        # it alone — never an empty query, never a fabricated one, and never silent:
+        # the swallowed error is logged to state.log (D11). (Recall tuning: verbatim
+        # claim text alone often misses corroborating sources.)
         queries: list[str] = []
         try:
             resp = await self._verifier.complete(
@@ -203,13 +223,24 @@ class Skeptic:
             parsed = extract_json(resp.text, agent="skeptic")
             if isinstance(parsed, list):
                 queries = [str(q).strip() for q in parsed if str(q).strip()][:4]
-        except Exception:  # noqa: BLE001 - reformulation is best-effort, never fatal
+            else:
+                state.log.append(
+                    "skeptic: query reformulation returned non-array JSON; "
+                    "falling back to verbatim claim text"
+                )
+        except Exception as exc:  # noqa: BLE001 - reformulation is best-effort, never fatal
+            state.log.append(
+                f"skeptic: query reformulation failed "
+                f"({type(exc).__name__}: {exc}); falling back to verbatim claim text"
+            )
             queries = []
         if claim_text not in queries:
             queries.append(claim_text)
         return queries
 
-    async def _judge(self, llm: LLMClient, claim_text: str, content: str, url: str) -> _Verdict:
+    async def _judge(
+        self, llm: LLMClient, claim_text: str, content: str, url: str, state: RunState
+    ) -> _Verdict:
         user = f"CLAIM:\n{claim_text}\n\nINDEPENDENT SOURCE TEXT:\n{content}"
         try:
             resp = await llm.complete(system=_SYSTEM, user=user)
@@ -218,7 +249,14 @@ class Skeptic:
             if relation not in {"supports", "contradicts", "irrelevant"}:
                 relation = "irrelevant"
             conf = float(value.get("confidence", 0.0))  # type: ignore[union-attr]
-        except Exception:  # noqa: BLE001 - never fabricate support on error
+        except Exception as exc:  # noqa: BLE001 - never fabricate support on error
+            # Degrading to 'irrelevant' is the honest verdict, but the failure
+            # itself must stay auditable (D11) — an unlogged judge outage would
+            # make an UNSUPPORTED run irreproducible in hindsight.
+            state.log.append(
+                f"skeptic: judge {llm.model!r} failed on {url} "
+                f"({type(exc).__name__}: {exc}); treating source as irrelevant"
+            )
             relation, conf = "irrelevant", 0.0
         return _Verdict(relation=relation, confidence=_clamp01(conf), url=url)
 
@@ -233,11 +271,37 @@ class Skeptic:
         # Not enough independent corroboration -> honest UNSUPPORTED, never VERIFIED.
         return Judgment(ClaimStatus.UNSUPPORTED, max(supports) if supports else 0.0, model)
 
-    def _fetch_ref(self, v: _Verdict) -> SourceRef:
-        support = (
-            SourceSupport.CONTRADICTS if v.relation == "contradicts" else SourceSupport.SUPPORTS
-        )
-        return SourceRef(url_or_id=v.url, retrieved=True, support=support)
+    def _verification_refs(self, verdicts: Sequence[_Verdict]) -> list[SourceRef]:
+        """Audit refs from ALL judges' verdicts: union, deduped by URL (D11).
+
+        Every non-irrelevant verdict — primary, second AND extra judges — enters
+        the audit trail, in first-seen order. Per URL the CONSERVATIVE relation
+        wins: if any judge saw a contradiction there, the ref is CONTRADICTS
+        (mirroring the REFUTED veto), never papered over by another judge's
+        SUPPORTS. Deterministic (A5): same verdicts -> same refs.
+        """
+        relation_by_url: dict[str, str] = {}
+        order: list[str] = []
+        for v in verdicts:
+            if v.relation == "irrelevant":
+                continue
+            if v.url not in relation_by_url:
+                relation_by_url[v.url] = v.relation
+                order.append(v.url)
+            elif v.relation == "contradicts":
+                relation_by_url[v.url] = "contradicts"
+        return [
+            SourceRef(
+                url_or_id=url,
+                retrieved=True,
+                support=(
+                    SourceSupport.CONTRADICTS
+                    if relation_by_url[url] == "contradicts"
+                    else SourceSupport.SUPPORTS
+                ),
+            )
+            for url in order
+        ]
 
 
 def _clamp01(x: float) -> float:

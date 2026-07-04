@@ -22,6 +22,7 @@ from .consensus import ConsensusVerdict, consensus_verdict
 from .cross_model import (
     Judgment,
     assert_different_families,
+    assert_pairwise_different_families,
     combine_judgments,
     corroborated_confidence,
     model_family,
@@ -93,6 +94,7 @@ __all__ = [
     "corroborated_confidence",
     "status_disagreement",
     "assert_different_families",
+    "assert_pairwise_different_families",
     "model_family",
     "consensus_verdict",
     "ConsensusVerdict",

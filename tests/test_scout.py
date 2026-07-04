@@ -96,8 +96,24 @@ def test_llm_parse_failure_falls_back_to_focus_text():
     b = FakeBackend("b", ["https://a"])
     llm = ScriptedLLM("gpt-4o", "not json at all")
     scout = Scout([b], llm=llm)
-    run(scout.run(_state(raw="fallback focus")))
+    st = run(scout.run(_state(raw="fallback focus")))
     assert b.queries == ["fallback focus"]
+    # D11: the swallowed parse error must leave an audit trace in state.log.
+    assert any("scout: query generation failed" in line for line in st.log)
+
+
+def test_llm_exception_is_logged_and_falls_back_to_focus_text():
+    # D11 negative test: an LLM transport error degrades to the focus query
+    # (behavior unchanged) but is VISIBLE in state.log, not silently swallowed.
+    def boom(system, user):
+        raise RuntimeError("llm down")
+
+    b = FakeBackend("b", ["https://a"])
+    st = run(Scout([b], llm=ScriptedLLM("gpt-4o", boom)).run(_state(raw="focus q")))
+    assert b.queries == ["focus q"]  # unchanged best-effort fallback
+    assert any(
+        "scout: query generation failed" in line and "llm down" in line for line in st.log
+    )
 
 
 def test_llm_object_reply_does_not_become_dict_key_queries():
@@ -106,8 +122,10 @@ def test_llm_object_reply_does_not_become_dict_key_queries():
     b = FakeBackend("b", ["https://a"])
     llm = ScriptedLLM("gpt-4o", '{"queries": ["q1", "q2"]}')
     scout = Scout([b], llm=llm)
-    run(scout.run(_state(raw="real focus")))
+    st = run(scout.run(_state(raw="real focus")))
     assert b.queries == ["real focus"]  # no "queries"/"q1" key-garbage
+    # D11: the silent shape-degradation is logged too.
+    assert any("non-array" in line for line in st.log)
 
 
 def test_scout_produces_no_claims():

@@ -26,6 +26,7 @@ from ..core.state import ClaimStatus
 from .cross_model import (
     Judgment,
     assert_different_families,
+    assert_pairwise_different_families,
     corroborated_confidence,
 )
 
@@ -89,12 +90,18 @@ def consensus_verdict(
 
     Raises:
         ValueError: empty panel, or weights invalid.
-        ModelConflictError: a judge shares the generator's model family.
+        ModelConflictError: a judge shares the generator's model family, or two
+            judges share a family (an intra-panel duplicate is not an
+            independent second opinion — D12).
     """
     if not judgments:
         raise ValueError("consensus needs at least one judgment")
     for j in judgments:
         assert_different_families(generator_model, j.model)
+    # D12: the aggregate below treats judges as independent; same-family judges
+    # are not, and would silently double-count. Reject loudly, never dedup
+    # silently (a silently dropped judge would hide a configuration error).
+    assert_pairwise_different_families([j.model for j in judgments])
 
     w = [float((weights or {}).get(j.model, 1.0)) for j in judgments]
     if any(x < 0 for x in w):

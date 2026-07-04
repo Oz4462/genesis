@@ -26,8 +26,10 @@ extrahieren, nicht bewerten.
 - Fällt ein Backend aus (`SearchBackendError`), wird das in `state.log` notiert
   und mit den übrigen Backends weitergemacht — sichtbar degradieren, nicht still
   scheitern, nicht erfinden.
-- Kann die LLM keine Queries liefern (Parse-Fehler), wird der Teilfragetext
-  selbst als Query benutzt.
+- Kann die LLM keine Queries liefern (LLM-/Parse-Fehler oder Nicht-Array-Antwort),
+  wird der Teilfragetext selbst als Query benutzt — und die Degradation in
+  `state.log` notiert (D11: best-effort, aber nie still; sonst ist ein
+  breiten-armer Lauf im Nachhinein nicht reproduzierbar/diagnostizierbar).
 
 ## Tests (Pflicht)
 - Kandidaten aus mehreren Backends werden gesammelt und dedupliziert.

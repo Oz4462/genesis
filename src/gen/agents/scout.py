@@ -47,7 +47,7 @@ class Scout:
         ]
         seen = {c.url_or_id for c in state.candidates}
         for sq in focuses:
-            for query in await self._queries(sq.text):
+            for query in await self._queries(sq.text, state):
                 for backend in self._backends:
                     try:
                         candidates = await backend.search(query, self._per_query_limit)
@@ -62,7 +62,7 @@ class Scout:
                             state.candidates.append(cand)
         return state
 
-    async def _queries(self, focus: str) -> list[str]:
+    async def _queries(self, focus: str, state: RunState) -> list[str]:
         """Return search queries for a focus. LLM is optional and fact-free.
 
         The focus text is ALWAYS the first query: it is the highest-precision
@@ -71,6 +71,11 @@ class Scout:
         LLM-elaborated queries are added after it for breadth, deduped, and
         capped at ``max_queries`` — so an off-target elaboration can never crowd
         out the direct query.
+
+        Query generation is best-effort and never fatal, but every degradation
+        (LLM/parse error, non-array reply) is logged to ``state.log`` so a
+        breadth-poor run stays reproducible/diagnosable (D11) instead of
+        failing silently.
         """
         queries = [focus]
         if self._llm is None:
@@ -84,14 +89,22 @@ class Scout:
         try:
             resp = await self._llm.complete(system=system, user=focus)
             value = extract_json(resp.text, agent="scout")
-            if not isinstance(value, list):
-                # An object reply would iterate its KEYS ('queries', ...) as bogus
-                # queries; only a JSON array is a query list. Keep focus alone —
-                # same array-shape discipline as scholar._extract / skeptic._check_queries.
-                return queries
-            extra = [str(q).strip() for q in value if str(q).strip()]
-        except Exception:  # noqa: BLE001 - query gen is best-effort, never fatal
+        except Exception as exc:  # noqa: BLE001 - query gen is best-effort, never fatal
+            state.log.append(
+                f"scout: query generation failed for {focus!r} "
+                f"({type(exc).__name__}: {exc}); using focus query only"
+            )
             return queries
+        if not isinstance(value, list):
+            # An object reply would iterate its KEYS ('queries', ...) as bogus
+            # queries; only a JSON array is a query list. Keep focus alone —
+            # same array-shape discipline as scholar._extract / skeptic._check_queries.
+            state.log.append(
+                f"scout: query generation returned non-array JSON for {focus!r}; "
+                "using focus query only"
+            )
+            return queries
+        extra = [str(q).strip() for q in value if str(q).strip()]
         for q in extra[: self._max_queries]:
             if q != focus and q not in queries:
                 queries.append(q)

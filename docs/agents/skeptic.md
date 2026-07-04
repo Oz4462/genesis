@@ -28,7 +28,9 @@ Für jeden Claim:
    - ≥ `min_sources_for_verified` unabhängige, glaubwürdige Stützquellen **oder** eine eindeutige, vertrauenswürdige Primärquelle → `VERIFIED`.
    - sonst → `UNSUPPORTED`.
 4. **Confidence** ergibt sich aus: Anzahl/Unabhängigkeit der Quellen, Quellenqualität, Modell-Übereinstimmung (Cross-Model-Disagreement senkt Confidence).
-5. **Cross-Model-Pflicht:** Läuft das Urteil auf derselben Modellfamilie wie `scholar`, wirf `ModelConflictError` (Konfig-Fehler), statt stillschweigend fortzufahren.
+5. **Cross-Model-Pflicht:** Läuft das Urteil auf derselben Modellfamilie wie `scholar`, wirf `ModelConflictError` (Konfig-Fehler), statt stillschweigend fortzufahren. Zusätzlich (D12): Die Judges müssen auch **untereinander** paarweise verschiedene Familien haben (verifier ≠ second ≠ extra) — zwei Judges einer Familie sind keine unabhängigen Zweitmeinungen und würden die Korroboration still aufblähen; geprüft einmal up front in `run()` und intra-panel in `consensus_verdict`.
+6. **Audit-Spur:** `claim.verification` ist die **Union über alle Judges** (primary + second + extra), dedupliziert per URL in First-Seen-Reihenfolge; pro URL gewinnt konservativ `CONTRADICTS` (Spiegel des REFUTED-Vetos).
+7. **Best-effort nie still (D11):** Verschluckte LLM-/Parse-Fehler in Query-Reformulierung (`_check_queries`) und Judge-Urteil (`_judge`) degradieren wie bisher (verbatim-Fallback bzw. `irrelevant`), werden aber in `state.log` notiert.
 
 ## Quellen-Glaubwürdigkeit (Heuristik, dokumentiert)
 Vorrang: Primärquellen (peer-reviewed Paper, offizielle Specs/Standards, Hersteller-Datenblätter, Gesetzestexte) > seriöse Sekundärquellen > Aggregatoren > Foren. Foren/SEO-Seiten zählen nicht als alleinige Verifikation. Bei strittigen/verschwörungsanfälligen Themen: höhere Schwelle, Dissens explizit abbilden statt eine Seite wählen.
@@ -36,7 +38,7 @@ Vorrang: Primärquellen (peer-reviewed Paper, offizielle Specs/Standards, Herste
 ## Fehlerzustände
 - `FetchFailedError` — Verifikationsquelle nicht ladbar → diese Quelle zählt nicht.
 - `NoIndependentSourceError` → führt zu `UNSUPPORTED`, nie zu stillem `VERIFIED`.
-- `ModelConflictError` → harter Abbruch, Konfiguration ist falsch.
+- `ModelConflictError` → harter Abbruch, Konfiguration ist falsch (Generator-Familie == Judge-Familie ODER zwei Judges derselben Familie).
 
 ## Tests (Pflicht)
 - Claim mit echter unabhängiger Stützung → `VERIFIED`, Confidence ≥ τ.
@@ -44,6 +46,9 @@ Vorrang: Primärquellen (peer-reviewed Paper, offizielle Specs/Standards, Herste
 - Claim ohne auffindbare unabhängige Quelle → `UNSUPPORTED` (nicht VERIFIED!).
 - Wiederverwendung einer scholar-Quelle → zählt NICHT als unabhängig (per DB-View prüfbar).
 - generator==verifier Modellfamilie → `ModelConflictError`.
+- zwei Judges derselben Familie (z. B. verifier + second beide openai) → `ModelConflictError` (D12).
+- Judge-/Reformulierungs-Fehler → Verhalten unverändert (irrelevant / verbatim-Fallback), aber `state.log`-Eintrag (D11).
+- second/extra-Judge-Verdikte erscheinen in `claim.verification` (Union dedup-by-URL, CONTRADICTS gewinnt).
 
 ## System-Prompt (Entwurf, anpassbar)
 > Du bist ein wissenschaftlicher Verifikator. Deine einzige Aufgabe ist es, eine gegebene Behauptung mit **neuen, unabhängigen** Quellen zu prüfen. Du versuchst aktiv, die Behauptung zu **widerlegen**. Du fügst niemals neue Behauptungen hinzu. Du gibst genau einen Status zurück — VERIFIED, REFUTED oder UNSUPPORTED — mit den genutzten Quellen-URLs und einer kurzen Begründung. Wenn du keine unabhängige Stützung findest, ist die Antwort UNSUPPORTED, niemals VERIFIED. Im Zweifel: UNSUPPORTED.
