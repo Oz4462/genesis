@@ -19,19 +19,20 @@ import pytest  # noqa: E402
 
 from gen.bundle import emit_bundle  # noqa: E402
 from gen.pipeline import assess_specification  # noqa: E402
+from gen.seams import build_seam_certificate  # noqa: E402
 from gen.visionary_ideas import ALL_VISIONARY_IDEAS  # noqa: E402
 
 _HAS_CADQUERY = importlib.util.find_spec("cadquery") is not None
 
 # the signature axis each grok-dreamed idea must auto-fire — proof GENESIS verified the physics the
-# vision actually depends on (a flying manipulator must fire the flight stack, a resonance walker the
-# swing-resonance axis, a hydraulic module the hydraulic axes)
+# vision actually depends on. For Mars ISRU: the new domain validators + core structure.
 _SIGNATURE = {
     "skyclaw": {"rotor_hover", "battery_endurance", "current_budget", "attitude_pd", "reach",
                 "electric_actuator", "compute_budget"},
     "resostrider": {"swing_resonance", "joint_swing_torque", "zmp_dynamic", "reach",
                     "electric_actuator"},
     "forgehydra": {"hydraulic_cylinder", "hydraulic_flow", "reach", "compute_budget"},
+    "mars_isru_o2_plant": {"isru_electrolysis_o2", "life_support_o2_balance"},
 }
 
 _IDS = [fn().run_id for fn, _ in ALL_VISIONARY_IDEAS]
@@ -40,9 +41,18 @@ _IDS = [fn().run_id for fn, _ in ALL_VISIONARY_IDEAS]
 @pytest.mark.parametrize("spec_fn,claims_fn", ALL_VISIONARY_IDEAS, ids=_IDS)
 def test_visionary_idea_is_physics_verified(spec_fn, claims_fn):
     """The dreamed idea passes the δ-physics gate honestly: physics_verified, no uncomputable gap, no
-    contradiction — and its signature axes (the physics the vision lives on) actually fired."""
+    contradiction — and its signature axes (the physics the vision lives on) actually fired.
+    For ISRU/LIFE: explicit DomainSeams looked up from VISIONARY_SEAMS and passed (avoids fallback)."""
+    from gen.visionary_ideas import VISIONARY_SEAMS
     spec = spec_fn()
-    a = assess_specification(spec, claims=claims_fn())
+    claims = claims_fn()
+    seams_fn = VISIONARY_SEAMS.get(spec.run_id)
+    if seams_fn is not None:
+        seams = seams_fn()
+        cert = build_seam_certificate(spec, seams)
+        a = assess_specification(spec, claims=claims, seam_certificate=cert)
+    else:
+        a = assess_specification(spec, claims=claims)
     fired = {c.validator for c in a.physics_checks}
     assert _SIGNATURE[spec.run_id] <= fired, f"{spec.run_id}: missing {_SIGNATURE[spec.run_id] - fired}"
     assert a.physics_gaps == [], f"{spec.run_id} has uncomputable gaps: {a.physics_gaps}"
@@ -53,7 +63,9 @@ def test_visionary_idea_is_physics_verified(spec_fn, claims_fn):
 @pytest.mark.parametrize("spec_fn,claims_fn", ALL_VISIONARY_IDEAS, ids=_IDS)
 def test_visionary_idea_emits_real_artifacts(spec_fn, claims_fn, tmp_path):
     """emit_bundle writes the manual + BOM + (with the OCCT kernel) a watertight STL per printed part,
-    nothing silently missing — the dream becomes owner-visible printable hardware."""
+    nothing silently missing — the dream becomes owner-visible printable hardware.
+    For the new ISRU plant: exercises full bundle path (honest gaps from internal cost-only seam_cert
+    are ok; the explicit-seams path is proven in the physics test)."""
     spec = spec_fn()
     m = emit_bundle(spec, tmp_path)
     assert "BAUANLEITUNG.md" in m.written and "bom.json" in m.written
@@ -80,4 +92,49 @@ def test_resostrider_actually_rides_its_natural_cadence():
 
 def test_three_distinct_visionary_domains():
     ids = [fn().run_id for fn, _ in ALL_VISIONARY_IDEAS]
-    assert len(ids) == 3 and len(set(ids)) == 3
+    assert len(ids) == 4 and len(set(ids)) == 4
+
+
+def test_mars_isru_o2_plant_uses_isru_life_domains_and_explicit_seams():
+    """Dedicated test (per 1-2 new tests rule): verifies new domains are detected, explicit
+    DomainSeams declared in visionary_ideas cover the required pairs, and full assess with
+    explicit cert (no fallback) yields physics_verified. Also exercises bundle path."""
+    from gen.core.state import SeamDomain
+    from gen.seams import domains_present, required_seam_pairs
+    from gen.visionary_ideas import mars_isru_o2_plant_seams, mars_isru_o2_plant_spec, mars_isru_o2_plant_claims
+    spec = mars_isru_o2_plant_spec()
+    present = domains_present(spec)
+    assert SeamDomain.ISRU in present, "ISRU domain must be used"
+    assert SeamDomain.LIFE_SUPPORT in present, "LIFE_SUPPORT domain must be used"
+    assert SeamDomain.MECHANICAL in present
+    assert SeamDomain.COST in present
+
+    req = required_seam_pairs(spec)
+    assert any(set(p) == {SeamDomain.MECHANICAL, SeamDomain.ISRU} for p in req)
+    assert any(set(p) == {SeamDomain.ELECTRICAL, SeamDomain.ISRU} for p in req)
+    assert any(set(p) == {SeamDomain.ISRU, SeamDomain.COST} for p in req)
+
+    # explicit seams cover exactly
+    from gen.seams import _pair
+    seams = mars_isru_o2_plant_seams()
+    cert = build_seam_certificate(spec, seams)
+    covered = {_pair(s.left_domain, s.right_domain) for s in cert.seams}
+    for r in req:
+        assert r in covered, f"missing seam coverage for required {r}"
+
+    # assess with explicit (exercises assess path)
+    claims = mars_isru_o2_plant_claims()
+    a = assess_specification(spec, claims=claims, seam_certificate=cert)
+    assert a.physics_ok and a.overall == "physics_verified"
+    fired = {c.validator for c in a.physics_checks}
+    assert "isru_electrolysis_o2" in fired
+    assert "life_support_o2_balance" in fired
+
+    # bundle path exercised (produces artifacts; internal cert may leave seam gaps reported honestly)
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        m = emit_bundle(spec, td)
+        assert "BAUANLEITUNG.md" in m.written
+        assert "bom.json" in m.written
+        assert m.printed_parts  # at least the 2 printed reactor/hopper
+
