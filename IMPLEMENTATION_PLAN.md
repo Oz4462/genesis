@@ -1184,6 +1184,15 @@ Claude review: 0 failed (good) but noted no increase in test count / no dedicate
 
 We build the honest engine that lets humanity realize the Elon vision — reusability, ISRU, habitats, energy, robots — without lies. Gate is law. First principles. For many worlds.
 
+### Mission-level roll-up demo (self-contained in ISRU plant test)
+Added in dedicated test: ISRU target >= LIFE crew makeup need (with 0.95 margin).
+This is a tiny mission-level check (O2 closure across ISRU + LIFE) without touching pipeline or core assess.
+Commit 4fe5c23.
+Fits "complete" (system view for habitats + propellant) + "not only multi physics".
+Tests remain green (11p visionary).
+
+(Also: TDD subagent 019f2c2a-1e18-74a0-91bc-ac2dac0be697 completed with exact auflage-closing tests for domains/pairs/FP/validators; BUILD_LOG updated; 6 new tests pass, coverage increased.)
+
 ### Follow-on after visionary ISRU (per "ready go" + complete vision)
 - Integrated first_principles.derive for the ISRU stoich yield (water * r * eff proven from axioms) inside the Mars plant dedicated test.
 - Commit: a2d9edb.
