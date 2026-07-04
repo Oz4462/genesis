@@ -19,6 +19,7 @@ Output: ManufacturingCheck mit printable-Flag, Issues, Evidence.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 import os
 
 from .prototype_cad_builder import BuildArtifact
@@ -219,6 +220,17 @@ def check_advanced_dfm(
 
     # dfm rules
     fdm_gaps: list[str] = []
+    # finite screen first: NaN passes every < guard as False, so a non-finite wall
+    # or volume would silently satisfy the rules below (Batch-1 NaN pattern) — it
+    # must surface as an issue, never as conformance.
+    if not math.isfinite(wall):
+        fdm_issues.append(
+            f"FDM: min wall thickness not finite ({wall}) — rule not evaluable, treated as failing")
+        wall = 0.0
+    if not math.isfinite(vol):
+        fdm_issues.append(
+            f"FDM: volume estimate not finite ({vol}) — volume rules/cost not evaluable")
+        vol = 0.0
     if wall < FDM_MIN_WALL_MM:
         fdm_issues.append(f"FDM: wall {wall}mm < min reliable {FDM_MIN_WALL_MM}mm (dfm.py)")
     # min-hole-diameter rule: the spec carries NO hole geometry (PrototypeSpec is a

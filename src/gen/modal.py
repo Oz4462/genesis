@@ -30,6 +30,8 @@ before trusting a bending mode).
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 
 from .core.errors import GeometryError
@@ -147,8 +149,10 @@ def resonance_check(
     Deterministic. (Soft mounting — deliberately f₁ ≪ f_exc for isolation — is the
     other valid regime and is not what this check enforces.)
     """
-    if excitation_hz <= 0.0:
-        raise ValueError("excitation frequency must be positive")
+    if not (excitation_hz > 0.0):  # also catches NaN, which escapes a <= guard
+        raise ValueError("excitation frequency must be positive and finite")
+    if math.isinf(excitation_hz):
+        raise ValueError("excitation frequency must be positive and finite")
     ratio = first_natural_hz / excitation_hz
     return {
         "ratio": ratio,

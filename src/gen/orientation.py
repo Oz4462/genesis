@@ -93,8 +93,15 @@ def overhang_check(
     eps = extent * 1e-3 + 1e-9
     tol = tolerance if tolerance is not None else max(extent / 200.0, 1e-4)
     down = _unit(-build_dir[0], -build_dir[1], -build_dir[2])
+    if down == (0.0, 0.0, 0.0):
+        # a zero build direction would make every angle 90° -> never any support
+        raise ValueError("build_dir must be non-zero")
 
     verts, tris = solid.tessellate(tol)
+    if not tris:
+        # same guard as first_layer_report/bridge_spans: zero triangles must never
+        # read as "needs_support=False" — that would be a pass without geometry
+        raise ValueError("tessellation produced no triangles")
     overhang_area = 0.0
     worst = 0.0
     column_volume = 0.0
