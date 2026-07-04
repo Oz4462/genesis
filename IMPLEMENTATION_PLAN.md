@@ -1191,7 +1191,7 @@ Commit 4fe5c23.
 Fits "complete" (system view for habitats + propellant) + "not only multi physics".
 Tests remain green (11p visionary).
 
-(Also: TDD subagent 019f2c2a-1e18-74a0-91bc-ac2dac0be697 completed with exact auflage-closing tests for domains/pairs/FP/validators; BUILD_LOG updated; 6 new tests pass, coverage increased.)
+(Also: TDD subagent 019f2c2a-1e18-74a0-91bc-ac2dac0be697 completed with exact auflage-closing tests for domains/pairs/FP/validators; BUILD_LOG updated; 6 new tests pass, coverage increased. Simplicity subagent endorsed minimal set. Bg full re-runs 1727p.)
 
 ### Tightened first_principles integration (plant test)
 The derive now pulls water/eff directly from the Mars ISRU plant spec (100 kg, 0.85) and derives the exact produced O2. Ties discovery more tightly to the complete vision artifact.
