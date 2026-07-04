@@ -179,17 +179,69 @@
   schärfen" → umgesetzt: **Leave-One-Out als dritte Gate-Bedingung** ergänzt (+Test) und Docstring
   präzisiert (`vollstaendig` = „keine Korrektur in der additiven Basis", NICHT „physikalisch vollständig").
 
-## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1–6.5
+- **Tour 6.6 — Multiplikative Kopplungen** (`multiplicative.py`, 2026-07-04): Produktformen
+  `y = C·π1^a·f(α·π2 [+φ])` — Potenz EINER dimensionslosen π-Gruppe mal transzendente Modulation
+  einer anderen (beide aus dem Nullraum `A·p = 0`, geordnete Paare inkl. π1==π2; `C` trägt allein
+  die Ziel-Dimension). **Zwei Fit-Pfade:** (1) LOG-PFAD nur wo er sound ist — für `f=exp` UND
+  strikt positives Ziel ist `log y = log C + a·log π1 + α·π2` EXAKT linear (deterministische
+  lstsq, seedet zusätzlich den direkten Fit); bei irgendeinem y≤0 wird der Pfad VERWEIGERT
+  (übersprungen, NIE ein stilles `abs()`) und (2) direkter `curve_fit` mit fixen Startwerten
+  (vorzeichenfrei in y) läuft immer. Gefittete EXPONENTEN sind auf ±8 begrenzt
+  (`MAX_FIT_EXPONENT`: jenseits davon ist eine Potenz keine Kandidaten-Physik mehr, sondern eine
+  numerische Stufen-Imitation, deren Extrapolation überläuft — live beobachtet, NaN im
+  Divergenz-Suchlauf; Hybrid: schnelles LM, gebundenes TRF nur bei degenerierter Lösung).
+  **Ehrliches Gate wie 6.3:** Rivale = reine Power-Law `C·π1^p·π2^q + D` über DIESELBEN Paare
+  (MIT Offset, den die Produktform nicht bekommt — der Rivale ist mindestens so flexibel, Bias
+  Richtung `unentschieden`, nie Richtung Über-Claim); `bestaetigt` nur wenn Produktform R²≥0.999
+  UND Rivale <0.999. **Gemessen (16 Tests grün):** Wien-Form `u = 2·x³·e^(−x)` (x=t/τ) →
+  `bestaetigt` exakt: a_eff=3.0, α_eff=−1.0, C=2.0 (R²=1.0000000, pow-Rivale 0.5009), Log-Pfad
+  aktiv; negatives Ziel `−2·x³·e^(−x)` → Log-Pfad verweigert, direkter Pfad findet C=−2 exakt;
+  reine Potenz `y=4·x²` → `unentschieden` (beide 1.0 — kein Produkt-Über-Claim); Rauschen →
+  `widerlegt` (R²=0.17); Kepler (a,μ) → `widerlegt` („kein dimensionsloses Argument").
+  **OOS (6.2-Naht):** `product_out_of_sample_validate` — Wien train→test R²=1.0000/1.0000,
+  `generalises=True`; Rauschen test-R²=−0.31, `generalises=False`. **Flip (6.4-Naht, DER
+  Akzeptanztest):** Schmalband-Wien t∈[2.0,2.4] → `unentschieden` (exp 1.0, pow2 0.99997) →
+  `discover_product_rivals` + `propose_resolution` (dispatcht jetzt auch `ProductRival`;
+  discriminating, ratio≈11042× Rausch-Boden, Spread [0.667…7.2]) → wahre Daten am Spread →
+  re-judge **flippt zu `bestaetigt`** (pow2 kollabiert auf 0.43). ZWEITE Fähigkeit:
+  `discover_multiplicative_correction(problem, y_base)` — multiplikatives Residuum als
+  **RATIO** `r = y/y_base` (dimensionslos), Division nur wo `|y_base| > ε·max|y_base|` überall
+  (sonst harter ValueError „Gate-Verweigerung" — an einer Baseline-Nullstelle ist das Ratio ein
+  Divisions-Artefakt; kein stilles Maskieren), Modulations-Bibliothek = 6.3-Formen + Phase im
+  sin (cos = sin(·+π/2)), Occam-Wächter: ist die Power-Modulation `C·π^β+D` im Wesentlichen
+  exakt, gewinnt sie IMMER über jede Transzendente; konstantes Ratio = Reskalierung, NIE ein
+  π-Kopplungs-Claim. **Dieselben strengen 6.5-Gates:** `ratio_explained ≥ 0.9` ∧ `ΔR² > 1e-3` ∧
+  Leave-One-Out `≥ 0.5`. **Gemessen:** gedämpfte Schwingung `x = 4·e^(−0.3t)·cos(2t)`, Baseline
+  `4·e^(−0.3t)` (UNGLEICHMÄSSIGES Sampling — auf äquidistantem Gitter ist eine Sinus-Modulation
+  nur bis Aliasing identifizierbar, dokumentierte Daten-Grenze) → findet **exakt
+  `sin(1.0·(t·ω) + 1.5707963…)` = `cos(ωt)`** (C=1.000000000, φ=π/2 auf 1e-10, D≈0,
+  ratio_explained=1.0, corrected R²=1.0, LOO=1.0) → `korrektur_noetig`; baseline==y →
+  `vollstaendig` (konstante Reskalierung); Rausch-Ratio → `vollstaendig` (ratio_expl=0.54,
+  LOO=0.09 — beide Gates greifen); Potenz-Modulation `(t/τ)²` → Form **pow** behauptet, nie
+  transzendent verkleidet. Negativtests: Baseline-Nullstelle → ValueError; Längen-Mismatch →
+  ValueError; non-positive Quellen → ValueError.
+- **Cross-Model-Drift-Check (grok-build): NACHZUHOLEN** — Grok-CLI am 2026-07-04 nicht
+  erreichbar (gleicher Outage-Präzedenzfall wie Deep-Review 7–9 im WORK_QUEUE-Ledger). Die
+  Tour-6.6-Claims (Buckingham-π-Paare, Log-Pfad-Soundness, Exponenten-Schranke, Rivalen-Gate,
+  Ratio-Gates, Aliasing-Grenze) sind für den nachgeholten Review als Claims-Summary in diesem
+  Absatz fixiert.
+
+## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1–6.6
 
 Der gesamte Mehr-Wochen-Plan aus `GROK_BUILD_GENESIS_UNIVERSE_EXPLORER.md` ist gebaut, getestet,
-grok-build-drift-geprüft und committet (lokal, kein Push). **146 Discovery-Testfunktionen** über
-35 Module (nachgezählt 2026-07-04, `docs/AUDIT_2026-07-04.md`);
-`rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Mit Frontier 6.1–6.5 sind nun
+grok-build-drift-geprüft (6.6: nachzuholen, s. o.) und committet (lokal, kein Push).
+**160 Discovery-Testfunktionen** über 36 Module (nachgezählt 2026-07-04 nach 6.6,
+`grep -c '^def test_' tests/test_discovery_*.py`);
+`rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Mit Frontier 6.1–6.6 sind nun
 **Summen mehrerer dimensional-gültiger Terme** (inkl. OOS), **transzendente Formen**, die **Active
-Resolution of Uncertainty** UND **Minimal-Correction bei Komposition** (Residuen-SR auf gequellte
-Gesetze, signed lstsq + strenges Gate `residual_explained≥0.9` ∧ `ΔR²>1e-3` ∧ Leave-One-Out) abgedeckt.
-Volle Offline-Suite **1727 passed / 0 failed / 61 skipped** (gemessen 2026-07-04). Ehrliche verbleibende Grenze:
-multiplikative/transzendente Kopplungen, Produkte/Kompositionen von Transzendenten, volle GP-Suche.
+Resolution of Uncertainty**, **Minimal-Correction bei Komposition** (Residuen-SR auf gequellte
+Gesetze, signed lstsq + strenges Gate `residual_explained≥0.9` ∧ `ΔR²>1e-3` ∧ Leave-One-Out) UND
+**multiplikative Kopplungen** (Produktformen `C·π1^a·f(α·π2)` + Ratio-Korrektur `y ≈ y_base·m(π)`
+unter denselben Gates) abgedeckt.
+Volle Offline-Suite **2038 passed / 0 failed / 43 skipped** (gemessen 2026-07-04, nach 6.6).
+Ehrliche verbleibende Grenze: Kompositionen von Transzendenten ineinander — inkl. BLINDER
+Zwei-Transzendenten-Produkte ohne deklarierte Baseline (`e^(−ζt)·cos(ωt)` als Blind-Discovery) —
+und die volle GP-Suche über offene Formräume.
 
 ## Drift-Kontroll-Protokoll (jede Tour)
 

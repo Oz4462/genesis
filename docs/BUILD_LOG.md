@@ -7813,3 +7813,47 @@ empirisch reproduziert; L2 kein Gate aufgeweicht — nur Unbeweisbares wird nich
 (COST_ROLLUP), Ehrlichkeit ersetzt Schein-Provenienz; L3 Nähte systematisch geschlossen
 (Spec↔assess↔ε-Gate, units↔selection↔validator, Worktree-Merge-Konflikte vorgemerkt);
 L4 alles offline verifizierbar, owner-gated sauber abgegrenzt.
+
+---
+
+## 2026-07-04 — Frontier 6.6: Multiplikative Kopplungen (`discovery/multiplicative.py`)
+
+**Auftrag:** die in STATUS.md/CLAUDE.md deklarierte ehrliche Frontier angehen — Produktformen
+`y = C·π1^a·f(α·π2)` + multiplikative Minimal-Korrektur `y ≈ y_base·m(π)`, im exakten Muster
+der Geschwister 6.1–6.5.
+
+**Gebaut (TDD, 16 neue Tests):**
+- `discover_product_law`: Produktformen über geordnete π-Paare (Nullraum `A·p=0`, inkl. π1==π2);
+  Log-Pfad NUR bei strikt positivem Ziel (exakt-lineare lstsq für f=exp, seedet den direkten Fit;
+  bei y≤0 verweigert — nie stilles `abs()`); direkter deterministischer `curve_fit` immer;
+  Exponenten-Schranke `MAX_FIT_EXPONENT=8` (Hybrid LM→gebundenes TRF nur bei degenerierter
+  Lösung — eine unbeschränkte Schmalband-Rivalen-Fit lief live in NaN-Divergenz);
+  Rivalen-Gate wie 6.3 (Power-Law `C·π1^p·π2^q+D` MIT Offset → mindestens so flexibel).
+- `discover_product_rivals`/`evaluate_product_rival`/`refit_product_rival` + Dispatch in
+  `active_resolution` (`_evaluate_any`/`_refit_any`, konservative NaN-Maskierung der Divergenz)
+  → der 6.4-Flip funktioniert auch für Produktformen.
+- `product_out_of_sample_validate` (6.2-Naht, kein Refit auf Held-out).
+- `discover_multiplicative_correction`: Ratio `r=y/y_base` nur wo `|y_base|>ε` überall (sonst
+  ValueError „Gate-Verweigerung"); 6.3-Modulationsbibliothek + Phase im sin; Occam-Wächter
+  (Power-Modulation gewinnt bei Gleichstand); konstantes Ratio = Reskalierung, kein Claim;
+  Gates identisch 6.5: `ratio_explained≥0.9` ∧ `ΔR²>1e-3` ∧ LOO `≥0.5`.
+
+**Gemessen:** Wien `u=2·x³·e^(−x)` exakt (a_eff=3.0, α_eff=−1.0, C=2.0, R²=1.0, Rivale 0.5009);
+Flip: Schmalband `unentschieden` (pow2 0.99997) → Spread-Messung (ratio≈11042×) → `bestaetigt`
+(pow2 0.43); gedämpfte Schwingung: Ratio-Fit findet exakt `sin(t·ω+π/2)=cos(ωt)` (φ=π/2 auf
+1e-10, LOO=1.0); Rauschen nie eine Kopplung (Produkt `widerlegt` R²=0.17; Ratio `vollstaendig`
+LOO=0.09). Aliasing auf äquidistantem Gitter als Daten-Grenze dokumentiert (Test nutzt
+unregelmäßiges Sampling).
+
+**4 Linsen:** L1 (Wahrheit): jede Zahl aus eigenem Messlauf (Probe + Tests); Verdikte nur über
+harte Gates, Rauschen-Negativtests beweisen die Nicht-Halluzination; Log-Pfad-Soundness explizit
+(y>0), keine stillen Defaults (ε-Verweigerung als ValueError). L2 (Drift): kein bestehendes Gate
+aufgeweicht — active_resolution-Änderung ist reiner Typ-Dispatch + konservative NaN-Maskierung
+(Divergenz zu 0, nie zu ∞); Geschwister-Tests (6.3/6.4/6.5) unverändert grün. L3 (Vollständigkeit/
+Naht): Nähte zu 6.2 (OOS), 6.3 (Formen/Schwellen re-used, DEFAULT_R2_THRESHOLD importiert), 6.4
+(Flip live), 6.5 (Gates importiert, gleiche Verdikt-Vokabeln); __init__-Exporte lazy wie die
+Geschwister; verbleibende Grenze ehrlich neu deklariert (blinde Zwei-Transzendenten-Produkte,
+Kompositionen ineinander, volle GP-Suche). L4 (Realisierbarkeit): offline, deterministisch,
+Laufzeit begrenzt (MAX_PRODUCT_PAIRS, Exponenten-Schranke, Hybrid-Fit); volle Suite grün (s.
+STATUS). Abgleich GENESIS_PLATFORM_PLAN: Grenzverschiebungs-Modul im Discovery-Arm, kein neuer
+Framework-Lock-in. Grok-Drift-Check: NACHZUHOLEN (CLI-Outage, Präzedenz WORK_QUEUE).

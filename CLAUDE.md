@@ -52,7 +52,7 @@ src/gen/<physik>.py         δ-Achsen (structural…security) · tests/  247 Dat
 - **Testsuite (main, offline): 1962 passed / 0 failed / 54 skipped** (~29 s, `uv run pytest tests/ -q`;
   morgens 1727 — Zuwachs = Deep-Review-Kampagne Schritt 7–9 KOMPLETT, D8–D13, P7, fertigungs-Naht).
 - **43 Validatoren** in `physics_validation.VALIDATORS`, **38 Recipes** in `physics_selection.RECIPES` (Auto-Select aus measurand-Tags → ehrliches Gate-Verdikt pass/fail/gap).
-- **Discovery: 35 Module**, 146 Discovery-Testfunktionen; `rediscovery_benchmark()` 100 %; Frontier 6.1–6.5 gebaut; offene Frontier: multiplikative/transzendente Kopplungen + GP-Suche (`docs/discovery/STATUS.md`).
+- **Discovery: 36 Module**, 160 Discovery-Testfunktionen (`^def test_`-Zählung); `rediscovery_benchmark()` 100 %; Frontier 6.1–6.6 gebaut (6.6 = multiplikative Kopplungen, `multiplicative.py`); offene Frontier: Kompositionen von Transzendenten ineinander (inkl. blinder Zwei-Transzendenten-Produkte) + volle GP-Suche (`docs/discovery/STATUS.md`).
 - **Alle Phasen gebaut und gegated:** α, β, γ, δ (docs/phases/) + φ, χ, δ⁺, γ⁺, ε, ζ, Ω (HORIZON, je `test_phase_*.py`).
 - Live-Default: Generator `qwen3.5:9b` + Verifier `gemma4:12b` (Fallback qwen2.5:14b/gemma4:latest).
 - Git: `main` lokal ist der Live-Stand (35 Commits vor `origin/main`); **Push nur auf Owner-Ansage.**
