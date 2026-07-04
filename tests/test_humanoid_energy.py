@@ -5,6 +5,7 @@ from gen.competitive_humanoid import FLAGSHIP, PRINTED, build_humanoid
 from gen.physics_selection import select_physics_checks
 from gen.physics_validation import run_physics_checks
 from gen.pipeline import assess_specification
+from gen.runner import _specification_to_dict, specification_from_dict
 
 
 def _quantity(spec, qid):
@@ -107,3 +108,17 @@ def test_humanoid_declares_thermal_seams_and_verifies():
         a = assess_specification(spec)
         assert a.overall == "physics_verified", a.overall
         assert a.seam_gate is not None and a.seam_gate.passed
+
+
+def test_seam_certificate_survives_dict_roundtrip():
+    """FIX B: `Specification.seam_certificate` must not be dropped by the checkpoint
+    serializer — a persisted humanoid spec must keep its declared seams."""
+    spec = build_humanoid(PRINTED)
+    roundtripped = specification_from_dict(_specification_to_dict(spec))
+    assert roundtripped.seam_certificate is not None
+    assert (
+        {s.id for s in roundtripped.seam_certificate.seams}
+        == {s.id for s in spec.seam_certificate.seams}
+    )
+    a = assess_specification(roundtripped)
+    assert a.overall == "physics_verified", a.overall

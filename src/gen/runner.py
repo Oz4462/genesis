@@ -393,10 +393,13 @@ def specification_from_dict(d: dict):
     ``_specification_to_dict``. Lossless: ``to_dict(from_dict(x)) == x``, which is
     what makes a checkpoint a faithful, reproducible record (acceptance A5).
     """
+    from datetime import datetime
+
     from .core.state import (
         BomDomain, BomItem, BomRole, CodeArtifact, Component, Constraint, Decision,
-        Derivation, ExperimentDesign, Net, Netlist, Pin, PinType, Quantity,
-        SiteRequirements, Sourcing, Specification, Step, ValueOrigin,
+        Derivation, DomainSeam, ExperimentDesign, Net, Netlist, Pin, PinType, Quantity,
+        SeamCertificate, SeamDomain, SeamRelation, SiteRequirements, Sourcing,
+        Specification, Step, ValueOrigin,
     )
 
     def _quantity(q):
@@ -456,6 +459,26 @@ def specification_from_dict(d: dict):
                   for n in netlist_d.get("nets") or []],
         )
 
+    seam_cert_d = d.get("seam_certificate")
+    seam_certificate = None
+    if seam_cert_d is not None:
+        seam_certificate = SeamCertificate(
+            spec_run_id=seam_cert_d["spec_run_id"],
+            seams=[
+                DomainSeam(
+                    id=s["id"], left_domain=SeamDomain(s["left_domain"]),
+                    right_domain=SeamDomain(s["right_domain"]),
+                    relation=SeamRelation(s["relation"]),
+                    left_expr=s["left_expr"], right_expr=s["right_expr"],
+                    rationale=s["rationale"],
+                )
+                for s in seam_cert_d.get("seams") or []
+            ],
+            complete=seam_cert_d.get("complete", True),
+            produced_by=seam_cert_d.get("produced_by", ""),
+            created_at=datetime.fromisoformat(seam_cert_d["created_at"]),
+        )
+
     return Specification(
         run_id=d["run_id"], idea=d["idea"], approach_id=d.get("approach_id"),
         quantities=[_quantity(q) for q in d.get("quantities") or []],
@@ -495,6 +518,7 @@ def specification_from_dict(d: dict):
         gaps=list(d.get("gaps") or []),
         claim_ids_used=list(d.get("claim_ids_used") or []),
         produced_by=d.get("produced_by", ""), model=d.get("model", ""),
+        seam_certificate=seam_certificate,
     )
 
 
@@ -634,6 +658,28 @@ def _specification_to_dict(spec: Specification) -> dict:
         "claim_ids_used": list(spec.claim_ids_used),
         "produced_by": spec.produced_by,
         "model": spec.model,
+        "seam_certificate": (
+            {
+                "spec_run_id": spec.seam_certificate.spec_run_id,
+                "seams": [
+                    {
+                        "id": s.id,
+                        "left_domain": s.left_domain.value,
+                        "right_domain": s.right_domain.value,
+                        "relation": s.relation.value,
+                        "left_expr": s.left_expr,
+                        "right_expr": s.right_expr,
+                        "rationale": s.rationale,
+                    }
+                    for s in spec.seam_certificate.seams
+                ],
+                "complete": spec.seam_certificate.complete,
+                "produced_by": spec.seam_certificate.produced_by,
+                "created_at": spec.seam_certificate.created_at.isoformat(),
+            }
+            if spec.seam_certificate
+            else None
+        ),
     }
 
 

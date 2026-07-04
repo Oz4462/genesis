@@ -581,8 +581,9 @@ def build_humanoid(cfg: HumanoidConfig) -> Specification:
         DomainSeam(
             id="s_elec_therm_loss", left_domain=SeamDomain.ELECTRICAL,
             right_domain=SeamDomain.THERMAL, relation=SeamRelation.EQ,
-            left_expr="q_n_drive * q_p_motor_loss", right_expr="q_heat_in",
-            rationale="Antriebs-Verlustleistung wird vollständig Wärme (Energieerhaltung)"),
+            left_expr="q_p_loco", right_expr="q_n_drive * q_p_mech_joint + q_heat_in",
+            rationale="Energieerhaltung: elektrische Antriebsleistung = mechanische "
+                      "Gelenkleistung + Verlustwärme (P_el = P_mech + P_loss)"),
         DomainSeam(
             id="s_therm_mech_service", left_domain=SeamDomain.THERMAL,
             right_domain=SeamDomain.MECHANICAL, relation=SeamRelation.LE,
@@ -592,6 +593,24 @@ def build_humanoid(cfg: HumanoidConfig) -> Specification:
                       "des tragenden Druckteils"),
     ]
     return _dc_replace(spec, seam_certificate=build_seam_certificate(spec, seams))
+
+
+def _material_hdt_note(material_name: str) -> str:
+    """Honest, material-specific grounding for `c_material_service` (Review-Fix D): the
+    declared `material_service_temp_k` must read as a conservative margin below the real
+    heat-deflection temperature (HDT) of the ACTUAL material named in the config, not a
+    generic PLA-class number reused regardless of material. Both classes here print/lay
+    up carbon-fiber-reinforced parts (never plain PLA/PETG), so both notes cite CF-material
+    HDT ranges, not PLA's ~55-60 °C softening point.
+    """
+    if material_name == "CF-Nylon":
+        return ("kurzfaserverstärktes PA-CF hat real eine HDT @0.45 MPa von ca. 145-155 °C; "
+                "konservativ mit deutlichem Abstand darunter angesetzt")
+    if material_name == "CF-Primärstruktur":
+        return ("kontinuierlich kohlefaserverstärktes Laminat mit Hochtemperatur-Epoxidharz "
+                "hat real eine HDT von ca. 160-200 °C; konservativ mit deutlichem Abstand "
+                "darunter angesetzt")
+    return "konservativ unterhalb der für diesen Werkstoff üblichen HDT angesetzt"
 
 
 def _humanoid_claims(cfg: HumanoidConfig) -> list:
@@ -635,7 +654,8 @@ def _humanoid_claims(cfg: HumanoidConfig) -> list:
         _claim("c_material_service",
                f"Der tragende Druckwerkstoff dieser Klasse ({cfg.material_name}) behält seine "
                f"Formbeständigkeit bis etwa {cfg.material_service_temp_k:.0f} K "
-               f"({cfg.material_service_temp_k - 273.15:.0f} °C) Dauergebrauchstemperatur."),
+               f"({cfg.material_service_temp_k - 273.15:.0f} °C) Dauergebrauchstemperatur "
+               f"({_material_hdt_note(cfg.material_name)})."),
     ]
     return base + list(cfg.extra_claims)
 
@@ -666,7 +686,12 @@ PRINTED = HumanoidConfig(
     # ~256 min at 2100 Wh (0.8 usable), margin ~2.1x over the 120 min requirement.
     battery_capacity_wh=2100.0, required_endurance_min=120.0, locomotion_duty=0.20,
     n_drive_motors=8.0,
-    material_service_temp_k=330.0,
+    # Fix D (review): 330 K/57 °C was a PLA-class softening figure reused unchanged even
+    # though this config's material is CF-Nylon (see material_name above), not PLA/PETG.
+    # Real HDT for chopped-carbon-fiber-reinforced PA (CF-Nylon) is ~145-155 °C (418-428 K)
+    # at 0.45 MPa; 390 K (117 °C) keeps a large (~28-38 K) conservative margin below that
+    # real HDT range instead of understating it by ~60 K.
+    material_service_temp_k=390.0,
     motor_housing_conductivity_w_mk=170.0, motor_housing_area_m2=0.0015,
     motor_housing_length_m=0.02, motor_max_winding_temp_k=428.0, ambient_temp_k=298.0,
     prices={"filament_eur_g": 0.06, "motor": 180.0, "chip": 2000.0, "battery": 600.0,
@@ -715,7 +740,12 @@ FLAGSHIP = HumanoidConfig(
     # boundary, not a fudged number (see task-1-report.md Fix-3 for the full calculation).
     battery_capacity_wh=2600.0, required_endurance_min=180.0, locomotion_duty=0.10,
     n_drive_motors=8.0,
-    material_service_temp_k=390.0,
+    # Fix D (review): this config's material is CF-Primärstruktur — a continuous-carbon-
+    # fiber laminate with a high-temperature epoxy matrix, not CF-Nylon. Real HDT for such
+    # laminates is ~160-200 °C (433-473 K); 420 K (147 °C) keeps a conservative margin below
+    # that range (raised from the prior 390 K, which understated this stiffer material's
+    # real thermal capability relative to the printed CF-Nylon class above).
+    material_service_temp_k=420.0,
     motor_housing_conductivity_w_mk=170.0, motor_housing_area_m2=0.0015,
     motor_housing_length_m=0.02, motor_max_winding_temp_k=428.0, ambient_temp_k=298.0,
     prices={"filament_eur_g": 0.08, "motor": 600.0, "chip": 7000.0, "battery": 900.0,

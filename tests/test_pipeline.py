@@ -16,7 +16,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from gen.core.state import Constraint  # noqa: E402
+from gen.competitive_humanoid import PRINTED, build_humanoid  # noqa: E402
+from gen.core.state import Constraint, SeamCertificate, SeamRelation  # noqa: E402
 from gen.demo import (  # noqa: E402
     capstone_claims,
     capstone_spec,
@@ -88,6 +89,27 @@ def test_is_deterministic():
     a = assess_specification(drive_shaft_spec())
     b = assess_specification(drive_shaft_spec())
     assert a.overall == b.overall and a.physics_ok == b.physics_ok
+
+
+def test_auto_cost_rebuild_branch_prevents_missing_cost_rollup_regression():
+    """FIX C: a caller-supplied `seam_certificate` that carries only the required core
+    seams (no COST_ROLLUP) but is paired with a spec that has cost_rollup_required
+    (complete BOM, no declared total) must still go through the auto_cost rebuild
+    branch (pipeline.py assess_specification, ~L164-187) instead of returning the
+    stale supplied cert unchanged — else MISSING_COST_ROLLUP fires spuriously."""
+    spec = build_humanoid(PRINTED)
+    # Hand-build a cert with ONLY the two declared humanoid seams, deliberately
+    # dropping the auto-generated cost seam build_humanoid's own certificate carries.
+    core_seams = [s for s in spec.seam_certificate.seams if s.relation != SeamRelation.COST_ROLLUP]
+    assert len(core_seams) == 2, core_seams
+    cert = SeamCertificate(spec_run_id=spec.run_id, seams=core_seams, produced_by="test")
+
+    a = assess_specification(spec, seam_certificate=cert)
+
+    assert a.overall == "physics_verified", a.overall
+    assert a.seam_gate is not None and a.seam_gate.passed
+    codes = {f.code for f in a.seam_gate.failures}
+    assert "MISSING_COST_ROLLUP" not in codes
 
 
 def test_circular_corroboration_is_not_called_verified():
