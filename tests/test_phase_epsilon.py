@@ -320,7 +320,6 @@ def test_radiation_seam_passes_gate_when_domains_present():
     res = gate_epsilon(spec, cert)
     # If MECH present (via component) we may have missing MECH-THERM; adjust by providing one using existing q if possible.
     # Simpler: check that rad-therm pair is covered, and any MISSING are only non-rad.
-    missing_rad = any("RADIATION" in (f.detail or "") or "thermal" in (f.detail or "").lower() and "radiation" in (f.detail or "").lower() for f in res.failures)
     # The gate may fail on other reqs (MECH-THERM etc) but must not complain about missing rad-therm once provided.
     # We accept either pass or only non-rad failures.
     if not res.passed:

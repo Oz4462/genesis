@@ -149,13 +149,6 @@ class SimulationRunner:
                         quelle=self.quelle_base + " + RADIATION domain + physics_validation.vacuum_radiation_balance_check (direct)",
                         runtime_notes=["Integrated with delta validator for honest net heat; pairs with epsilon RADIATION-THERMAL seam; can combine with co_sim_electronics_thermal(radiation_net_w=net) for full co-design"],
                     ))
-                    # integrate co-sim example
-                    if base_artifact is not None:
-                      try:
-                        co = co_sim_electronics_thermal({"power_w": 0.0}, base_artifact, radiation_net_w=net)
-                        # the co can be used for further thermal
-                      except Exception:
-                        pass
                 except Exception:
                     # Honest: NEVER emit uncomputed case claiming a real solver (Befund 4).
                     # Only when validator actually succeeds do we emit radiation_vacuum.
