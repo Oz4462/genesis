@@ -151,3 +151,12 @@ def test_mars_isru_o2_plant_uses_isru_life_domains_and_explicit_seams():
     assert pt.proven
     assert "o2" in pt.target_name
 
+    # Mission-level closure (complete Genesis, not only physics): ISRU make-up covers LIFE crew deficit + margin
+    # (self-contained in test for the plant; exercises cross-domain + simple system roll-up)
+    crew = next((q.value for q in spec.quantities if q.measurand == "life_support.crew"), 0)
+    cons = next((q.value for q in spec.quantities if q.measurand == "life_support.o2_consumption_rate"), 0.84)
+    close = next((q.value for q in spec.quantities if q.measurand == "life_support.o2_closure"), 0)
+    isru_target = next((q.value for q in spec.quantities if q.measurand == "isru.o2_target_kg"), 0)
+    crew_makeup_need = crew * cons * (1 - close)
+    assert isru_target >= crew_makeup_need * 0.95, "ISRU O2 target must cover LIFE crew make-up (mission closure)"
+
