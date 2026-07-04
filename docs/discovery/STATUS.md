@@ -226,22 +226,63 @@
   Ratio-Gates, Aliasing-Grenze) sind für den nachgeholten Review als Claims-Summary in diesem
   Absatz fixiert.
 
-## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1–6.6
+- **Tour 6.7 — Blinde Zwei-Transzendenten-Produkte** (`blind_product.py`, 2026-07-04): die in
+  6.6 explizit offen gelassene Grenze — `y = C·f(α·π1)·g(β·π2 [+φ])` OHNE deklarierte Baseline
+  (6.6 fand die gedämpfte Schwingung nur als Ratio-Korrektur zur gegebenen Hüllkurve). Beide
+  Argumente sind π-Gruppen aus dem Nullraum `A·p = 0`; `C` trägt allein die Ziel-Dimension; die
+  Fit-Maschinerie ist 6.6-Reuse (`ProductForm`, deterministische Starts, Hybrid-LM/TRF; die
+  blinden Formen tragen KEINEN gefitteten Potenz-Exponenten — die ±8-Schranke von 6.6 greift
+  nur bei den Rivalen, geerbt über die wiederverwendeten Fitter). **Identifizierbarkeits-Wächter
+  (der Design-Kern):** (a) `exp·exp` ist aus der Paar-Bibliothek AUSGESCHLOSSEN —
+  `exp(u)·exp(v) = exp(u+v)` ist strukturell EIN Exponential (auf gleichem Argument nur α+β
+  identifizierbar, ein Parameter-Grat, kein Gesetz); (b) Produktformeln/flache Faktoren
+  (sin·cos-Identitäten, α≈0-exp, gesättigtes tanh) kollabieren über die Occam-Leiter — der
+  Ein-Transzendenten-Rivale ist die 6.6-Modulations-Bibliothek MIT Phase + Offset, alles was
+  EINE Transzendente darstellt, macht ihn exakt → `unentschieden` mit benanntem
+  `occam_winner`, nie ein 6.7-Über-Claim; (c) Vorzeichen/Phase kanonisiert (`−cos = cos(·+π)`,
+  `sin(−βx+φ) = sin(βx+π−φ)`, tanh-Vorzeichen in C): C>0 wo eine Phase das Vorzeichen tragen
+  kann, Frequenzen >0, Phasen in [0,2π) — genau EINE Parametrisierung pro Gesetz. **Ehrliches
+  Gate (6.6-Pflichten, verschärft):** DREI Rivalen über dieselben Gruppen/Paare — Power-Law MIT
+  Offset `C·π1^p·π2^q+D` (mindestens so flexibel, Bias Richtung `unentschieden`),
+  Ein-Transzendenten-Familie (Phase+Offset), 6.6-Produktform-mit-Power — UND eine
+  OOS-Bestätigung: der Sieger wird auf einem deterministischen Train-Split nachgefittet und
+  muss auf den Held-out-Punkten ≥ `DEFAULT_GENERALISES_R2` (0.99) übertragen, sonst bleibt es
+  `unentschieden`. **Gemessen (9 Tests grün, unregelmäßiges Sampling gegen Aliasing wie 6.6):**
+  gedämpfte Schwingung `x = 4·e^(−0.3t)·cos(2t)` BLIND wiederentdeckt als exp_sin-Paar mit
+  **C=4.0, α=−0.3, β=2.0, φ=π/2 je auf <1e-6** (R²=1.0000000000; Rivalen pow2 0.411 / einzel
+  0.772 / produkt_potenz 0.964 — alle unter der Bar; OOS-Confirm 1.000) → `bestaetigt`;
+  negiertes Ziel → kanonisch C=+4, φ=3π/2 (Wächter c); `5·e^(−0.3t)·e^(−0.4t)` →
+  `unentschieden`, `occam_winner=einzel_transzendent` (Wächter a: EIN Exponential, kein
+  Doppel-Claim); reines `3·cos(2t)` → `unentschieden`, Kollaps auf die Ein-Transzendenten-Form
+  (Wächter b); Rauschen → `widerlegt` (R²=0.21); Kepler → `widerlegt` („kein dimensionsloses
+  Argument"). **OOS (6.2-Naht):** train→test R²=1.0000/1.0000, gap<1e-6. **Flip (6.4-Naht):**
+  Schmalband t∈[0.8,2.0] → `unentschieden` (blind 1.0, stärkster einfacher Rivale = 6.6-sin
+  0.99999) → `discover_blind_rivals` übergibt den STÄRKSTEN einfacheren evaluierbaren Rivalen,
+  `propose_resolution` dispatcht jetzt auch `BlindRival` (ratio≈1343× Rausch-Boden, Spread
+  [0.267…6.0]) → wahre Daten am Spread → **flippt zu `bestaetigt`** mit exakten Parametern,
+  alle Rivalen kollabieren (pow2 0.48, einzel 0.85, produkt_potenz 0.97).
+- **Cross-Model-Drift-Check (grok-build): NACHZUHOLEN** — Grok-CLI am 2026-07-04 weiterhin
+  nicht erreichbar (gleicher Outage-Präzedenzfall wie 6.6). Die Tour-6.7-Claims
+  (exp·exp-Degeneration = Parameter-Grat, Occam-Leiter über drei Rivalen-Familien,
+  Sinus-Identitäten der Kanonisierung, OOS-Confirm-Gate, Aliasing-Grenze) sind für den
+  nachgeholten Review als Claims-Summary in diesem Absatz fixiert.
+
+## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1–6.7
 
 Der gesamte Mehr-Wochen-Plan aus `GROK_BUILD_GENESIS_UNIVERSE_EXPLORER.md` ist gebaut, getestet,
-grok-build-drift-geprüft (6.6: nachzuholen, s. o.) und committet (lokal, kein Push).
-**160 Discovery-Testfunktionen** über 36 Module (nachgezählt 2026-07-04 nach 6.6,
+grok-build-drift-geprüft (6.6 + 6.7: nachzuholen, s. o.) und committet (lokal, kein Push).
+**169 Discovery-Testfunktionen** über 37 Module (nachgezählt 2026-07-04 nach 6.7,
 `grep -c '^def test_' tests/test_discovery_*.py`);
-`rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Mit Frontier 6.1–6.6 sind nun
+`rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Mit Frontier 6.1–6.7 sind nun
 **Summen mehrerer dimensional-gültiger Terme** (inkl. OOS), **transzendente Formen**, die **Active
 Resolution of Uncertainty**, **Minimal-Correction bei Komposition** (Residuen-SR auf gequellte
-Gesetze, signed lstsq + strenges Gate `residual_explained≥0.9` ∧ `ΔR²>1e-3` ∧ Leave-One-Out) UND
+Gesetze, signed lstsq + strenges Gate `residual_explained≥0.9` ∧ `ΔR²>1e-3` ∧ Leave-One-Out),
 **multiplikative Kopplungen** (Produktformen `C·π1^a·f(α·π2)` + Ratio-Korrektur `y ≈ y_base·m(π)`
-unter denselben Gates) abgedeckt.
-Volle Offline-Suite **2038 passed / 0 failed / 43 skipped** (gemessen 2026-07-04, nach 6.6).
-Ehrliche verbleibende Grenze: Kompositionen von Transzendenten ineinander — inkl. BLINDER
-Zwei-Transzendenten-Produkte ohne deklarierte Baseline (`e^(−ζt)·cos(ωt)` als Blind-Discovery) —
-und die volle GP-Suche über offene Formräume.
+unter denselben Gates) UND **blinde Zwei-Transzendenten-Produkte** (`C·f(α·π1)·g(β·π2)` ohne
+Baseline, Identifizierbarkeits-Wächter + Occam-Leiter + OOS-Confirm) abgedeckt.
+Volle Offline-Suite **2047 passed / 0 failed / 43 skipped** (gemessen 2026-07-04, nach 6.7).
+Ehrliche verbleibende Grenze: Kompositionen von Transzendenten ineinander (`f(g(·))`), additive
+π-Kombinationen als Argument (`exp(α·π1+β·π2)`) und die volle GP-Suche über offene Formräume.
 
 ## Drift-Kontroll-Protokoll (jede Tour)
 

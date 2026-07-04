@@ -7857,3 +7857,51 @@ Kompositionen ineinander, volle GP-Suche). L4 (Realisierbarkeit): offline, deter
 Laufzeit begrenzt (MAX_PRODUCT_PAIRS, Exponenten-Schranke, Hybrid-Fit); volle Suite grün (s.
 STATUS). Abgleich GENESIS_PLATFORM_PLAN: Grenzverschiebungs-Modul im Discovery-Arm, kein neuer
 Framework-Lock-in. Grok-Drift-Check: NACHZUHOLEN (CLI-Outage, Präzedenz WORK_QUEUE).
+
+## 2026-07-04 — Frontier 6.7: Blinde Zwei-Transzendenten-Produkte (`discovery/blind_product.py`)
+
+**Auftrag:** die in STATUS.md/CLAUDE.md nach 6.6 deklarierte ehrliche Frontier angehen —
+`y = C·f(α·π1)·g(β·π2 [+φ])` OHNE deklarierte Baseline (6.6 fand die gedämpfte Schwingung nur
+als Ratio-Korrektur zur gegebenen Hüllkurve), im exakten Muster der Geschwister 6.1–6.6.
+
+**Design-Entscheid:** NEUES Modul `blind_product.py` statt Erweiterung von `multiplicative.py` —
+6.6 hat einen NACHZUHOLENDEN Drift-Check mit in STATUS.md fixierter Claims-Summary (Umbau würde
+die fixierten Claims verwässern), und 6.7 hat eigene Identifizierbarkeits-Wächter + eigenen
+Rivalen-Satz. Die 6.6-Maschinerie wird aber direkt wiederverwendet (`ProductForm`, `_fit_product`,
+`_best_product`, `_pow_rival`, `_pair_guard`, `_modulation_library`, `ProductValidation`);
+`active_resolution` bekommt nur den Typ-Dispatch für `BlindRival` (Präzedenz: 6.6 tat dasselbe
+mit `ProductRival`).
+
+**Gebaut (TDD, 9 neue Tests):**
+- `discover_blind_product`: Paar-Bibliothek {exp_sin, exp_tanh, sin_sin} über geordnete π-Paare
+  (Nullraum `A·p=0`); KEINE gefitteten Potenz-Exponenten in den blinden Formen (die ±8-Schranke
+  von 6.6 greift nur bei den Rivalen, geerbt über die Reuse-Fitter).
+- Identifizierbarkeits-Wächter: (a) `exp·exp` AUSGESCHLOSSEN (`exp(u)·exp(v)=exp(u+v)` =
+  strukturell EIN Exponential; auf gleichem Argument Parameter-Grat α+β); (b) Occam-Leiter —
+  DREI Rivalen über dieselben Gruppen/Paare (pow2 MIT Offset ≻ Ein-Transzendente mit
+  Phase+Offset ≻ 6.6-Produktform), die einfachste im Wesentlichen exakte Familie gewinnt
+  (`occam_winner`), nie ein 6.7-Über-Claim für sin·cos-Produktformeln oder flache Faktoren;
+  (c) Kanonisierung (`−cos=cos(·+π)`, `sin(−βx+φ)=sin(βx+π−φ)`, tanh-Vorzeichen in C; C>0,
+  Frequenzen>0, Phasen in [0,2π)).
+- OOS-Confirm im Verdikt: `bestaetigt` nur, wenn der Sieger auf einem deterministischen
+  Train-Split nachgefittet ≥0.99 auf Held-out überträgt — sonst `unentschieden`.
+- `discover_blind_rivals` (übergibt den STÄRKSTEN einfacheren evaluierbaren Rivalen),
+  `evaluate_blind_rival`/`refit_blind_rival` + Dispatch in `active_resolution` → 6.4-Flip;
+  `blind_product_out_of_sample_validate` (6.2-Naht, Reuse `ProductValidation`).
+
+**Gemessen:** `4·e^(−0.3t)·cos(2t)` BLIND → exp_sin mit C=4.0, α=−0.3, β=2.0, φ=π/2 je <1e-6
+(R²=1.0; Rivalen 0.411/0.772/0.964; OOS-Confirm 1.000) → `bestaetigt`; negiertes Ziel kanonisch
+C=+4, φ=3π/2; exp·exp → `unentschieden` occam=einzel_transzendent; reines cos → Kollaps auf die
+Ein-Transzendenten-Familie; Rauschen `widerlegt` (R²=0.21); Flip: Schmalband [0.8,2.0]
+`unentschieden` (6.6-sin-Rivale 0.99999) → Spread (1343× Rausch-Boden) → `bestaetigt` exakt.
+
+**4 Linsen:** L1 (Wahrheit): jede Zahl aus eigenem Messlauf (Smoke + Tests); exp·exp-Ausschluss
+mathematisch begründet (Produktidentität), kein Verdikt ohne hartes Gate; Rausch-Negativtest.
+L2 (Drift): kein bestehendes Gate aufgeweicht — 6.6-Modul UNVERÄNDERT, active_resolution reiner
+Typ-Dispatch; Geschwister-Tests grün. L3 (Vollständigkeit/Naht): Nähte zu 6.2 (OOS), 6.3
+(Schwellen/Formen), 6.4 (Flip live, `form_name`-Alias auf `BlindRival`), 6.6 (Fitter/Rivalen/
+Validation-Typ re-used); __init__-Exporte lazy; verbleibende Grenze ehrlich neu deklariert
+(`f(g(·))`, additive π-Argumente, volle GP-Suche). L4 (Realisierbarkeit): offline,
+deterministisch, Laufzeit begrenzt (Pair-Guard, Reduced-Lattice-Tests wie 6.6); volle Suite grün
+(s. STATUS). Abgleich GENESIS_PLATFORM_PLAN: Grenzverschiebungs-Modul im Discovery-Arm, kein
+neuer Framework-Lock-in. Grok-Drift-Check: NACHZUHOLEN (CLI-Outage, Präzedenz 6.6/WORK_QUEUE).
