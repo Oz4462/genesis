@@ -214,10 +214,16 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
   - Nebenfund (Stein 6, DEFERRED): `electronics.py:export_placement_to_kicad_pcb` hat eigene Bugs (rot_deg-Tupel statt
     Skalar, legacy `(module)`-Syntax statt `(footprint)`, kein `_esc`, `zip`-by-order-Truncation) — separate PCB-Export-
     Funktion, ungegatet → eigener Follow-up (kann `cad/kicad.py`-Härtung + Verifier-Muster nutzen).
+    **→ WAR SCHON ERLEDIGT (verifiziert 2026-07-04):** `cad/kicad.py:to_kicad_pcb` behebt alle 4 Bugs
+    (rot_deg-Tupel→Skalar Z.260, modernes `(footprint)`, `_esc`, ref_des-Auflösung statt zip) und
+    `export_placement_to_kicad_pcb` ist via `verify_kicad_pcb` als Gate verdrahtet (raise on !ok).
   - Nebenfund (Stein 3): `electronics.py:run_internal_drc` nutzt unbelegte Magic-Numbers (`trace_a_per_mm2=12.0`
     Harness-Draht-Stromdichte ≠ PCB-Trace, `min_clearance_mm=0.8`, `max_power_density=2.5`, hardcodierte Board-Fläche
     150cm²) — tiefe Elektronik-DRC, bewusst nicht in Stein 3 angefasst → Review-Schritt 7-9 (electronics/circuit).
   - Nebenfund: FDM-`hole_hint=3.0` ist ein Fake-Input (separater kleiner Fix).
+    **→ WAR SCHON ERLEDIGT (verifiziert 2026-07-04):** `manufacturing_check.py:224-231` deklariert die
+    min-hole-Regel ehrlich als „not evaluable" (Spec trägt keine Loch-Geometrie) statt der fabrizierten
+    3.0-mm-Bohrung, die immer bestand. Kein Code-Change nötig, nur dieser Queue-Eintrag war stale.
 - Review-Kampagne **Schritt 7-9 offen** (Reihenfolge oben): physics_validation + 27 Validatoren + fem*/modal/dfm/
   orientation/mesh_integrity/brep/circuit → export/+costing+completeness+software → pipelines/+integration/+grenzverschiebung/.
 - Deferred Findings aus Schritt 6: D14 (pipeline/refinement), D15 (grounding/geometry — geometry_verification NICHT
