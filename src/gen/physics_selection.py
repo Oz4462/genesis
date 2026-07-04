@@ -371,6 +371,16 @@ RECIPES: list[CheckRecipe] = [
             "available_torque": ("actuator.available_torque", "N*m"),
         },
     ),
+    # ---- robot energy: der Akku muss Antrieb + Compute über die geforderte Zeit tragen ----
+    CheckRecipe(
+        name="robot battery endurance", validator="battery_endurance",
+        trigger="robot.required_endurance",
+        inputs={
+            "capacity_wh": ("battery.capacity", "Wh"),
+            "hover_power_w": ("robot.total_power", "W"),
+            "required_endurance_min": ("robot.required_endurance", "min"),
+        },
+    ),
     # ---- space multi-physics (vacuum radiation dominant, for habitats/radiators/TPS) ----
     CheckRecipe(
         name="vacuum radiation balance (space thermal)", validator="vacuum_radiation_balance",
