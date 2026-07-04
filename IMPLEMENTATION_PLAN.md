@@ -1219,5 +1219,13 @@ Tests remain green (11p visionary).
 
 Next (Council): mission layer stub or first_principles ISRU derivation (still avoiding pipeline until Claude merge).
 
+**Council Resolution (Verification + TDD subagents) for auflage on 744bd2d coverage**:
+- Subagent 019f2c2a-1e17-7272-b46a-3bdf8f051d59 (Verification): Confirmed exact gaps (missing dedicated pos/neg, FP detector tests, exact pair asserts). Recommended minimal high-signal tests mirroring radiation pattern + explicit list decision. Cited _REQUIRED_ADJACENCIES, hardening, test_missing... power.
+- Subagent 019f2c2a-1e18-74a0-91bc-ac2dac0be697 (TDD): Delivered precise sketches + applied/verified the tests (pos/neg stoich for isru + life, German FP regressions on _looks_*, exact required pairs for new adjacencies). Tests live, passing (6 new cases), + coverage, no bloat, BUILD_LOG updated with 4 Linsen.
+- Verification (executed): 5+4 relevant tests pass; test_missing_required_pair_fails green; full relevant 45 passed on epsilon/validation/visionary.
+- Result: Auflage closed. Gap prevented. Explicit + tested per Council.
+
+(4 Linsen on this resolution: L1 sourced to subagent memos + code reads; L2 no drift from radiation/explicit decisions; L3 full coverage of requested + symmetry + gate power; L4 lean + immediately verifiable.)
+
 We build the honest engine... (repeat for emphasis on loop).
 
