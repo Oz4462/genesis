@@ -1184,3 +1184,24 @@ Claude review: 0 failed (good) but noted no increase in test count / no dedicate
 
 We build the honest engine that lets humanity realize the Elon vision — reusability, ISRU, habitats, energy, robots — without lies. Gate is law. First principles. For many worlds.
 
+### Completed Increment after auflage approval ("ready go" 2026-07-04)
+**Title**: Visionary Mars ISRU O2 Plant — explicit DomainSeams + new ISRU/LIFE domains exercised end-to-end in visionary arm (assess + bundle).
+
+**Council decision**: Architect+SpaceVision recommended as next sensible (uses ISRU for propellant/O2 + LIFE for habitat support; demonstrates full Genesis beyond physics; 0 pipeline changes).
+
+**Changes (lean, 2 files)**:
+- src/gen/visionary_ideas.py: mars_isru_o2_plant_spec/claims/seams (explicit MECH-ISRU, ELEC-ISRU, ISRU-COST), added to ALL_VISIONARY_IDEAS + VISIONARY_SEAMS.
+- tests/test_visionary_ideas.py: _SIGNATURE, explicit cert logic in tests, dedicated coverage test + now 4 ideas.
+
+**Evidence**:
+- pytest tests/test_visionary_ideas.py -q: **11 passed**.
+- New spec triggers isru_electrolysis_o2 + life_support_o2_balance; domains detected; required pairs satisfied via explicit seams; physics_verified + real bundle artifacts.
+- Full suite: 1724 passed.
+- No regressions, no forbidden files touched.
+
+**L DR / Fitness**: 4 Linsen applied (L1 sources/claims, L2 no drift, L3 seams + gaps honest, L4 verifiable + bundle real). Anti-bloat, explicit only, TDD-style. Added to complete vision track.
+
+Next (Council): mission layer stub or first_principles ISRU derivation (still avoiding pipeline until Claude merge).
+
+We build the honest engine... (repeat for emphasis on loop).
+
