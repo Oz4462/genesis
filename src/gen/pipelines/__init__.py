@@ -64,7 +64,7 @@ try:
         build_rich_electronics_pieces,
         electronics_to_thermal_loads,
     )
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover — #15: nur fehlende optionale Deps abfangen, echte Fehler propagieren
     ElectronicsComponent = PowerRail = PowerTree = HarnessSegment = HarnessSpec = PlacementHint = None  # type: ignore
     ElectronicsSimulationCase = ElectronicsSimulationResult = None  # type: ignore
     synthesize_or_select_circuit = run_electronics_simulation = None  # type: ignore

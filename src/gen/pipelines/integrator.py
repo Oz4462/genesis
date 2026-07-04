@@ -34,6 +34,22 @@ from .elektriker import map_to_elektriker_spec
 from ..electronics import build_rich_electronics_pieces, electronics_to_thermal_loads  # full agent-delivered layer for circuits/chips/simulation/Einbau
 
 
+def _run_dir_name(run_id: str | None, kind: str) -> str:
+    """Package-dir name under out/ for a run.
+
+    Schritt-9 #14: a missing run_id used to map onto the FIXED names "latest"/"latest_full",
+    so every unlabeled run wrote into the same directory and stale artifacts of the previous
+    run bled into the new package (copied STLs/JSONs from older ideas survived). Callers
+    (lernmaschine engine, research forge) legitimately pass ``run_id=None``, so instead of
+    failing loud we mint a unique, clearly-labeled name per call. Errors: none raised.
+    """
+    if run_id:
+        return run_id
+    from datetime import datetime, timezone
+
+    return f"{kind}-unlabeled-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')}"
+
+
 @dataclass(frozen=True)
 class RealizationFragment:
     """Erstes mini Realisierungspaket-Fragment."""
@@ -118,7 +134,7 @@ def build_realization_fragment(
         import os
         import shutil
         from pathlib import Path
-        pkg_root = Path("out") / "genesis_realization_fragments" / (run_id or "latest")
+        pkg_root = Path("out") / "genesis_realization_fragments" / _run_dir_name(run_id, "fragment")
         pkg_root.mkdir(parents=True, exist_ok=True)
         stl_claim = cad_artifact.exports.get("stl") if isinstance(cad_artifact.exports, dict) else None
         if stl_claim and os.path.exists(str(stl_claim)):
@@ -156,8 +172,9 @@ Issues: {mfg_check.issues}
         except Exception as e:  # recorded in open_luecken, not silently swallowed
             open_luecken.append(f"Spezifikations-JSON-Dump übersprungen: {type(e).__name__}: {e}")
 
+        # #13: kein print — der Pfad wird unten in die zusammenfassung aufgenommen
+        # ("| Real package: …"), also geht keine Information verloren.
         pkg_dir = str(pkg_root)
-        print("Real mini package dir written:", pkg_dir)
     except Exception as e:  # recorded in open_luecken, not silently swallowed
         open_luecken.append(f"Reales Paket-Verzeichnis nicht geschrieben: {type(e).__name__}: {e}")
 
@@ -181,35 +198,42 @@ def build_full_mini_realization_package(ideas: list[str], package_name: str = "J
     from pathlib import Path
 
     if not ideas:
-        # `c`/`i` below are bound inside this loop and reused after it; an empty list left them
-        # unbound (a NameError at map_to_elektriker_spec). Fail loud with the real reason instead.
+        # last_concept/last_ingenieur below are bound inside this loop and reused after it; an
+        # empty list left them unbound (a NameError at map_to_elektriker_spec). Fail loud instead.
         raise ValueError("build_full_mini_realization_package needs at least one idea")
     fragments = []
+    # Schritt-9 #8: sprechende Namen statt `c`/`i` — die enumerate-Loops unten überschrieben
+    # `i` mit einem int, sodass der Elektriker einen Integer statt IngenieurSpec bekam und
+    # getattr(ingenieur, "quelle", "") still auf "" fiel. `built_specs` hält zusätzlich das
+    # echte (concept, ingenieur)-Paar je Fragment für die Fertigungs-Naht (#7).
+    last_concept = None
+    last_ingenieur = None
+    built_specs: list[tuple[SystemConcept, IngenieurSpec]] = []
     for idee in ideas:
-        c = map_to_system_concept(idee, run_id=run_id)
-        i = map_to_ingenieur_spec(c, run_id=run_id)
-        f = build_realization_fragment(c, i, run_id=run_id)
-        fragments.append(f)
+        last_concept = map_to_system_concept(idee, run_id=run_id)
+        last_ingenieur = map_to_ingenieur_spec(last_concept, run_id=run_id)
+        built_specs.append((last_concept, last_ingenieur))
+        fragments.append(build_realization_fragment(last_concept, last_ingenieur, run_id=run_id))
 
     # build assembly from frags
     asm = build_assembly(fragments, name=f"{package_name} Assembly", run_id=run_id)
 
-    # rich package dir
-    pkg_root = Path("out") / "realization_packages" / (run_id or "latest_full")
+    # rich package dir (#14: unique per run when no run_id — no stale "latest_full" bleed)
+    pkg_root = Path("out") / "realization_packages" / _run_dir_name(run_id, "package")
     pkg_root.mkdir(parents=True, exist_ok=True)
 
     # copy stls from frags
-    for i, f in enumerate(fragments):
+    for frag_idx, f in enumerate(fragments):
         stl = f.cad_artifact.exports.get("stl") if isinstance(f.cad_artifact.exports, dict) else None
         if stl and os.path.exists(str(stl)):
             safe_name = f.cad_artifact.spec.name.replace(' ', '_').replace('/', '_').replace('\\', '_')
-            shutil.copy(str(stl), pkg_root / f"part_{i}_{safe_name}.stl")
+            shutil.copy(str(stl), pkg_root / f"part_{frag_idx}_{safe_name}.stl")
 
     # copy assembly parts/combined
     if asm.part_files:
-        for i, pf in enumerate(asm.part_files):
+        for part_idx, pf in enumerate(asm.part_files):
             if os.path.exists(pf):
-                shutil.copy(pf, pkg_root / f"assembly_part_{i}.stl")
+                shutil.copy(pf, pkg_root / f"assembly_part_{part_idx}.stl")
     if asm.combined_stl and os.path.exists(asm.combined_stl):
         shutil.copy(asm.combined_stl, pkg_root / "assembly_combined.stl")
 
@@ -236,14 +260,19 @@ def build_full_mini_realization_package(ideas: list[str], package_name: str = "J
         dfm_reports.append({"note": f"advanced_dfm skipped: {e}"})
 
     # Fertigungs Naht (first stone integration to Realisierungspaket)
+    # Schritt-9 #7: hier wurden SystemConcept/IngenieurSpec OHNE die Pflichtfelder
+    # zusammenfassung/source_concept konstruiert → TypeError bei JEDEM Aufruf, vom breiten
+    # except zu "fertigungs skipped" verschluckt — die Naht war permanent tot, während das
+    # Manifest sie behauptete. Fix: die echten (concept, ingenieur)-Paare aus built_specs
+    # verwenden (gleiche Reihenfolge wie fragments); kein Minimal-Konstrukt mehr nötig.
     fertigungs_reports = []
     try:
         for idx, f in enumerate(fragments):
             if hasattr(f, "cad_artifact") and f.cad_artifact:
-                # Safe minimal for Naht (full in realize with real concept)
+                frag_concept, frag_ingenieur = built_specs[idx]
                 fspec = map_to_fertigungs_spec(
-                    SystemConcept(source_idea=f.source_idea if hasattr(f, "source_idea") else "jetpack", requirements=[], main_assemblies=[], variants=[], open_decisions=[]),
-                    IngenieurSpec(lastfaelle=[], material_hinweise=[], toleranzen=[], failure_modes=[], cad_anforderungen=[], pruefplan_hinweise=[]),
+                    frag_concept,
+                    frag_ingenieur,
                     dfm_report=dfm_reports[idx] if idx < len(dfm_reports) else None,
                     run_id=run_id,
                 )
@@ -254,7 +283,7 @@ def build_full_mini_realization_package(ideas: list[str], package_name: str = "J
                     "dfm_ref": fspec.dfm_report_ref,
                 })
     except Exception as e:
-        fertigungs_reports.append({"note": f"fertigungs skipped: {e}"})
+        fertigungs_reports.append({"note": f"fertigungs skipped: {type(e).__name__}: {e}"})
 
     manifest = {
         "name": package_name,
@@ -305,8 +334,13 @@ Real package dir: {pkg_root}
 
     # Electronics full layer from agent deliverable (circuits, chips, sim, Einbau)
     # Integrated here for complete Realisierungspaket (mech + elec + co-sim)
+    # #13: Ausfälle der optionalen Integrationsschritte landen als integration_notes im
+    # Manifest (auditierbar) statt als print auf stdout — keine Information geht verloren.
+    integration_notes: list[str] = []
     try:
-        elec_spec = map_to_elektriker_spec(c, i, run_id=run_id)
+        # #8: last_concept/last_ingenieur statt der geclobberten `c`/`i` — der Elektriker
+        # sieht den echten Ingenieur-Kontext (safety_context aus ingenieur.quelle).
+        elec_spec = map_to_elektriker_spec(last_concept, last_ingenieur, run_id=run_id)
         elec_pieces = build_rich_electronics_pieces(
             elec_spec.source_idea if hasattr(elec_spec, 'source_idea') else " ".join(ideas),
             getattr(getattr(elec_spec, 'leistungs_budget', None), 'gesamt_w', 1300.0),
@@ -373,10 +407,11 @@ Real package dir: {pkg_root}
             seed_from_package_results({"electronics": elec_pieces, "fragments": [f.__dict__ for f in fragments]}, run_id=run_id)
             manifest["wissensbasis_seeded"] = seeded + ["from full package Closed-Loop"]
         except Exception as e:
-            print("Wissensbasis seeding skipped:", e)
+            manifest["wissensbasis_seeded"] = f"skipped: {type(e).__name__}: {e}"
+            integration_notes.append(f"Wissensbasis seeding skipped: {type(e).__name__}: {e}")
     except Exception as e:
-        print("Electronics rich integration in package skipped (graceful):", e)
-        manifest["electronics"] = "stub (see Elektriker first stone; full layer in electronics.py)"
+        integration_notes.append(f"Electronics rich integration skipped (graceful): {type(e).__name__}: {e}")
+        manifest["electronics"] = f"stub (see Elektriker first stone; full layer in electronics.py) — skipped: {type(e).__name__}: {e}"
 
     # Enrich manifest with more artifacts
     manifest["drawings"] = "DRAWINGS.md"
@@ -399,13 +434,13 @@ Real package dir: {pkg_root}
         }
         save_fragment(package_summary, key=f"realization_package_{run_id or 'latest'}", source="realize", quelle="GENESIS_TODO Realisierungspaket complete + PLAN §1")
     except Exception as e:
-        print("Wissensbasis package-summary persist skipped:", e)
+        integration_notes.append(f"Wissensbasis package-summary persist skipped: {type(e).__name__}: {e}")
 
     # B item: Better visualization - generate self-contained dashboard.html from existing artifacts (JSONs, STLs, kicad, transient, multi-domain)
     try:
         _generate_visualization_dashboard(pkg_root, manifest, fragments, elec_pieces if 'elec_pieces' in locals() else None, run_id)
     except Exception as e:
-        print("Visualization dashboard skipped:", e)
+        integration_notes.append(f"Visualization dashboard skipped: {type(e).__name__}: {e}")
 
     # B5: generate standalone general viewer for export/viz (besides dashboard)
     try:
@@ -417,7 +452,12 @@ Real package dir: {pkg_root}
             tdata = getattr(elec_pieces['simulation_result'], 'transient_history', None) or (elec_pieces['simulation_result'].get('transient_history') if isinstance(elec_pieces.get('simulation_result'), dict) else None)
         generate_standalone_viewer(ideas[0] if ideas else "general", multi_domain=None, transient_data=tdata, elec_pieces=elec_pieces if 'elec_pieces' in locals() else None, output_path=str(pkg_root / "standalone_viewer.html"))
     except Exception as e:
-        print("Standalone viewer skipped:", e)
+        integration_notes.append(f"Standalone viewer skipped: {type(e).__name__}: {e}")
+
+    # #13: gesammelte Integrations-Notizen auditierbar ins Manifest zurückschreiben
+    if integration_notes:
+        manifest["integration_notes"] = integration_notes
+        (pkg_root / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
     return str(pkg_root)
 
@@ -1043,14 +1083,17 @@ def realize(ideas: list[str], package_name: str = "Genesis Realization Package",
     pkg = build_full_mini_realization_package(ideas, package_name=package_name, run_id=run_id)
     # Lern on first idea for feedback
     lern_res = None
+    lern_note = None
     try:
         from gen.lernmaschine.engine import run_8_step_learning_cycle
         lern_res = run_8_step_learning_cycle(ideas[0] if ideas else "generic", run_id=run_id)
     except Exception as e:
-        print("Lern cycle skipped:", e)
+        # #13: Ausfall als Teil des Ergebnisses (auditierbar) statt print auf stdout
+        lern_note = f"Lern cycle skipped: {type(e).__name__}: {e}"
     return {
         "package_dir": pkg,
         "lern_persisted": getattr(lern_res, "persisted_key", None) if lern_res else None,
+        "lern_note": lern_note,
         "summary": f"Full realization for {package_name} with DFM + Lern feedback. See manifest.json and SUMMARY.md.",
     }
 
