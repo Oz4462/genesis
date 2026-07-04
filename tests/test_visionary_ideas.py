@@ -178,3 +178,21 @@ def test_mars_isru_o2_plant_uses_isru_life_domains_and_explicit_seams():
     produced = pt.target_value
     assert produced >= isru_target, "first_principles-derived ISRU production supports mission target (discovery + mission integration)"
 
+    # Mission-scale sizing (lean next per prior Council L DR "recommends next mission-scale sizing" + Architect memo).
+    # Real multi-planetary: ISRU O2 for MAV ascent propellant oxidizer (majority of methalox return mass).
+    # Reuses *exactly* the plant eff + 32/36 stoich + derive machinery (no new files, no demo change, no pipeline).
+    # Grounded target example: 22728 kg O2/LOX (NASA MAV ISRU case studies, e.g. Kleinhenz AIAA-2017-0423 / Sanders NTRS).
+    # Current demo plant (100 kg water) remains for crew make-up; this computes required feed for return scale.
+    mav_o2_kg = 22728.0
+    eff_m = eff
+    r = 32.0 / 36.0
+    water_for_mav = mav_o2_kg / (eff_m * r)
+    mav_axioms = [
+        Axiom("mav_o2", mav_o2_kg, "MAV LOX target kg (grounded NASA ISRU propellant study)"),
+        Axiom("eff", eff_m, "electrolysis efficiency (from plant spec)"),
+        Axiom("r", r, "stoichiometric O2/H2O mass ratio (32/36 exact per IUPAC/NIST)"),
+    ]
+    pt_mav = derive(mav_axioms, water_for_mav, target_name="water_kg", max_ops=2, tolerance=1e-4)
+    assert pt_mav is not None and pt_mav.proven, "first_principles derivation must succeed for MAV-scale O2 water requirement"
+    assert abs(pt_mav.target_value - water_for_mav) < 1.0
+

@@ -219,6 +219,32 @@ Each agent has:
 **Execution verification**: Targeted pytest 45p green (visionary+val+epsilon); full prior 1727p. No regression. plant still physics_verified + explicit seams + derive proven + mission closure.
 **Status**: Closed. Increment complete. All tasks cleared. Ready next Council increment.
 
+### Decision: Lean mission-scale sizing FP derivation for Mars ISRU O2 Plant (MAV propellant return scale)
+**Date**: 2026-07-04
+**Context / Problem**: Grounding increment closed (c_stoich IUPAC/NIST). Plant test already has self-contained mission closure (crew makeup) + FP derive for yield. Per L DR Architect note: "recommends next mission-scale sizing". Need to demonstrate FP on realistic return propellant (MAV LOX oxidizer) using exact same machinery, with explicit grounded source note, without any bloat or core changes. "komplett genesis" requires mission-level + FP + real refs for multi-planetary.
+**Decision**:
+- Single targeted insertion in existing `test_mars_isru_o2_plant_uses_isru_life_domains_and_explicit_seams` (after mission tie assert).
+- Reuse plant `eff`, 32/36 `r`, `Axiom`/`derive` exactly: compute `water_for_mav` for grounded 22728 kg O2 MAV target; new `mav_axioms`; assert `pt_mav.proven` + value match.
+- Source note in code comments: NASA MAV ISRU studies (22728 kg O2 example refs Kleinhenz AIAA / Sanders NTRS).
+- Demo plant numbers + all prior asserts/seams/FP/closure untouched.
+- Council (Architect/Verif/Simplicity spawns) scoped: 1-file lean only; Simplicity vetoed any pipeline/assess/new spec.
+- L DR here + status updates. Full 4 Fitness.
+**Alternatives considered**:
+- Extend plant spec with new MAV quantities or new visionary (rejected: bloat, changes >1 file, demo corruption risk).
+- Wire mission roll-up into pipeline Assessment (rejected: high blast, violates "no pipeline", "self-contained in test" prior decisions).
+- Pure comment without derive (rejected: misses strengthening FP on mission scale + proven proof tree).
+**Rationale**: Executes the explicit recommendation in smallest possible diff (reuses 100% of recent FP/derive/grounding patterns). Directly shows "ISRU enables real return propellant" (Elon vision) with falsifiable FP + source. Anti-bloat enforced; all gates preserved.
+**Risks & Trade-offs**: Static example (verifiable refs); demo vs. mission distinction explicit. Low blast (test only). Revisit when live scaling or full Sabatier added.
+**Revisit trigger**: When adding live data fetch for ISRU scale factors or extending to Sabatier/regolith validator.
+**Council perspectives** (synthesized from spawns):
+- Architect/Pragmatist: Exact match to "mission-scale sizing" rec; 22728 kg MAV O2 + water derive is the lean vehicle; 4 Lenses passed in proposal.
+- Verification: Addresses dimensional weakness in prior crew calc + adds real anchor + FP on layer + neg paths remain; detailed verification steps (source string, pt.proven, no regression on existing).
+- Simplicity: Only 1 file, reuse derive/axioms/32/36; vetoed all core extensions; "absolute simplest"; 4 Linsen applied.
+- All: quality, explicit, no new surface, vision-aligned.
+**Execution verification**: 11p visionary (incl dedicated test) green post-edit; ISRU validators 4p; derive for mav_o2 succeeds with proven. No regression on prior pt, crew closure, seams, bundle.
+**Status**: Closed for this increment. All tasks cleared. Green bg expected next. Ready for user review or further.
+
+
 **Initial Anti-Bloat**: 12 agents justified by mapping to observed pains. Will keep supporting artifacts minimal (charters in one or few files, reuse existing tools).
 
 **Harness / Council Activation**: This entire effort is self-applying the workflow. Multiple perspectives (simulated council + future real spawns) are being used.
