@@ -1184,6 +1184,13 @@ Claude review: 0 failed (good) but noted no increase in test count / no dedicate
 
 We build the honest engine that lets humanity realize the Elon vision — reusability, ISRU, habitats, energy, robots — without lies. Gate is law. First principles. For many worlds.
 
+### Follow-on after visionary ISRU (per "ready go" + complete vision)
+- Integrated first_principles.derive for the ISRU stoich yield (water * r * eff proven from axioms) inside the Mars plant dedicated test.
+- Commit: a2d9edb.
+- Demonstrates discovery arm for Elon ISRU (not only multi-physics).
+- 11p in visionary tests; full re-confirms green (1716p in bg re-run).
+- L DR: advances full Genesis (first-principles + visionary for multi-planetary). Next after Council. Avoided pipeline.py.
+
 ### Completed Increment after auflage approval ("ready go" 2026-07-04)
 **Title**: Visionary Mars ISRU O2 Plant — explicit DomainSeams + new ISRU/LIFE domains exercised end-to-end in visionary arm (assess + bundle).
 
