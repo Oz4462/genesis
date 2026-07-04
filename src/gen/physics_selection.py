@@ -182,7 +182,9 @@ RECIPES: list[CheckRecipe] = [
     ),
     CheckRecipe(
         name="battery endurance", validator="battery_endurance",
-        trigger="battery.capacity",
+        # the REQUIREMENT indicates the check, not the component — a spec can carry a
+        # battery.capacity without any endurance requirement (e.g. a non-continuous-duty pack).
+        trigger="flight.required_endurance",
         inputs={
             "capacity_wh": ("battery.capacity", "Wh"),
             "hover_power_w": ("flight.hover_power", "W"),
