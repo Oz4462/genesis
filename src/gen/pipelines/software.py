@@ -5,19 +5,30 @@ Gemäß GENESIS_PLATFORM_PLAN.md §4:
 - Outputs: Software-Architektur, Embedded Spec, API contracts, Testplan, Update/OTA hints, Failure states.
 - Gate: no undriven load (software analog), no unhandled failure state, no update without rollback, no API without contract.
 
-Erster Stein: deterministischer Mapper von SystemConcept + prior (Elektriker for control, Techniker for update) zu SoftwareSpec.
+Erster Stein: deterministischer Mapper von SystemConcept zu SoftwareSpec.
 Jetpack example: Thrust controller (embedded on motor side), Tether safety interlock, API for ground station, OTA update path, error states (loss of tether, overtemp).
 Generic Fallback with honest gaps.
 
-Naht: Takes prior (Elektriker for signals, Techniker for maintenance/update, DFM for thermal, Lern for test cases). Output feeds Realisierungspaket (firmware in package) and Regulatorik (safety software).
+HONESTY (Schritt-8-Review S-1): the ``ingenieur`` parameter is accepted for API stability but
+currently NOT consumed — no prior (Elektriker/Techniker/DFM/Lern) feeds this mapper yet. Every
+output is a PLAN §4 canon template; the declared gap is a real prior evaluation. Planned seam
+(NOT yet wired): prior pipelines in, Realisierungspaket (firmware) and Regulatorik out.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from .architekt import SystemConcept
 from .ingenieur import IngenieurSpec
+
+#: Honest provenance label for the flight-canon outputs (S-1): a template, not a consumed prior.
+_CANON_QUELLE = "PLAN §4 Kanon-Vorlage, kein Prior konsumiert (Lücke: echte Prior-Auswertung)"
+
+#: Flight trigger (S-2): word-boundary terms only — the bare word "flug", a flight DEVICE
+#: (fluggerät/flugzeug) or "jetpack". Substrings like "Ausflug" or "Flughafen" must NOT match.
+_FLIGHT_TRIGGER = re.compile(r"jetpack|fluggerät|fluggeraet|flugzeug|\bflug\b")
 
 
 @dataclass(frozen=True)
@@ -70,36 +81,44 @@ def map_to_software_spec(
     run_id: str | None = None,
 ) -> SoftwareSpec:
     """
-    Erster Stein Software-Pipeline.
-    Jetpack: Thrust controller + Tether safety + ground API + OTA + error states.
-    Generic: honest gaps.
+    Erster Stein Software-Pipeline: deterministic PLAN §4 canon template per concept.
+
+    ``ingenieur`` is reserved for the planned prior seam and currently NOT consumed
+    (S-1) — the spec never claims a prior-derived detail; the flight canon declares
+    its assumptions as such. Flight terms match on word boundaries (S-2), so
+    "Ausflug"/"Flughafen" fall through to the generic path with honest gaps.
     """
     idee_lower = concept.source_idea.lower()
 
-    if "jetpack" in idee_lower or "flug" in idee_lower:
+    if _FLIGHT_TRIGGER.search(idee_lower):
         embedded = [
-            EmbeddedComponent("ThrustController", "Closed-loop thrust from pilot command to motor drivers", "PWM + CAN (from Elektriker)", ["overtemp", "loss_of_feedback", "comm_loss"], quelle="Elektriker + DFM thermal + PLAN §4"),
-            EmbeddedComponent("TetherSafety", "Interlock: only enable if tether present + emergency line high", "Digital in + discrete enable", ["tether_loss", "false_positive"], quelle="Techniker safety + Elektriker redundant signaling"),
+            EmbeddedComponent("ThrustController", "Closed-loop thrust from pilot command to motor drivers", "PWM + CAN", ["overtemp", "loss_of_feedback", "comm_loss"], quelle=_CANON_QUELLE),
+            EmbeddedComponent("TetherSafety", "Interlock: only enable if tether present + emergency line high", "Digital in + discrete enable", ["tether_loss", "false_positive"], quelle=_CANON_QUELLE),
         ]
         apis = [
-            APISpec("GroundTelemetry", "Real-time state (thrust, temp, tether, battery) to ground station", "sensor data", "JSON telemetry + alerts", "signed, rate-limited, loss-of-link timeout", quelle="Lern test cases + Regulatorik"),
+            APISpec("GroundTelemetry", "Real-time state (thrust, temp, tether, battery) to ground station", "sensor data", "JSON telemetry + alerts", "signed, rate-limited, loss-of-link timeout", quelle=_CANON_QUELLE),
         ]
-        update = UpdatePfad("OTA via tether or wireless (staged: sim -> bench -> flight)", "Rollback to last known-good image on CRC fail or manual command", "A/B partition + health check before commit", quelle="Techniker Wartung + Lern 'updatefähigkeit'"),
+        update = UpdatePfad("OTA via tether or wireless (staged: sim -> bench -> flight)", "Rollback to last known-good image on CRC fail or manual command", "A/B partition + health check before commit", quelle=_CANON_QUELLE)
         testplan = [
             "Unit tests for state machines (thrust, safety interlock)",
-            "HIL bench with real motor driver (from DFM/assembly)",
+            "HIL bench with real motor driver",
             "Fault injection (tether loss, overtemp) - must go to safe state",
             "OTA roundtrip test (sim + rollback)",
         ]
-        zusammen = "Jetpack SoftwareSpec: Embedded (ThrustController + TetherSafety), API (GroundTelemetry), OTA with rollback, testplan with fault injection. Naht to Elektriker/Techniker/DFM/Lern/Realisierungspaket."
-        quelle = "GENESIS_PLATFORM_PLAN.md §4 (Software-Pipeline) + prior Elektriker/Techniker/DFM/Lern + Jetpack-Kanon"
+        zusammen = (
+            "Jetpack SoftwareSpec: Embedded (ThrustController + TetherSafety), API (GroundTelemetry), "
+            "OTA mit Rollback, Testplan mit Fault Injection. "
+            "Lücke: Fehlerzustände und OTA-Details sind Kanon-Annahmen (aus keinem Prior abgeleitet) — "
+            "die geplante Naht zu Prior-Pipelines/Realisierungspaket ist noch nicht verdrahtet."
+        )
+        quelle = "GENESIS_PLATFORM_PLAN.md §4 (Software-Pipeline) — Kanon-Vorlage, kein Prior konsumiert (Lücke: echte Prior-Auswertung)"
     else:
         embedded = [EmbeddedComponent("MainController", "Basic control loop", "simple I/O", ["comm_loss"], quelle="Generic")]
         apis = [APISpec("BasicAPI", "Status query", "none", "status JSON", "basic auth", quelle="Generic")]
         update = UpdatePfad("Manual flash", "No rollback (Lücke)", "Manual verify", quelle="Generic + PLAN §4")
         testplan = ["Basic unit + integration (Lücke for fault injection)"]
-        zusammen = f"Generische SoftwareSpec für '{concept.source_idea[:40]}...'. Viele Details als Lücke (keine spezifische control/safety from prior)."
-        quelle = "GENESIS_PLATFORM_PLAN.md §4 + generic fallback (ehrliche Lücken)"
+        zusammen = f"Generische SoftwareSpec für '{concept.source_idea[:40]}...'. Viele Details als Lücke (keine spezifische control/safety, kein Prior konsumiert)."
+        quelle = "GENESIS_PLATFORM_PLAN.md §4 + generic fallback (ehrliche Lücken, kein Prior konsumiert)"
 
     return SoftwareSpec(
         source_idea=concept.source_idea,
