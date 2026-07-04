@@ -534,3 +534,44 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
     1960 passed / 54 skipped / 1 failed — der eine Failure (test_webapp „seams_failed") ist
     in sauberen Worktrees auf 356d19b (vor ALLEN Grenzverschiebungs-Commits) und b57a322
     identisch reproduziert: vorbestehend, Scope der parallelen web/-Review, hier nicht angefasst.
+- Schritt 9: pipelines/ — DONE (Claude-Review-Findings #1–#15 gefixt, TDD, 3 Commits):
+  · #3/#4/#5/#6 HOCH GEFIXT (Trigger): `"flug" in idee_lower` matchte „Ausflug/Flughafen" und
+    feuerte den vollen Jetpack-Kanon (regulatorik inkl. EASA/Haftung!) — EIN gemeinsamer Helfer
+    pipelines/_triggers.is_flight_idea (exakt das S-2-Wortgrenzen-Regex aus software.py) in
+    allen 6 Stellen (software/regulatorik/designer/elektriker/wirtschaft + fertigungs:125);
+    #11-Trigger: architekt „fliegen"-Substring → has_fliegen_word (\bfliegen\b). Commit 356d19b.
+  · #1/#2 HOCH GEFIXT (Provenienz): physiker (ingenieur) und techniker (ingenieur+physiker)
+    lesen ihre Prior-Parameter NIE, behaupteten aber „breakthrough lab data 2026"/„ingenieur
+    lastfaelle"/„manufacturing_check + ingenieur" — MINIMAL-EHRLICH nach S-1: _CANON_QUELLE
+    „PLAN §4.x Kanon-Vorlage, kein Prior konsumiert (Lücke: echte Prior-Auswertung)", Werte als
+    Kanon-Annahmen, Parameter als reserviert dokumentiert. #9 MED: designer/regulatorik/
+    wirtschaft gleich (inkl. „8-25 EUR from Fertigungs" → Kanon-Annahme). #10 MED: regulatorik-
+    Kanon deklariert „Lücke: EASA-Zuordnung/Zertifizierung ist Kanon-Annahme, kein Norm-
+    Connector". #11-quelle: architekt-Überklaim (safety_ladder/learning_integrator/…) ehrlich.
+    #12 LOW: toter main_assemblies-„jetpack"-Zweig in ingenieur/physiker/techniker entfernt;
+    elektriker-Docstring „(+ optional Physiker loads)" ohne Param → geplante Naht. Commit 6ebbe26.
+  · #7 HOCH GEFIXT (integrator): SystemConcept/IngenieurSpec ohne Pflichtfelder
+    (zusammenfassung/source_concept) → TypeError bei JEDEM Aufruf, vom breiten except zu
+    „fertigungs skipped" verschluckt — Fertigungs-Naht permanent tot, Manifest behauptete sie.
+    Jetzt echte (concept, ingenieur)-Paare je Fragment (built_specs). #8 HOCH: `i` von
+    enumerate-Loops auf int geclobbert → elektriker bekam Integer statt IngenieurSpec, getattr
+    fiel still auf "" — sprechende Bindungen last_concept/last_ingenieur + Spy-Test. #13: prints
+    → manifest["integration_notes"]/lern_note (kein stilles Löschen). #14: out/-„latest(_full)"-
+    Stale-Bleed → _run_dir_name mintet eindeutiges „kind-unlabeled-UTCstamp" (Aufrufer geprüft,
+    kein Leser hängt an „latest"). #15: pipelines/__init__ except → ImportError. Commit b57a322.
+  · TEST-WAHRHEITS-BEFUND: test_physiker.py:25 („ingenieur/breakthrough in quelle"),
+    test_architekt.py:21 („safety_ladder in quelle") und test_integrator.py:75 (nur
+    `"fertigungs" in manifest`, akzeptierte den toten skipped-Eintrag) SCHÜTZTEN die Bugs —
+    auf Ehrlichkeits-/Echtheits-Assertions umgestellt (Verbotslisten fabrizierter Herkunfts-
+    Token, Manifest-Einträge müssen echte prozesse/kosten tragen).
+  · DEFENDED nicht angefasst: elektriker-Exception-Handling (Z.216-228), ingenieur-Kern,
+    _ingenieur_spec_to_dict, Empty-ideas-Guard; grenzverschiebung/integration/memory/web per
+    Vorgabe unberührt.
+  · +20 Tests (TDD: 11 rot vor dem Fix in test_pipeline_triggers/test_integrator/Honesty-Tests).
+    Volle Suite 1960 passed / 54 skipped / 1 failed — der eine Failure (test_webapp
+    „seams_failed" am LED-Halter) ist VORBESTEHEND: per PYTHONPATH-Worktree deterministisch auf
+    3b5e293 und sogar 744bd2d^ (vor der ganzen Session, clean cwd) reproduziert; Ursache ist die
+    required-Seam-Adjazenz ELECTRICAL↔FIRMWARE auf der capstone-Demo-Spec ohne Seam-Zertifikat
+    (seams/demo/web-Scope der parallelen Review, hier nicht angefasst). ruff clean.
+  · Offen (deklarierte Lücke, kein Bug): echte Prior-Auswertung in physiker/techniker/designer/
+    regulatorik/wirtschaft/software (Parameter sind reservierte API; Kanon-Vorlagen sagen das jetzt).
