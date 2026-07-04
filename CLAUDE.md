@@ -48,8 +48,9 @@ src/gen/discovery/          Universe-Explorer (35 Module) · src/gen/pipelines/ 
 src/gen/<physik>.py         δ-Achsen (structural…security) · tests/  247 Dateien
 ```
 
-## Verifizierter Ist-Stand (gemessen 2026-07-04, nicht fortschreiben ohne Messung)
-- **Testsuite (main, offline): 1727 passed / 0 failed / 61 skipped** (~31 s, `uv run pytest tests/ -q`).
+## Verifizierter Ist-Stand (gemessen 2026-07-04 abends, nicht fortschreiben ohne Messung)
+- **Testsuite (main, offline): 1853 passed / 0 failed / 61 skipped** (~29 s, `uv run pytest tests/ -q`;
+  morgens 1727 — Zuwachs = Schritt-7-Kampagne Batch 1+2, D8–D13, P7, fertigungs-Naht).
 - **43 Validatoren** in `physics_validation.VALIDATORS`, **38 Recipes** in `physics_selection.RECIPES` (Auto-Select aus measurand-Tags → ehrliches Gate-Verdikt pass/fail/gap).
 - **Discovery: 35 Module**, 146 Discovery-Testfunktionen; `rediscovery_benchmark()` 100 %; Frontier 6.1–6.5 gebaut; offene Frontier: multiplikative/transzendente Kopplungen + GP-Suche (`docs/discovery/STATUS.md`).
 - **Alle Phasen gebaut und gegated:** α, β, γ, δ (docs/phases/) + φ, χ, δ⁺, γ⁺, ε, ζ, Ω (HORIZON, je `test_phase_*.py`).
@@ -63,10 +64,13 @@ src/gen/<physik>.py         δ-Achsen (structural…security) · tests/  247 Dat
    Margen echt (printed Kerbe 1.04 dünn — hängt an DECISION a=6 mm, wartet auf Datenblatt).
    Worktree-Suite 1743/0/61. **Offen: Grok-Cross-Review + Merge (owner-gated;** TP1+TP2 =
    17 Commits unmerged, main 11 voraus; Achtung: runner.py-F821-Fix existiert in beiden Ästen).
-2. **Deep-Review-Kampagne Schritt 7–9** (`WORK_QUEUE.md`): physics_validation + 43 Validatoren →
-   export/costing/completeness/software → pipelines/integration/grenzverschiebung.
-3. **Deferred-Backlog** (`WORK_QUEUE.md`): D13(a–d) ERLEDIGT `393d7dc`; D8–D10 (tools-Security)
-   in Arbeit; danach D2 (`_now()`-Determinismus vs. Prinzip 5), D1, D4–D6, D14–D16.
+2. **Deep-Review-Kampagne** (`WORK_QUEUE.md`): **Schritt 7 KOMPLETT** (physics_validation/selection/
+   units 7a+7b, modal/orientation/manufacturing 7c, FEM-Schicht 7d `2e13c97`, mesh/brep/circuit 7e
+   `f0d14ec`) — alle Claude-seitig; **Grok-Cross-Reviews nachholen** (CLI-Outage 2026-07-04).
+   Schritt 8 (export/costing/completeness/software) Reviews laufen; danach Schritt 9.
+3. **Deferred-Backlog** (`WORK_QUEUE.md`): D8–D10 `c2f03cd` + D13(a–d) `393d7dc` + D15-geometry
+   `28e4ba1` ERLEDIGT; offen: D2 (`_now()`-Determinismus), D1, D4–D6, D11/D12, D14, D16,
+   Recipes für die 7 MANUAL_ONLY-Validatoren.
 4. **Doku-Hygiene:** Zähl-Drift in README/STATUS/HORIZON fixen (P2 im Audit-Plan).
 - **Owner-gated (kein Autonomie-Zugriff):** Push/Merge; Live-Ollama-Läufe + Extraction-Bottleneck;
   measurand-Emission live-Architect; Refine-Loop live-Conductor.
