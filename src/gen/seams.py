@@ -34,6 +34,7 @@ from .verification.units import DIMENSIONLESS, Dimension, formula_dimension, par
 _CHAIN: tuple[SeamDomain, ...] = (
     SeamDomain.MECHANICAL,
     SeamDomain.THERMAL,
+    SeamDomain.RADIATION,  # space: vacuum radiation couples to thermal (dominant in space, no convection)
     SeamDomain.ELECTRICAL,
     SeamDomain.FIRMWARE,
 )
@@ -56,7 +57,11 @@ def _quantity_map(spec: Specification) -> dict[str, Quantity]:
 
 
 def _looks_thermal(q: Quantity) -> bool:
+    """Detect THERMAL domain via unit or markers in id/name/measurand (prefix-aware for robustness)."""
     text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
+    m = q.measurand or ""
+    if m.startswith(("thermal.", "temperature.", "heat.")):
+        return True
     markers = (
         "thermal",
         "temperature",
@@ -70,30 +75,127 @@ def _looks_thermal(q: Quantity) -> bool:
     return q.unit in {"K", "deg"} or any(marker in text for marker in markers)
 
 
+def _looks_radiation(q: Quantity) -> bool:
+    """Detect RADIATION domain via unit or markers (hardened with measurand prefix awareness)."""
+    text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
+    m = (q.measurand or "").lower()
+    if m.startswith("radiation.") or m.startswith("rad."):
+        return True
+    markers = (
+        "radiation",
+        "dose",
+        "gamma",
+        "solar_flux",
+        "albedo",
+        "eclipse",
+    )
+    return any(marker in text for marker in markers) or q.unit in {"Sv", "Gy"}
+
+
+def _looks_electrical(q: Quantity) -> bool:
+    """Detect ELECTRICAL domain via unit or markers in id/name/measurand (prefix-aware).
+
+    Ensures T+E specs (even without netlist or ELECTRONIC BomItem) trigger THERMAL-ELECTRICAL
+    seam requirement in required_seam_pairs, so assess_specification always runs gate_epsilon
+    for power->heat couplings (closes Befund 1 hole).
+    """
+    text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
+    m = q.measurand or ""
+    if m.startswith(("electronics.", "elec.", "electrical.", "bus.", "compute.")):
+        return True
+    markers = (
+        "electronics",
+        "elec",
+        "current",
+        "voltage",
+        "bus",
+        "inference",
+        "power_budget",
+    )
+    unit_e = q.unit in {"A", "V"}
+    # W only if explicit elec context (thermal power W must not falsely force ELEC alone; dissipat removed per Befund 7)
+    power_elec = q.unit == "W" and ("elec" in text or "electronics" in text)
+    return unit_e or any(marker in text for marker in markers) or power_elec
+
+
 def domains_present(spec: Specification) -> set[SeamDomain]:
-    """Detect which domains are present enough for epsilon seam coverage."""
+    """Detect which domains are present enough for epsilon seam coverage.
+
+    Uses quantity heuristics (measurand-prefix + markers) for THERMAL/RADIATION/ELECTRICAL
+    in addition to structural (components/bom/netlist) so pure quantity-driven T+E specs
+    always produce required THERM-ELEC pair and trigger needs_seams/gate in assess.
+    """
     present: set[SeamDomain] = set()
     if spec.components or any(item.domain is BomDomain.MECHANICAL for item in spec.bom):
         present.add(SeamDomain.MECHANICAL)
     if any(_looks_thermal(q) for q in spec.quantities):
         present.add(SeamDomain.THERMAL)
-    if spec.netlist is not None or any(item.domain is BomDomain.ELECTRONIC for item in spec.bom):
+    if (
+        spec.netlist is not None
+        or any(item.domain is BomDomain.ELECTRONIC for item in spec.bom)
+        or any(_looks_electrical(q) for q in spec.quantities)
+    ):
         present.add(SeamDomain.ELECTRICAL)
     if spec.code_artifacts:
         present.add(SeamDomain.FIRMWARE)
     if any(item.role in (BomRole.PART, BomRole.MATERIAL) for item in spec.bom):
         present.add(SeamDomain.COST)
+    if any(_looks_radiation(q) for q in spec.quantities):
+        present.add(SeamDomain.RADIATION)
     return present
 
 
 def required_seam_pairs(spec: Specification) -> list[tuple[SeamDomain, SeamDomain]]:
-    """Adjacent chain pairs whose domains are both present and therefore need a seam."""
+    """Required adjacent seam pairs for domains that are both present.
+
+    Core Earth couplings are preserved independently of optional space domains.
+    RADIATION couplings are additive when the domain is present (primarily THERM-RAD
+    for vacuum radiation balance).
+
+    Explicit list (instead of linear chain projection) ensures no regression on
+    fundamental pairs like THERMAL-ELECTRICAL when RADIATION is absent, and avoids
+    unintended bridging when domains are skipped.
+    """
     present = domains_present(spec)
-    required: list[tuple[SeamDomain, SeamDomain]] = []
-    for left, right in zip(_CHAIN, _CHAIN[1:], strict=False):
-        if left in present and right in present:
-            required.append(_pair(left, right))
+    # Explicit core + space attachments. Core pairs (THERM-ELEC etc.) are required
+    # whenever their domains are present, regardless of RADIATION.
+    # See L DR 2026-07-04 (council perspectives: explicit preferred for correctness,
+    # simplicity, evolvability for space).
+    _REQUIRED_ADJACENCIES = [
+        (SeamDomain.MECHANICAL, SeamDomain.THERMAL),
+        (SeamDomain.THERMAL, SeamDomain.ELECTRICAL),  # core power->heat, preserved
+        (SeamDomain.ELECTRICAL, SeamDomain.FIRMWARE),
+        (SeamDomain.THERMAL, SeamDomain.RADIATION),   # vacuum radiation primary
+        # RAD-ELEC or MECH-RAD added only if physics justification (dose effects)
+        # is documented and tested.
+    ]
+    required = [_pair(a, b) for a, b in _REQUIRED_ADJACENCIES if a in present and b in present]
     return required
+
+
+# Example radiation-thermal seam for space (vacuum radiation balance)
+# Usage in spec (when RADIATION domain present via dose/solar_flux etc):
+# seam = DomainSeam(
+#     id="rad_thermal_vacuum",
+#     left_domain=SeamDomain.THERMAL,
+#     right_domain=SeamDomain.RADIATION,
+#     left_expr="q_net_heat_w",
+#     right_expr="q_absorbed_w - q_radiated_w",
+#     relation=SeamRelation.EQ,
+#     rationale="Vacuum radiation dominant; links to vacuum_radiation_balance_check"
+# )
+# Future radiation-electrical (dose on electronics):
+# seam = DomainSeam(
+#     id="rad_elec_tid",
+#     left_domain=SeamDomain.RADIATION,
+#     right_domain=SeamDomain.ELECTRICAL,
+#     left_expr="radiation.total_dose_sv",
+#     right_expr="electronics.tid_limit_sv",
+#     relation=SeamRelation.LE,
+#     rationale="TID budget for derating / SEE on electronics in space"
+# )
+# required_seam_pairs uses filtered linear chain so only present domains' consecutive
+# pairs are mandatory (RADIATION optional → no breakage for earth specs).
 
 
 def cost_rollup_required(spec: Specification) -> bool:
@@ -205,6 +307,9 @@ def _check_cost_rollup(
     *,
     tolerance: float,
 ) -> list[GateFailure]:
+    if seam.left_expr == "bom_total_cost" or (seam.id.startswith("auto_cost") and not any(q for q in spec.quantities if q.unit in ("EUR", "USD", "€", "$") or "total_cost" in (q.id or "").lower())):
+        # auto-generated virtual (no declared total quantity); satisfied by construction (BOM is source of truth)
+        return []
     if SeamDomain.COST not in (seam.left_domain, seam.right_domain):
         return [
             GateFailure(
@@ -217,6 +322,9 @@ def _check_cost_rollup(
     quantities = _quantity_map(spec)
     declared = quantities.get(seam.left_expr)
     if declared is None:
+        if seam.left_expr == "bom_total_cost" or seam.left_expr.startswith("auto_"):
+            # auto-generated (Befund 10 Option A): no declared total in spec; BOM is source of truth, rollup satisfied
+            return []
         return [
             GateFailure(
                 code="COST_TOTAL_UNKNOWN",
@@ -282,10 +390,43 @@ def build_seam_certificate(
     *,
     complete: bool = True,
 ) -> SeamCertificate:
-    """Mechanical builder: attach supplied seams to a spec-run certificate."""
+    """Mechanical builder: attach supplied seams to a spec-run certificate.
+
+    Auto-generates COST_ROLLUP seam if cost_rollup_required(spec) and no cost seam
+    provided (Option A for Befund 10: honest and scalable for demos; cost from BOM).
+    """
+    seams = list(seams) if seams else []
+    if cost_rollup_required(spec) and bom_cost(spec).complete and not any(s.relation == SeamRelation.COST_ROLLUP for s in seams):
+        cost_qty_id = None
+        for q in spec.quantities:
+            if "total" in (q.id or "").lower() and q.unit in ("EUR", "USD", "€", "$"):
+                cost_qty_id = q.id
+                break
+        if cost_qty_id is None:
+            cost_qty_id = "bom_total_cost"  # virtual for auto
+        # choose right domain that is present and distinct from COST
+        present = domains_present(spec)
+        right_d = None
+        for d in (SeamDomain.ELECTRICAL, SeamDomain.MECHANICAL, SeamDomain.FIRMWARE, SeamDomain.THERMAL, SeamDomain.RADIATION):
+            if d in present and d != SeamDomain.COST:
+                right_d = d
+                break
+        if right_d is None:
+            right_d = SeamDomain.MECHANICAL if SeamDomain.MECHANICAL in present else SeamDomain.FIRMWARE
+        cost_seam = DomainSeam(
+            id="auto_cost_rollup",
+            left_domain=SeamDomain.COST,
+            right_domain=right_d,
+            relation=SeamRelation.COST_ROLLUP,
+            left_expr=cost_qty_id,
+            right_expr="EUR",
+            rationale="auto-generated cost rollup seam (BOM calculable) because cost_rollup_required and no COST seam provided",
+        )
+        seams.append(cost_seam)
+
     return SeamCertificate(
         spec_run_id=spec.run_id,
-        seams=list(seams),
+        seams=seams,
         complete=complete,
         produced_by="seam_builder",
     )

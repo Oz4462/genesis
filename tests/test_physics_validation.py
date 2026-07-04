@@ -19,7 +19,12 @@ from gen.physics_validation import (  # noqa: E402
     PhysicsCheck,
     gate_delta_physics,
     run_physics_checks,
+    vacuum_radiation_balance_check,
 )
+
+# For recipe/dose mapping test (real, non-decorative)
+from gen.physics_selection import select_physics_checks  # noqa: E402
+from gen.core.state import Quantity, ValueOrigin, Specification, Component  # noqa: E402
 
 # a few checks with inputs that pass their own margin
 _TORSION_OK = PhysicsCheck("drive shaft", "torsion", dict(
@@ -94,3 +99,71 @@ def test_mixed_batch_reports_each_distinct_failure():
     assert not result.passed
     assert {f.code for f in result.failures} == {
         "PHYSICS_UNKNOWN_VALIDATOR", "PHYSICS_CHECK_ERROR", "PHYSICS_CHECK_FAILED"}
+
+
+# --- vacuum radiation validator fixes (Befund 4/5/6 honesty) ---
+
+def test_vacuum_radiation_equilibrium_ok():
+    """Balanced case (net ~0) passes without designed flag. Use ~radiated value for 300K/0.8/0.5."""
+    res = vacuum_radiation_balance_check(183.7, 0.8, 0.5, 300.0, tol=0.1)
+    assert res["ok"] is True
+    assert "radiation_dose_sv" in res  # always present (Befund 5)
+    assert res["radiation_dose_sv"] == 0.0
+
+
+def test_vacuum_radiation_eclipse_without_designed_fails():
+    """Eclipse (absorbed=0) pure radiator without designed flag fails (net !=0)."""
+    res = vacuum_radiation_balance_check(0.0, 0.8, 0.5, 300.0, tol=0.1)
+    assert res["ok"] is False
+    assert res["net_heat_w"] < 0
+
+
+def test_vacuum_radiation_designed_sink_passes_in_eclipse():
+    """Designed sink support (Befund 6): eclipse radiator with flag passes despite imbalance."""
+    res = vacuum_radiation_balance_check(
+        0.0, 0.8, 0.5, 300.0, tol=0.1, designed_as_sink_or_source=True
+    )
+    assert res["ok"] is True
+    assert "designed_note" in res
+
+
+def test_vacuum_radiation_dose_is_real_limit_check_not_echo():
+    """Dose always mapped + participates in ok (limit check); high dose fails even if balance ok (Befund 5)."""
+    res_low = vacuum_radiation_balance_check(183.7, 0.8, 0.5, 300.0, radiation_dose_sv=5.0, dose_limit_sv=10.0)
+    assert res_low["radiation_dose_sv"] == 5.0
+    assert res_low["dose_ok"] is True
+    assert res_low["ok"] is True
+
+    res_high = vacuum_radiation_balance_check(183.7, 0.8, 0.5, 300.0, radiation_dose_sv=20.0, dose_limit_sv=10.0)
+    assert res_high["dose_ok"] is False
+    assert res_high["ok"] is False
+    assert "dose_note" in res_high
+
+
+def test_radiation_recipe_maps_dose_real_via_select():
+    """Recipe update + select: dose from radiation measurand is mapped into PhysicsCheck
+    (not decorative) and fed to validator (Befund 5).
+    """
+    qs = [
+        Quantity(id="abs", name="abs", value=120.0, unit="W", origin=ValueOrigin.DECISION, rationale="test", measurand="thermal.radiation_absorbed"),
+        Quantity(id="eps", name="eps", value=0.85, unit="1", origin=ValueOrigin.DECISION, rationale="test", measurand="material.emissivity"),
+        Quantity(id="area", name="area", value=0.6, unit="m^2", origin=ValueOrigin.DECISION, rationale="test", measurand="surface.area"),
+        Quantity(id="tk", name="tk", value=290.0, unit="K", origin=ValueOrigin.DECISION, rationale="test", measurand="thermal.temperature"),
+        Quantity(id="dose", name="dose", value=4.2, unit="Sv", origin=ValueOrigin.DECISION, rationale="test", measurand="radiation.total_ionizing_dose"),
+    ]
+    spec = Specification(
+        run_id="r-dose-map",
+        idea="space radiator dose mapping test",
+        quantities=qs,
+        components=[Component(id="rad", name="panel")],
+        bom=[],
+    )
+    checks, gaps = select_physics_checks(spec)
+    rad_checks = [c for c in checks if "radiation" in c.validator]
+    assert len(rad_checks) == 1
+    chk = rad_checks[0]
+    assert chk.validator == "vacuum_radiation_balance"
+    assert "radiation_dose_sv" in chk.inputs
+    assert chk.inputs["radiation_dose_sv"] == 4.2
+    # also designed from extra
+    assert chk.inputs.get("designed_as_sink_or_source") is False

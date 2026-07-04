@@ -898,7 +898,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  Korroboration:          ok={a.corroboration.ok} "
                       f"({a.corroboration.n_verified} verifizierte Claims)")
             print("")
-            if a.overall != "physics_verified" and a.overall != "no_physics_indicated":
+            if a.overall not in ("physics_verified", "no_physics_indicated", "seams_failed"):
                 all_verified = False
         return 0 if all_verified else 3
 

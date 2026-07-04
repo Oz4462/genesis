@@ -52,9 +52,13 @@ class CheckRecipe:
     `validator`  a key in physics_validation.VALIDATORS.
     `trigger`    a measurand whose presence indicates this physics applies.
     `inputs`     validator-kwarg name -> (measurand, expected_unit) to resolve+convert.
+                 All must resolve or the check becomes a gap (honest).
     `extra`      fixed non-quantity kwargs (config the validator needs, e.g. an end
                  condition or a wall model) — declared defaults, refined later from
-                 spec Decisions.
+                 spec Decisions. Passed verbatim to validator.
+    `optional_inputs`  like `inputs` but missing measurand does not gap; falls back to 0.0
+                       (for e.g. radiation_dose_sv which is optional for the balance but
+                       must be mapped from spec when present to be non-decorative).
     """
 
     name: str
@@ -62,6 +66,7 @@ class CheckRecipe:
     trigger: str
     inputs: dict[str, tuple[str, str]]
     extra: dict = field(default_factory=dict)
+    optional_inputs: dict[str, tuple[str, str]] = field(default_factory=dict)
 
 
 # The catalog: which checks the engine knows how to assemble from declared measurands.
@@ -364,6 +369,24 @@ RECIPES: list[CheckRecipe] = [
             "available_torque": ("actuator.available_torque", "N*m"),
         },
     ),
+    # ---- space multi-physics (vacuum radiation dominant, for habitats/radiators/TPS) ----
+    CheckRecipe(
+        name="vacuum radiation balance (space thermal)", validator="vacuum_radiation_balance",
+        trigger="thermal.radiation_absorbed",
+        inputs={
+            "absorbed_solar_w": ("thermal.radiation_absorbed", "W"),
+            "epsilon": ("material.emissivity", "1"),
+            "area_m2": ("surface.area", "m^2"),
+            "t_k": ("thermal.temperature", "K"),
+        },
+        extra={
+            "designed_as_sink_or_source": False,  # explicit design flag for non-equilibrium (eclipse sinks etc.)
+        },
+        optional_inputs={
+            # dose mapped from spec when present → real (non-echo) in validator + limit check
+            "radiation_dose_sv": ("radiation.total_ionizing_dose", "Sv"),
+        },
+    ),
 ]
 
 
@@ -402,6 +425,9 @@ def select_physics_checks(spec: Specification) -> tuple[list[PhysicsCheck], list
     unit-converted); `gaps` describe physics that is INDICATED (trigger present) but cannot
     be run (a missing/incompatible/opaque input), so an unrunnable check is surfaced rather
     than dropped. A recipe whose trigger is absent contributes neither. Deterministic.
+
+    optional_inputs on CheckRecipe are resolved when present (enables real mapping e.g.
+    radiation_dose_sv from "radiation.total_ionizing_dose" measurand without forcing gaps).
     """
     by_measurand = _measurand_map(spec)
     checks: list[PhysicsCheck] = []
@@ -417,6 +443,13 @@ def select_physics_checks(spec: Specification) -> tuple[list[PhysicsCheck], list
                 problems.append(reason)
             else:
                 inputs[arg] = value
+        # optional_inputs: map if present (for dose etc.); default 0.0 if absent (no gap)
+        for arg, (measurand, unit) in recipe.optional_inputs.items():
+            value, reason = _resolve(by_measurand, measurand, unit)
+            if reason is None:
+                inputs[arg] = value
+            else:
+                inputs[arg] = 0.0
         if problems:
             gaps.append(
                 f"{recipe.name} ({recipe.validator}) ist durch {recipe.trigger!r} "

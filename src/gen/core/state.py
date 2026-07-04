@@ -1116,13 +1116,16 @@ class ParetoFront:
 # --- Phase epsilon: verified seams across domains (HORIZON.md §2B) -----------
 
 class SeamDomain(enum.Enum):
-    """Engineering domains that may be explicitly coupled by an epsilon seam."""
+    """Engineering domains that may be explicitly coupled by an epsilon seam.
+    Extended for space multi-physics (radiation for habitats, TPS, electronics derating in vacuum).
+    """
 
     MECHANICAL = "mechanical"
     THERMAL = "thermal"
     ELECTRICAL = "electrical"
     FIRMWARE = "firmware"
     COST = "cost"
+    RADIATION = "radiation"  # vacuum/radiation dominant for multi-planetary (Mars, deep space)
 
 
 class SeamRelation(enum.Enum):

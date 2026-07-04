@@ -28,7 +28,7 @@ from gen.core.state import (  # noqa: E402
     Specification,
     ValueOrigin,
 )
-from gen.seams import build_seam_certificate, domains_present, gate_epsilon  # noqa: E402
+from gen.seams import build_seam_certificate, domains_present, gate_epsilon, required_seam_pairs  # noqa: E402
 
 
 def _q(qid: str, value: float, unit: str, *, measurand: str | None = None) -> Quantity:
@@ -226,3 +226,153 @@ def test_cost_domain_requires_cost_rollup_relation():
     res = gate_epsilon(spec, build_seam_certificate(spec, _seams()[:-1] + [bad]))
     assert not res.passed
     assert any(f.code == "COST_SEAM_REQUIRES_ROLLUP" for f in res.failures)
+
+
+# --- Radiation optional domain tests (linear filtered chain for co-design seams) ---
+
+def _spec_radiation(*, with_elec: bool = True) -> Specification:
+    """Space spec with RADIATION + THERMAL (optionally + ELECTRICAL) to test insertion."""
+    qs = [
+        _q("q_heat", 80.0, "W", measurand="thermal.heat_power"),
+        _q("q_absorbed", 100.0, "W", measurand="thermal.radiation_absorbed"),
+        _q("q_dose", 2.5, "Sv", measurand="radiation.total_ionizing_dose"),
+        _q("q_emiss", 0.8, "1", measurand="material.emissivity"),
+        _q("q_area", 0.5, "m^2", measurand="surface.area"),
+        _q("q_t", 300.0, "K", measurand="thermal.temperature"),
+    ]
+    if with_elec:
+        qs.append(_q("q_elec_p", 20.0, "W", measurand="electronics.dissipated_power"))
+    return Specification(
+        run_id="r-rad",
+        idea="space radiator with vacuum radiation balance",
+        quantities=qs,
+        components=[Component(id="c_rad", name="radiator panel")],
+        bom=[BomItem(id="b_e", name="rad controller", role=BomRole.PART, count=1, domain=BomDomain.ELECTRONIC)] if with_elec else [],
+    )
+
+
+def _rad_thermal_seam() -> DomainSeam:
+    return DomainSeam(
+        id="s_rad_thermal",
+        left_domain=SeamDomain.THERMAL,
+        right_domain=SeamDomain.RADIATION,
+        relation=SeamRelation.EQ,
+        left_expr="q_heat",
+        right_expr="q_absorbed",  # simplified; real would use net expressions (see vacuum_radiation_balance_check)
+        rationale="vacuum radiation is the thermal rejection mechanism (Stefan-Boltzmann dominant)",
+    )
+
+
+def _rad_elec_seam() -> DomainSeam:
+    return DomainSeam(
+        id="s_rad_elec",
+        left_domain=SeamDomain.RADIATION,
+        right_domain=SeamDomain.ELECTRICAL,
+        relation=SeamRelation.LE,
+        left_expr="q_dose",
+        right_expr="q_elec_p",  # placeholder; real: dose <= elec_tid_budget
+        rationale="radiation dose on electronics (future TID derating, SEE); links to rad-elec co-design",
+    )
+
+
+def test_filtered_chain_restores_therm_elec_for_non_radiation():
+    """Repro case: inserting RADIATION into _CHAIN must not drop THERMAL-ELECTRICAL
+    adjacency for terrestrial specs (power dissipation always sources heat).
+    """
+    spec = _spec()  # the original electro-thermal-fw without radiation
+    present = domains_present(spec)
+    assert SeamDomain.RADIATION not in present
+    req = required_seam_pairs(spec)
+    # Must include THERMAL <-> ELECTRICAL (in either order)
+    assert any(set(p) == {SeamDomain.THERMAL, SeamDomain.ELECTRICAL} for p in req), req
+    # MECH-THERM and ELEC-FW still present
+    assert any(set(p) == {SeamDomain.MECHANICAL, SeamDomain.THERMAL} for p in req)
+    assert any(set(p) == {SeamDomain.ELECTRICAL, SeamDomain.FIRMWARE} for p in req)
+
+
+def test_radiation_domain_inserts_correct_adjacencies():
+    """When RADIATION present (space), explicit adjacencies (per decision against auto RAD-ELEC)
+    require THERM-RAD (additive) + preserve core THERM-ELEC (power-heat always coupled).
+    No auto RAD-ELEC (dose effects require explicit justification + test).
+    """
+    spec = _spec_radiation(with_elec=True)
+    present = domains_present(spec)
+    assert {SeamDomain.THERMAL, SeamDomain.RADIATION, SeamDomain.ELECTRICAL} <= present
+    req = required_seam_pairs(spec)
+    assert any(set(p) == {SeamDomain.THERMAL, SeamDomain.RADIATION} for p in req)
+    # Decision: no auto RAD-ELEC
+    assert not any(set(p) == {SeamDomain.RADIATION, SeamDomain.ELECTRICAL} for p in req)
+    # Core THERM-ELEC still required even with RAD (explicit list preserves it)
+    assert any(set(p) == {SeamDomain.THERMAL, SeamDomain.ELECTRICAL} for p in req)
+
+
+def test_radiation_seam_passes_gate_when_domains_present():
+    """Example seam for radiation-thermal; gate accepts when declared and relation holds."""
+    spec = _spec_radiation(with_elec=False)
+    # Supply a seam that covers the required THERM-RAD (and MECH if present)
+    # For minimal: also need MECH-THERM? our _spec_radiation has no clear mech quantities for seam expr, so provide only rad one + ensure minimal
+    # To keep simple we build a minimal passing case using quantities we have.
+    # Extend spec minimally for a mech-therm if needed, but test focuses on rad coupling.
+    seams = [_rad_thermal_seam()]
+    # Note: this may trigger MECH-THERM req if MECH detected via component; supply a trivial one if needed.
+    # For this test we use a spec variant without forcing extra.
+    cert = build_seam_certificate(spec, seams)
+    res = gate_epsilon(spec, cert)
+    # If MECH present (via component) we may have missing MECH-THERM; adjust by providing one using existing q if possible.
+    # Simpler: check that rad-therm pair is covered, and any MISSING are only non-rad.
+    missing_rad = any("RADIATION" in (f.detail or "") or "thermal" in (f.detail or "").lower() and "radiation" in (f.detail or "").lower() for f in res.failures)
+    # The gate may fail on other reqs (MECH-THERM etc) but must not complain about missing rad-therm once provided.
+    # We accept either pass or only non-rad failures.
+    if not res.passed:
+        rad_missing = [f for f in res.failures if "RADIATION" in str(f) or ("thermal" in str(f).lower() and "radiation" in str(f).lower())]
+        assert not rad_missing, rad_missing
+    # Provide fuller seams for clean pass in variant that also satisfies mech.
+    # Rebuild a spec that triggers fewer domains for isolation + matching values for EQ seam.
+    spec_min = Specification(
+        run_id="r-rad-min",
+        idea="pure rad-therm",
+        quantities=[
+            _q("q_heat", 100.0, "W", measurand="thermal.heat_power"),
+            _q("q_absorbed", 100.0, "W", measurand="thermal.radiation_absorbed"),
+            _q("q_dose", 2.5, "Sv", measurand="radiation.total_ionizing_dose"),
+        ],
+        components=[],
+        bom=[],
+    )
+    seams_min = [_rad_thermal_seam()]
+    res_min = gate_epsilon(spec_min, build_seam_certificate(spec_min, seams_min))
+    # For pure THERM+RAD present, only that pair required → should pass with the seam.
+    assert res_min.passed, [f"{f.code}: {f.detail}" for f in res_min.failures]
+
+
+def test_missing_rad_seam_fails_when_radiation_present():
+    spec = _spec_radiation(with_elec=False)
+    # No seams at all → should fail on required (incl rad-therm)
+    res = gate_epsilon(spec, build_seam_certificate(spec, []))
+    assert not res.passed
+    assert any(f.code == "MISSING_REQUIRED_SEAM" for f in res.failures)
+
+
+def test_therm_elec_seam_triggered_for_quantity_only_t_e_spec():
+    """Befund 1 amplification fix + domains_present improvement: T+E via measurands
+    (no netlist, no ELECTRONIC bom, no components) must still set both domains so
+    THERM-ELEC pair is required → needs_seams=True in assess (no skipped gate).
+    """
+    spec = Specification(
+        run_id="r-te-qty",
+        idea="elec power to heat only quantities",
+        quantities=[
+            _q("pwr", 10.0, "W", measurand="electronics.dissipated_power"),
+            _q("heat", 10.0, "W", measurand="thermal.heat_power"),
+            _q("cur", 2.0, "A", measurand="electronics.current"),
+        ],
+        components=[],
+        bom=[],
+        # deliberately no netlist, no bom domains, no code
+    )
+    present = domains_present(spec)
+    assert SeamDomain.THERMAL in present
+    assert SeamDomain.ELECTRICAL in present
+    req = required_seam_pairs(spec)
+    assert any(set(p) == {SeamDomain.THERMAL, SeamDomain.ELECTRICAL} for p in req)
+    # gate would be triggered in assess (needs_seams)
