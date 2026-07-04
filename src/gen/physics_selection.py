@@ -412,6 +412,33 @@ RECIPES: list[CheckRecipe] = [
             "radiation_dose_sv": ("radiation.total_ionizing_dose", "Sv"),
         },
     ),
+    # ---- ISRU for complete Elon multi-planetary vision (Mars in-situ O2/propellant) ----
+    # Auto-triggers on isru.* measurands; pairs with new ISRU domain seams (ELEC/THERM/MECH/COST).
+    # Honest closed-form; real execution via validator; explicit for gate_epsilon.
+    CheckRecipe(
+        name="ISRU O2 yield (electrolysis proxy for Mars)", validator="isru_electrolysis_o2",
+        trigger="isru.o2_yield",
+        inputs={
+            "water_kg": ("isru.water_input_kg", "kg"),
+            "efficiency": ("isru.electrolysis_efficiency", "1"),
+        },
+        optional_inputs={
+            "o2_target_kg": ("isru.o2_target_kg", "kg"),
+        },
+    ),
+    # LIFE_SUPPORT for complete vision (ECLSS closure in space habitats)
+    CheckRecipe(
+        name="life support O2 balance (ECLSS)", validator="life_support_o2_balance",
+        trigger="life_support.o2_closure",
+        inputs={
+            "crew": ("life_support.crew", "1"),
+            "o2_consumption_kg_per_day": ("life_support.o2_consumption_rate", "kg/day"),
+            "closure_rate": ("life_support.o2_closure", "1"),
+        },
+        optional_inputs={
+            "target_closure": ("life_support.target_closure", "1"),
+        },
+    ),
 ]
 
 

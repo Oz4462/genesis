@@ -1131,6 +1131,8 @@ class SeamDomain(enum.Enum):
     FIRMWARE = "firmware"
     COST = "cost"
     RADIATION = "radiation"  # vacuum/radiation dominant for multi-planetary (Mars, deep space)
+    ISRU = "isru"  # In-Situ Resource Utilization: regolith processing, O2/CH4 propellant production on Mars (Elon/SpaceX vision)
+    LIFE_SUPPORT = "life_support"  # ECLSS: O2/CO2/H2O loops, crew consumables, closed-loop for habitats (multi-planetary)
 
 
 class SeamRelation(enum.Enum):

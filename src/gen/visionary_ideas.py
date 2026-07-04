@@ -1,24 +1,21 @@
-"""visionary_ideas — three concepts a DREAMER (grok-build, as visionary) invented, then GENESIS grounded.
+"""visionary_ideas — grok-build (as visionary) dreamed concepts, then GENESIS grounded with full engine.
 
-The owner asked grok-build to be a visionary and dream up three things that do not exist yet; GENESIS
-then builds each as a GATED ``Specification`` and runs it through the same δ-physics machinery as every
-other spec. grok decided the WHAT; GENESIS supplies the verified HOW — and where grok's dreamer figures
-were not self-consistent (e.g. a resonance cadence that did not match the leg it described), the numbers
-are tuned to physical consistency and the tuning is declared. The dream is grok's; the honesty is GENESIS's.
+The owner asked grok-build to be a visionary and dream up things that do not exist yet; GENESIS
+then builds each as a GATED ``Specification`` and runs it through the same δ-physics + epsilon-seam + 
+assess + bundle machinery as every other spec. grok decided the WHAT; GENESIS supplies the verified HOW.
+The dream is grok's; the honesty (physics, seams, explicit DomainSeams, gaps) is GENESIS's.
 
-The three grok-decided concepts:
-  1. skyclaw_spec     — SkyClaw: a backpack-portable, field-printable FLYING MANIPULATOR (quad-rotor +
-     2R arm + gripper) that repairs bridges at height and lifts people from shafts without a crane.
-     Fires the full FLIGHT stack + kinematics + actuation + compute + structure — the richest spec.
-  2. resostrider_spec — ResoStrider: a radically simple, fully printable RESONANCE-DRIVEN quadruped for
-     months of autonomous exploration of rubble or other worlds — it walks by riding its legs' own
-     natural swing. Fires swing RESONANCE + inverse-dynamics torque + dynamic ZMP + reach + actuation.
-  3. forgehydra_spec  — ForgeHydra: an air-droppable, ultralight, field-printable HYDRAULIC system that
-     a drone drops into a collapsed building or mine to move heavy loads without trucking in an excavator.
-     Fires the hydraulic axes (F=p·A, Q=A·v) + reach + compute + structure.
+The grok-decided concepts (now four, prioritizing mission-level ISRU for complete multi-planetary):
+  1. skyclaw_spec     — SkyClaw: backpack-portable field-printable FLYING MANIPULATOR.
+  2. resostrider_spec — ResoStrider: resonance-driven printable quadruped for other worlds.
+  3. forgehydra_spec  — ForgeHydra: air-droppable printable hydraulic system.
+  4. mars_isru_o2_plant_spec — Mars ISRU O2 Plant: in-situ electrolysis for O2 (propellant + breathable).
+     Uses the new ISRU + LIFE_SUPPORT domains; declares explicit DomainSeams for obligations (MECH-ISRU,
+     ISRU-COST); fires isru_electrolysis_o2 + life_support_o2_balance + structure; full bundle artifacts.
 
-Deterministic, offline, no LLM in the build path (grok only DECIDED the ideas, as the owner asked).
-No trading/ASYA/MT5. German prose; English ids/units/measurands. Reuses the future_ideas spec helpers.
+Deterministic, offline, no LLM in the build path. No trading/ASYA/MT5. German prose; English ids/units/measurands.
+Reuses the future_ideas spec helpers. Exercises assess + bundle (explicit seams for new domains, no reliance
+on seam_certificate fallback for ISRU/LIFE obligations).
 """
 
 from __future__ import annotations
@@ -36,6 +33,7 @@ from .core.state import (
 from .demo import _claim, _d, _dm, _gm
 from .future_ideas import _dfm_claims, _dfm_quantities, _link, _struct_quantities
 from .mechanics_formulas import rod_inertia_about_end
+from .seams import DomainSeam, SeamDomain, SeamRelation
 
 
 # ============================================================================================
@@ -478,9 +476,166 @@ def forgehydra_spec() -> Specification:
     )
 
 
-#: The three grok-decided visionary specs paired with their claim builders — the runner iterates this.
+# ============================================================================================
+# 4. Mars ISRU O2 Plant — visionary for Elon multi-planetary (prioritized per Council)
+# ============================================================================================
+
+def mars_isru_o2_plant_claims() -> list:
+    """Grounding claims for the Mars ISRU O2 Plant (stoichiometry + ECLSS proxy)."""
+    return _dfm_claims() + [
+        _claim("c_isru", "Mars-ISRU O2 Plant erzeugt Sauerstoff aus lokalen Ressourcen (Regolith-Wasser "
+               "oder Import-Feed) via Elektrolyse — reduziert Erd-Launch-Masse für Treibstoff und Atemluft."),
+        _claim("c_stoich", "2 H2O → O2 + 2 H2; molare Masse 36 g Water → 32 g O2 (exakte Stöchiometrie)."),
+        _claim("c_eclss", "Lebenserhaltung (LIFE_SUPPORT) auf dem Mars benötigt geschlossene O2-Schleifen; "
+               "ISRU liefert make-up O2 für Crew und Propellant."),
+        _claim("c_eff", "Realistische Elektrolyse-Effizienz 80-90% (Verluste durch Wärme, Elektroden)."),
+    ]
+
+
+def mars_isru_o2_plant_spec() -> Specification:
+    """Mars ISRU O2 Plant — visionary in-situ resource plant for O2 production on Mars.
+
+    Fires ISRU O2 yield (electrolysis proxy) + LIFE_SUPPORT O2 balance + structural for printed
+    reactor/hopper. Uses new ISRU + LIFE_SUPPORT domains. Declares explicit DomainSeams for arising
+    obligations (MECH-ISRU, ISRU-COST). Full assess + bundle exercised (printed parts, manual, BOM,
+    STLs when kernel present). No pipeline.py changes. German prose.
+    """
+    quantities = [
+        *_dfm_quantities(),
+        *_struct_quantities(90.0, 70.0, 55.0, 12.0),
+        _d("q_force", "Reaktor-Halter Last", 90.0, "N", "Gewicht + Reaktionskraft"),
+        _d("q_arm", "Auskragung Reaktor", 70.0, "mm", "Halterhebel"),
+        _d("q_b", "Reaktorbreite", 55.0, "mm", "Breite b"),
+        _d("q_h", "Reaktorhöhe", 12.0, "mm", "Höhe h"),
+        _d("q_rx", "Reaktorkörper / size_x", 180.0, "mm", "Elektrolyse-Tank"),
+        _d("q_rbore", "Reaktor-Bohrung", 6.0, "mm", "Montage"),
+        _d("q_roff_p", "Reaktorbohrung +", 80.0, "mm", "+x"),
+        _d("q_roff_n", "Reaktorbohrung -", -80.0, "mm", "-x"),
+        _d("q_hx", "Hopper / size_x", 140.0, "mm", "Regolith-Feed Hopper"),
+        _d("q_hbore", "Hopper-Bohrung", 5.0, "mm", "Befestigung"),
+        _d("q_hoff_p", "Hopperbohrung +", 55.0, "mm", "+x"),
+        _d("q_hoff_n", "Hopperbohrung -", -55.0, "mm", "-x"),
+        # ISRU domain (triggers isru_electrolysis_o2 + domain detection)
+        _dm("q_water", "Wasser Input", 100.0, "kg", "aus Regolith/Feed", "isru.water_input_kg"),
+        _dm("q_o2", "O2 Ertrag", 25.0, "kg", "Ziel für Mission", "isru.o2_yield"),
+        _dm("q_eff", "Elektrolyse Effizienz", 0.85, "1", "realistisch", "isru.electrolysis_efficiency"),
+        _dm("q_tgt", "O2 Soll", 22.0, "kg", "Mindestmenge", "isru.o2_target_kg"),
+        # LIFE_SUPPORT domain (triggers life_support_o2_balance)
+        _dm("q_crew", "Unterstuetzte Crew", 4.0, "1", "4-Personen-Habitat", "life_support.crew"),
+        _dm("q_cons", "O2 Verbrauch/Person/Tag", 0.84, "kg/day", "Standard", "life_support.o2_consumption_rate"),
+        _dm("q_close", "O2 Schliessrate", 0.72, "1", "ISRU make-up unterstuetzt", "life_support.o2_closure"),
+    ]
+    components = [
+        Component(id="c_reactor", name="Elektrolyse-Reaktor Shell", geometry=_link(
+            "q_rx", "q_b", "q_h", "q_rbore", "q_roff_n", "q_rbore", "q_roff_p"),
+            quantity_ids=["q_rx", "q_b", "q_h", "q_rbore", "q_roff_p", "q_roff_n", "q_zero"],
+            material_density="q_density"),
+        Component(id="c_hopper", name="Regolith Feed Hopper", geometry=_link(
+            "q_hx", "q_b", "q_h", "q_hbore", "q_hoff_n", "q_hbore", "q_hoff_p"),
+            quantity_ids=["q_hx", "q_b", "q_h", "q_hbore", "q_hoff_p", "q_hoff_n", "q_zero"],
+            material_density="q_density"),
+    ]
+    bom = [
+        BomItem(id="b_reactor", name="Elektrolyse-Reaktor Shell (gedruckt)", role=BomRole.PART, count=1,
+                component_id="c_reactor", domain=BomDomain.MECHANICAL, grounding=["c_isru"]),
+        BomItem(id="b_hopper", name="Regolith Hopper (gedruckt)", role=BomRole.PART, count=1,
+                component_id="c_hopper", domain=BomDomain.MECHANICAL, grounding=["c_isru"]),
+        BomItem(id="b_stack", name="Elektrolyse-Stack + Elektroden (gekauft)", role=BomRole.PART, count=1,
+                domain=BomDomain.MECHANICAL, grounding=["c_stoich"]),
+        BomItem(id="b_pump", name="Feed Pumpe + Ventile", role=BomRole.PART, count=1,
+                domain=BomDomain.MECHANICAL),
+        BomItem(id="b_printer", name="3D-Drucker", role=BomRole.TOOL, count=1),
+    ]
+    steps = [
+        Step(id="s1", index=1, action="Reaktor-Shell und Hopper drucken.",
+             uses=["b_printer"], inputs=["b_reactor", "b_hopper"], outputs=["a_print"],
+             check="Teile gedruckt, Dichtflächen sauber.", tool="3D-Drucker", quantity_refs=["q_rx"]),
+        Step(id="s2", index=2, action="Elektrolyse-Stack, Pumpe und Feed in Reaktor/Hopper montieren.",
+             inputs=["a_print", "b_stack", "b_pump"], outputs=["a_mech"],
+             check="Dicht, Feed frei, Stack fixiert."),
+        Step(id="s3", index=3, action="Inbetriebnahme: Wasser-Feed, Elektrolyse, O2-Ausbeute messen.",
+             inputs=["a_mech"], outputs=["a_done"],
+             check="O2-Ertrag >= Ziel bei gegebener Effizienz; LIFE O2-Balance geschlossen.",
+             quantity_refs=["q_o2", "q_close"]),
+    ]
+    constraints = [
+        Constraint(id="k_stress", kind="le", left="q_sigma_peak", right="q_strength",
+                   reason="Spitzenspannung am Reaktor/Hopper unter PLA-Festigkeit"),
+        Constraint(id="k_wall", kind="ge", left="q_h", right="q_min_wall",
+                   reason="Wanddicke >= kleinste druckbare FDM-Wand"),
+    ]
+    decisions = [
+        Decision(id="d_isru", title="Bauweise", choice="Gedruckte Reaktor/Hopper + Kauf-Stack",
+                 rationale="Vor-Ort druckbar auf Mars; Stack ist Hochpräzisions-Kaufteil",
+                 informed_by=["c_isru"]),
+    ]
+    return Specification(
+        run_id="mars_isru_o2_plant",
+        idea="Mars ISRU O2 Plant — vor Ort O2-Erzeugung aus lokalen Ressourcen für Treibstoff und "
+             "Atemluft (Elon multi-planetary Vision) — gegatet gegen ISRU Stöchiometrie, LIFE O2-Balance, "
+             "Struktur und explizite DomainSeams (MECH-ISRU, ISRU-COST)",
+        approach_id="ap_mars_isru", quantities=quantities, components=components, bom=bom,
+        steps=steps, constraints=constraints, decisions=decisions,
+        gaps=[
+            "Proxy: Wasser-Elektrolyse (nicht volles MOXIE/Regolith-Reduktion oder Sabatier).",
+            "LIFE_SUPPORT-Kopplung ist über O2-Bilanz; volle ECLSS-Massen/CO2/H2O-Loop-Integration extern.",
+            "Keine Vakuum/Thermal/RAD-Seams (keine Wärmemarker in Quantities, um Paare minimal zu halten); "
+            "wenn THERM/RAD hinzukommen, weitere explizite Seams nötig.",
+            "Preise/SKUs via Live-Recherche; hier grounded via claims.",
+        ],
+        claim_ids_used=[c.id for c in mars_isru_o2_plant_claims()], produced_by="mars_isru_o2_plant",
+    )
+
+
+def mars_isru_o2_plant_seams() -> list[DomainSeam]:
+    """Explicit DomainSeams for obligations arising from ISRU + LIFE_SUPPORT + MECH + COST presence.
+
+    These must be supplied to assess (avoids seam_certificate fallback for the new domains).
+    Covers exactly the required pairs for this spec (LIFE present via domain but no THERM/RAD partner
+    so no LIFE pair obligation yet — honest).
+    """
+    return [
+        DomainSeam(
+            id="mech_isru",
+            left_domain=SeamDomain.MECHANICAL,
+            right_domain=SeamDomain.ISRU,
+            relation=SeamRelation.EQ,
+            left_expr="q_force",
+            right_expr="q_force",
+            rationale="Mechanical reactor/hopper structure (MECH) directly supports ISRU processing capacity and feed mechanics on Mars.",
+        ),
+        DomainSeam(
+            id="elec_isru",
+            left_domain=SeamDomain.ELECTRICAL,
+            right_domain=SeamDomain.ISRU,
+            relation=SeamRelation.EQ,
+            left_expr="q_eff",
+            right_expr="q_eff",
+            rationale="Electrolysis efficiency couples electrical/process domain to ISRU O2 yield (power draw implicit via marker in efficiency term).",
+        ),
+        DomainSeam(
+            id="isru_cost",
+            left_domain=SeamDomain.ISRU,
+            right_domain=SeamDomain.COST,
+            relation=SeamRelation.COST_ROLLUP,
+            left_expr="bom_total_cost",
+            right_expr="EUR",
+            rationale="ISRU O2 yield reduces landed mass/cost (first-principles leverage for multi-planetary); explicit per Council for complete Genesis.",
+        ),
+    ]
+
+
+#: The grok-decided visionary specs paired with their claim builders — the runner (CLI --mode dream etc)
+#: iterates this. 2-tuple for full backward compat with cli.py and docs.
 ALL_VISIONARY_IDEAS = [
     (skyclaw_spec, skyclaw_claims),
     (resostrider_spec, resostrider_claims),
     (forgehydra_spec, forgehydra_claims),
+    (mars_isru_o2_plant_spec, mars_isru_o2_plant_claims),
 ]
+
+#: Explicit DomainSeams providers for specs that must declare obligations (ISRU/LIFE etc).
+#: Used by tests to pass cert to assess (avoids fallback). Keyed by run_id.
+VISIONARY_SEAMS = {
+    "mars_isru_o2_plant": mars_isru_o2_plant_seams,
+}
