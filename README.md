@@ -9,7 +9,7 @@
 <br/>
 
 ![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB?logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-1727%20passed%20%2F%200%20failed-2ea44f)
+![Tests](https://img.shields.io/badge/tests-1992%20passed%20%2F%200%20failed-2ea44f)
 ![Determinism](https://img.shields.io/badge/runs-deterministisch%20%C2%B7%20reproduzierbar-blue)
 ![Offline](https://img.shields.io/badge/läuft-100%25%20lokal%20%C2%B7%20kein%20Cloud--Zwang-555)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
@@ -42,6 +42,7 @@ GENESIS ist eine **Anti-Halluzinations-Maschine**. Der Kern ist nicht der Genera
 - [Der Erfindungs-Loop](#️-der-erfindungs-loop)
 - [Der Forschungs-Kern](#-der-forschungs-kern-entdecken--zertifizieren)
 - [Die Physik-Engine (Phase δ)](#-die-physik-engine-phase-δ)
+- [HORIZONT (φ → Ω)](#-horizont-φ--ω)
 - [CLI-Modi](#️-cli-modi)
 - [Externe Integration](#-externe-integration-interface-first--lizenz-diszipliniert)
 - [Determinismus & ehrliche Grenzen](#-determinismus--ehrliche-grenzen)
@@ -196,6 +197,9 @@ flowchart LR
 - **Unsicherheit** (`ode_coefficient_bands`) — Ensemble-SINDy-Bootstrap: eng auf sauberen Daten, verbreitert unter Messrauschen. *Quelle: Fasel/Kaiser/Kutz/Brunton/Proctor 2022.* Ehrlich: misst statistische, nicht systematische (FD-Bias-)Unsicherheit.
 - **Beweis-Loop** (`discovery/proof_loop.py`) — `(x+1)²=x²+2x+1` → **Satz**; `sin(x)=x` → **widerlegt** (Vorfilter); `(x²+x)/x=x+1` → **widerlegt** (z3 findet `x=0`); `sin²+cos²=1` → **Kandidat** (z3 kann es nicht modellieren — ehrlich NICHT „Satz").
 - **T-Optimalität** (`active_resolution.propose_resolution_robust`) — die diskriminierende Messung überlebt den *optimal refitteten* Verlierer: ein Spread schlägt ihn (44.7× Rauschen), ein Einzelpunkt wird absorbiert (1.6×). Form schlägt Punkt.
+- **Frontier-Module** (`multiterm` · `transcendental` · `composition`) — additive Gesetze mit Out-of-Sample-Validierung; `y = C·f(α·π)+D` über die π-Gruppe mit Power-Law-Rivalen-Gate; Minimal-Korrektur auf dem signierten Residuum (Leave-One-Out → keine Korrektur aus Rauschen). Insgesamt **35 Discovery-Module**.
+- **ProofKernel** (`proof_kernels.py`) — `Z3IdentityKernel` als echte QF_NRA-Entscheidungsprozedur (∀-Identität via UNSAT); `LeanKernelStub` ehrlich als Stub: Transzendentes bleibt **Kandidat**, nie „Satz".
+- **Wissensbasis-Quellen** (`tools/codata.py` · `tools/dlmf.py` · `tools/wikidata.py`) — Naturkonstanten (CODATA), mathematische Funktionen (DLMF) und Wikidata als geerdete, ledger-fähige Referenzen für Discovery und Formel-Anker.
 
 ---
 
@@ -212,7 +216,25 @@ Ein deterministischer **GATE δ-Physik** wählt aus measurand-getaggten Größen
   + Krypto-Achsen (Geburtstagsschranke · Schlüsselstärke NIST SP-800-57 · GCM-Limit)
 ```
 
-Eine `Specification` mit measurand-getaggten Quantities feuert die zutreffenden Checks **automatisch** und liefert ein ehrliches Verdikt: **pass · fail · gap** — nie ein stiller Durchlass. Zwei unabhängige Dynamik-Pfade kreuz-validieren: ein RK4-Vorwärts-Integrator (`simulation/multibody.py`) und PyBullet-Vollkontakt (`simulation/pybullet_sim.py`, inverse Dynamik == Closed-Form maschinengenau).
+Eine `Specification` mit measurand-getaggten Quantities feuert die zutreffenden Checks **automatisch** und liefert ein ehrliches Verdikt: **pass · fail · gap** — nie ein stiller Durchlass. Stand heute: **43 Validatoren, 38 Auto-Select-Recipes** (gezählt aus `physics_validation.VALIDATORS` / `physics_selection.RECIPES`). Zwei unabhängige Dynamik-Pfade kreuz-validieren: ein RK4-Vorwärts-Integrator (`simulation/multibody.py`) und PyBullet-Vollkontakt (`simulation/pybullet_sim.py`, inverse Dynamik == Closed-Form maschinengenau).
+
+---
+
+## 🌅 HORIZONT (φ → Ω)
+
+Über α–δ hinaus deckt GENESIS inzwischen den vollen Bogen einer Idee ab — jede Phase mit eigenem deterministischen Gate + Tests (Details: [`docs/HORIZON.md`](docs/HORIZON.md)):
+
+| Phase | Was sie beweist | Status |
+|---|---|---|
+| **φ · Der Funke** | geerdete Divergenz — keine `Possibility` ohne Ledger-Anker (`agents/forge.py` + `gate_phi`) | ✓ |
+| **χ · Die Frontkarte** | belegte Karte des Bekannten + ehrliche Kante des Unbekannten (`gate_chi`) | ✓ |
+| **δ⁺ · Realität + Deckung** | Falsifikations-Experiment + echte Messung (`reality.py`); undeklarierter Versagensmodus + Zertifikat (`coverage.py`) | ✓ |
+| **γ⁺ · Inverses Design** | Ziel → validierte Pareto-Front statt einer Spec (`inverse_design.py`) | ✓ |
+| **ε · Nähte** | verifizierte Kopplung mechanisch↔thermisch↔elektrisch↔Kosten (`seams.py`) | ✓ |
+| **ζ · Bindegewebe** | geteiltes, conformal-gegatetes Gedächtnis (`memory_fabric.py`) | ✓ |
+| **Ω · Exoskelett** | jeder Output macht den Menschen klüger; Nicht-Lügen als Querfaden (`omega.py`) | ✓ fortlaufend |
+
+Dazu der Grenzverschiebungs-Layer (`src/gen/grenzverschiebung/`, 14 Module — u. a. **LUMENCRUCIBLE**-Selbstverbesserung, Technology-Roadmapper, Experiment-Designer; CLI `--mode breakthrough`) und die App-Integrations-Schicht (`src/gen/integration/`: signierter `audited_run`, Drift-Monitor, Research-Hook). Ehrlich: dieser Layer ist explorativer als der α–δ-Kern.
 
 ---
 
@@ -238,6 +260,11 @@ genesis --mode <modus> "<eingabe>" --live    # echte lokale LLMs / Connectoren (
 | `humanoid` / `dream` / `ideas` | komplette Roboter / visionäre Konzepte / zukunftsorientierte Ideen, je gegated |
 | `chip` / `training` | Chip-Auswahl-nach-Anforderung · ehrlicher ML-Trainingsplan |
 | `feynman` / `campaign` | Rediscovery-Benchmark · Entdeckungs-Kampagne |
+| `realize` | volle Realisierungskette über 11 Fach-Pipelines (DFM · Zeichnungen · Regulatorik · Wirtschaft) |
+| `section` | Querschnitts-Optimierer (minimales Material unter Last) |
+| `council` | Cross-Model-Council (offline-deterministisch, `--live` real) |
+| `breakthrough` | HORIZON-Grenzverschiebung (LUMENCRUCIBLE-Layer) |
+| `eval` / `protocol` | Eval-Harness (Leaks/False-Alarms) · Protokoll |
 
 ---
 
@@ -273,11 +300,18 @@ GENESIS sagt nie „funktioniert", wenn es nicht verifizierbar ist. Was offline 
 
 | | Status | Bedeutung |
 |---|---|---|
-| 🟢 **Kern** | live | numpy/sympy/scipy/mpmath — alles offline-deterministisch, 1727 Tests grün |
+| 🟢 **Kern** | live | numpy/sympy/scipy/mpmath — alles offline-deterministisch, 1992 Tests grün |
 | 🟢 **OpenAlex** | live ✓ | CC0-Literatur-Connector, gegen echten Endpoint verifiziert (HTTP 200) |
 | 🟡 **pip-opt-in** | nachrüstbar | PySINDy · pymoo · Ax/BoTorch · MuJoCo · OpenEvolve — Adapter gebaut, import-gegated |
 | 🔴 **Live-LLM-Council** | B1 BLOCKED | `claude -p` mit dem Council-Prompt > 300s-Timeout → `--live` degradiert *graceful* offline |
 | 🔴 **GPU / Julia / Lean / Keys** | Owner-Maschine | PySR · Lean/Goedel · GPU-Foundation-Orakel · paid-Key-APIs — je mit Offline-Zwilling, der die Verdrahtung beweist |
+
+**Determinismus konkret:** `run_clock()` (`core/state.py`) pinnt die Zeit pro Lauf als Context-Var — `now_utc()` liefert überall denselben Instant, Artefakte werden byte-stabil reproduzierbar. **Sicherheit konkret:** `tools/fetch.py`/`http.py` sind SSRF-/DoS-gehärtet (Scheme-Allowlist http/https, `max_bytes`-Cap auf untrusted Bodies — fail-loud statt silent-truncate).
+
+**Weitere ehrliche Grenzen (Stand 2026-07-04):**
+- Die Deep-Review-Kampagne (Zeile-für-Zeile, Claude×Grok) läuft noch — einzelne Grok-Cross-Reviews sind nachzuholen; Status-Ledger: `WORK_QUEUE.md`.
+- Live-LLM-Läufe (Council, gemessene Ollama-Runs) bleiben owner-gated — kein Real-Use-Ready-Claim ohne Messung.
+- Humanoid TP1/TP2 liegen im unmerged Worktree-Branch `worktree-claude-orchestrator`.
 
 ---
 
@@ -294,14 +328,20 @@ src/gen/
 ├── inventor/        Erfindungs-Loop: brief · generate · domains · score · loop
 │                    · novelty · archive · refinement · safety · optimize · evolve_engine
 ├── external/        Lizenz-Ledger (registry) + external_oracle (oracle)
-├── tools/sources/   Freie-API-Connectoren (openalex CC0, patents)
+├── tools/           Connectoren (openalex CC0 · patents · codata · dlmf · wikidata)
+│                    + fetch/http (SSRF-gehärtet) · RAG · arXiv
 ├── simulation/      RK4 multibody · PyBullet · SimulatorBackend-Naht
 ├── physics_*.py     δ-Physik-Engine: 43 Validatoren + 38 Auto-Select-Recipes
+├── grenzverschiebung/  HORIZON-Layer: LUMENCRUCIBLE · Roadmapper · Experiment-Designer
+├── integration/     App-Integration: signierter audited_run · Drift · Research-Hook
+├── proof_kernels.py z3-QF_NRA-Identitäts-Kernel (+ ehrlicher LeanKernelStub)
+├── pipelines/       11 Fach-Pipelines (--mode realize): Architekt … Wirtschaft
 ├── bundle.py        Bau-Bundle-Emitter (STL + BOM + Bauanleitung)
 └── cli.py           der CLI-Einstiegspunkt (alle Modi)
 
-tests/               247 Test-Dateien · 1727 passed / 61 skipped / 0 failed (2026-07-04, offline)
-docs/                ARCHITECTURE · DATA_MODEL · PIPELINE · phases/ · EXTERNAL_INTEGRATION
+tests/               255 Test-Dateien · 1992 passed / 54 skipped / 0 failed (2026-07-04, offline)
+docs/                ARCHITECTURE · DATA_MODEL · PIPELINE · phases/ · HORIZON · CAPABILITIES
+                     · EXTERNAL_INTEGRATION
 ```
 
 ---
@@ -328,7 +368,7 @@ pip install -e ".[web]"      # lokale Web-UI (genesis-web)
 ## 🧪 Tests
 
 ```bash
-pytest -q                                      # volle Suite: 1727 passed / 61 skipped / 0 failed
+pytest -q                                      # volle Suite: 1992 passed / 54 skipped / 0 failed
 pytest tests/test_inventor_loop.py -q          # der Erfindungs-Loop (M1)
 pytest tests/test_discovery_sindy.py -q        # SINDy-Entdeckung
 pytest tests/test_external_registry.py -q      # das Lizenz-Gate

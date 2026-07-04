@@ -642,3 +642,13 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
   Seam-Ausdrücke als Referenzkanal. +1 Regressionstest. Suite 1962/0/54, ruff clean.
   >>> DEEP-REVIEW-KAMPAGNE SCHRITT 7-9 KOMPLETT (alle 9 Schritte) — Grok-Cross-Reviews
   für 7/8/9 NACHZUHOLEN (CLI-Outage 2026-07-04) <<<
+- README-SYNC (Prio-3) ERLEDIGT 2026-07-04: README.md gegen den realen Stand synchronisiert —
+  Zahlen auf gemessene Werte (Badge/Kern/Struktur/Tests: 1992 passed / 0 failed / 54 skipped;
+  255 Testdateien per `ls tests/test_*.py | wc -l`; 43 Validatoren / 38 Recipes aus
+  VALIDATORS/RECIPES gezählt; 35 Discovery-Module); NEU: HORIZONT-Sektion φ→Ω (Gate-Tabelle,
+  je ✓ mit Modulpfad, Grenzverschiebung/Integration ehrlich als explorativ markiert),
+  Frontier 6.1–6.5-Bullet, ProofKernel-Bullet (LeanKernelStub ehrlich als Stub), Wissensbasis
+  CODATA/DLMF/Wikidata, Run-Clock-Determinismus + SSRF/DoS-Härtung (fetch/http), 5 fehlende
+  CLI-Modi (realize/section/council/breakthrough/eval), Projektstruktur (grenzverschiebung/,
+  integration/, proof_kernels.py, pipelines/), ehrliche Grenzen ergänzt (Grok-Cross-Reviews
+  7/8/9 nachzuholen, Live-Läufe owner-gated, Humanoid TP1/TP2 unmerged Worktree). Kein Push.
