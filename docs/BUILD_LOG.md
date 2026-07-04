@@ -7956,3 +7956,65 @@ dupliziert); Doku STATUS/CLAUDE.md/README nachgeführt; neue Grenze ehrlich dekl
 deterministisch, Pair-Guard + Reduced-Lattice-Tests wie die Geschwister; volle Suite grün
 (s. STATUS). Abgleich GENESIS_PLATFORM_PLAN: Grenzverschiebungs-Modul im Discovery-Arm, kein
 neuer Framework-Lock-in. Grok-Drift-Check: NACHZUHOLEN (CLI-Outage, Präzedenz 6.6/6.7).
+
+## 2026-07-04 — Tour 7: Volle GP-Suche über offene Formräume (`discovery/gp_search.py`)
+
+Die letzte im 6.8-Stand deklarierte Frontier. **Gap-Analyse ZUERST (CLAUDE.md-Lektion „vor
+neuem Modul grep/Read"):** der rohe GP-Kern existierte bereits — `symbolic_search.py`
+(Roadmap B0: seeded Baum-Evolution mit Crossover/Mutation/Turnier-Selektion/Elitismus,
+benannte Parsimonie-Konstante `GPConfig.parsimony`, δ-erhöhte Fit-Bar, Dummy-Exklusion,
+Out-of-Sample-Split, Seed-Determinismus-Test, `open_form_benchmark`) und blieb UNVERÄNDERT.
+Es fehlten genau drei Dinge, und nur die wurden gebaut (`gp_search.py`, 39. Discovery-Modul):
+
+- **π-SCAFFOLD = dimensionale Typprüfung auf Baum-Ebene:** Partikulärlösung `A·p=b` (lstsq,
+  min-norm, deterministisch) gibt den Ziel-Dimensions-Träger `base = Π source^p`; der
+  Nullraum liefert die dimensionslosen π-Gruppen (6.x-Gitter; Basis-Wahl deterministisch:
+  ganzzahlig ≻ kleine ‖p‖₁ ≻ wenige Negative ≻ positiv führend, nur rangsteigernd). GP
+  evolviert NUR `ỹ = y/base` über die π-Spalten → jedes Genom und jedes
+  Crossover/Mutations-Produkt ist per Konstruktion dimensionslos — der tournament.py-
+  Nullraum-Zug von Exponenten-Vektoren auf Ausdrucksbäume gehoben. Determiniertes System →
+  offener Formraum jenseits `C·base` ehrlich LEER (nie ein Baum aufgefüllt).
+- **OCCAM-RIVALEN-LEITER (das Finale):** power_law (Engine-Gate) ≻ power_of_pi
+  (6.3-Baseline `C·π^β+D`) ≻ multiterm (nur MIT 6.2-OOS) ≻ transzendent ≻ produkt ≻
+  blind_produkt ≻ additives_argument — einfachste zuerst, Short-Circuit ohne GP-Budget;
+  jede äquivalente Sprosse (R²≥0.999) kollabiert das Ergebnis (`occam_winner`;
+  power_law-Kollaps gate-`bestaetigt`, sonst `unentschieden`). GP gewinnt NUR bei leerer
+  Leiter, und auch dann nur durch die gp_discover-Gates (GP bestätigt NIE selbst —
+  Surrogat-Prinzip Phase 2).
+- **BUDGET:** `ExplorationController(open_form_fallback=True, gp_config, gp_rungs)` — läuft
+  nur, wenn der dimensionale Pfad (Single-Shot + Tournament) nichts bestätigte UND das
+  Budget den WORST CASE (population·generations) trägt; Occam-Kollaps kostet nur die
+  evaluierten Sprossen; Seed = `base_seed+index` (positions-unabhängig, resume==
+  uninterrupted unberührt); Funde in `ControllerResult.open_form_outcomes`
+  (Archive-Präzedenz — ein GP-Gesetz hat keinen Exponenten-Fingerprint, Graph bleibt rein).
+
+**Gemessen (20 neue Tests, alle grün):** (a) Kepler `T = 6.28319·a^(3/2)·mu^(-1/2)` +
+Pendel `L^(1/2)·g^(-1/2)` durch den GP-Einstieg → Kollaps aufs gate-bestätigte Power-Law,
+kein GP-Budget verbrannt; (b) Lorentz-Response `y = a·π/(1+π²)` (π=x/b, Regime 0.05–200,
+zur Design-Zeit gemessen: ALLE sechs 6.x-Familien < 0.999, max blind_produkt 0.9932) → GP
+findet `pi1/(pi1²+exp(-0.0067))` ≈ `π/(π²+1)` exakt: R²=0.99999, OOS=0.99999, Dummy raus →
+`bestaetigt` als einzige Familie; (c) Rauschen (2 Seeds) → NIE bestätigt (OOS-Gate fängt
+den In-Sample-Fit); (d) gleicher Seed → byte-identisch (exakte Float-Gleichheit); (e)
+`y=4x²` → Kollaps power_of_pi, `v=g·t+v0` → Kollaps multiterm, `2sin(x)+1` → Kollaps 6.3;
+dimensional unmöglich → `widerlegt`; δ-Asymmetrie live (Baum-Monster R²=0.99932 bleibt
+`unentschieden`). Beim Bau ehrlich beobachtet: Michaelis-Menten `x/(b+x)` wird von
+blind_produkt in JEDEM getesteten Band ≥0.999 imitiert → wäre korrekt `unentschieden`
+(Occam!), deshalb Lorentz als Akzeptanzfall (Regime-Weite = 6.4-Lektion zur Design-Zeit).
+Volle Suite: **2079 passed / 0 failed / 43 skipped** (302 s); `ruff check src tests` clean.
+
+**4 Linsen:** L1 (Wahrheit): jede Zahl aus eigenem Messlauf (Prototyp-Skripte im
+Scratchpad, Suite-Log); GP-Verdikt ausschließlich aus bestehenden Gates, kein neuer
+Bestätigungspfad; MM-Befund ehrlich dokumentiert statt Testdaten passend gebogen. L2
+(Drift): `symbolic_search.py` unangetastet (12 Alt-Tests grün), kein 6.x-Gate aufgeweicht,
+Controller-Änderung additiv (`_tournament` gibt zusätzlich `passed` zurück, InfoBAX-Pfad
+semantisch identisch via `[0]`); Geschwister-Suiten grün. L3 (Vollständigkeit/Naht): Nähte
+zu engine (`discover_new_formulas`/`dimensional_system`), 6.1/6.2 (multiterm+OOS), 6.3
+(dimensionless_groups, discover_rivals), 6.6/6.7/6.8 (Leiter-Sprossen), symbolic_search
+(gp_discover als Gate-Harness), controller (Budget/Seed/Checkpoint); `__init__`-Exporte
+lazy; STATUS/CLAUDE/README/BUILD_LOG nachgeführt; neue Grenzen ehrlich deklariert
+(`f(g(·))` bleibt abgelehnt; GP-Raum = gitter-darstellbare π-Gruppen in GPConfig-Tiefe;
+GP-Funde neben dem Graph). L4 (Realisierbarkeit): offline, numpy-only im neuen Modul
+(scipy nur lazy über die 6.x-Sprossen), deterministisch, neue Tests ~45 s. Abgleich
+GENESIS_PLATFORM_PLAN: Grenzverschiebungs-Modul im Discovery-Arm, kein Framework-Lock-in.
+Grok-Drift-Check: NACHZUHOLEN (CLI-Outage, Präzedenz 6.6–6.8; Claims-Summary in STATUS.md
+fixiert).

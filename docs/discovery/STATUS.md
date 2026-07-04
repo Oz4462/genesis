@@ -329,11 +329,56 @@
   OOS-Confirm, Regime-Weite-Ehrlichkeit, (B)-Ablehnung mit drei Gründen) sind für den
   nachgeholten Review als Claims-Summary in diesem Absatz fixiert.
 
-## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1–6.8
+- **Tour 7 — Volle GP-Suche über offene Formräume** (`gp_search.py`, 2026-07-04): die letzte
+  deklarierte Frontier. **Gap-Analyse zuerst (CLAUDE.md-Lektion):** der rohe GP-Kern existierte
+  schon — `symbolic_search.py` (Roadmap B0: seeded Baum-Evolution, Crossover/Mutation,
+  benannte Parsimonie-Konstante `GPConfig.parsimony`, δ-Fit + Dummy-Exklusion + OOS-Gates,
+  Seed-Determinismus-Test) blieb UNVERÄNDERT; es fehlten (1) die dimensionale Disziplin auf
+  Baum-Ebene, (2) das Occam-Finale gegen die einfacheren Familien, (3) die Budget-Verdrahtung.
+  `gp_search.py` legt genau diese drei darüber: **π-SCAFFOLD** — Partikulärlösung `A·p=b` gibt
+  den Ziel-Dimensions-Träger `base = Π source^p`, der Nullraum die dimensionslosen π-Gruppen
+  (gleiches Gitter wie 6.x; deterministische Basis-Wahl: ganzzahlig ≻ kleine ‖p‖₁ ≻ wenige
+  Negative ≻ positiv führend, nur rangsteigernde Gruppen); GP evolviert NUR über
+  `ỹ = y/base` als Funktion der π-Spalten → **jedes Genom (und jedes Crossover/Mutations-
+  Produkt) ist per Konstruktion dimensionslos** — der tournament.py-Nullraum-Zug von
+  Exponenten-Vektoren auf Ausdrucksbäume gehoben. Determiniertes System (Kepler) → offener
+  Formraum jenseits `C·base` ehrlich LEER, nie ein Baum aufgefüllt. **OCCAM-RIVALEN-LEITER**
+  (einfachste zuerst, Short-Circuit ohne GP-Budget): power_law (Engine-Gate `bestaetigt`) ≻
+  power_of_pi (6.3-Baseline `C·π^β+D`) ≻ multiterm (6.1, NUR mit 6.2-OOS) ≻ transzendent (6.3)
+  ≻ produkt (6.6) ≻ blind_produkt (6.7) ≻ additives_argument (6.8); ist irgendeine Sprosse
+  im Wesentlichen exakt (R²≥0.999), kollabiert das Ergebnis auf sie (`occam_winner` benannt,
+  power_law-Kollaps gate-bestätigt, sonst `unentschieden`). **GP BESTÄTIGT NIE SELBST**
+  (Surrogat-Prinzip): der evolvierte Kandidat geht durch `gp_discover`s Gates (δ-erhöhte
+  Fit-Bar, gepflanzte Dummy-Exklusion, Out-of-Sample-Split — die adaptierte SRBench-Hygiene);
+  `bestaetigt` nur Gates ∧ leere Leiter. **Budget:** `ExplorationController(open_form_fallback
+  =True)` — nur wenn der dimensionale Pfad nichts bestätigte UND das Budget den WORST CASE
+  (population·generations) trägt; Occam-Kollaps kostet nur die evaluierten Sprossen; Seed =
+  `base_seed+index` (positions-unabhängig, resume==uninterrupted bleibt wahr); GP-Funde leben
+  in `ControllerResult.open_form_outcomes` (Archive-Präzedenz), NICHT im Exponenten-Graph
+  (kein Exponenten-Fingerprint — ehrliche Grenze). **Gemessen (17+3 Tests grün, ~45 s):**
+  (a) Kepler + Pendel durch den GP-Einstieg rediscovered → Kollaps auf das gate-bestätigte
+  Power-Law (`T = 6.28319·a^(3/2)·mu^(-1/2)`, kein GP-Budget verbrannt, kein Baum-Monster);
+  (b) Lorentz-Response `y = a·π/(1+π²)` (π=x/b, weites Regime 0.05–200, zur Design-Zeit
+  gemessen: ALLE sechs Familien < 0.999, max blind 0.9932) → GP findet
+  `pi1/(pi1²+exp(-0.0067))` ≈ `π/(π²+1)` **exakt** (R²=0.99999, OOS 0.99999, Dummy
+  ausgeschlossen) → `bestaetigt` als einzige Familie — ein Gesetz AUSSERHALB aller
+  6.x-Formräume; (c) Rauschen → NIE bestätigt (OOS-Gate fängt den In-Sample-Fit, 2 Seeds);
+  (d) gleicher Seed → byte-identisches Ergebnis (exakte Float-Gleichheit); (e) Potenz-Daten
+  `y=4x²` → Kollaps auf power_of_pi, `v=g·t+v0` → Kollaps auf multiterm, `2sin(x)+1` →
+  Kollaps auf 6.3; dimensional unmögliches Ziel → `widerlegt`; δ-Asymmetrie live: ein
+  Baum-Monster mit R²=0.99932 bleibt `unentschieden` (komplexere Bäume brauchen höhere Bar).
+- **Cross-Model-Drift-Check (grok-build): NACHZUHOLEN** — Grok-CLI am 2026-07-04 weiterhin
+  nicht erreichbar (gleicher Outage-Präzedenzfall wie 6.6/6.7/6.8). Die Tour-7-Claims
+  (π-Scaffold = Dimensionstyp-Prüfung auf Baum-Ebene, Occam-Leiter über alle 6.x-Familien +
+  Power-Law, GP-bestätigt-nie/Surrogat-Prinzip, Worst-Case-Budget-Accounting, Lorentz-Fall
+  außerhalb aller 6.x-Familien, Rausch-Negativtest) sind für den nachgeholten Review als
+  Claims-Summary in diesem Absatz fixiert.
+
+## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1–6.8 + Tour 7 (GP)
 
 Der gesamte Mehr-Wochen-Plan aus `GROK_BUILD_GENESIS_UNIVERSE_EXPLORER.md` ist gebaut, getestet,
 grok-build-drift-geprüft (6.6 + 6.7 + 6.8: nachzuholen, s. o.) und committet (lokal, kein Push).
-**181 Discovery-Testfunktionen** über 38 Module (nachgezählt 2026-07-04 nach 6.8,
+**200 Discovery-Testfunktionen** über 39 Module (nachgezählt 2026-07-04 nach Tour 7,
 `grep -c '^def test_' tests/test_discovery_*.py`);
 `rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Mit Frontier 6.1–6.8 sind nun
 **Summen mehrerer dimensional-gültiger Terme** (inkl. OOS), **transzendente Formen**, die **Active
@@ -344,10 +389,18 @@ unter denselben Gates), **blinde Zwei-Transzendenten-Produkte** (`C·f(α·π1)�
 Baseline, Identifizierbarkeits-Wächter + Occam-Leiter + OOS-Confirm) UND **additive π-Argumente
 in einer Transzendenten** (`C·f(α·π1+β·π2)+D`, kanonische exp·exp-Heimat, Vier-Rivalen-Leiter +
 OOS-Confirm) abgedeckt.
-Volle Offline-Suite **2059 passed / 0 failed / 43 skipped** (gemessen 2026-07-04, nach 6.8).
-Ehrliche verbleibende Grenze: Kompositionen von Transzendenten ineinander (`f(g(·))` — in Tour
-6.8 analysiert und mit drei konkreten Gründen ABGELEHNT statt unehrlich gebaut, s. o.) und die
-volle GP-Suche über offene Formräume.
+Mit **Tour 7** ist auch die **volle GP-Suche über offene Formräume** gebaut (`gp_search.py`:
+π-Scaffold = dimensionale Typprüfung auf Baum-Ebene, Occam-Rivalen-Leiter über Power-Law +
+alle 6.x-Familien, GP bestätigt nie selbst, Budget im Controller) — die letzte im 6.8-Stand
+deklarierte Frontier. Volle Offline-Suite **2079 passed / 0 failed / 43 skipped** (gemessen
+2026-07-04, nach Tour 7).
+Ehrliche verbleibende Grenzen: (1) Kompositionen von Transzendenten ineinander (`f(g(·))` — in
+Tour 6.8 mit drei konkreten Gründen ABGELEHNT statt unehrlich gebaut; Tour 7 ändert daran
+NICHTS — GP würde nur unidentifizierbare Parametrisierungen derselben Klasse liefern); (2) der
+GP-Formraum ist bewusst begrenzt auf geschlossene Formen gitter-darstellbarer π-Gruppen
+innerhalb der `GPConfig`-Tiefe/-Größe (kein globaler Optimierer; eine Nullraum-Richtung
+außerhalb des ±2er-Gitters wird nicht durchsucht); (3) ein GP-Gesetz hat keinen
+Exponenten-Fingerprint und lebt daher neben — nicht im — Discovery-Graph.
 
 ## Drift-Kontroll-Protokoll (jede Tour)
 

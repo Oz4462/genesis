@@ -44,15 +44,17 @@ docs/AUDIT_2026-07-04.md    Letztes Voll-Audit + priorisierter Verbesserungsplan
 WORK_QUEUE.md               Operativer Backlog (Deep-Review-Schritte, Deferred D1–D16)
 docs/BUILD_LOG.md           Arbeitsprotokoll · docs/BUILD_HISTORY.md  alte Status-Snapshots
 src/gen/core|agents|ledger|verification/   Kern (framework-frei)
-src/gen/discovery/          Universe-Explorer (38 Module) · src/gen/pipelines/  Fach-Pipelines
+src/gen/discovery/          Universe-Explorer (39 Module) · src/gen/pipelines/  Fach-Pipelines
 src/gen/<physik>.py         δ-Achsen (structural…security) · tests/  247 Dateien
 ```
 
 ## Verifizierter Ist-Stand (gemessen 2026-07-04 abends, nicht fortschreiben ohne Messung)
-- **Testsuite (main, offline): 1962 passed / 0 failed / 54 skipped** (~29 s, `uv run pytest tests/ -q`;
-  morgens 1727 — Zuwachs = Deep-Review-Kampagne Schritt 7–9 KOMPLETT, D8–D13, P7, fertigungs-Naht).
+- **Testsuite (main, offline): 2079 passed / 0 failed / 43 skipped** (~5 min, `uv run pytest tests/ -q`,
+  frisch gemessen 2026-07-04 nach Tour 7 GP; davor 2059 nach Frontier 6.8 — Zuwachs = 20 GP-/Controller-Tests.
+  Ältere Zeile „1962/54 in ~29 s" stammte aus einem anderen Umgebungs-Snapshot; abends-Stand
+  war Deep-Review Schritt 7–9 KOMPLETT, D8–D13, P7, fertigungs-Naht).
 - **43 Validatoren** in `physics_validation.VALIDATORS`, **38 Recipes** in `physics_selection.RECIPES` (Auto-Select aus measurand-Tags → ehrliches Gate-Verdikt pass/fail/gap).
-- **Discovery: 38 Module**, 181 Discovery-Testfunktionen (`^def test_`-Zählung); `rediscovery_benchmark()` 100 %; Frontier 6.1–6.8 gebaut (6.8 = additive π-Argumente, `additive_argument.py`: `y = C·f(α·π1+β·π2)+D`; Arrhenius `2·exp(−θ/T − 0.5·P/p0)` und Chirp `3·sin(1.5x+0.8√x+0.4)` exakt rediscovered; kanonische Heimat des in 6.7 ausgeschlossenen `exp·exp`; Occam-Leiter mit VIER Rivalen inkl. 6.7-blind + OOS-Confirm; echte Komposition `f(g(·))` nach Analyse ABGELEHNT — datenabhängiger Parameter-Grat, Kollaps auf 6.3, keine allgemeine Kanonisierung, s. Modul-Docstring); offene Frontier: Kompositionen von Transzendenten ineinander (`f(g(·))`) + volle GP-Suche (`docs/discovery/STATUS.md`).
+- **Discovery: 39 Module**, 200 Discovery-Testfunktionen (`^def test_`-Zählung); `rediscovery_benchmark()` 100 %; Frontier 6.1–6.8 gebaut (6.8 = additive π-Argumente, `additive_argument.py`: `y = C·f(α·π1+β·π2)+D`; Arrhenius `2·exp(−θ/T − 0.5·P/p0)` und Chirp `3·sin(1.5x+0.8√x+0.4)` exakt rediscovered; kanonische Heimat des in 6.7 ausgeschlossenen `exp·exp`; Occam-Leiter mit VIER Rivalen inkl. 6.7-blind + OOS-Confirm; echte Komposition `f(g(·))` nach Analyse ABGELEHNT — datenabhängiger Parameter-Grat, Kollaps auf 6.3, keine allgemeine Kanonisierung, s. Modul-Docstring); **Tour 7 GP-Suche GEBAUT (2026-07-04):** `gp_search.py` = volle GP-Suche über offene Formräume, GENESIS-diszipliniert — π-Scaffold (Partikulärlösung `A·p=b` trägt die Ziel-Dimension, Nullraum-π-Basis → jedes GP-Genom per Konstruktion dimensionslos = dimensionale Typprüfung auf Baum-Ebene), Occam-Rivalen-Leiter (power_law ≻ power_of_pi ≻ multiterm+OOS ≻ 6.3 ≻ 6.6 ≻ 6.7 ≻ 6.8; Short-Circuit, `occam_winner`), GP bestätigt NIE selbst (gp_discover-Gates δ-Fit/Dummy/OOS; roher GP-Kern `symbolic_search.py` unverändert); Kepler+Pendel → Kollaps aufs gate-bestätigte Power-Law, Lorentz-Response `a·π/(1+π²)` als einzige Familie exakt (alle 6.x < 0.999), Rauschen nie bestätigt, Seed byte-identisch; `ExplorationController(open_form_fallback=True)` = Worst-Case-Budget-Gating, Funde in `open_form_outcomes`; Drift-Check NACHZUHOLEN (Grok-Outage wie 6.6–6.8). Offene Frontier: Kompositionen `f(g(·))` bleiben ABGELEHNT (Tour 7 ändert daran nichts); GP-Raum bewusst begrenzt auf gitter-darstellbare π-Gruppen in GPConfig-Tiefe (`docs/discovery/STATUS.md`).
 - **Alle Phasen gebaut und gegated:** α, β, γ, δ (docs/phases/) + φ, χ, δ⁺, γ⁺, ε, ζ, Ω (HORIZON, je `test_phase_*.py`).
 - Live-Default: Generator `qwen3.5:9b` + Verifier `gemma4:12b` (Fallback qwen2.5:14b/gemma4:latest).
 - Git: `main` lokal ist der Live-Stand (35 Commits vor `origin/main`); **Push nur auf Owner-Ansage.**
