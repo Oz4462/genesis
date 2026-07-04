@@ -63,7 +63,22 @@ def solve_cantilever_tip_load(
     Returns ``{"tip_deflection", "root_moment", "max_moment"}`` (deflection in mm,
     moments in N·mm). Deterministic; the beam element makes this exact for the
     Euler-Bernoulli model regardless of ``n_elements``.
+
+    Raises ValueError on non-finite inputs (NaN/Inf would propagate silently to a
+    NaN tip deflection, which passes every comparison guard as False) and on
+    non-positive E, I or L (a zero/negative stiffness is unphysical).
     """
+    for name, val in (
+        ("e_modulus", e_modulus),
+        ("inertia", inertia),
+        ("length", length),
+        ("tip_force", tip_force),
+    ):
+        if not np.isfinite(val):
+            raise ValueError(f"{name} must be finite, got {val!r}")
+    for name, val in (("e_modulus", e_modulus), ("inertia", inertia), ("length", length)):
+        if val <= 0.0:
+            raise ValueError(f"{name} must be positive, got {val!r}")
     n_nodes = n_elements + 1
     n_dof = 2 * n_nodes
     le = float(length) / n_elements

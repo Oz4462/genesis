@@ -124,9 +124,24 @@ def _read_kt(nodes, tets, stresses, length, peak=None) -> dict:
     far field is read from element-centroid stress (a smooth region); `peak` may be
     passed in for surface-node recovery (T10), else the centroid peak is used. The
     element centroid uses the 4 CORNERS only (correct for both T4 and T10, whose
-    centroid stress is sampled at the natural centroid = mean of the corners)."""
+    centroid stress is sampled at the natural centroid = mean of the corners).
+
+    Raises GeometryError (the degenerate-structure class, as in modal/buckling) if
+    the far-field region contains no elements (np.mean([]) would be a silent NaN
+    Kt) or its stress is zero/non-finite (Kt = peak/0 is no honest concentration
+    factor)."""
     centroids = np.array([nodes[te[:4]].mean(axis=0) for te in tets])
-    far = float(stresses[centroids[:, 0] > 0.8 * length, 0].mean())
+    mask = centroids[:, 0] > 0.8 * length
+    if int(mask.sum()) == 0:
+        raise GeometryError(
+            "no elements in the far-field region (x > 0.8·length) — cannot read a "
+            "far-field stress, the Kt would be a silent NaN"
+        )
+    far = float(stresses[mask, 0].mean())
+    if far == 0.0 or not np.isfinite(far):
+        raise GeometryError(
+            f"far-field stress is degenerate ({far!r}) — Kt = peak/far is undefined"
+        )
     if peak is None:
         peak = float(stresses[:, 0].max())
     return {"kt": peak / far, "far_field_sxx": far, "peak_sxx": peak, "n_tets": len(tets)}

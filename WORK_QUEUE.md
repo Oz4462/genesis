@@ -327,3 +327,23 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
     ist jetzt der bequemste; pipeline/evaluation kombinierten schon so).
   · CLEAN bestätigt: _resolve-Gaps, Determinismus, Registry 38/38, Signaturen, first-wins (C-17).
   · +7 Tests (TDD). Suite 1806/0/61, ruff clean.
+- fem.py+fem3d.py+fem3d_quadratic.py+bracket_fem.py(+plate_hole) — DONE (Batch 2 FEM-Schicht):
+  · F1 MED GEFIXT: FEM-Engines validierten Endlichkeit nicht — NaN/Inf in E/ν/inertia/force
+    propagierte still zu NaN-Ergebnissen (tip_deflection, peak_vm; NaN passiert jeden Vergleichs-
+    Guard als False). Konvention konsistent zu buckling/modal: ungültige EINGABEN → ValueError
+    (fail-loud, inkl. ν∉(−1,0.5)-Schranke gegen singuläre D-Matrix); non-finite LÖSUNG nach dem
+    Solve → GeometryError (degenerierte Struktur). Geteilte Guards _check_material_and_bcs/
+    _check_solution_finite in fem3d, wiederverwendet von fem3d_quadratic; bracket_fem-Guard feuert
+    VOR _require_gmsh (fehlendes gmsh maskiert keinen Input-Fehler); von_mises wirft bei
+    non-finite Stress.
+  · F2 LOW GEFIXT (Doc-Truth): „4-Punkt-Gauss exakt" gilt nur für geradkantige (affine) Tets —
+    Modulkopf + t10_stiffness-Docstring auf t10_mass-Ehrlichkeitsniveau angeglichen.
+  · F3 LOW GEFIXT: plate_hole._read_kt — leere Fernfeld-Maske → np.mean([])=NaN → stiller NaN-Kt;
+    jetzt GeometryError bei leerer Maske und bei σ_far=0/non-finite.
+  · F4 LOW NICHT ANGEFASST (wie vorgegeben): test_bracket_fem.py-Float-Gleichheits-Determinismus
+    skippt in dieser Umgebung (gmsh fehlt) — ohne Lauf keine ehrliche Änderung möglich.
+  · DEFENDED bestätigt (Review): Element-Mathematik verifiziert (Patch-Test, Kirsch/Howland-Kt,
+    Maschinengenauigkeits-Abgleich gegen closed form), degenerierte Elemente fail-loud, BCs korrekt
+    (Elimination, penalty-frei), kein Exception-Schlucken.
+  · +20 Tests (TDD, tests/test_step7_fem_hardening.py, stub-basiert ohne gmsh). Suite (ohne die
+    parallel in Arbeit befindlichen circuit/mesh_integrity/brep-Dateien) 1812/0/59, ruff clean.

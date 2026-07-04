@@ -53,7 +53,27 @@ def bracket_bending_fem(
 ) -> dict:
     """Mesh the capstone bracket, load it as a cantilever in bending, and read the
     peak stress. Returns ``{"peak_vm", "root_vm", "hole_vm", "n_tets"}`` (MPa).
-    Deterministic (seeded gmsh)."""
+    Deterministic (seeded gmsh).
+
+    Raises ValueError on non-finite/unphysical inputs (a NaN force would ride
+    through the solve to ``peak_vm=NaN``, which passes every ``< limit`` guard as
+    False). The guard fires BEFORE gmsh is required, so a missing gmsh install
+    never masks a bad-input error."""
+    for name, val in (
+        ("length", length), ("breadth", breadth), ("thickness", thickness),
+        ("hole_radius", hole_radius), ("force", force),
+        ("e_modulus", e_modulus), ("nu", nu),
+        ("refine_size", refine_size), ("coarse_size", coarse_size),
+    ):
+        if not np.isfinite(val):
+            raise ValueError(f"{name} must be finite, got {val!r}")
+    for name, val in (
+        ("length", length), ("breadth", breadth), ("thickness", thickness),
+        ("hole_radius", hole_radius), ("e_modulus", e_modulus),
+        ("refine_size", refine_size), ("coarse_size", coarse_size),
+    ):
+        if val <= 0.0:
+            raise ValueError(f"{name} must be positive, got {val!r}")
     gmsh = _require_gmsh()
     gmsh.initialize()
     try:
