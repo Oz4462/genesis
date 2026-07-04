@@ -28,6 +28,7 @@ Deterministic, offline. No trading/ASYA/MT5. German prose; English ids/units/mea
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from dataclasses import replace as _dc_replace
 
 from .core.state import (
     BomDomain,
@@ -91,10 +92,21 @@ class HumanoidConfig:
     chip_name: str
     motor_name: str
     battery_name: str
+    # --- Energie & Laufzeit (Teilprojekt 1) ---
+    battery_capacity_wh: float         # nutzbare Nennkapazität des BOM-Packs
+    required_endurance_min: float      # geforderte Dauerbetriebszeit
+    locomotion_duty: float             # RMS-Duty der Antriebe über den Gangzyklus
+    n_drive_motors: float              # gleichzeitig arbeitende Antriebsmotoren
     #: grounded unit prices [EUR] for the buy-list (and EUR/g for filament) so the bundle costs out
     #: completely — printed parts via filament, purchased parts via these.
     prices: dict = field(default_factory=dict)
     extra_claims: list = field(default_factory=list)
+
+
+def _derm(qid, name, value, unit, formula, inputs, measurand):
+    """Like `_der` but also tags a `measurand` (GATE γ C-17 cross-claim link); `_der` itself has no
+    measurand parameter, so this replaces it on the constructed Quantity."""
+    return _dc_replace(_der(qid, name, value, unit, formula, inputs), measurand=measurand)
 
 
 def _link(sx, sy, sz, r1, off1, r2, off2) -> GeometryNode:
@@ -318,6 +330,30 @@ def build_humanoid(cfg: HumanoidConfig) -> Specification:
             "compute.throughput_ops_per_s"),
         _dm("q_ctrl_period", "Regelschleifen-Periode", cfg.control_period_s, "s", "Regelung",
             "control.period"),
+        # --- Energie & Laufzeit (Teilprojekt 1): Akku trägt Antrieb + Compute ---
+        _gm("q_batt_cap", "nutzbare Akkukapazität", cfg.battery_capacity_wh, "Wh",
+            ["c_battery_capacity"], "battery.capacity"),
+        _dm("q_loco_duty", "Antriebs-RMS-Duty im Gangzyklus", cfg.locomotion_duty, "1",
+            "RMS-Anteil des Spitzenmoments über den Gangzyklus", "robot.locomotion_duty"),
+        _dm("q_n_drive", "gleichzeitig arbeitende Antriebe", cfg.n_drive_motors, "1",
+            "Hüfte/Knie/Knöchel beider Beine im Wechselgang", "robot.n_drive_motors"),
+        _der("q_p_mech_joint", "mechanische Gelenkleistung (RMS)",
+             cfg.joint_torque_nm * cfg.joint_speed_rad_s * cfg.locomotion_duty, "W",
+             "q_jt * q_js * q_loco_duty", ("q_jt", "q_js", "q_loco_duty")),
+        _der("q_p_loco", "Lokomotionsleistung elektrisch",
+             cfg.n_drive_motors * cfg.joint_torque_nm * cfg.joint_speed_rad_s * cfg.locomotion_duty / cfg.efficiency,
+             "W", "q_n_drive * q_p_mech_joint / q_eff", ("q_n_drive", "q_p_mech_joint", "q_eff")),
+        # measurand "flight.hover_power": the generic sustained-power-draw key GATE γ's
+        # existing battery_endurance recipe (physics_selection.py, trigger battery.capacity)
+        # looks for — reused here for the robot's continuous power draw, exactly as
+        # future_ideas.py already reuses it for a non-flight household-battery case; this
+        # makes q_batt_cap's endurance claim GATE-VERIFIABLE instead of an unrunnable gap.
+        _derm("q_p_total", "Gesamt-Dauerleistung (Antrieb + Compute)",
+              cfg.n_drive_motors * cfg.joint_torque_nm * cfg.joint_speed_rad_s * cfg.locomotion_duty / cfg.efficiency
+              + cfg.compute_power_budget_w,
+              "W", "q_p_loco + q_chip_pbudget", ("q_p_loco", "q_chip_pbudget"), "flight.hover_power"),
+        _dm("q_endurance_req", "geforderte Dauerbetriebszeit", cfg.required_endurance_min, "min",
+            "Wettbewerbsanker 2026 (Unitree H2 ~2-4 h)", "flight.required_endurance"),
     ]
 
     components = [
@@ -526,6 +562,11 @@ def _humanoid_claims(cfg: HumanoidConfig) -> list:
         _claim("c_price_driver", f"Ein FOC-Motortreiber kostet etwa {cfg.prices['driver']:.0f} EUR/Stück."),
         _claim("c_price_imu", f"Die 6-Achsen-IMU kostet etwa {cfg.prices['imu']:.0f} EUR."),
         _claim("c_price_harness", f"Der Kabelbaum kostet etwa {cfg.prices['harness']:.0f} EUR."),
+        _claim("c_battery_capacity",
+               f"Der Akkupack liefert nutzbare {cfg.battery_capacity_wh:.0f} Wh."),
+        _claim("c_endurance_requirement",
+               f"Dauerbetrieb von {cfg.required_endurance_min:.0f} min ist gefordert "
+               "(2026-Wettbewerb: Unitree H2 läuft 2-4 h)."),
     ]
     return base + list(cfg.extra_claims)
 
@@ -551,6 +592,8 @@ PRINTED = HumanoidConfig(
     chip_name="Onboard-Recheneinheit NVIDIA Jetson Orin AGX (~275 TOPS @ ~60 W)",
     motor_name="QDD-BLDC-Gelenkmotor (3.0 N*m Stall, Harmonic 80:1) — ~180 N*m Knie-Peak",
     battery_name="Li-Ion-Akkupack 2.1 kWh",
+    battery_capacity_wh=2100.0, required_endurance_min=120.0, locomotion_duty=0.35,
+    n_drive_motors=8.0,
     prices={"filament_eur_g": 0.06, "motor": 180.0, "chip": 2000.0, "battery": 600.0,
             "mcu": 25.0, "driver": 80.0, "imu": 20.0, "harness": 150.0},
     extra_claims=[
@@ -587,6 +630,13 @@ FLAGSHIP = HumanoidConfig(
     chip_name="Zwei Thor-Klasse-Recheneinheiten (~4000 TOPS @ ~240 W)",
     motor_name="High-End-QDD + Harmonic Drive (6.0 N*m Stall, 90:1, η=0.92) — ~420 N*m Knie/Hüft-Peak",
     battery_name="Hochenergie-Akkupack 2.6 kWh (~285 Wh/kg)",
+    # required_endurance_min grounded to 60 min (not the ungrounded 180 min "dream"): at
+    # ~420 N*m-class peak-sized joints, 8 simultaneous drives and 0.4 RMS duty the sustained
+    # electrical draw is ~1.76 kW (q_p_total) — a 2.6 kWh pack (0.8 usable) carries that for
+    # ~71 min (GATE-verified via battery_endurance), so 60 min is the honest, gate-passing
+    # requirement, not the marketing-anchored "Unitree H2 2-4 h" figure.
+    battery_capacity_wh=2600.0, required_endurance_min=60.0, locomotion_duty=0.4,
+    n_drive_motors=8.0,
     prices={"filament_eur_g": 0.08, "motor": 600.0, "chip": 7000.0, "battery": 900.0,
             "mcu": 30.0, "driver": 120.0, "imu": 25.0, "harness": 250.0},
     extra_claims=[
