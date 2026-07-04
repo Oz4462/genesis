@@ -63,7 +63,14 @@ def ratification_packet(
 ) -> list[RatificationItem]:
     """Assemble the items a human must ratify before the spec is "done": every Decision
     (a design choice), every gap (residual risk to acknowledge), and each gate verdict
-    (evidence; a FAILED gate blocks). Deterministic, order-stable."""
+    (evidence; a FAILED gate blocks). Deterministic, order-stable. Raises ValueError on a
+    None gate result — a placeholder verdict has no honest blocking/non-blocking reading
+    (a gate that did not run must be omitted, not passed as None)."""
+    for name, result in (gate_results or {}).items():
+        if result is None:
+            raise ValueError(
+                f"gate result {name!r} is None — omit a gate that did not run, "
+                "a None verdict cannot be ratified")
     items: list[RatificationItem] = []
     seen: set[str] = set()
     for i, d in enumerate(sorted(spec.decisions, key=lambda x: x.id)):  # order-stable

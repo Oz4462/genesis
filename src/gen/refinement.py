@@ -123,7 +123,8 @@ def refine_until_pass(
     if the gate actually passed; `stuck=True` if a regeneration round left the identical
     failures (no progress); otherwise `converged=False` with the residual failures after
     `max_rounds`. Deterministic given a deterministic `regenerate`. Raises ValueError on a
-    non-positive round budget.
+    non-positive round budget, and on a malformed GateResult (passed=True WITH failures) —
+    the loop never converges on a self-contradictory verdict.
     """
     if max_rounds < 1:
         raise ValueError("max_rounds must be >= 1")
@@ -133,6 +134,13 @@ def refine_until_pass(
         result = evaluate_gate(state)
         history.append((rnd, result.passed, tuple(f.code for f in result.failures)))
         if result.passed:
+            if result.failures:
+                # defensive: a correct gate never emits passed=True with failures; trusting
+                # `passed` alone would declare convergence over live failure evidence.
+                raise ValueError(
+                    f"malformed GateResult from {result.gate!r}: passed=True but "
+                    f"{len(result.failures)} failures present — cannot declare convergence"
+                )
             return RefinementResult(True, rnd, [], False, history)
         signature = _signature(result)
         if signature in seen:                  # this failure set RECURRED -> no progress, stop.

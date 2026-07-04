@@ -53,8 +53,19 @@ class RunTrace:
 
     def record(self, name: str, kind: str, *, status: str = "ok",
                duration_ms: float = 0.0, **attributes) -> TraceEvent:
-        """Append a fully-formed event (for steps timed elsewhere or instantaneous)."""
-        event = TraceEvent(name, kind, dict(attributes), status, duration_ms)
+        """Append a fully-formed event (for steps timed elsewhere or instantaneous).
+        Raises ValueError on a status outside {"ok", "error"} — an unknown status would
+        silently fall outside every error count. Attribute values in common mutable
+        containers (list/dict/set) are copied one level deep, so a caller mutating its
+        own list after recording cannot rewrite the trace."""
+        if status not in ("ok", "error"):
+            raise ValueError(f"trace status must be 'ok' or 'error', got {status!r}")
+        copied = {
+            k: (dict(v) if isinstance(v, dict) else list(v) if isinstance(v, list)
+                else set(v) if isinstance(v, set) else v)
+            for k, v in attributes.items()
+        }
+        event = TraceEvent(name, kind, copied, status, duration_ms)
         self.events.append(event)
         return event
 
@@ -77,14 +88,25 @@ class RunTrace:
             # TypeError here in the finally, MASKING any exception the body raised — drop them.
             for reserved in ("status", "duration_ms", "name", "kind"):
                 merged.pop(reserved, None)
-            self.record(name, kind, status=rec["status"], duration_ms=duration, **merged)
+            status = rec["status"]
+            if status not in ("ok", "error"):
+                # a body that set an unknown status must not raise HERE in the finally
+                # (that would mask a body exception) — record it as an error with the
+                # raw value kept visible instead of letting it bypass every error count.
+                merged["invalid_status"] = repr(status)
+                status = "error"
+            self.record(name, kind, status=status, duration_ms=duration, **merged)
 
     def record_gate(self, name: str, result: GateResult, *, duration_ms: float = 0.0) -> TraceEvent:
         """Record a gate verdict as an event: status "error" when it did NOT pass, with the
-        failure codes as an attribute — the observability twin of the gate's own honesty."""
+        failure codes as an attribute — the observability twin of the gate's own honesty.
+        Defensive: a malformed result claiming passed=True WHILE carrying failures records
+        as "error" (never trust `passed` over live failure evidence); the contradictory
+        `passed` flag stays visible in the attributes."""
         return self.record(
             f"gate:{name}", "gate",
-            status="ok" if result.passed else "error", duration_ms=duration_ms,
+            status="ok" if (result.passed and not result.failures) else "error",
+            duration_ms=duration_ms,
             passed=result.passed, n_failures=len(result.failures),
             failure_codes=[f.code for f in result.failures],
         )

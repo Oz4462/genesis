@@ -108,13 +108,26 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
   · >>> Schritt 6 KOMPLETT: 11/11 reviewt — 8 fixed, 2 CLEAN (grounding_integrity, constraint_consistency),
     1 deferred (geometry_verification). Roter Faden: die Quality-Engine, die gegen „Pass maskiert Lücke" baut,
     hatte denselben Fehler mehrfach in sich (vakuöse Pässe, ignorierte Achsen, Detektions-Lücken). <<<
-- D16 (Schritt-6-Tail deferred): goldset G3 (fact-Token-Match case-sensitive Substring → „4" matcht „14"; deferred
-  Live-Pfad, Fixture-Review nötig) + G9/G10 (File/JSON→ValueError, extra outcome keys). telemetry G5-G8, calibration
-  vakuöse Skalare, ratification G7/G8 — alle low/defensiv, in den Commit-Messages dokumentiert.
-- D14 (Schritt-6 deferred, Claude×Grok, alle med/low): pipeline G3 (printability verwirft gefundene Blocker bei
-  GeometryError — enger als gedacht, braucht Blocker-Geometrie-Fixture → Printability-Slice) + G4 (physics_failed
-  vor physics_incomplete reordern — NICHT erreichbar: gaps↔questions 1:1 gekoppelt, needs_clarification feuert zuerst).
-  refinement G5 (converged vertraut result.passed ohne `not failures` — defensiv gg. malformed GateResult).
+- D16 **ERLEDIGT 2026-07-04** (Schritt-6-Tail): goldset G3 GEFIXT (`_token_present`: wortgrenzen- + case-fold-Match,
+  Digit-Kante läuft nicht über Dezimal-Separator „./‚" weiter — „4" matcht weder „14" noch „4.5"/„4,5"; Fixture-Review:
+  v1.json-Tokens „4"/„3" bestätigten die Substring-Gefahr, Tokens unverändert) + G9 GEFIXT (File/JSON/Top-Level-Fehler →
+  ValueError mit Pfad-Kontext) + G10 GEFIXT (Outcome für unbekannte Case-Id → fail-loud). telemetry G5-G8 GEFIXT
+  (record validiert status ∈ {ok,error}; span normalisiert unbekannten Body-Status zu „error" statt Raise-in-finally;
+  Ein-Ebenen-Copy von list/dict/set-Attributen gg. nachträgliche Mutation; record_gate vertraut `passed` nicht mehr
+  bei vorhandenen failures). ratification G7 GEFIXT (None-GateResult → ValueError, „nicht gelaufen = weglassen").
+  BEWUSST OFFEN: calibration vakuöse Skalare (dokumentierte Konvention, `threshold_for_precision` guarded
+  `n_accepted>0`, verifiziert 2026-07-04: KEIN src-Konsument importiert precision_recall_at/ECE/consistency);
+  ratification G8 (stale Packet vs live Spec = Caller-Kontrakt „Packet frisch bauen", API-Umbau nicht low-risk).
+- D14 **ERLEDIGT 2026-07-04** (Schritt-6, Claude×Grok): pipeline G3 GEFIXT (assess_printability behält bei
+  GeometryError die schon gefundenen Blocker → „not_printable" statt Reset auf „unavailable"; blockerfreier
+  Teil-Lauf bleibt „unavailable"; Test via Monkeypatch-Blocker-Fixture kernel-frei). refinement G5 GEFIXT
+  (converged wirft ValueError bei malformed GateResult passed=True+failures statt Konvergenz zu erklären).
+  pipeline G4 NICHT angefasst, aber **Begründung gilt nicht mehr** (verifiziert 2026-07-04): der Schritt-7-
+  Mis-Tag-Gap (S-F1, alle Siblings deklariert + Trigger fehlt) erzeugt einen Gap OHNE clarifying question →
+  Repro: Spec mit shaft-torsion-Siblings ohne `shaft.torque` + Resonanz-Check fail ⇒ questions=[], gaps=[S-F1],
+  gate FAILED, overall="physics_incomplete" (maskiert physics_failed). G4 damit ERREICHBAR geworden →
+  bleibt als eigenes offenes Finding (Reorder physics_failed vor physics_incomplete, Owner-Entscheid nötig,
+  da Status-Rangfolge Konsumenten-sichtbar ist).
 - D15 (Schritt-6 deferred, Claude×Grok): grounding_integrity (Alias-ID-Kanonisierung für Zirkularität, body-vs-map-
   Bijection, vakuöse independent_rate/coverage bei Nenner 0). **geometry_verification-Teil → ERLEDIGT 2026-07-04** (P7):
   alle 3 Härtungen gebaut (non-exact Volume-Untergrenze `Volume.lower` mit Beweisskizzen; `Aabb.exact`-Flag +
@@ -296,8 +309,10 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
     3.0-mm-Bohrung, die immer bestand. Kein Code-Change nötig, nur dieser Queue-Eintrag war stale.
 - Review-Kampagne **Schritt 7-9 offen** (Reihenfolge oben): physics_validation + 27 Validatoren + fem*/modal/dfm/
   orientation/mesh_integrity/brep/circuit → export/+costing+completeness+software → pipelines/+integration/+grenzverschiebung/.
-- Deferred Findings aus Schritt 6: D14 (pipeline/refinement), D15 (grounding/geometry — geometry_verification-Teil
-  ERLEDIGT 2026-07-04, Rest offen), D16 (goldset/telemetry/calibration/ratification Tails) — je in den Commit-Messages dokumentiert.
+- Deferred Findings aus Schritt 6: D14 (pipeline/refinement — ERLEDIGT 2026-07-04; pipeline G4 durch S-F1
+  erreichbar geworden, als eigenes Finding offen), D15 (grounding/geometry — geometry_verification-Teil
+  ERLEDIGT 2026-07-04, Rest offen), D16 (goldset/telemetry/calibration/ratification Tails — ERLEDIGT 2026-07-04,
+  bewusst offen: calibration-Vakuum-Konvention + ratification G8) — je in den Commit-Messages dokumentiert.
 
 ## Owner-gated / blockiert
 - Branch mergen/pushen (braucht Owner-Auftrag).

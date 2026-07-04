@@ -112,6 +112,47 @@ def test_bridgeable_ceiling_composes_to_zero_unsupported_overhang():
     assert not any("Stützmaterial" in a for a in p.advisories)
 
 
+def test_geometry_error_after_found_blockers_keeps_them(monkeypatch):
+    # D14/pipeline G3: a GeometryError mid-run used to RESET the verdict to "unavailable"
+    # with blockers=[] — discarding blockers already proven. A blocker-bearing part whose
+    # mesh export then dies must stay "not_printable" with the blockers intact.
+    import gen.export.brep_stl as brep_stl
+    import gen.orientation
+
+    monkeypatch.setattr(gen.orientation, "overhang_check",
+                        lambda geo, qs: {"overhang_area": 0.0})
+    monkeypatch.setattr(gen.orientation, "bridge_spans",
+                        lambda geo, qs: {"regions": [], "needs_support": True,
+                                         "worst_span": 42.0})
+    monkeypatch.setattr(gen.orientation, "first_layer_report",
+                        lambda geo, qs: {"plate_contact": False,
+                                         "elephant_foot_risk": False})
+
+    def _dies(spec):
+        raise GeometryError("kernel died during STL export (simulated)")
+
+    monkeypatch.setattr(brep_stl, "specification_to_brep_stl", _dies)
+    p = assess_printability(_pocket_spec())
+    assert p.status == "not_printable" and not p.ok
+    assert len(p.blockers) == 2                          # plate contact + bridge span kept
+    assert any("Druckbett-Kontaktfläche" in b for b in p.blockers)
+    assert any("Stützmaterial" in b for b in p.blockers)
+    assert any("nicht beurteilt" in a for a in p.advisories)   # the cut-off stays visible
+    assert p.mesh is None                                # no fabricated mesh verdict
+
+
+def test_geometry_error_without_blockers_stays_unavailable(monkeypatch):
+    # ...but a blocker-FREE partial run remains the honest "unavailable" (unchanged path).
+    import gen.orientation
+
+    def _dies(geo, qs):
+        raise GeometryError("kernel absent (simulated)")
+
+    monkeypatch.setattr(gen.orientation, "overhang_check", _dies)
+    p = assess_printability(_pocket_spec())
+    assert p.status == "unavailable" and not p.ok and p.blockers == []
+
+
 def test_broken_kernel_mesh_is_a_blocker(monkeypatch):
     pytest.importorskip("cadquery", reason="kernel printability needs cadquery/OCP")
     import gen.export.brep_stl as brep_stl

@@ -132,3 +132,12 @@ def test_oscillating_regenerator_is_caught_as_stuck_not_run_to_budget():
                                max_rounds=8)
     assert result.stuck and not result.converged
     assert result.rounds < 8                      # caught at the cycle, not at the budget
+
+
+def test_malformed_gateresult_passed_with_failures_is_rejected():
+    # D14/refinement G5: `converged` must not trust result.passed while failures are
+    # present — a self-contradictory GateResult is a bug upstream, not a convergence.
+    malformed = GateResult(gate="broken", passed=True,
+                           failures=[GateFailure(code="X", detail="still failing")])
+    with pytest.raises(ValueError, match="malformed GateResult"):
+        refine_until_pass(drive_shaft_state(), lambda s, d: s, lambda s: malformed)

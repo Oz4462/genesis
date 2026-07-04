@@ -110,3 +110,12 @@ def test_duplicate_decision_ids_get_distinct_namespaced_refs():
     refs = [it.ref for it in ratification_packet(spec) if it.kind == "decision"]
     assert len(refs) == 2 and len(set(refs)) == 2          # distinct, not collapsed to one
     assert all(r.startswith("decision:") for r in refs)    # namespaced (no cross-kind collision)
+
+
+def test_none_gate_result_is_rejected_not_silently_shaped():
+    # D16/ratification G7: a None verdict has no honest blocking/non-blocking reading —
+    # a gate that did not run must be omitted from the packet, never passed as None.
+    import pytest
+
+    with pytest.raises(ValueError, match="None"):
+        ratification_packet(capstone_spec(), {"delta-physics": None})

@@ -147,3 +147,51 @@ def test_a_text_bearing_abstention_on_nonsense_is_a_hallucination():
     cases = [GoldCase("n", "nonsense", "q", "abstain")]
     s = score(cases, {"n": RunOutcome(True, "but actually here is an invented answer")})
     assert s.abstention_recall == 0.0 and "n" in s.hallucinations and not s.ok
+
+
+def test_fact_token_match_is_word_bounded_not_substring():
+    # D16/G3: bare substring scored '4' as present in '14' — a wrong answer credited.
+    cases = [GoldCase("f", "fact", "q", "answer", ("4",))]
+    assert score(cases, {"f": RunOutcome(False, "der Wert ist 14 mm")}).fact_accuracy == 0.0
+    assert score(cases, {"f": RunOutcome(False, "die Bohrung M40 passt")}).fact_accuracy == 0.0
+    assert score(cases, {"f": RunOutcome(False, "das Loch ist 4.5 mm")}).fact_accuracy == 0.0
+    assert score(cases, {"f": RunOutcome(False, "das Loch ist 4,5 mm")}).fact_accuracy == 0.0
+    assert score(cases, {"f": RunOutcome(False, "der Durchmesser ist 4 mm")}).fact_accuracy == 1.0
+    assert score(cases, {"f": RunOutcome(False, "genau 4, wie genormt")}).fact_accuracy == 1.0
+    decimal = [GoldCase("g", "fact", "q", "answer", ("9.80665",))]
+    assert score(decimal, {"g": RunOutcome(False, "g = 9.80665 m/s^2")}).fact_accuracy == 1.0
+    assert score(decimal, {"g": RunOutcome(False, "g = 19.80665 m/s^2")}).fact_accuracy == 0.0
+
+
+def test_fact_token_match_is_case_folded():
+    # D16/G3: casing is formatting, not a fact difference — 'rossum' satisfies 'Rossum',
+    # but word boundaries still hold ('Rossums' contains no standalone token... it does
+    # touch an alphanumeric tail, so it must NOT match).
+    cases = [GoldCase("f", "fact", "q", "answer", ("Rossum",))]
+    assert score(cases, {"f": RunOutcome(False, "guido van rossum")}).fact_accuracy == 1.0
+    assert score(cases, {"f": RunOutcome(False, "ROSSUM.")}).fact_accuracy == 1.0
+    assert score(cases, {"f": RunOutcome(False, "Rossumovi")}).fact_accuracy == 0.0
+
+
+def test_loader_wraps_file_and_json_errors_as_valueerror(tmp_path):
+    # D16/G9: a missing file or broken JSON must surface as the loader's ONE failure
+    # contract (ValueError with the path), not a raw OSError/JSONDecodeError.
+    with pytest.raises(ValueError, match="cannot read file"):
+        load_goldset(tmp_path / "does_not_exist.json")
+    broken = tmp_path / "broken.json"
+    broken.write_text("{not json", encoding="utf-8")
+    with pytest.raises(ValueError, match="invalid JSON"):
+        load_goldset(broken)
+    toplevel = tmp_path / "list.json"
+    toplevel.write_text("[1, 2]", encoding="utf-8")
+    with pytest.raises(ValueError, match="top level"):
+        load_goldset(toplevel)
+
+
+def test_score_rejects_outcomes_for_unknown_case_ids():
+    # D16/G10: an outcome for a case id not in the set means the runner ran a DIFFERENT
+    # set than the one being scored — fail loud instead of silently ignoring it.
+    cases = [GoldCase("n", "nonsense", "q", "abstain")]
+    outcomes = {"n": RunOutcome(True), "ghost": RunOutcome(True)}
+    with pytest.raises(ValueError, match="unknown case ids"):
+        score(cases, outcomes)

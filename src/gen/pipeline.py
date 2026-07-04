@@ -277,7 +277,12 @@ def assess_specification(
                          circular=len(corroboration.circular))
         if seam_gate is not None:
             trace.record_gate("epsilon", seam_gate)
-        trace.record("geometry", "geometry", status=geometry_status,
+        # trace status is the binary ok/error contract; the four-valued geometry verdict
+        # rides as an attribute. (Passing it AS the status made to_otel export a
+        # "verified" as ERROR and left a "failed" outside every error count.)
+        trace.record("geometry", "geometry",
+                     status="error" if geometry_status == "failed" else "ok",
+                     geometry_status=geometry_status,
                      n_components=len(geometry_checks))
 
     overall = _overall_status(questions, gaps, gate, contradictions, len(checks), corroboration,
@@ -306,8 +311,10 @@ class PrintabilityAssessment:
       • "not_printable"    — at least one hard blocker (broken mesh, no plate
                              contact, an unsupported/unbridgeable ceiling).
       • "no_geometry"      — no component carries geometry; nothing was judged.
-      • "unavailable"      — the CAD kernel (cadquery/OCP) is absent; nothing was
-                             judged — surfaced, never a silent pass.
+      • "unavailable"      — the CAD kernel (cadquery/OCP) is absent or failed before
+                             any blocker was found; nothing conclusive was judged —
+                             surfaced, never a silent pass. (A GeometryError AFTER a
+                             blocker was found keeps the blocker: "not_printable".)
     """
 
     status: str
@@ -397,9 +404,16 @@ def assess_printability(spec: Specification) -> PrintabilityAssessment:
 
         mesh = stl_integrity_check(specification_to_brep_stl(spec))
     except GeometryError as exc:
+        # Blockers already found are FACTS about the part — an assessment cut short by a
+        # GeometryError (kernel died mid-run / a later component unbuildable) must not
+        # discard them. With found blockers the honest verdict is "not_printable" (the
+        # part cannot print regardless of what remained unjudged); only a blocker-free
+        # partial run stays "unavailable".
+        advisories.append(f"nicht beurteilt: {exc}")
         return PrintabilityAssessment(
-            status="unavailable", components=components, mesh=None,
-            blockers=[], advisories=[f"nicht beurteilt: {exc}"],
+            status="not_printable" if blockers else "unavailable",
+            components=components, mesh=None,
+            blockers=blockers, advisories=advisories,
         )
     if not mesh["ok"]:
         blockers.append(

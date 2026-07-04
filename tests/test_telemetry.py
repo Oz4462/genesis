@@ -117,3 +117,47 @@ def test_to_otel_kind_is_authoritative_over_a_colliding_attribute():
     t.record("step", "select", **{"genesis.kind": "spoofed"})
     span = t.to_otel()[0]
     assert span["attributes"]["genesis.kind"] == "select"     # real kind wins, not the attribute
+
+
+def test_record_rejects_an_unknown_status():
+    # D16/telemetry: an unknown status would fall outside every error count — fail loud.
+    trace = RunTrace("r")
+    with pytest.raises(ValueError, match="status"):
+        trace.record("step", "select", status="failed")
+
+
+def test_span_body_setting_an_unknown_status_records_error_not_crash():
+    # ...but inside span's finally a raise would MASK a body exception: an unknown
+    # rec["status"] is normalised to "error" with the raw value kept visible.
+    trace = RunTrace("r", clock=_clock([0.0, 0.1]))
+    with trace.span("step", "select") as rec:
+        rec["status"] = "weird"
+    (event,) = trace.events
+    assert event.status == "error"
+    assert event.attributes["invalid_status"] == "'weird'"
+
+
+def test_recorded_attributes_are_copied_against_later_mutation():
+    # D16/telemetry: a caller mutating its own list/dict after recording must not
+    # rewrite the trace (the shallow dict() copy shared the nested containers).
+    trace = RunTrace("r")
+    codes = ["A"]
+    detail = {"k": 1}
+    trace.record("step", "gate", codes=codes, detail=detail)
+    codes.append("B")
+    detail["k"] = 2
+    (event,) = trace.events
+    assert event.attributes["codes"] == ["A"]
+    assert event.attributes["detail"] == {"k": 1}
+
+
+def test_record_gate_does_not_trust_passed_over_live_failures():
+    # D16/telemetry: a malformed GateResult claiming passed=True WHILE carrying failures
+    # must record as "error" — the contradictory flag stays visible in the attributes.
+    trace = RunTrace("r")
+    malformed = GateResult(gate="g", passed=True,
+                           failures=[GateFailure(code="X", detail="still failing")])
+    event = trace.record_gate("g", malformed)
+    assert event.status == "error"
+    assert event.attributes["passed"] is True            # the contradiction is auditable
+    assert event.attributes["failure_codes"] == ["X"]

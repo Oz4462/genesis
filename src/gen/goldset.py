@@ -61,8 +61,16 @@ class RunOutcome:
 
 def load_goldset(path: str | Path = DEFAULT_PATH) -> list[GoldCase]:
     """Load and validate the gold set — fail-loud on any malformed case (an invalid
-    measurement set must never silently score)."""
-    raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    measurement set must never silently score). File and JSON errors are wrapped as
+    ValueError with the offending path, so a caller sees ONE failure contract."""
+    try:
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise ValueError(f"gold set {path}: cannot read file: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"gold set {path}: invalid JSON: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise ValueError(f"gold set {path}: top level must be an object")
     raw_cases = raw.get("cases", [])
     if not isinstance(raw_cases, list):
         raise ValueError("gold set: 'cases' must be a list")
@@ -121,13 +129,44 @@ class GoldsetScore:
         return not self.hallucinations
 
 
+_DECIMAL_SEPARATORS = ".,"
+
+
+def _token_present(token: str, text: str) -> bool:
+    """Word-bounded, case-folded containment — the honest fact-token match.
+
+    A bare substring test scored '4' as present in '14' (and '4.5', 'M40') — a wrong
+    answer credited as correct. The token must appear with no alphanumeric character
+    touching either end, and a digit edge must not continue as a decimal number across
+    '.'/',' ('4' does not match '4.5' or the German '4,5'). Case-folded, so 'rossum'
+    satisfies 'Rossum' — casing is a formatting detail, not a fact difference."""
+    needle = token.casefold()
+    hay = text.casefold()
+    start = hay.find(needle)
+    while start != -1:
+        end = start + len(needle)
+        prev = hay[start - 1] if start > 0 else ""
+        nxt = hay[end] if end < len(hay) else ""
+        left_joined = prev.isalnum() or (
+            needle[0].isdigit() and prev in _DECIMAL_SEPARATORS
+            and start >= 2 and hay[start - 2].isdigit())
+        right_joined = nxt.isalnum() or (
+            needle[-1].isdigit() and nxt in _DECIMAL_SEPARATORS
+            and end + 1 < len(hay) and hay[end + 1].isdigit())
+        if not left_joined and not right_joined:
+            return True
+        start = hay.find(needle, start + 1)
+    return False
+
+
 def _case_ok(case: GoldCase, out: RunOutcome) -> tuple[bool, bool]:
     """(correct, hallucinated) for one case under its expected behavior."""
     # an "abstention" that still carries answer text is NOT an abstention — a runner flagging
     # abstained=True while emitting text is hiding an answer; treat it as answered.
     abstained = out.abstained and not out.text.strip()
     if case.kind == "fact":
-        correct = (not abstained) and all(tok in out.text for tok in case.must_contain)
+        correct = (not abstained) and all(
+            _token_present(tok, out.text) for tok in case.must_contain)
         return correct, False                     # a wrong fact is a miss, not fabrication
     if case.kind == "trap":
         correct = abstained or out.all_sourced
@@ -140,12 +179,17 @@ def _case_ok(case: GoldCase, out: RunOutcome) -> tuple[bool, bool]:
 def score(cases: list[GoldCase], outcomes: dict[str, RunOutcome]) -> GoldsetScore:
     """Score one COMPLETE run of the gold set. Raises ValueError if any case lacks an
     outcome — an incomplete run must never produce a rate (it would silently inflate
-    the score). Deterministic."""
+    the score) — or if an outcome references a case id NOT in the set (the runner ran
+    a different set than the one being scored). Deterministic."""
     if not cases:                                  # an empty 'run' is not a vacuous pass
         raise ValueError("gold set: no cases to score")
     missing = [c.id for c in cases if c.id not in outcomes]
     if missing:
         raise ValueError(f"gold set run incomplete; missing outcomes for: {missing}")
+    extra = sorted(set(outcomes) - {c.id for c in cases})
+    if extra:                                      # an outcome for a case NOT in the set means
+        #                                            the runner ran a different set — fail loud.
+        raise ValueError(f"gold set run has outcomes for unknown case ids: {extra}")
 
     per_kind_total = {"fact": 0, "trap": 0, "nonsense": 0}
     per_kind_ok = {"fact": 0, "trap": 0, "nonsense": 0}

@@ -82,6 +82,12 @@ def test_assessment_records_telemetry_when_a_trace_is_given():
     assess_specification(drive_shaft_spec(), claims=drive_shaft_state().claims, trace=trace)
     kinds = {e.kind for e in trace.events}
     assert {"clarify", "select", "gate", "constraints", "grounding"} <= kinds
+    # the geometry event keeps the binary ok/error trace contract; the four-valued
+    # verdict rides as an attribute (a raw "no_geometry" AS status would export as
+    # OTel ERROR and bypass the error count).
+    (geo,) = [e for e in trace.events if e.kind == "geometry"]
+    assert geo.status == "ok"
+    assert geo.attributes["geometry_status"] == "no_geometry"
 
 
 def test_is_deterministic():
