@@ -100,6 +100,16 @@ __all__ = [
     "RobustDecisionSpec",
     "discover_correction",
     "CompositionResult",
+    "discover_product_law",
+    "ProductLaw",
+    "discover_product_rivals",
+    "ProductRival",
+    "evaluate_product_rival",
+    "refit_product_rival",
+    "product_out_of_sample_validate",
+    "ProductValidation",
+    "discover_multiplicative_correction",
+    "MultiplicativeCorrection",
     "gp_fit",
     "gp_discover",
     "GPConfig",
@@ -226,6 +236,15 @@ def __getattr__(name: str):
     if name in ("discover_correction", "CompositionResult"):
         from . import composition as _m
         for n in ("discover_correction", "CompositionResult"):
+            globals()[n] = getattr(_m, n)
+        return globals()[name]
+    if name in ("discover_product_law", "ProductLaw", "discover_product_rivals", "ProductRival",
+                "evaluate_product_rival", "refit_product_rival", "product_out_of_sample_validate",
+                "ProductValidation", "discover_multiplicative_correction", "MultiplicativeCorrection"):
+        from . import multiplicative as _m
+        for n in ("discover_product_law", "ProductLaw", "discover_product_rivals", "ProductRival",
+                  "evaluate_product_rival", "refit_product_rival", "product_out_of_sample_validate",
+                  "ProductValidation", "discover_multiplicative_correction", "MultiplicativeCorrection"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

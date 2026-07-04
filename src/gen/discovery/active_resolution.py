@@ -32,7 +32,26 @@ from dataclasses import dataclass
 import numpy as np
 
 from .engine import DiscoveryProblem, Variable
+from .multiplicative import ProductRival, evaluate_product_rival, refit_product_rival
 from .transcendental import RivalForm, evaluate_rival, refit_rival
+
+#: Any rival the resolver can evaluate/refit: the 6.3 transcendental-vs-power pair or the 6.6
+#: multiplicative product-vs-power pair — same tie, same active move.
+AnyRival = RivalForm | ProductRival
+
+
+def _evaluate_any(rival: AnyRival, problem: DiscoveryProblem) -> np.ndarray:
+    """Evaluate a fitted rival WITHOUT refit — dispatching on the rival family (6.3 or 6.6)."""
+    if isinstance(rival, ProductRival):
+        return evaluate_product_rival(rival, problem)
+    return evaluate_rival(rival, problem)
+
+
+def _refit_any(rival: AnyRival, problem: DiscoveryProblem) -> AnyRival | None:
+    """Re-fit a rival on (possibly augmented) data — dispatching on the rival family."""
+    if isinstance(rival, ProductRival):
+        return refit_product_rival(rival, problem)
+    return refit_rival(rival, problem)
 
 #: Hard cap on how far past the observed range the divergence search may look (×). A transcendental
 #: and a power law ALWAYS diverge eventually; only divergence near the data is a real experiment.
@@ -79,8 +98,8 @@ def _with_input_values(problem: DiscoveryProblem, var_name: str, values: np.ndar
 
 
 def propose_resolution(
-    rival_a: RivalForm | None,
-    rival_b: RivalForm | None,
+    rival_a: AnyRival | None,
+    rival_b: AnyRival | None,
     problem: DiscoveryProblem,
     *,
     max_extrapolation: float = DEFAULT_MAX_EXTRAPOLATION,
@@ -113,17 +132,21 @@ def propose_resolution(
     y = np.asarray(problem.target.values, dtype=float)
     # noise floor: the demonstrated fit residual, floored to a fraction of the signal span so that
     # clean synthetic data (≈0 residual) still demands a real, not infinitesimal, divergence.
-    resid = max(float(np.std(y - evaluate_rival(rival_a, problem))),
-                float(np.std(y - evaluate_rival(rival_b, problem))))
+    resid = max(float(np.std(y - _evaluate_any(rival_a, problem))),
+                float(np.std(y - _evaluate_any(rival_b, problem))))
     span_y = float(np.max(y) - np.min(y))
     noise = max(resid, _REL_NOISE_FLOOR * span_y, 1e-12)
 
     ext_lo, ext_hi = lo / max_extrapolation, hi * max_extrapolation
     grid = np.linspace(ext_lo, ext_hi, n_grid)
     grid_problem = _with_input_values(problem, var.name, grid)
-    fa = evaluate_rival(rival_a, grid_problem)
-    fb = evaluate_rival(rival_b, grid_problem)
+    fa = _evaluate_any(rival_a, grid_problem)
+    fb = _evaluate_any(rival_b, grid_problem)
     divergence = np.abs(fa - fb)
+    # Conservative: a rival whose prediction is non-finite on the extended grid (numerical
+    # overflow of a degenerate fit) is NOT counted as discriminating power — masked to zero
+    # rather than promoted to an "infinite divergence" experiment.
+    divergence = np.where(np.isfinite(divergence), divergence, 0.0)
 
     max_div = float(np.max(divergence))
     ratio = max_div / noise
@@ -183,8 +206,8 @@ class RobustDecisionSpec:
 
 
 def propose_resolution_robust(
-    rival_a: RivalForm | None,
-    rival_b: RivalForm | None,
+    rival_a: AnyRival | None,
+    rival_b: AnyRival | None,
     problem: DiscoveryProblem,
     *,
     min_discrimination: float = DEFAULT_MIN_DISCRIMINATION,
@@ -216,12 +239,12 @@ def propose_resolution_robust(
                         tuple(np.concatenate([obs_y, truth_y]))),
         inputs=(Variable(var.name, var.unit, tuple(np.concatenate([obs_x, new_x]))),),
         constants=problem.constants, run_id=problem.run_id)
-    refit_b = refit_rival(rival_b, augmented)  # type: ignore[arg-type]  (None handled below)
+    refit_b = _refit_any(rival_b, augmented)  # type: ignore[arg-type]  (None handled below)
     if refit_b is None:
         return RobustDecisionSpec(spec, float("nan"), float("inf"), True, spec.discriminating,
                                   "der unterlegene Rivale konnte die erweiterten Daten nicht nachfitten")
 
-    refit_pred = evaluate_rival(refit_b, _with_input_values(problem, var.name, new_x))
+    refit_pred = _evaluate_any(refit_b, _with_input_values(problem, var.name, new_x))
     residual = float(np.max(np.abs(refit_pred - truth_y)))
     survives = residual >= min_discrimination * noise
     discriminating = spec.discriminating and survives
