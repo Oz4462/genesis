@@ -97,6 +97,12 @@ class HumanoidConfig:
     required_endurance_min: float      # geforderte Dauerbetriebszeit
     locomotion_duty: float             # RMS-Duty der Antriebe über den Gangzyklus
     n_drive_motors: float              # gleichzeitig arbeitende Antriebsmotoren
+    # --- Motor-Thermik (Teilprojekt 3) ---
+    motor_housing_conductivity_w_mk: float = 0.0  # Wärmepfad Wicklung→Gehäuse, W/(m*K)
+    motor_housing_area_m2: float = 0.0            # Leitquerschnitt, m^2
+    motor_housing_length_m: float = 0.0           # Pfadlänge, m
+    motor_max_winding_temp_k: float = 0.0         # Isolationsklasse (F = 428 K)
+    ambient_temp_k: float = 0.0                   # Auslegungs-Umgebung
     #: grounded unit prices [EUR] for the buy-list (and EUR/g for filament) so the bundle costs out
     #: completely — printed parts via filament, purchased parts via these.
     prices: dict = field(default_factory=dict)
@@ -356,6 +362,20 @@ def build_humanoid(cfg: HumanoidConfig) -> Specification:
               "W", "q_p_loco + q_chip_pbudget", ("q_p_loco", "q_chip_pbudget"), "robot.total_power"),
         _dm("q_endurance_req", "geforderte Dauerbetriebszeit", cfg.required_endurance_min, "min",
             "Wettbewerbsanker 2026 (Unitree H2 ~2-4 h)", "robot.required_endurance"),
+        # --- Motor-Thermik: Verlustleistung je Antrieb gegen Wicklungsgrenze ---
+        _derm("q_p_motor_loss", "Verlustleistung je Antrieb",
+              cfg.joint_torque_nm * cfg.joint_speed_rad_s * cfg.locomotion_duty * (1.0 - cfg.efficiency) / cfg.efficiency,
+              "W", "q_p_mech_joint * (1.0 - q_eff) / q_eff", ("q_p_mech_joint", "q_eff"), "motor.loss_power"),
+        _gm("q_motor_k", "Wärmeleitpfad Wicklung→Gehäuse", cfg.motor_housing_conductivity_w_mk,
+            "W/m/K", ["c_motor_thermal"], "motor.housing_conductivity"),
+        _dm("q_motor_area", "Leitquerschnitt", cfg.motor_housing_area_m2, "m^2",
+            "Statorumfang x Gehäusewand", "motor.housing_area"),
+        _dm("q_motor_len", "Leitpfadlänge", cfg.motor_housing_length_m, "m",
+            "Wicklung→Außenfläche", "motor.housing_length"),
+        _gm("q_motor_tmax", "max. Wicklungstemperatur", cfg.motor_max_winding_temp_k, "K",
+            ["c_motor_thermal"], "motor.max_winding_temp"),
+        _dm("q_ambient", "Auslegungs-Umgebungstemperatur", cfg.ambient_temp_k, "K",
+            "Innenraum 25 °C", "robot.ambient_temp"),
     ]
 
     components = [
@@ -569,6 +589,9 @@ def _humanoid_claims(cfg: HumanoidConfig) -> list:
         _claim("c_endurance_requirement",
                f"Dauerbetrieb von {cfg.required_endurance_min:.0f} min ist gefordert "
                "(2026-Wettbewerb: Unitree H2 läuft 2-4 h)."),
+        _claim("c_motor_thermal",
+               "Die Antriebe nutzen Klasse-F-Isolation (155 °C) mit Alu-Gehäusepfad "
+               "zur Wärmeabfuhr; der konduktive Worst-Case bleibt unter der Grenze."),
     ]
     return base + list(cfg.extra_claims)
 
@@ -599,6 +622,8 @@ PRINTED = HumanoidConfig(
     # ~256 min at 2100 Wh (0.8 usable), margin ~2.1x over the 120 min requirement.
     battery_capacity_wh=2100.0, required_endurance_min=120.0, locomotion_duty=0.20,
     n_drive_motors=8.0,
+    motor_housing_conductivity_w_mk=170.0, motor_housing_area_m2=0.0015,
+    motor_housing_length_m=0.02, motor_max_winding_temp_k=428.0, ambient_temp_k=298.0,
     prices={"filament_eur_g": 0.06, "motor": 180.0, "chip": 2000.0, "battery": 600.0,
             "mcu": 25.0, "driver": 80.0, "imu": 20.0, "harness": 150.0},
     extra_claims=[
@@ -645,6 +670,8 @@ FLAGSHIP = HumanoidConfig(
     # boundary, not a fudged number (see task-1-report.md Fix-3 for the full calculation).
     battery_capacity_wh=2600.0, required_endurance_min=180.0, locomotion_duty=0.10,
     n_drive_motors=8.0,
+    motor_housing_conductivity_w_mk=170.0, motor_housing_area_m2=0.0015,
+    motor_housing_length_m=0.02, motor_max_winding_temp_k=428.0, ambient_temp_k=298.0,
     prices={"filament_eur_g": 0.08, "motor": 600.0, "chip": 7000.0, "battery": 900.0,
             "mcu": 30.0, "driver": 120.0, "imu": 25.0, "harness": 250.0},
     extra_claims=[

@@ -381,6 +381,19 @@ RECIPES: list[CheckRecipe] = [
             "required_endurance_min": ("robot.required_endurance", "min"),
         },
     ),
+    # ---- robot motor thermal: Verlustleistung je Antrieb gegen die Wicklungsgrenze ----
+    CheckRecipe(
+        name="drive motor overtemperature (conduction bound)", validator="overtemperature",
+        trigger="motor.loss_power",
+        inputs={
+            "power": ("motor.loss_power", "W"),
+            "conductivity": ("motor.housing_conductivity", "W/mm/K"),
+            "area": ("motor.housing_area", "mm^2"),
+            "length": ("motor.housing_length", "mm"),
+            "ambient": ("robot.ambient_temp", "K"),
+            "max_service_temp": ("motor.max_winding_temp", "K"),
+        },
+    ),
     # ---- space multi-physics (vacuum radiation dominant, for habitats/radiators/TPS) ----
     CheckRecipe(
         name="vacuum radiation balance (space thermal)", validator="vacuum_radiation_balance",
