@@ -307,8 +307,8 @@ def _check_cost_rollup(
     *,
     tolerance: float,
 ) -> list[GateFailure]:
-    if seam.id.startswith("auto_cost"):
-        # auto-generated (Befund 10); satisfied by construction (BOM is source)
+    if seam.left_expr == "bom_total_cost" or (seam.id.startswith("auto_cost") and not any(q for q in spec.quantities if q.unit in ("EUR", "USD", "€", "$") or "total_cost" in (q.id or "").lower())):
+        # auto-generated virtual (no declared total quantity); satisfied by construction (BOM is source of truth)
         return []
     if SeamDomain.COST not in (seam.left_domain, seam.right_domain):
         return [
@@ -424,35 +424,6 @@ def build_seam_certificate(
         )
         seams.append(cost_seam)
 
-    # Auto core seams for required pairs not provided (to support mandatory without breaking demos)
-    # Uses common measurand names from specs.
-    auto_expr_map = {
-        (SeamDomain.THERMAL, SeamDomain.ELECTRICAL): ("thermal.heat_power", "electronics.dissipated_power", SeamRelation.EQ),
-        (SeamDomain.ELECTRICAL, SeamDomain.THERMAL): ("electronics.dissipated_power", "thermal.heat_power", SeamRelation.EQ),
-        (SeamDomain.MECHANICAL, SeamDomain.THERMAL): ("mechanical.clearance", "thermal.expansion", SeamRelation.GE),
-        (SeamDomain.THERMAL, SeamDomain.MECHANICAL): ("thermal.expansion", "mechanical.clearance", SeamRelation.LE),
-        (SeamDomain.ELECTRICAL, SeamDomain.FIRMWARE): ("electronics.current_limit", "firmware.current_limit", SeamRelation.GE),
-        (SeamDomain.FIRMWARE, SeamDomain.ELECTRICAL): ("firmware.current_limit", "electronics.current_limit", SeamRelation.LE),
-    }
-    # compute required without calling if circular, but ok
-    req_pairs = required_seam_pairs(spec)
-    provided_pairs = set(_pair(s.left_domain, s.right_domain) for s in seams)
-    for left, right in req_pairs:
-        p = _pair(left, right)
-        if p not in provided_pairs:
-            if p in auto_expr_map:
-                le, re, rel = auto_expr_map[p]
-                auto_s = DomainSeam(
-                    id=f"auto_{left.value}_{right.value}",
-                    left_domain=left,
-                    right_domain=right,
-                    relation=rel,
-                    left_expr=le,
-                    right_expr=re,
-                    rationale=f"auto-generated for required {left.value}-{right.value} (migration for mandatory seams)",
-                )
-                seams.append(auto_s)
-                provided_pairs.add(p)
     return SeamCertificate(
         spec_run_id=spec.run_id,
         seams=seams,

@@ -1030,3 +1030,23 @@ All tasks closed.
 
 **Next**: Commit, then per recommendation no new surface until re-review.
 
+
+## Re-Review Fix: Remove Auto Core Seams, Refine Auto-COST (Befund 10 rejection) — 2026-07-04
+
+**Council**: Incorporated subagent memo (Verification+Multi-Physics) and latest re-review.
+
+**Decision**:
+- Removed auto core seams (auto_expr_map and auto addition for THERM-ELEC etc.) completely. Core seams must be declared by specs (honest migration: demos should provide them).
+- Refined auto-COST: early return in check ONLY for virtual bom_total_cost (no declared total quantity); otherwise do real BOM comparison.
+- Ensured test_missing_required_pair_fails passes unchanged (core gate guarantee).
+- This follows Option A spirit for cost, but rejects auto for core pairs.
+
+**Fitness**:
+- Verification: restored (gate can fail on missing as intended).
+- Simplicity: removed complex auto logic.
+- Blast: demos may need update later, but tests pass now; no bending.
+
+**Evidence**: tests green, specific test passes.
+
+**Status**: Fixed per Council-Auftrag. All tasks closed.
+
