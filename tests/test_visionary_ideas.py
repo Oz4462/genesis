@@ -155,10 +155,10 @@ def test_mars_isru_o2_plant_uses_isru_life_domains_and_explicit_seams():
     assert pt.proven
     assert "o2" in pt.target_name
 
-    # Derive simple first-principles fact from atomic masses (demo; full stoich ratio requires more ops or axioms for 2)
+    # Derive simple first-principles fact from atomic masses (demo for O2 mass = 2*O)
     atomic = [Axiom("m_O", 16.0, "atomic mass O"), Axiom("m_H", 1.0, "atomic mass H")]
-    pt_r = derive(atomic, 16.0, target_name="m_O", max_ops=2, tolerance=1e-9)
-    assert pt_r is not None and pt_r.proven, "first principles derivation from atomic masses succeeds (e.g. m_O * m_H with m_H=1)"
+    pt_r = derive(atomic, 32.0, target_name="O2_mass", max_ops=2, tolerance=1e-9)
+    assert pt_r is not None and pt_r.proven, "first principles derivation from atomic masses succeeds (e.g. m_O + m_O for O2 mass)"
 
     # Mission-level closure (complete Genesis, not only physics): ISRU make-up covers LIFE crew deficit + margin
     # (self-contained in test for the plant; exercises cross-domain + simple system roll-up)
