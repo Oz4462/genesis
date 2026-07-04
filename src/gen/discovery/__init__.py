@@ -117,6 +117,13 @@ __all__ = [
     "evaluate_blind_rival",
     "refit_blind_rival",
     "blind_product_out_of_sample_validate",
+    "discover_additive_argument",
+    "AdditiveArgumentLaw",
+    "discover_additive_argument_rivals",
+    "AdditiveArgumentRival",
+    "evaluate_additive_rival",
+    "refit_additive_rival",
+    "additive_argument_out_of_sample_validate",
     "gp_fit",
     "gp_discover",
     "GPConfig",
@@ -259,6 +266,17 @@ def __getattr__(name: str):
         from . import blind_product as _m
         for n in ("discover_blind_product", "BlindProductLaw", "discover_blind_rivals", "BlindRival",
                   "evaluate_blind_rival", "refit_blind_rival", "blind_product_out_of_sample_validate"):
+            globals()[n] = getattr(_m, n)
+        return globals()[name]
+    if name in ("discover_additive_argument", "AdditiveArgumentLaw",
+                "discover_additive_argument_rivals", "AdditiveArgumentRival",
+                "evaluate_additive_rival", "refit_additive_rival",
+                "additive_argument_out_of_sample_validate"):
+        from . import additive_argument as _m
+        for n in ("discover_additive_argument", "AdditiveArgumentLaw",
+                  "discover_additive_argument_rivals", "AdditiveArgumentRival",
+                  "evaluate_additive_rival", "refit_additive_rival",
+                  "additive_argument_out_of_sample_validate"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -31,19 +31,26 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from .additive_argument import (
+    AdditiveArgumentRival,
+    evaluate_additive_rival,
+    refit_additive_rival,
+)
 from .blind_product import BlindRival, evaluate_blind_rival, refit_blind_rival
 from .engine import DiscoveryProblem, Variable
 from .multiplicative import ProductRival, evaluate_product_rival, refit_product_rival
 from .transcendental import RivalForm, evaluate_rival, refit_rival
 
 #: Any rival the resolver can evaluate/refit: the 6.3 transcendental-vs-power pair, the 6.6
-#: multiplicative product-vs-power pair, or the 6.7 blind two-transcendental-vs-power pair —
-#: same tie, same active move.
-AnyRival = RivalForm | ProductRival | BlindRival
+#: multiplicative product-vs-power pair, the 6.7 blind two-transcendental-vs-power pair, or the
+#: 6.8 additive-argument-vs-simpler pair — same tie, same active move.
+AnyRival = RivalForm | ProductRival | BlindRival | AdditiveArgumentRival
 
 
 def _evaluate_any(rival: AnyRival, problem: DiscoveryProblem) -> np.ndarray:
-    """Evaluate a fitted rival WITHOUT refit — dispatching on the rival family (6.3/6.6/6.7)."""
+    """Evaluate a fitted rival WITHOUT refit — dispatching on the rival family (6.3/6.6/6.7/6.8)."""
+    if isinstance(rival, AdditiveArgumentRival):
+        return evaluate_additive_rival(rival, problem)
     if isinstance(rival, BlindRival):
         return evaluate_blind_rival(rival, problem)
     if isinstance(rival, ProductRival):
@@ -53,6 +60,8 @@ def _evaluate_any(rival: AnyRival, problem: DiscoveryProblem) -> np.ndarray:
 
 def _refit_any(rival: AnyRival, problem: DiscoveryProblem) -> AnyRival | None:
     """Re-fit a rival on (possibly augmented) data — dispatching on the rival family."""
+    if isinstance(rival, AdditiveArgumentRival):
+        return refit_additive_rival(rival, problem)
     if isinstance(rival, BlindRival):
         return refit_blind_rival(rival, problem)
     if isinstance(rival, ProductRival):

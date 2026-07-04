@@ -49,9 +49,11 @@ Honest data caveat (as in 6.6): on an EVENLY spaced input grid a sinusoidal fact
 only up to aliasing — a property of the data, not of the fit; irregular sampling pins the
 frequency uniquely (the acceptance tests sample irregularly).
 
-Honest boundary: compositions of transcendentals INSIDE one another (``f(g(·))``), additive
-π-combinations inside an argument (``exp(α·π1 + β·π2)`` — one transcendental of a non-monomial
-argument, see guard (a)), and the full GP search over open form spaces remain the open frontier.
+Honest boundary: compositions of transcendentals INSIDE one another (``f(g(·))``) and the full
+GP search over open form spaces remain the open frontier. Additive π-combinations inside an
+argument (``exp(α·π1 + β·π2)`` — one transcendental of a non-monomial argument, see guard (a))
+are CLOSED by 6.8 (`additive_argument`), which is the canonical home of the ``exp·exp`` product
+this library excludes.
 """
 
 from __future__ import annotations
