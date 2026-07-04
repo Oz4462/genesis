@@ -484,3 +484,53 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
     grenzverschiebung/*, deren Tests + test_webapp-Kollateral); per git-stash-Gegenprobe
     bewiesen, dass test_webapp OHNE diese Änderungen identisch failt. Suite ohne die
     parallel-bearbeiteten Dateien: 0 failed.
+- Schritt 9: grenzverschiebung/ — DONE (Claude-Review-Findings F1–F10 gefixt, TDD, 2 Commits
+  04b8dea + 037e201):
+  · F1 HIGH GEFIXT (lumencrucible:827): `... or True` fingierte einen nie gelaufenen
+    8-Schritt-Lernzyklus, die statische lern_summary wurde in der ForschungsArbeit als
+    durchgeführt gedruckt. Entscheidung: lernmaschine-Engine NICHT angeworfen — lern_summary
+    trägt jetzt status=PLANNED_NOT_EXECUTED, Arbeit + EMERGENCE_SUMMARY weisen „geplant,
+    nicht ausgeführt" explizit aus.
+  · F2 HIGH GEFIXT: quelle behauptete unbedingt electronics+Wissensbasis+inverse design+
+    multi-physics, Claim hart VERIFIED/0.92 — obwohl der Multi-Domain-Block IMMER stirbt
+    (Import `from .architekt import …` zeigt ins falsche Paket; Module liegen in pipelines/).
+    Jetzt: quelle aus real befüllten multi_domain-Keys komponiert; dokumentierte Abstufung
+    VERIFIED/0.92 (keine Stufe übersprungen) → UNVERIFIED/0.7 (Teil-Erfolg) → UNVERIFIED/0.5
+    (Multi-Domain leer). Der tote Import wurde bewusst NICHT „repariert" (das hieße die
+    pipelines scharf zu schalten) — er ist jetzt sichtbar in skipped statt geschluckt.
+  · F3 HIGH GEFIXT: save_fragment-Fehlschlag setzte new_recipe_id trotzdem → Arbeit behauptete
+    geseedetes Rezept. Jetzt: None + mehwert_indicators["seed_failed"]=Grund + pending-Ausweis.
+  · F7 MED GEFIXT: 6× bare `except Exception: pass` → eng gefasst wo klar (ImportError/
+    TypeError), sonst strukturiert erfasst als multi_domain["skipped"]=[{stage,reason}]
+    (Grundlage der F2-Degradierung).
+  · F6 MED GEFIXT: fabrizierte „2026 Lab Results"-Items → FrontierItem.evidence_level
+    (Default "synthetic"); boundary_reviser wertet NUR verified-Items auf, synthetische
+    erzeugen Kandidaten-Notiz (old_typ==new_typ, „synthetische Front-Evidenz, unverifiziert"),
+    NEEDS_BREAKTHROUGH bleibt; learning_integrator labelt den Energie-WissensEintrag als
+    SYNTHETISCH und formuliert Regel/Vorschlag als Kandidat („WÜRDE verschieben").
+  · F4 MED GEFIXT (paketweit, minimal-ehrlich wie software.py): 10 quelle-Strings behaupteten
+    Konsum, den es nicht gibt (milestone_builder „+ gap_report" nie gelesen; breakthrough_watch
+    „+ bench_test_plan" ohne solchen Input; …) → „nur (source_)traum konsumiert; <Feld> noch
+    nicht ausgewertet — Lücke"; Prior-Parameter bleiben als reservierte API (Docstrings),
+    KEINE Schein-Auswertung.
+  · F5 MED GEFIXT: Substring-Trigger („mensch"+„fliegen" feuerte in „unmenschlich"/
+    „Fliegengitter"; is_complex „power/board"; looks_fusion „zwei"/„fuse") → EIN Wortgrenzen-
+    Helfer development_front.is_jetpack_traum für alle 12 Steine + präzise Regexes in
+    lumencrucible (Muster wie pipelines/_triggers); Jetpack-Kanon-Pfade als Positivtests gepinnt.
+  · F8 LOW GEFIXT: forge_research out_dir-Parameter (Default runs/ wie bisher), Tests hermetisch
+    auf tmp_path, redundanter os-Import weg. F9 LOW: development_front-Fallback nannte gebaute
+    Steine „zukünftiger Stein" → korrigiert. F10 LOW: bench_test_runner in __init__ exportiert.
+  · VERDRAHTUNGSLAGE (ehrlich): lumencrucible ist der einzige verdrahtete Moonshot-Kern
+    (Package-Export, simulation.runner-Typ-Naht, ruft map_development_front + apply_learning_cycle);
+    development_front speist zusätzlich extensions/breakthrough_bridge; safety_ladder-TYPEN
+    werden von inventor/safety wiederverwendet. Die übrigen 10 Builder sind reine Test-Inseln
+    (nur aus tests/ aufgerufen): analyze_capability_gaps, build_milestone_ladder,
+    design_experiment_plan, build_test_stand, build_technology_roadmap,
+    build_technology_prototype, run_bench_test, watch_frontier, revise_boundary,
+    build_safety_ladder.
+  · DEFENDED nicht angefasst: Self-Ascent-Idempotenz, development_front/safety_ladder-
+    Verdrahtung, boundary_reviser-Input-Konsum (nur die F6-Aufwertung geändert).
+  · +11 Tests (TDD: 10 rot vor dem Fix), Paket-Suite 46/46 grün, ruff clean. Volle Suite
+    1960 passed / 54 skipped / 1 failed — der eine Failure (test_webapp „seams_failed") ist
+    in sauberen Worktrees auf 356d19b (vor ALLEN Grenzverschiebungs-Commits) und b57a322
+    identisch reproduziert: vorbestehend, Scope der parallelen web/-Review, hier nicht angefasst.
