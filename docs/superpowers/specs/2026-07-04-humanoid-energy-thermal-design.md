@@ -90,19 +90,21 @@ Einheiten-Alias prüfen: `W/(m*K)` muss vom Unit-Parser akzeptiert sein
 
 ### 4. Config-Werte (grounded, 2026-realistisch)
 
-- **printed_humanoid:** 2100 Wh, gefordert ≥ 120 min; duty 0.35; 8 Antriebsmotoren
-  aktiv; Klasse-F-Wicklung (428 K), Alu-Gehäusepfad.
-- **flagship_humanoid:** 2600 Wh, gefordert ≥ 180 min; duty 0.4; 8–10 aktiv;
-  Werte je Claim mit Quelle (Unitree H2 ~2–4 h Laufzeit als Wettbewerbs-Anker).
+- **printed_humanoid:** 2100 Wh, gefordert ≥ 120 min; duty 0.20; 8 Antriebsmotoren
+  aktiv; Klasse-F-Wicklung (428 K), Alu-Gehäusepfad; reale Laufzeit 256 min.
+- **flagship_humanoid:** 2600 Wh, gefordert ≥ 180 min; duty 0.10; 8–10 aktiv;
+  reale Laufzeit 196 min; Werte je Claim mit Quelle (Unitree H2 ~2–4 h Laufzeit
+  als Wettbewerbs-Anker; 300–700 W Systemleistungsband).
 - Benchmark-Test-Erweiterung: Flagship-`endurance_min` (aus Check-Resultat) > 180
   UND overtemperature-margin > 0 für beide.
 
 ### 5. Claims & Grounding
 
 Neue Claims: `c_battery_capacity` (Datenblatt-Anker), `c_endurance_requirement`
-(Wettbewerbs-Anker), `c_motor_thermal` (Isolationsklasse + Gehäusepfad),
-`c_locomotion_duty` (Gang-Duty-Begründung). Bestehender `c_battery`-Claim wird
-präzisiert statt dupliziert.
+(Wettbewerbs-Anker), `c_motor_thermal` (Isolationsklasse + Gehäusepfad).
+`c_locomotion_duty` wurde als DECISION-Rationale in die Config-Begründung
+integriert statt als separater Claim. Bestehender `c_battery`-Claim koexistiert
+neben `c_battery_capacity` (bewusste Entscheidung zur Rückverfolgbarkeit).
 
 ### 6. Tests (TDD: zuerst rot)
 

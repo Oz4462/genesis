@@ -359,11 +359,7 @@ def build_humanoid(cfg: HumanoidConfig) -> Specification:
         _der("q_p_loco", "Lokomotionsleistung elektrisch",
              cfg.n_drive_motors * cfg.joint_torque_nm * cfg.joint_speed_rad_s * cfg.locomotion_duty / cfg.efficiency,
              "W", "q_n_drive * q_p_mech_joint / q_eff", ("q_n_drive", "q_p_mech_joint", "q_eff")),
-        # measurand "robot.total_power": the humanoid's own continuous power-draw key (kept
-        # domain-correct, not the flight.* aliases GATE γ's generic battery_endurance recipe
-        # scans for). No GATE endurance recipe consumes robot.* yet — that recipe is a
-        # follow-up task; until then this quantity is GATE-verified for internal formula
-        # consistency (see test_humanoid_energy.py) but does not itself fire a physics check.
+        # robot.total_power speist das Recipe 'robot battery endurance' (physics_selection.py)
         _derm("q_p_total", "Gesamt-Dauerleistung (Antrieb + Compute)",
               cfg.n_drive_motors * cfg.joint_torque_nm * cfg.joint_speed_rad_s * cfg.locomotion_duty / cfg.efficiency
               + cfg.compute_power_budget_w,
