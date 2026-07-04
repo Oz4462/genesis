@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Optional
-from datetime import datetime, timezone
 
+from gen.core.state import now_utc  # canonical run clock (D2 reproducibility)
 from gen.wissensbasis.store import ProvenanceRecord, FragmentStore, save_fragment
 # Naht: wir akzeptieren Fragmente/Packages aus Integrator/Assembly
 try:
@@ -88,7 +88,7 @@ def run_8_step_learning_cycle(
     - Gibt strukturiertes Result mit allen 8 Schritten + Persistenz-Beleg zurück.
     """
     if run_id is None:
-        run_id = f"learn-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+        run_id = f"learn-{now_utc().strftime('%Y%m%d%H%M%S')}"
 
     if isinstance(source, str):
         idee = source
@@ -184,7 +184,7 @@ def run_8_step_learning_cycle(
     }
     prov = ProvenanceRecord(
         source="lernmaschine.engine.run_8_step_learning_cycle",
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=now_utc().isoformat(),
         version="0.1-first-stone",
         quelle="GENESIS_PLATFORM_PLAN.md §3.8 + Integrator/Assembly/CAD real outputs + wissensbasis.store",
     )

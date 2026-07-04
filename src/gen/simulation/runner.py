@@ -19,7 +19,7 @@ wissensbasis internal_space_colony_sim / bio_molecular. 4 Linsen, Bio full, plan
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from ..core.state import now_utc
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from ..cad.prototype_cad_builder import BuildArtifact
@@ -55,7 +55,7 @@ class SimulationResult:
     cases: list[SimulationCase]
     overall_status: str            # "predictions_ready", "partial", "no_applicable_physics"
     provenance: str
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: now_utc().isoformat())
 
 
 @dataclass(frozen=True)
@@ -79,7 +79,7 @@ class SimulationRunner:
     """
 
     def __init__(self, run_id: str | None = None):
-        self.run_id = run_id or f"sim-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+        self.run_id = run_id or f"sim-{now_utc().strftime('%Y%m%d%H%M%S')}"
         self.quelle_base = "simulation.runner + physics_selection + existing fem/modal/thermal/buckling/fatigue modules + HORIZON δ⁺ coupling"
 
     def run_for_artifact(

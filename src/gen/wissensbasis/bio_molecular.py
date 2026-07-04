@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import numpy as np
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Any, Optional
+
+from gen.core.state import now_utc  # canonical run clock (D2 reproducibility)
 
 
 def _make_provenance(detail: str, run_id: Optional[str] = None) -> dict[str, Any]:
@@ -28,7 +29,7 @@ def _make_provenance(detail: str, run_id: Optional[str] = None) -> dict[str, Any
     """
     return {
         "source": f"gen.wissenschaftenbasis.bio_molecular.{detail}",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": now_utc().isoformat(),
         "version": "2036_leap_numpy_fidelity.1",
         "fidelity": "coarse_grained_numpy_local_molecular_2036",
         "run_id": run_id or "bio-run",

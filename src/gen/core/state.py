@@ -8,11 +8,13 @@ without provenance.
 
 from __future__ import annotations
 
+import contextvars
 import enum
 import math
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Iterator, Optional
 
 # =============================================================================
 # Generalist Subsystem Abstraction (B item from gap analysis)
@@ -91,8 +93,66 @@ class NanoRecipe:
     quelle: str = "nano recipes 2036 leap (F1-ATPase/flagellar motors + DNA origami self-assembly literature + bio_molecular.numpy + 4_LINSEN)"
 
 
+# --- Canonical run clock (D2: reproducibility, Kernprinzip 5) ----------------
+#
+# Every ``created_at`` / provenance timestamp that lands in a persisted, replay-
+# relevant artifact (ledger claims, provenance records, run-id-derived package
+# directories) must be reproducible: two runs of the same problem with the same
+# injected run-start timestamp have to produce bit-identical artifacts. Wall-clock
+# ``datetime.now`` breaks that. We solve it with ONE canonical mechanism: a
+# context-local "run clock". When a run pins it (see :func:`run_clock` /
+# :func:`set_run_clock`), :func:`now_utc` returns that fixed instant, so all
+# timestamp fields within the run agree and replay is deterministic. Outside a run
+# (ad-hoc construction, telemetry, tests) it falls back to wall-clock UTC — that
+# fallback is only ever the non-replay path.
+
+_RUN_CLOCK: "contextvars.ContextVar[datetime | None]" = contextvars.ContextVar(
+    "genesis_run_clock", default=None
+)
+
+
+def now_utc() -> datetime:
+    """Canonical timestamp source for the whole system.
+
+    Returns the pinned run-clock instant if a run has set one (making every
+    ``created_at`` / provenance timestamp within that run identical → bit-identical
+    replay, Kernprinzip 5), otherwise wall-clock UTC. Callers that persist
+    replay-relevant timestamps MUST route through this (not ``datetime.now``) so a
+    run can make them deterministic by pinning the clock.
+    """
+    fixed = _RUN_CLOCK.get()
+    return fixed if fixed is not None else datetime.now(timezone.utc)
+
+
+def set_run_clock(ts: datetime) -> "contextvars.Token[datetime | None]":
+    """Pin the run clock to ``ts`` for the current context. Returns a token to pass
+    to :func:`reset_run_clock`. Prefer the :func:`run_clock` context manager."""
+    return _RUN_CLOCK.set(ts)
+
+
+def reset_run_clock(token: "contextvars.Token[datetime | None]") -> None:
+    """Undo a :func:`set_run_clock`, restoring the previous clock state."""
+    _RUN_CLOCK.reset(token)
+
+
+@contextmanager
+def run_clock(ts: datetime) -> "Iterator[datetime]":
+    """Pin :func:`now_utc` to ``ts`` for the duration of the ``with`` block.
+
+    Used at run start so every timestamp emitted during the run is deterministic
+    and a replay with the same ``ts`` is bit-identical.
+    """
+    token = set_run_clock(ts)
+    try:
+        yield ts
+    finally:
+        reset_run_clock(token)
+
+
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    """Internal alias kept for the ``created_at`` default factories. Delegates to
+    the canonical, run-clock-aware :func:`now_utc`."""
+    return now_utc()
 
 
 # --- Verification status -----------------------------------------------------

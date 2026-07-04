@@ -42,6 +42,13 @@ def _run_dir_name(run_id: str | None, kind: str) -> str:
     run bled into the new package (copied STLs/JSONs from older ideas survived). Callers
     (lernmaschine engine, research forge) legitimately pass ``run_id=None``, so instead of
     failing loud we mint a unique, clearly-labeled name per call. Errors: none raised.
+
+    D2 (non-replay): this wall-clock strftime is DELIBERATELY *not* routed through the
+    canonical run clock. Its whole job is per-call uniqueness (microseconds) so two
+    unlabeled runs never collide in the same out/ directory (the bug above). Pinning it
+    to a fixed run-clock instant would re-introduce that collision. A reproducible run
+    supplies an explicit ``run_id`` (then this branch is never taken); only the anonymous
+    fallback path uses wall-clock, and there uniqueness — not reproducibility — is correct.
     """
     if run_id:
         return run_id

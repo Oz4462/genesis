@@ -79,6 +79,47 @@ def test_checkpoint_written_and_proves_cross_model(tmp_path):
     assert any(c["status"] == "verified" and c["sources"] for c in data["claims"])
 
 
+# --- D2: run-start timestamp injection makes created_at reproducible ----------
+
+def test_started_at_pins_ledger_created_at_end_to_end(monkeypatch):
+    """A run with an injected ``started_at`` stamps every ledger claim's created_at
+    with that instant — not wall-clock — proving the run clock reaches the ledger
+    through the whole α pipeline (D2, Kernprinzip 5)."""
+    from datetime import datetime, timezone
+
+    import gen.core.state as state
+
+    fixed = datetime(2020, 3, 14, 15, 9, 26, tzinfo=timezone.utc)
+    sentinel = datetime(1999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+
+    class _FakeDatetime:
+        @staticmethod
+        def now(tz=None):
+            return sentinel
+
+    monkeypatch.setattr(state, "datetime", _FakeDatetime)
+
+    question, deps, cfg = build_demo()
+    run_sync(run(question, deps, config=cfg, run_id="d2", started_at=fixed))
+    claims = run_sync(deps.ledger.get_claims("d2"))
+    assert claims  # the demo verifies at least one fact
+    assert all(c.created_at == fixed for c in claims)
+    assert all(c.created_at != sentinel for c in claims)
+
+
+def test_same_started_at_yields_byte_identical_checkpoint(tmp_path):
+    q1, d1, c1 = build_demo()
+    q2, d2, c2 = build_demo()
+    from datetime import datetime, timezone
+
+    fixed = datetime(2020, 3, 14, 15, 9, 26, tzinfo=timezone.utc)
+    a = tmp_path / "a"
+    b = tmp_path / "b"
+    run_sync(run(q1, d1, config=c1, run_id="rep", checkpoint_dir=str(a), started_at=fixed))
+    run_sync(run(q2, d2, config=c2, run_id="rep", checkpoint_dir=str(b), started_at=fixed))
+    assert (a / "rep" / "checkpoint.json").read_bytes() == (b / "rep" / "checkpoint.json").read_bytes()
+
+
 # --- CLI ----------------------------------------------------------------------
 
 def test_cli_demo_returns_zero_and_prints_report(capsys):

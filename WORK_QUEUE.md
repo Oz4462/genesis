@@ -159,6 +159,29 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
   gen/domains|grenzverschiebung auslagern — breite Imports betroffen, eigener PLAN nötig.
 - D2: _now()-Wall-Clock-Timestamps brechen bit-identische Checkpoint-Replays (Prinzip 5) — run-start-Timestamp
   injizieren (breiter Refactor über alle created_at-Felder).
+  **→ ERLEDIGT 2026-07-04:** EIN kanonischer Mechanismus in `core/state.py` — context-lokale „run clock"
+  (`contextvars`): `now_utc()` liefert den gepinnten Run-Start-Timestamp, wenn `run_clock(ts)` (bzw.
+  `set_run_clock`/`reset_run_clock`) aktiv ist, sonst Wall-Clock-Fallback (nur der Nicht-Replay-Pfad).
+  `_now()` (die 10 `created_at`-default_factories) delegiert jetzt an `now_utc()` → alle Ledger-`created_at`
+  eines Laufs identisch. `runner.py` (run/run_solution/run_divergence/run_specification) bekommt
+  `started_at: datetime | None`; der ganze Lauf läuft unter `with run_clock(started_at or now_utc())`
+  → Replay mit gleichem `started_at` ist bit-identisch. Bestehende Checkpoint-Feldnamen unverändert.
+  **Karte — 18 Wall-Clock-Stellen (grep-verifiziert) + 1 Def:**
+  Klasse (a) replay-relevant → über `now_utc()` injiziert (16 Stellen): `core/state.py::_now` (speist 10
+  `created_at`), `simulation/runner.py` (SimulationResult.timestamp + run_id-Fallback),
+  `grenzverschiebung/lumencrucible.py` (4: 3 run_id-Fallbacks + WORK_QUEUE-Notiz-ts),
+  `wissensbasis/store.py` (2 ProvenanceRecord.timestamp), `wissensbasis/bio_molecular.py` (Provenance-ts),
+  `extensions/breakthrough_bridge.py` (run_id-Fallback + Provenance-ts), `lernmaschine/engine.py`
+  (run_id-Fallback + Provenance-ts), `external/oracle.py` + `external/registry.py` (created_at-Fallback,
+  Param war schon injizierbar), `inventor/generate.py` (`now`-Fallback, Param schon injizierbar).
+  Klasse (b)/bewusst Wall-Clock (1 Stelle): `pipelines/integrator.py::_run_dir_name` — der „unlabeled"-
+  Fallback braucht Mikrosekunden-Eindeutigkeit pro Aufruf (fixt Kollisions-Bug #14); ein gepinnter Clock
+  würde die Kollision wieder einführen. Reproduzierbare Aufrufe geben explizit `run_id` → dieser Zweig
+  entfällt dann. Im Code als „D2 (non-replay)" kommentiert. TDD: `tests/test_run_clock_repro.py` (9 Tests:
+  Mechanismus + Determinismus über 4 Klasse-(a)-Module + monkeypatch-Wall-Clock-darf-nicht-auftauchen +
+  (b)-Ausnahme bleibt eindeutig) und 2 End-to-End-Tests in `test_runner.py` (started_at pinnt Ledger-
+  created_at durch die ganze α-Pipeline; gleicher started_at → byte-identischer Checkpoint). Suite
+  1973 passed / 0 failed / 54 skipped, ruff clean.
 - D3: RESOLVED — Quantity value/uncertainty isfinite-Guard. value: `math.isfinite` fail-loud im __post_init__;
   uncertainty: `not math.isfinite` vor dem `<0`-Test (inf/nan passierten beide `<0.0`=False). Schließt das
   non-finite-Wurzelthema, das beide Vendoren an 4 Gate-Eingängen (geometry/consensus/derivation/units) sahen.

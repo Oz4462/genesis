@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Sequence
 
@@ -34,6 +35,8 @@ from .core.state import (
     SolutionReport,
     Spark,
     Specification,
+    now_utc,
+    run_clock,
 )
 from .verification import gate_phi
 from .llm.base import LLMClient
@@ -74,51 +77,56 @@ async def run(
     config: Config | None = None,
     run_id: str | None = None,
     checkpoint_dir: str | None = None,
+    started_at: datetime | None = None,
 ) -> Report:
     """Execute one Phase α run and return the verified report.
 
     Pass an explicit `run_id` (with a fresh/snapshotted ledger) to reproduce a
     prior run exactly (A5). Omit it and a run_id is derived from the question +
-    config plus a time suffix for uniqueness.
+    config plus a time suffix for uniqueness. Pass `started_at` (the run-start
+    timestamp) to pin every `created_at`/provenance timestamp the run emits, so a
+    replay with the same `started_at` is bit-identical (D2, Kernprinzip 5); omit it
+    and wall-clock is used (non-reproducible, like an omitted run_id).
     """
     config = config or default_config()
     pa = config.phase_alpha
     chash = config_hash(config)
     rid = run_id or make_run_id(question_text, chash, suffix=str(time.time_ns()))
 
-    state = RunState(question=Question(raw=question_text, run_id=rid))
-    # Auditable proof that verification is cross-model (A6).
-    state.log.append(
-        f"runner: run_id={rid} config_hash={chash[:12]} "
-        f"generator={deps.generator_llm.model} verifier={deps.verifier_llm.model}"
-    )
+    with run_clock(started_at or now_utc()):
+        state = RunState(question=Question(raw=question_text, run_id=rid))
+        # Auditable proof that verification is cross-model (A6).
+        state.log.append(
+            f"runner: run_id={rid} config_hash={chash[:12]} "
+            f"generator={deps.generator_llm.model} verifier={deps.verifier_llm.model}"
+        )
 
-    fetch = WebFetchTool(deps.http_get, ledger=deps.ledger, run_id=rid)
-    scout = Scout(deps.backends, llm=deps.generator_llm)
-    scholar = Scholar(fetch, deps.generator_llm, deps.ledger)
-    skeptic = Skeptic(
-        deps.backends,
-        fetch,
-        deps.verifier_llm,
-        deps.ledger,
-        generator_model=pa.models.generator,
-        second_judge=deps.judge_llm,
-        extra_judges=deps.extra_judges,
-        min_sources_for_verified=pa.min_sources_for_verified,
-    )
-    conductor = Conductor(
-        scout,
-        scholar,
-        skeptic,
-        llm=deps.generator_llm,
-        confidence_threshold=pa.confidence_threshold,
-        max_refine_rounds=pa.max_refine_rounds,
-    )
+        fetch = WebFetchTool(deps.http_get, ledger=deps.ledger, run_id=rid)
+        scout = Scout(deps.backends, llm=deps.generator_llm)
+        scholar = Scholar(fetch, deps.generator_llm, deps.ledger)
+        skeptic = Skeptic(
+            deps.backends,
+            fetch,
+            deps.verifier_llm,
+            deps.ledger,
+            generator_model=pa.models.generator,
+            second_judge=deps.judge_llm,
+            extra_judges=deps.extra_judges,
+            min_sources_for_verified=pa.min_sources_for_verified,
+        )
+        conductor = Conductor(
+            scout,
+            scholar,
+            skeptic,
+            llm=deps.generator_llm,
+            confidence_threshold=pa.confidence_threshold,
+            max_refine_rounds=pa.max_refine_rounds,
+        )
 
-    await conductor.run(state)
+        await conductor.run(state)
 
-    if checkpoint_dir is not None:
-        save_checkpoint(checkpoint_dir, state, chash)
+        if checkpoint_dir is not None:
+            save_checkpoint(checkpoint_dir, state, chash)
     assert state.report is not None  # conductor always assembles a report
     return state.report
 
@@ -130,6 +138,7 @@ async def run_solution(
     config: Config | None = None,
     run_id: str | None = None,
     checkpoint_dir: str | None = None,
+    started_at: datetime | None = None,
 ) -> SolutionReport:
     """Execute one Phase β run and return the grounded solution space.
 
@@ -137,7 +146,8 @@ async def run_solution(
     `synthesizer`, which structures the verified claims into grounded approaches
     behind GATE β. The synthesizer uses the generator family — structuring is not
     verification, and the underlying claims were already verified cross-model by the
-    skeptic, so the cross-model guarantee is preserved.
+    skeptic, so the cross-model guarantee is preserved. `started_at` pins the run
+    clock for bit-identical replay (D2); see :func:`run`.
     """
     config = config or default_config()
     pa = config.phase_alpha
@@ -145,42 +155,43 @@ async def run_solution(
     chash = config_hash(config)
     rid = run_id or make_run_id(question_text, chash, suffix=str(time.time_ns()))
 
-    state = RunState(question=Question(raw=question_text, run_id=rid))
-    state.log.append(
-        f"runner: [beta] run_id={rid} config_hash={chash[:12]} "
-        f"generator={deps.generator_llm.model} verifier={deps.verifier_llm.model}"
-    )
+    with run_clock(started_at or now_utc()):
+        state = RunState(question=Question(raw=question_text, run_id=rid))
+        state.log.append(
+            f"runner: [beta] run_id={rid} config_hash={chash[:12]} "
+            f"generator={deps.generator_llm.model} verifier={deps.verifier_llm.model}"
+        )
 
-    fetch = WebFetchTool(deps.http_get, ledger=deps.ledger, run_id=rid)
-    scout = Scout(deps.backends, llm=deps.generator_llm)
-    scholar = Scholar(fetch, deps.generator_llm, deps.ledger)
-    skeptic = Skeptic(
-        deps.backends,
-        fetch,
-        deps.verifier_llm,
-        deps.ledger,
-        generator_model=pa.models.generator,
-        second_judge=deps.judge_llm,
-        extra_judges=deps.extra_judges,
-        min_sources_for_verified=pa.min_sources_for_verified,
-    )
-    synthesizer = Synthesizer(
-        deps.generator_llm, confidence_threshold=pb.confidence_threshold
-    )
-    conductor = Conductor(
-        scout,
-        scholar,
-        skeptic,
-        synthesizer=synthesizer,
-        llm=deps.generator_llm,
-        confidence_threshold=pb.confidence_threshold,
-        max_refine_rounds=pb.max_refine_rounds,
-    )
+        fetch = WebFetchTool(deps.http_get, ledger=deps.ledger, run_id=rid)
+        scout = Scout(deps.backends, llm=deps.generator_llm)
+        scholar = Scholar(fetch, deps.generator_llm, deps.ledger)
+        skeptic = Skeptic(
+            deps.backends,
+            fetch,
+            deps.verifier_llm,
+            deps.ledger,
+            generator_model=pa.models.generator,
+            second_judge=deps.judge_llm,
+            extra_judges=deps.extra_judges,
+            min_sources_for_verified=pa.min_sources_for_verified,
+        )
+        synthesizer = Synthesizer(
+            deps.generator_llm, confidence_threshold=pb.confidence_threshold
+        )
+        conductor = Conductor(
+            scout,
+            scholar,
+            skeptic,
+            synthesizer=synthesizer,
+            llm=deps.generator_llm,
+            confidence_threshold=pb.confidence_threshold,
+            max_refine_rounds=pb.max_refine_rounds,
+        )
 
-    await conductor.run_solution(state)
+        await conductor.run_solution(state)
 
-    if checkpoint_dir is not None:
-        save_checkpoint(checkpoint_dir, state, chash)
+        if checkpoint_dir is not None:
+            save_checkpoint(checkpoint_dir, state, chash)
     assert state.solution_report is not None  # conductor always assembles one
     return state.solution_report
 
@@ -192,6 +203,7 @@ async def run_divergence(
     config: Config | None = None,
     run_id: str | None = None,
     checkpoint_dir: str | None = None,
+    started_at: datetime | None = None,
 ) -> Divergence:
     """Execute one Phase φ run and return the grounded divergence (HORIZON.md).
 
@@ -200,51 +212,53 @@ async def run_divergence(
     VERIFIED claim. The forge uses the generator family — opening is not verification,
     and the anchors were already verified cross-model by the skeptic, so the cross-model
     guarantee is preserved. The returned divergence is always a declared grounded sample.
+    `started_at` pins the run clock for bit-identical replay (D2); see :func:`run`.
     """
     config = config or default_config()
     pa = config.phase_alpha
     chash = config_hash(config)
     rid = run_id or make_run_id(spark_text, chash, suffix=str(time.time_ns()))
 
-    state = RunState(question=Question(raw=spark_text, run_id=rid))
-    state.spark = Spark(id=f"{rid}:spark", raw=spark_text)
-    state.log.append(
-        f"runner: [phi] run_id={rid} config_hash={chash[:12]} "
-        f"generator={deps.generator_llm.model} verifier={deps.verifier_llm.model}"
-    )
+    with run_clock(started_at or now_utc()):
+        state = RunState(question=Question(raw=spark_text, run_id=rid))
+        state.spark = Spark(id=f"{rid}:spark", raw=spark_text)
+        state.log.append(
+            f"runner: [phi] run_id={rid} config_hash={chash[:12]} "
+            f"generator={deps.generator_llm.model} verifier={deps.verifier_llm.model}"
+        )
 
-    fetch = WebFetchTool(deps.http_get, ledger=deps.ledger, run_id=rid)
-    scout = Scout(deps.backends, llm=deps.generator_llm)
-    scholar = Scholar(fetch, deps.generator_llm, deps.ledger)
-    skeptic = Skeptic(
-        deps.backends,
-        fetch,
-        deps.verifier_llm,
-        deps.ledger,
-        generator_model=pa.models.generator,
-        second_judge=deps.judge_llm,
-        extra_judges=deps.extra_judges,
-        min_sources_for_verified=pa.min_sources_for_verified,
-    )
-    forge = Forge(deps.generator_llm, confidence_threshold=pa.confidence_threshold)
+        fetch = WebFetchTool(deps.http_get, ledger=deps.ledger, run_id=rid)
+        scout = Scout(deps.backends, llm=deps.generator_llm)
+        scholar = Scholar(fetch, deps.generator_llm, deps.ledger)
+        skeptic = Skeptic(
+            deps.backends,
+            fetch,
+            deps.verifier_llm,
+            deps.ledger,
+            generator_model=pa.models.generator,
+            second_judge=deps.judge_llm,
+            extra_judges=deps.extra_judges,
+            min_sources_for_verified=pa.min_sources_for_verified,
+        )
+        forge = Forge(deps.generator_llm, confidence_threshold=pa.confidence_threshold)
 
-    await scout.run(state)
-    await scholar.run(state)
-    await skeptic.run(state)
-    await forge.run(state)
+        await scout.run(state)
+        await scholar.run(state)
+        await skeptic.run(state)
+        await forge.run(state)
 
-    # GATE φ is the completion predicate (defense in depth — forge already drops every
-    # ungrounded possibility, the gate re-checks and records the verdict for audit, the
-    # same way run_solution/run_specification gate β/γ).
-    assert state.divergence is not None  # forge always assembles a (possibly empty) divergence
-    gate = gate_phi(state.divergence, state.claims, confidence_threshold=pa.confidence_threshold)
-    state.log.append(
-        f"runner: [phi] gate_phi passed={gate.passed} "
-        f"possibilities={len(state.divergence.possibilities)} failures={len(gate.failures)}"
-    )
+        # GATE φ is the completion predicate (defense in depth — forge already drops every
+        # ungrounded possibility, the gate re-checks and records the verdict for audit, the
+        # same way run_solution/run_specification gate β/γ).
+        assert state.divergence is not None  # forge always assembles a (possibly empty) divergence
+        gate = gate_phi(state.divergence, state.claims, confidence_threshold=pa.confidence_threshold)
+        state.log.append(
+            f"runner: [phi] gate_phi passed={gate.passed} "
+            f"possibilities={len(state.divergence.possibilities)} failures={len(gate.failures)}"
+        )
 
-    if checkpoint_dir is not None:
-        save_checkpoint(checkpoint_dir, state, chash)
+        if checkpoint_dir is not None:
+            save_checkpoint(checkpoint_dir, state, chash)
     return state.divergence
 
 
@@ -255,6 +269,7 @@ async def run_specification(
     config: Config | None = None,
     run_id: str | None = None,
     checkpoint_dir: str | None = None,
+    started_at: datetime | None = None,
 ) -> Specification:
     """Execute one Phase γ run and return the gated build specification.
 
@@ -263,7 +278,8 @@ async def run_specification(
     grounded solution space into a complete specification behind GATE γ. The
     synthesizer and architect use the generator family — structuring is not
     verification; the underlying claims were already verified cross-model by the
-    skeptic, so the cross-model guarantee is preserved.
+    skeptic, so the cross-model guarantee is preserved. `started_at` pins the run
+    clock for bit-identical replay (D2); see :func:`run`.
     """
     config = config or default_config()
     pa = config.phase_alpha
@@ -272,49 +288,50 @@ async def run_specification(
     chash = config_hash(config)
     rid = run_id or make_run_id(question_text, chash, suffix=str(time.time_ns()))
 
-    state = RunState(question=Question(raw=question_text, run_id=rid))
-    state.log.append(
-        f"runner: [gamma] run_id={rid} config_hash={chash[:12]} "
-        f"generator={deps.generator_llm.model} verifier={deps.verifier_llm.model}"
-    )
+    with run_clock(started_at or now_utc()):
+        state = RunState(question=Question(raw=question_text, run_id=rid))
+        state.log.append(
+            f"runner: [gamma] run_id={rid} config_hash={chash[:12]} "
+            f"generator={deps.generator_llm.model} verifier={deps.verifier_llm.model}"
+        )
 
-    fetch = WebFetchTool(deps.http_get, ledger=deps.ledger, run_id=rid)
-    scout = Scout(deps.backends, llm=deps.generator_llm)
-    scholar = Scholar(fetch, deps.generator_llm, deps.ledger)
-    skeptic = Skeptic(
-        deps.backends,
-        fetch,
-        deps.verifier_llm,
-        deps.ledger,
-        generator_model=pa.models.generator,
-        second_judge=deps.judge_llm,
-        extra_judges=deps.extra_judges,
-        min_sources_for_verified=pa.min_sources_for_verified,
-    )
-    synthesizer = Synthesizer(
-        deps.generator_llm, confidence_threshold=pb.confidence_threshold
-    )
-    architect = Architect(
-        deps.generator_llm,
-        confidence_threshold=pg.confidence_threshold,
-        derivation_tolerance=pg.derivation_tolerance,
-    )
-    conductor = Conductor(
-        scout,
-        scholar,
-        skeptic,
-        synthesizer=synthesizer,
-        architect=architect,
-        llm=deps.generator_llm,
-        confidence_threshold=pg.confidence_threshold,
-        max_refine_rounds=pg.max_refine_rounds,
-        derivation_tolerance=pg.derivation_tolerance,
-    )
+        fetch = WebFetchTool(deps.http_get, ledger=deps.ledger, run_id=rid)
+        scout = Scout(deps.backends, llm=deps.generator_llm)
+        scholar = Scholar(fetch, deps.generator_llm, deps.ledger)
+        skeptic = Skeptic(
+            deps.backends,
+            fetch,
+            deps.verifier_llm,
+            deps.ledger,
+            generator_model=pa.models.generator,
+            second_judge=deps.judge_llm,
+            extra_judges=deps.extra_judges,
+            min_sources_for_verified=pa.min_sources_for_verified,
+        )
+        synthesizer = Synthesizer(
+            deps.generator_llm, confidence_threshold=pb.confidence_threshold
+        )
+        architect = Architect(
+            deps.generator_llm,
+            confidence_threshold=pg.confidence_threshold,
+            derivation_tolerance=pg.derivation_tolerance,
+        )
+        conductor = Conductor(
+            scout,
+            scholar,
+            skeptic,
+            synthesizer=synthesizer,
+            architect=architect,
+            llm=deps.generator_llm,
+            confidence_threshold=pg.confidence_threshold,
+            max_refine_rounds=pg.max_refine_rounds,
+            derivation_tolerance=pg.derivation_tolerance,
+        )
 
-    await conductor.run_specification(state)
+        await conductor.run_specification(state)
 
-    if checkpoint_dir is not None:
-        save_checkpoint(checkpoint_dir, state, chash)
+        if checkpoint_dir is not None:
+            save_checkpoint(checkpoint_dir, state, chash)
     assert state.specification is not None  # conductor always normalizes one
     return state.specification
 

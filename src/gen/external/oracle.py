@@ -19,10 +19,10 @@ Offline, deterministic given an oracle response; the live oracle call is the ora
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Optional, Protocol, runtime_checkable
 
-from ..core.state import Claim, ClaimStatus, SourceRef, SourceSupport
+from ..core.state import Claim, ClaimStatus, SourceRef, SourceSupport, now_utc
 from .registry import ExternalBinding
 
 
@@ -90,7 +90,7 @@ def oracle_claim_to_ledger(oc: OracleClaim, *, created_at: Optional[datetime] = 
         verification=[],
         produced_by=f"external.oracle:{oc.binding.name}",
         model=f"{oc.binding.name}:{oc.binding.version}",
-        created_at=created_at or datetime.now(timezone.utc),
+        created_at=created_at or now_utc(),
     )
 
 

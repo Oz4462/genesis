@@ -14,9 +14,10 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass, asdict, field
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional, Union
+
+from gen.core.state import now_utc  # canonical run clock (D2 reproducibility); core.state has no internal imports → no cycle
 
 # Import der relevanten Typen für Kompatibilität (lazy um Zirkel zu vermeiden)
 try:
@@ -132,10 +133,9 @@ def save_fragment(
     """Speichert ein Fragment/Spec mit auto-Generated Key und Provenance."""
     if key is None:
         key = getattr(fragment, "run_id", None) or getattr(fragment, "source_idea", None) or str(id(fragment))
-    from datetime import timezone
     prov = ProvenanceRecord(
         source=source,
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=now_utc().isoformat(),
         quelle=quelle or "GENESIS_PLATFORM_PLAN.md §3.5 + Integrator/Physiker etc.",
     )
     _default_store.save(str(key), fragment, prov)
@@ -385,7 +385,7 @@ def save_component_recipe(recipe: ComponentRecipe, store: Optional[FragmentStore
         store = _default_store
     prov = ProvenanceRecord(
         source="wissensbasis.component_seeding",
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=now_utc().isoformat(),
         version="1.0-bahnbrechend",
         quelle=quelle or recipe.quelle or "Wissensbasis-Seeding stone + electronics library + PLAN §3.5/4.5"
     )

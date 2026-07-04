@@ -16,11 +16,11 @@ is auditable from the same anti-hallucination ledger as every other fact. Determ
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from ..core.state import Claim, ClaimStatus, SourceRef, SourceSupport
+from ..core.state import Claim, ClaimStatus, SourceRef, SourceSupport, now_utc
 
 
 class LicenseClass(Enum):
@@ -158,7 +158,7 @@ def binding_claim(binding: ExternalBinding, *, created_at: Optional[datetime] = 
         verification=[],
         produced_by="external.registry",
         model="external-registry",
-        created_at=created_at or datetime.now(timezone.utc),
+        created_at=created_at or now_utc(),
     )
 
 

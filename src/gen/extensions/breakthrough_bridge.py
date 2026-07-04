@@ -20,9 +20,10 @@ from __future__ import annotations
 
 import shutil
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from gen.core.state import now_utc  # canonical run clock (D2 reproducibility)
 
 # Core Genesis imports (deterministic, no LLM in the bridge core)
 from gen.lernmaschine.engine import (
@@ -195,7 +196,7 @@ def challenge_impossible(idee: str = "jetpack hover energy impossible with curre
     Returns a report + on-disk package with real CAD STL, BREAKTHROUGH_REPORT.md, manifest.
     All outputs carry provenance and pass 4 Linsen by construction (deterministic + explicit quelle + gates).
     """
-    run_id = f"breakthrough-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+    run_id = f"breakthrough-{now_utc().strftime('%Y%m%d%H%M%S')}"
     pkg_name = idee.replace(" ", "_").replace("/", "_")[:48]
     pkg_root = Path("out") / f"genesis_breakthrough_{pkg_name}-{run_id}"
     pkg_root.mkdir(parents=True, exist_ok=True)
@@ -396,7 +397,7 @@ Gates passed: manufacturing_check, Lern gate (8 steps + persist), frontier revis
         }
         prov = ProvenanceRecord(
             source="extensions.breakthrough_bridge.challenge_impossible",
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=now_utc().isoformat(),
             version="0.1-surprise",
             quelle="GENESIS_PLATFORM_PLAN §3.3/3.8 + full prior chain (Lern+CAD+DFM+frontier)",
         )

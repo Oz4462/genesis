@@ -20,11 +20,10 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Any
 
 # Real existing modules (no invented classes)
-from ..core.state import Claim
+from ..core.state import Claim, now_utc
 from ..omega import (
     OmegaCertificate,
     GateReceipt,
@@ -130,7 +129,7 @@ class LumenCrucible:
         6. Claim (Ledger-kompatibel).
         """
         if run_id is None:
-            run_id = f"lumen-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+            run_id = f"lumen-{now_utc().strftime('%Y%m%d%H%M%S')}"
 
         # 1. Einfache deterministische Gate-Prüfung (kein LLM)
         gate_result = self._internal_gate_check(raw_dream)
@@ -473,7 +472,7 @@ class LumenCrucible:
         Zeilen. ``work_queue_path`` ist konfigurierbar, damit Tests in eine isolierte Datei
         schreiben statt in die echte WORK_QUEUE.md (das war die Quelle der historischen Flut).
         """
-        ts = datetime.now(timezone.utc).isoformat()
+        ts = now_utc().isoformat()
         note = (
             f"- LUMENCRUCIBLE Ω v1 (run {run_id}, {ts}): "
             f"Suggested concrete addition: {_SELF_ASCENT_SUGGESTION}. "
@@ -556,7 +555,7 @@ def spawn_swarm(idea: str, n_agents: int = 4, *, run_id: str | None = None) -> H
     env seed (biological_reactor kind when bio keywords present).
     """
     if run_id is None:
-        run_id = f"swarm-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+        run_id = f"swarm-{now_utc().strftime('%Y%m%d%H%M%S')}"
 
     # Reuse existing deterministic frontier (LUMENCRUCIBLE core)
     frontier: DevelopmentFrontMap = map_development_front(idea, run_id=run_id)
@@ -794,7 +793,7 @@ def forge_research(
     new technology, breakthroughs — not just consume pre-built ones.
     """
     if run_id is None:
-        run_id = f"forge-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+        run_id = f"forge-{now_utc().strftime('%Y%m%d%H%M%S')}"
 
     # 1. Frontier + Gap (reuse the real development_front)
     map_development_front(idea, run_id=run_id)

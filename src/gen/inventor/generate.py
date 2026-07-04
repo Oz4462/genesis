@@ -16,11 +16,11 @@ Two honesty rules enforced here, before grounding even starts:
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional, Sequence
 
 from ..core.errors import GenesisError, LLMOutputError
-from ..core.state import Possibility
+from ..core.state import Possibility, now_utc
 from ..llm.base import LLMClient, ScriptedLLM
 from ..llm.parsing import extract_json
 from .brief import InventionBrief
@@ -63,7 +63,7 @@ async def generate_concepts(brief: InventionBrief, client: LLMClient, *,
     ``Possibility`` objects. Malformed JSON, an empty statement/mechanism, or a missing grounding anchor are
     SKIPPED (never invented); duplicates by normalized statement are removed. Deterministic given a
     deterministic ``client``. Returns an empty list on an unparseable reply — an honest miss, not a crash."""
-    stamp = now or datetime.now(timezone.utc)
+    stamp = now or now_utc()
     response = await client.complete(system=_SYSTEM, user=_concept_prompt(brief))
     try:
         data = extract_json(response.text, agent="inventor.council")
