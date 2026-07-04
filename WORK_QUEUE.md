@@ -1,7 +1,9 @@
 # WORK QUEUE — GENESIS
 
-> Voller Kontext: `docs/integration/SESSION_HANDOFF.md`. Branch `feat/app-integration-phase0-2`
-> (76 ahead of main, lokal, KEIN Push). Suite: 1204 passed / 9 skipped. Ollama gestoppt.
+> Voller Kontext: `docs/integration/SESSION_HANDOFF.md`. Stand 2026-07-04: Arbeit auf `main`
+> (lokal, 40+ Commits vor origin, KEIN Push ohne Owner); Humanoid TP1/TP2 im Worktree-Branch
+> `worktree-claude-orchestrator` (unmerged). Suite: 1736 passed / 0 failed / 61 skipped.
+> (Der frühere Branch `feat/app-integration-phase0-2` ist in main aufgegangen.)
 
 ## Active — DEEP REVIEW CAMPAIGN (Claude+Grok · sorgfältig · eval-gated · kein Push)
 Tiefendurchlauf jedes Moduls Zeile für Zeile, **immer mit Grok** (research → 1 Rebuttal → der Eval
