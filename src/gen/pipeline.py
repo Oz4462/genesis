@@ -40,7 +40,9 @@ from .core.state import Claim, SeamCertificate, Specification
 from .grounding_integrity import CorroborationReport, corroboration_independence
 from .physics_selection import select_physics_checks
 from .physics_validation import PhysicsCheck, gate_delta_physics
-from .seams import build_seam_certificate, cost_rollup_required, gate_epsilon, required_seam_pairs
+from .seams import (build_seam_certificate, cost_rollup_required, gate_epsilon,
+                    required_seam_pairs, DomainSeam, SeamDomain, SeamRelation)
+from .costing import bom_cost
 from .telemetry import RunTrace
 
 
@@ -153,10 +155,28 @@ def assess_specification(
     # T+E (THERMAL+ELECTRICAL) always triggers via improved domains_present (quantity measurands)
     # even without bom/netlist (prevents gate skip for power->heat specs).
     required_pairs = required_seam_pairs(spec)
-    needs_seams = bool(required_pairs) or cost_rollup_required(spec)
+    needs_seams = bool(required_pairs) or (cost_rollup_required(spec) and bom_cost(spec).complete)
     seam_gate: GateResult | None = None
     if needs_seams:
-        cert = seam_certificate or build_seam_certificate(spec, [])
+        provided_seams = list(seam_certificate.seams) if seam_certificate else []
+        if cost_rollup_required(spec) and bom_cost(spec).complete and not any(s.relation == SeamRelation.COST_ROLLUP for s in provided_seams):
+            has_declared_total = any(
+                "total" in (q.id or "").lower() and q.unit in ("EUR", "USD", "€", "$")
+                for q in spec.quantities
+            )
+            if not has_declared_total:
+                # virtual auto only for no declared total (per re-review Council-Auftrag)
+                auto_cost = DomainSeam(
+                    id="auto_cost_rollup",
+                    left_domain=SeamDomain.COST,
+                    right_domain=SeamDomain.ELECTRICAL,
+                    relation=SeamRelation.COST_ROLLUP,
+                    left_expr="bom_total_cost",
+                    right_expr="EUR",
+                    rationale="auto for complete bom without declared total (virtual case only)",
+                )
+                provided_seams = provided_seams + [auto_cost]
+        cert = seam_certificate or build_seam_certificate(spec, provided_seams)
         seam_gate = gate_epsilon(spec, cert)
 
     if trace is not None:

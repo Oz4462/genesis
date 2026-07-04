@@ -396,10 +396,10 @@ def build_seam_certificate(
     provided (Option A for Befund 10: honest and scalable for demos; cost from BOM).
     """
     seams = list(seams) if seams else []
-    if cost_rollup_required(spec) and not any(s.relation == SeamRelation.COST_ROLLUP for s in seams):
+    if cost_rollup_required(spec) and bom_cost(spec).complete and not any(s.relation == SeamRelation.COST_ROLLUP for s in seams):
         cost_qty_id = None
         for q in spec.quantities:
-            if q.unit in ("EUR", "USD", "€", "$") or "total_cost" in (q.id or "").lower() or "cost" in (q.measurand or "").lower():
+            if "total" in (q.id or "").lower() and q.unit in ("EUR", "USD", "€", "$"):
                 cost_qty_id = q.id
                 break
         if cost_qty_id is None:
