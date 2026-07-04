@@ -366,6 +366,14 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
 > Wiederkehr. Diese eine Zeile bleibt als Dedup-Seed stehen. Vollständige Historie bleibt im Git.
 
 ## Schritt 7 (Review-Kampagne) — Fortschritt 2026-07-04
+- D12-REST — **ERLEDIGT 2026-07-04:** Quellen-Identität jenseits roher String-Gleichheit in
+  grounding_integrity.corroboration_independence — Stufe 1: content_hash-Gleichheit (beweisbar
+  dieselben Bytes); Stufe 2a: verlustfreie URL-Normalisierung (Scheme/Host-Case/www./Fragment/
+  Slash/Tracking-Params utm_*|fbclid|gclid|ref; Nicht-Tracking-Query-Params bleiben erhalten);
+  Stufe 2b: gequellte Mirror-Regeln (arXiv abs/pdf/export/vN → arxiv:ID; doi.org==dx.doi.org).
+  Asymmetrie dokumentiert: Fehl-Merge => Abstention (sicher). Unbekannte Hosts bleiben distinkt
+  (keine erfundenen Äquivalenzen). +6 Tests (TDD, 4 rot vor Fix).
+
 - D1 — **ERLEDIGT 2026-07-04:** ModuleSpec/ColonyModule/NanoRecipe aus dem framework-freien Kern
   nach `gen/subsystem_types.py` (stdlib-only) ausgelagert; `core.state` behält lazy PEP-562-Re-Export
   (alte Imports funktionieren, kein Import-Zyklus); lumencrucible auf den neuen Pfad umgestellt.
