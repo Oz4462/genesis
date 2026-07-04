@@ -42,6 +42,31 @@ def test_fertigungs_jetpack_consumes_real_cost_estimate_no_fabricated_band():
     assert "Jetpack" in spec.zusammenfassung or "Tether" in spec.zusammenfassung
 
 
+def test_fertigungs_jetpack_consumes_structured_cost_estimate():
+    """Naht-Follow-up (WORK_QUEUE Stein 4): carries the DFM report the STRUCTURED
+    ``CostEstimate``, KostenModell must consume its real per-component bands
+    (material / machine_time+setup) — not only the prose summary string."""
+    idee = "Ich will ein Jetpack bauen, das Menschen sicher über einer Menge frei fliegen lässt."
+    concept = map_to_system_concept(idee, run_id="fertig-jet-003")
+    ing = map_to_ingenieur_spec(concept, run_id="fertig-jet-003")
+    est = estimate_fdm_cost(49.0, "PLA")
+    dfm_report = {"overall_printable": True,
+                  "processes": [{"process": "FDM", "printable": True, "cost_hint": est.summary()}],
+                  "cost_estimate": est}
+    spec = map_to_fertigungs_spec(concept, ing, dfm_report=dfm_report, run_id="fertig-jet-003")
+
+    km = spec.kosten_modell
+    m_lo, m_hi = est.breakdown["material"]
+    assert f"{m_lo:.2f}" in km.material_kosten and f"{m_hi:.2f}" in km.material_kosten
+    t_lo, t_hi = est.breakdown["machine_time"]
+    assert f"{t_lo:.2f}" in km.prozess_kosten and f"{t_hi:.2f}" in km.prozess_kosten
+    # the ranged summary stays the gesamt_est (band, never a point number)
+    assert km.gesamt_est == est.summary()
+    assert "cost_model" in (km.quelle or "")
+    # honest: the structured path must declare that gaps exist (band is a floor-ish guide)
+    assert "Gaps" in (km.quelle or "") or "gaps" in (km.quelle or "")
+
+
 def test_fertigungs_jetpack_without_cost_model_declares_honest_gap():
     """No cost-bearing DFM report → an honest gap, NEVER a fabricated cost number."""
     idee = "Jetpack für freien Flug über einer Menschenmenge."

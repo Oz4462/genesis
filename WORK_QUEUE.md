@@ -195,6 +195,9 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
     strukturiertes `cost_estimate`; FDM-`cost_hint`+`cost_model_stub` echt. Grok 3 Runden (9+3 Lücken), 5+1 Tests,
     volle Suite 1219 grün. Nur FDM berechnet; CNC/Laser/PCB ehrlicher Cost-Gap. BUILD_LOG dok.
     Naht-Follow-up: `fertigungs.py:KostenModell` (String-Prosa) soll `CostEstimate` konsumieren.
+    **→ ERLEDIGT 2026-07-04:** `_structured_cost_from_dfm` konsumiert `AdvancedDFMReport.cost_estimate`
+    (Material-/Maschinenzeit-/Setup-Bänder einzeln, `summary()` als gesamt_est, Gap-Anzahl deklariert);
+    Prosa-`cost_hint` bleibt ehrlicher Fallback für ältere Reports. +1 Test (TDD, erst rot). Suite 1728/0/61.
   - [x] **Stein 5 G-Code (2026-06-18)**: `datei_stub`-Prosa → echte VERIFIZIERTE G-Code-Generierung `cad/gcode.py`
     (NEU): `generate_profile_gcode()` (2,5D-Außenkontur RS-274/ISO 6983, Tool-Radius-Offset explizit, Stepdown,
     fail-loud) + `verify_gcode()` als Gate (Units/Spindel+S/Feed-F/Gouge-lateral+Rapid-Z/Retract-vor-M5/Bounds).

@@ -90,6 +90,23 @@ def _fdm_cost_estimate_from_dfm(dfm_report: Optional[Any]) -> str | None:
     return None
 
 
+def _structured_cost_from_dfm(dfm_report: Optional[Any]) -> Optional[Any]:
+    """Pull the STRUCTURED ranged FDM ``CostEstimate`` off an AdvancedDFMReport (or an
+    equivalent dict) — the Naht-Follow-up to Stein 4 (WORK_QUEUE): KostenModell should
+    consume the real per-component bands, not just the prose ``cost_hint``. Returns
+    ``None`` when the report carries no consumable estimate (older reports / no volume),
+    so the caller falls back to the prose hint or an honest gap — never a fabrication."""
+    if dfm_report is None:
+        return None
+    est = getattr(dfm_report, "cost_estimate", None)
+    if est is None and isinstance(dfm_report, dict):
+        est = dfm_report.get("cost_estimate")
+    # duck-check: only consumable with the band, breakdown and summary present
+    if est is None or not hasattr(est, "breakdown") or not hasattr(est, "summary"):
+        return None
+    return est
+
+
 def map_to_fertigungs_spec(
     concept: SystemConcept,
     ingenieur: IngenieurSpec,
@@ -124,8 +141,25 @@ def map_to_fertigungs_spec(
             ),
         ]
         dfm_ref = "advanced_dfm report for Jetpack Tether Anchor (printable FDM primary, issues noted)"
+        est = _structured_cost_from_dfm(dfm_report)
         fdm_cost = _fdm_cost_estimate_from_dfm(dfm_report)
-        if fdm_cost:
+        if est is not None:
+            mat = (est.breakdown or {}).get("material")
+            mach = (est.breakdown or {}).get("machine_time")
+            setup = (est.breakdown or {}).get("setup")
+            kosten = KostenModell(
+                material_kosten=(f"€{mat[0]:.2f}–{mat[1]:.2f} Material (Volumen × Dichte × Infill × Preis, cost_model Stein 4)"
+                                 if mat else "Lücke: kein Material-Breakdown im CostEstimate"),
+                prozess_kosten=((f"€{mach[0]:.2f}–{mach[1]:.2f} Maschinenzeit"
+                                 + (f" + €{setup[0]:.2f}–{setup[1]:.2f} Setup" if setup else "")
+                                 + " (cost_model Stein 4)")
+                                if mach else "Lücke: kein Maschinenzeit-Breakdown im CostEstimate"),
+                gesamt_est=est.summary(),
+                stueckzahl_hinweis="1-10: FDM; >50: Spritzguss oder CNC-Batch prüfen",
+                quelle=(f"advanced_dfm.cost_estimate → cost_model.estimate_fdm_cost (Stein 4, strukturiert; "
+                        f"{len(est.gaps or [])} Gaps deklariert, Band ist Untergrenzen-Orientierung) + PLAN §4.7"),
+            )
+        elif fdm_cost:
             kosten = KostenModell(
                 material_kosten="im gerangten FDM-Modell enthalten (Volumen × Dichte × Infill × Preis, cost_model.py Stein 4)",
                 prozess_kosten="im gerangten FDM-Modell enthalten (Maschinenzeit × Maschinenrate)",
