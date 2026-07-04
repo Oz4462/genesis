@@ -140,13 +140,17 @@ def test_mars_isru_o2_plant_uses_isru_life_domains_and_explicit_seams():
         assert m.printed_parts  # at least the 2 printed reactor/hopper
 
     # first_principles integration for ISRU stoich (complete Genesis: discovery arm for multi-planetary)
-    # Derive O2 from water * stoich_ratio * eff using bounded search + proof verification.
+    # Derive O2 from the *plant's actual* water/eff using bounded search + proof verification.
+    qmap = {q.measurand: q.value for q in spec.quantities if q.measurand}
+    water = qmap.get("isru.water_input_kg", 100.0)
+    eff = qmap.get("isru.electrolysis_efficiency", 0.85)
     axioms = [
-        Axiom("water", 36.0, "input water mass kg"),
-        Axiom("eff", 0.9, "process efficiency"),
+        Axiom("water", water, "input water mass kg (from plant)"),
+        Axiom("eff", eff, "process efficiency (from plant)"),
         Axiom("r", 32.0 / 36.0, "stoichiometric O2/H2O mass ratio"),
     ]
-    pt = derive(axioms, 29.0, target_name="o2", max_ops=2, tolerance=0.5)
+    expected_o2 = water * eff * (32.0 / 36.0)
+    pt = derive(axioms, expected_o2, target_name="o2", max_ops=2, tolerance=1e-6)
     assert pt is not None, "first_principles derivation for ISRU yield must succeed"
     assert pt.proven
     assert "o2" in pt.target_name
