@@ -416,6 +416,25 @@ RECIPES: list[CheckRecipe] = [
     ),
 ]
 
+#: Validators registered in physics_validation.VALIDATORS that deliberately have NO
+#: auto-select recipe yet — they need input data no spec measurand convention carries
+#: today (contact geometry pairs, creep time-temperature curves, fracture toughness,
+#: mismatch material pairs, plate load patches, bolt preload sets, device temperature
+#: limits). They remain runnable via an explicitly declared PhysicsCheck (manual path).
+#: A registry test (test_physics_validation) fails when a validator is neither
+#: recipe-covered nor listed here — silent under-coverage is a bug, not a default
+#: (Schritt-7-Review F2, 2026-07-04). Designing honest recipes for these is an open
+#: WORK_QUEUE follow-up; remove an entry here the moment its recipe lands.
+MANUAL_ONLY_VALIDATORS: frozenset[str] = frozenset({
+    "bolted_joint",
+    "contact",
+    "creep",
+    "fracture",
+    "overtemperature",
+    "plate_bending",
+    "thermal_mismatch",
+})
+
 
 def _measurand_map(spec: Specification) -> dict[str, Quantity]:
     """Index a spec's quantities by their declared measurand (first wins; GATE γ C-17

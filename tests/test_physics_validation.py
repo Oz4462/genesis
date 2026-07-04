@@ -266,3 +266,100 @@ def test_life_support_o2_balance_check_invalid_and_negative_cases():
     res_unmet = life_support_o2_balance_check(crew=4.0, closure_rate=0.5, target_closure=0.9)
     assert res_unmet["ok"] is False
     assert res_unmet["closure_rate"] < 0.9 * 0.95
+
+
+# --- Schritt-7-Review-Fixes (2026-07-04): NaN/Inf-Schranke, non-dict-Schutz, ehrliche Evidenz ---
+
+def test_gate_screens_non_finite_inputs_as_error_not_pass():
+    """F6: a NaN/Inf input must become PHYSICS_CHECK_ERROR at the gate boundary —
+    never reach a validator whose comparison logic would silently pass it."""
+    for bad in (float("nan"), float("inf"), float("-inf")):
+        checks = [PhysicsCheck(name="isru", validator="isru_electrolysis_o2",
+                               inputs={"water_kg": bad})]
+        res = gate_delta_physics(checks)
+        assert res.passed is False
+        assert res.failures[0].code == "PHYSICS_CHECK_ERROR"
+        assert "non-finite" in res.failures[0].detail
+
+
+def test_inline_validators_reject_nan_directly():
+    """F1: the three inline validators must fail loudly on non-finite inputs even
+    when called directly (defence in depth below the gate screen)."""
+    nan = float("nan")
+    assert isru_electrolysis_o2_check(water_kg=nan)["ok"] is False
+    assert life_support_o2_balance_check(crew=nan)["ok"] is False
+    assert vacuum_radiation_balance_check(
+        absorbed_solar_w=0.0, epsilon=0.9, area_m2=1.0, t_k=nan,
+        designed_as_sink_or_source=True,
+    )["ok"] is False
+
+
+def test_non_dict_validator_result_is_error_not_batch_crash():
+    """F5: a validator returning a non-dict must yield status=error for THAT check
+    and the batch must continue (docstring contract 'cannot abort the batch')."""
+    VALIDATORS["_broken_returns_none"] = lambda **kw: None
+    try:
+        checks = [
+            PhysicsCheck(name="broken", validator="_broken_returns_none", inputs={}),
+            PhysicsCheck(name="good torsion", validator="torsion", inputs={
+                "torque": 10.0, "diameter": 0.02, "length": 0.5,
+                "shear_modulus_g": 8.0e10, "shear_strength": 2.0e8,
+            }),
+        ]
+        rows = run_physics_checks(checks)
+        assert rows[0]["status"] == "error"
+        assert "non-dict" in rows[0]["detail"]
+        assert rows[1]["status"] == "ran"          # batch continued
+    finally:
+        del VALIDATORS["_broken_returns_none"]
+
+
+def test_fatigue_negative_amplitude_raises_not_infinite_life():
+    """F3: a negative stress amplitude is a sign error upstream — it must raise,
+    never report infinite life with ok=True."""
+    import pytest
+    from gen.fatigue import goodman_check
+    with pytest.raises(ValueError):
+        goodman_check(stress_amplitude=-80.0, mean_stress=60.0,
+                      uts=500.0, endurance=250.0)
+
+
+def test_pass_without_target_reports_no_fabricated_margin():
+    """F7: a pass that never falsified anything must not fabricate a margin —
+    safety_factor is None when no target/absorbed flux made a real ratio."""
+    no_tgt = isru_electrolysis_o2_check(10.0, efficiency=0.75)
+    assert no_tgt["ok"] is True and no_tgt["safety_factor"] is None
+    no_close = life_support_o2_balance_check(crew=2.0, closure_rate=0.8)
+    assert no_close["ok"] is True and no_close["safety_factor"] is None
+    sink = vacuum_radiation_balance_check(
+        absorbed_solar_w=0.0, epsilon=0.9, area_m2=1.0, t_k=300.0,
+        designed_as_sink_or_source=True,
+    )
+    assert sink["ok"] is True and sink["safety_factor"] is None
+
+
+def test_failed_check_without_margin_says_so():
+    """F8: a failing validator that reports no safety_factor/ratio must say
+    'no margin reported' instead of 'safety_factor=None'."""
+    VALIDATORS["_fails_marginless"] = lambda **kw: {"ok": False}
+    try:
+        res = gate_delta_physics([PhysicsCheck(
+            name="marginless", validator="_fails_marginless", inputs={})])
+        assert res.passed is False
+        assert "no margin reported" in res.failures[0].detail
+    finally:
+        del VALIDATORS["_fails_marginless"]
+
+
+def test_every_validator_has_recipe_or_is_documented_manual_only():
+    """F2: silent under-coverage guard — every VALIDATORS key must either have an
+    auto-select CheckRecipe or be explicitly documented as manual-only."""
+    from gen.physics_selection import MANUAL_ONLY_VALIDATORS, RECIPES
+    with_recipe = {r.validator for r in RECIPES}
+    uncovered = set(VALIDATORS) - with_recipe
+    assert uncovered <= MANUAL_ONLY_VALIDATORS, (
+        f"validators without recipe and not documented manual-only: "
+        f"{sorted(uncovered - MANUAL_ONLY_VALIDATORS)}"
+    )
+    # the whitelist must not rot: no entry that meanwhile HAS a recipe
+    assert not (MANUAL_ONLY_VALIDATORS & with_recipe)

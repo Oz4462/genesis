@@ -294,3 +294,29 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
 > Konsolidiert 2026-06-17: ~150 historische LUMENCRUCIBLE-Duplikate (Test-Artefakte aus dem relativen
 > Pfad, der in die echte WORK_QUEUE.md schrieb) entfernt; der Dedup/Isolation-Fix verhindert die
 > Wiederkehr. Diese eine Zeile bleibt als Dedup-Seed stehen. Vollständige Historie bleibt im Git.
+
+## Schritt 7 (Review-Kampagne) — Fortschritt 2026-07-04
+- physics_validation.py + fatigue.py — DONE (Claude-Tiefenreview, 8 Findings F1-F8; Grok-CLI-Outage
+  [2x Timeout], Cross-Review NACHZUHOLEN wie beim Klassifizierer-Outage-Präzedenzfall):
+  · F1/F6 HIGH GEFIXT: NaN/Inf → stiller Grün-Pass in isru/life/vacuum (NaN passiert jeden <=-Guard);
+    zentrale Finite-Schranke in run_physics_checks (non-finite Input → PHYSICS_CHECK_ERROR) +
+    Defense-in-depth-isfinite-Guards in den 3 Inline-Validatoren.
+  · F2 HIGH GEFIXT (Guard-Variante): 7/43 Validatoren ohne Recipe (bolted_joint, contact, creep,
+    fracture, overtemperature, plate_bending, thermal_mismatch) → MANUAL_ONLY_VALIDATORS-Whitelist
+    (physics_selection) + Registry-Test der stille Unterabdeckung ab jetzt hart fängt; ehrliche
+    Recipes für die 7 = eigener Follow-up (Measurand-Konventionen fehlen; TP2-Spec bestätigt
+    "fehlende ehrliche Eingangsdaten" für fracture/creep/thermal_mismatch). ACHTUNG Merge: TP1
+    (Worktree) hat overtemperature-Recipe → Eintrag dort aus Whitelist nehmen.
+  · F3 MED GEFIXT: negative stress_amplitude → ValueError in goodman/soderberg/gerber_safety_factor
+    (war: safety_factor=inf, ok=True, "infinite life" aus Vorzeichenfehler).
+  · F5 MED GEFIXT: non-dict-Validator-Result crashte den Batch außerhalb try (Doc-Truth-Bruch) →
+    status=error für DEN Check, Batch läuft weiter.
+  · F7/F8 LOW GEFIXT: fabrizierte safety_factor 1.0/0.0 bei Pass-ohne-Target → None (ehrlich "kein
+    Margin"); Fail-Detail "no margin reported" statt "safety_factor=None".
+  · DEFENDED bestätigt: vakuöser Leer-Checklisten-Pass, designed-sink-Bypass, Gate-Aggregation CLEAN.
+  · +8 Tests (TDD). Suite 1799/0/61, ruff clean.
+- physics_selection.py — Review DONE (Claude; Grok nachzuholen), Fixes ausstehend:
+  S-F2 MED optional_inputs present-but-unresolvable → still 0.0 (gegen Modul-Zusage) + S-F6 Sv/Gy
+  fehlen in _KNOWN_UNITS (mSv unauflösbar → Dosis genullt) + S-F1 MED Trigger-Tippfehler löscht
+  Physik trotz Geschwister-Measurands + S-F3 honest_pass-Feld. CLEAN: _resolve-Gaps, Determinismus,
+  Registry 38/38, Signaturen.

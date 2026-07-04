@@ -72,6 +72,8 @@ def goodman_safety_factor(stress_amplitude: float, mean_stress: float,
     as zero (no credit). Raises ValueError on non-positive UTS or S_e."""
     if uts <= 0.0 or endurance <= 0.0:
         raise ValueError("UTS and endurance limit must be positive")
+    if stress_amplitude < 0.0:
+        raise ValueError("stress amplitude must be non-negative (negative = upstream sign error, not infinite life)")
     sm = max(mean_stress, 0.0)
     demand = stress_amplitude / endurance + sm / uts
     return math.inf if demand <= 0.0 else 1.0 / demand
@@ -83,6 +85,8 @@ def soderberg_safety_factor(stress_amplitude: float, mean_stress: float,
     yield strength (not UTS), so it is stricter than Goodman. Compressive mean → 0."""
     if yield_strength <= 0.0 or endurance <= 0.0:
         raise ValueError("yield strength and endurance limit must be positive")
+    if stress_amplitude < 0.0:
+        raise ValueError("stress amplitude must be non-negative (negative = upstream sign error, not infinite life)")
     sm = max(mean_stress, 0.0)
     demand = stress_amplitude / endurance + sm / yield_strength
     return math.inf if demand <= 0.0 else 1.0 / demand
@@ -95,7 +99,9 @@ def gerber_safety_factor(stress_amplitude: float, mean_stress: float,
     Compressive mean → 0 (reduces to n = S_e/σ_a)."""
     if uts <= 0.0 or endurance <= 0.0:
         raise ValueError("UTS and endurance limit must be positive")
-    if stress_amplitude <= 0.0:
+    if stress_amplitude < 0.0:
+        raise ValueError("stress amplitude must be non-negative (negative = upstream sign error, not infinite life)")
+    if stress_amplitude == 0.0:
         return math.inf
     a = stress_amplitude / endurance
     b = max(mean_stress, 0.0) / uts

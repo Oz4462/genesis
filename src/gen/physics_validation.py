@@ -30,6 +30,7 @@ gate is the deterministic, LLM-free backstop that re-runs them. Offline, pure fu
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 from .bolted_joint import bolted_joint_check
@@ -108,6 +109,11 @@ def vacuum_radiation_balance_check(
     dose_ok = radiation_dose_sv <= dose_limit_sv (default permissive; explicit limit
     from spec/PhysicsCheck makes the dose non-decorative). Result always includes it.
     """
+    for v in (absorbed_solar_w, epsilon, area_m2, t_k, tol, radiation_dose_sv, dose_limit_sv):
+        if not math.isfinite(v):
+            # NaN passes every </<= comparison as False — screen it explicitly, or a
+            # NaN temperature would ride the designed-sink bypass to a green pass.
+            return {"ok": False, "error": "non_finite_input"}
     if absorbed_solar_w < 0 or epsilon <= 0 or epsilon > 1 or area_m2 <= 0 or t_k <= 0:
         return {"ok": False, "error": "invalid_inputs"}
     if radiation_dose_sv < 0 or dose_limit_sv < 0:
@@ -123,7 +129,9 @@ def vacuum_radiation_balance_check(
         "ok": ok,
         "net_heat_w": net,
         "radiated_w": radiated,
-        "safety_factor": (absorbed_solar_w / (radiated + 1e-9)) if ok else 0.0,
+        # honest margin: only a real absorbed/radiated ratio counts; a designed-sink
+        # pass with zero flux has no margin to report (None, not a fabricated 0.0)
+        "safety_factor": ((absorbed_solar_w / (radiated + 1e-9)) if absorbed_solar_w > 0 else None) if ok else 0.0,
         "quelle": "Stefan-Boltzmann (vacuum, no convection) + user params",
         "radiation_dose_sv": radiation_dose_sv,
         "dose_ok": dose_ok,
@@ -147,6 +155,9 @@ def isru_electrolysis_o2_check(
     Grounding: exact 32/36 ratio uses integer atomic proxy (O=16, H=1) per common ISRU engineering
     practice; traceable to IUPAC/NIST atomic weights (H≈1.008, O≈15.999) yielding ~18.015/31.999.
     """
+    for v in (water_kg, efficiency, o2_target_kg):
+        if not math.isfinite(v):
+            return {"ok": False, "error": "non_finite_input"}
     if water_kg <= 0 or not (0 < efficiency <= 1.0):
         return {"ok": False, "error": "invalid_inputs"}
     stoich_o2 = (32.0 / 36.0) * water_kg * efficiency
@@ -157,7 +168,8 @@ def isru_electrolysis_o2_check(
         "water_consumed_kg": water_kg,
         "efficiency": efficiency,
         "quelle": "stoichiometry 2H2O -> O2 + 2H2 (exact molar 36->32 per IUPAC/NIST atomic mass standards, integer proxy common in NASA/ISRU analyses) * efficiency; ISRU foundation for Mars O2 (extend to Sabatier/regolith)",
-        "safety_factor": (stoich_o2 / max(o2_target_kg, 1e-9)) if o2_target_kg > 0 else 1.0,
+        # no target -> nothing was falsified -> no margin (None, not a fabricated 1.0)
+        "safety_factor": (stoich_o2 / max(o2_target_kg, 1e-9)) if o2_target_kg > 0 else None,
     }
 
 
@@ -169,6 +181,9 @@ def life_support_o2_balance_check(
     Daily crew consumption ~0.84 kg O2/person (standard NASA proxy). closure_rate 0-1.
     Falsifiable with ECLSS test data. For multi-planetary vacuum/radiation habitats.
     """
+    for v in (crew, o2_consumption_kg_per_day, closure_rate, target_closure):
+        if not math.isfinite(v):
+            return {"ok": False, "error": "non_finite_input"}
     if crew <= 0 or not (0 <= closure_rate <= 1) or o2_consumption_kg_per_day <= 0:
         return {"ok": False, "error": "invalid_inputs"}
     consumed = crew * o2_consumption_kg_per_day
@@ -180,7 +195,8 @@ def life_support_o2_balance_check(
         "o2_produced_kg_day": produced,
         "closure_rate": closure_rate,
         "quelle": "crew O2 consumption proxy (0.84 kg/day/person) * closure_rate; ECLSS foundation for closed-loop habitats",
-        "safety_factor": (closure_rate / max(target_closure, 1e-9)) if target_closure > 0 else 1.0,
+        # no target -> nothing was falsified -> no margin (None, not a fabricated 1.0)
+        "safety_factor": (closure_rate / max(target_closure, 1e-9)) if target_closure > 0 else None,
     }
 
 
@@ -275,8 +291,26 @@ def run_physics_checks(checks: list[PhysicsCheck]) -> list[dict]:
                 "result": None,
             })
             continue
+        # central finite screen: NaN/Inf pass every </<= comparison as False, so an
+        # individual validator's guard logic cannot be trusted to catch them — a
+        # non-finite input must become an ERROR here, never reach a green pass.
+        bad = next((
+            (k, v) for k, v in check.inputs.items()
+            if isinstance(v, (int, float)) and not isinstance(v, bool)
+            and not math.isfinite(float(v))
+        ), None)
+        if bad is not None:
+            out.append({
+                "name": check.name, "validator": check.validator, "status": "error",
+                "ok": False, "detail": f"non-finite input {bad[0]}={bad[1]}", "result": None,
+            })
+            continue
         try:
             result = fn(**check.inputs)
+            if not isinstance(result, dict):
+                # a non-dict result would crash .get() below — surface it as THIS
+                # check's error so one bad validator cannot abort the batch
+                raise TypeError(f"validator returned non-dict ({type(result).__name__})")
         except Exception as exc:  # a bad/contradictory input must surface, not pass
             out.append({
                 "name": check.name, "validator": check.validator, "status": "error",
@@ -314,8 +348,9 @@ def gate_delta_physics(checks: list[PhysicsCheck]) -> GateResult:
         elif not r["ok"]:
             res = r["result"] or {}
             margin = res.get("safety_factor", res.get("ratio"))
+            margin_txt = "no margin reported" if margin is None else f"safety_factor={margin}"
             failures.append(GateFailure(
                 code="PHYSICS_CHECK_FAILED",
-                detail=f"{r['name']} ({r['validator']}): not ok (safety_factor={margin})",
+                detail=f"{r['name']} ({r['validator']}): not ok ({margin_txt})",
             ))
     return GateResult(gate="delta-physics", passed=not failures, failures=failures)
