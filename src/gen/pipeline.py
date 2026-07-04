@@ -223,6 +223,10 @@ def assess_specification(
     # T+E (THERMAL+ELECTRICAL) always triggers via improved domains_present (quantity measurands)
     # even without bom/netlist (prevents gate skip for power->heat specs).
     required_pairs = required_seam_pairs(spec)
+    # NOTE C-1 (costing): Cost.complete means "every position accounted for — GROUNDED price OR
+    # explicitly labelled filament ESTIMATE", not "all prices proven". The COST_ROLLUP seam proves
+    # arithmetic coupling of that roll-up; price grounding is carried by Cost.fully_grounded and
+    # labelled downstream (format_cost, bundle manifest, MISSING.md).
     needs_seams = bool(required_pairs) or (cost_rollup_required(spec) and bom_cost(spec).complete)
     seam_gate: GateResult | None = None
     if needs_seams:

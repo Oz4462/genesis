@@ -376,6 +376,9 @@ def _check_cost_rollup(
         ]
 
     cost = bom_cost(spec)
+    # C-1: `complete` includes explicitly labelled filament ESTIMATES — this seam certifies the
+    # arithmetic roll-up coupling, not price grounding (that is Cost.fully_grounded, surfaced
+    # separately). An estimate-backed roll-up is still a deterministic, checkable sum.
     if not cost.complete:
         return [
             GateFailure(

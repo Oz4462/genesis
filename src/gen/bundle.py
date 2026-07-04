@@ -95,6 +95,14 @@ class BundleManifest:
     physics_gaps: list[str]
     cost_summary: str
     cost_complete: bool
+    #: True only when every position carries a GROUNDED purchase price — no filament estimate.
+    #: ``cost_complete`` alone means "every position accounted for, estimates explicitly labelled".
+    cost_fully_grounded: bool
+    #: BOM item ids whose cost is a filament ESTIMATE (bbox × infill × density × price/g),
+    #: not a claim-backed price — the label travels with the manifest (C-1 honesty).
+    cost_estimated_parts: list[str]
+    #: Honest per-item cost diagnostics (ungrounded price origin, negative count).
+    cost_notes: list[str]
     unpriced: list[str]
     printed_parts: list[str]
     bought_parts: list[str]
@@ -221,6 +229,9 @@ def emit_bundle(spec: Specification, out_dir: str | Path, *, tolerance: float = 
                    "count": b.count, "component_id": b.component_id} for b in spec.bom],
         "cost": format_cost(cost),
         "cost_complete": cost.complete,
+        "cost_fully_grounded": cost.fully_grounded,
+        "cost_estimated_parts": cost.fabricated,
+        "cost_notes": cost.notes,
         "unpriced": cost.unpriced,
         "printed_parts": split.printed,
         "bought_parts": split.bought,
@@ -240,6 +251,9 @@ def emit_bundle(spec: Specification, out_dir: str | Path, *, tolerance: float = 
         physics_gaps=list(assessment.physics_gaps),
         cost_summary=format_cost(cost),
         cost_complete=cost.complete,
+        cost_fully_grounded=cost.fully_grounded,
+        cost_estimated_parts=list(cost.fabricated),
+        cost_notes=list(cost.notes),
         unpriced=list(cost.unpriced),
         printed_parts=split.printed,
         bought_parts=split.bought,
@@ -251,7 +265,8 @@ def emit_bundle(spec: Specification, out_dir: str | Path, *, tolerance: float = 
     written.append("MANIFEST.json")
 
     # MISSING.md — written whenever anything is absent or unproven, so it cannot be overlooked
-    if missing or assessment.physics_gaps or not cost.complete or spec.gaps:
+    # (a filament-ESTIMATED price and every cost note count as "unproven" — C-1/C-2 honesty)
+    if missing or assessment.physics_gaps or not cost.complete or cost.fabricated or cost.notes or spec.gaps:
         lines = [f"# Was an diesem Bündel NICHT fertig/bewiesen ist: {spec.idea}", "",
                  "> Ehrliche Lückenliste — kein stilles Verschlucken. Jeder Punkt ist ein "
                  "nicht erzeugtes Lieferobjekt oder eine ausdrücklich nicht behauptete Eigenschaft.", ""]
@@ -260,6 +275,13 @@ def emit_bundle(spec: Specification, out_dir: str | Path, *, tolerance: float = 
         if not cost.complete and cost.unpriced:
             lines += ["## Ohne belegten Preis (Kosten sind eine partielle Untergrenze)", "",
                       *[f"- `{u}`" for u in cost.unpriced], ""]
+        if cost.fabricated:
+            lines += ["## Geschätzte Preise (gedruckte Teile — geschätzt aus Filament, "
+                      "kein belegter Preis)", "",
+                      *[f"- `{u}`" for u in cost.fabricated], ""]
+        if cost.notes:
+            lines += ["## Kosten-Hinweise (nicht belegte oder defekte Positionen)", "",
+                      *[f"- {n}" for n in cost.notes], ""]
         if assessment.physics_gaps:
             lines += ["## Indizierte, aber nicht berechenbare Physik", "",
                       *[f"- {g}" for g in assessment.physics_gaps], ""]

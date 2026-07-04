@@ -67,6 +67,47 @@ def test_missing_md_surfaces_the_unpriced_motor_and_gaps(tmp_path):
     assert not m.cost_complete and "b_motor" in m.unpriced
 
 
+def test_filament_estimate_is_labelled_through_manifest_and_missing(tmp_path):
+    """C-1 honesty: a printed part costed from filament makes the roll-up COMPLETE (every position
+    accounted for) but never FULLY GROUNDED — the manifest carries the split, the estimated item is
+    named, and MISSING.md labels the estimate in German so it cannot be read as a proven price."""
+    from gen.core.state import (
+        BomItem, BomRole, Component, GeometryNode, Quantity, Sourcing, Specification, ValueOrigin,
+    )
+    from gen.costing import FILAMENT_PRICE_MEASURAND
+
+    geom = GeometryNode(kind="box", params={"size_x": "q_s", "size_y": "q_s", "size_z": "q_s"})
+    spec = Specification(
+        run_id="fab", idea="gedrucktes Teil mit Filament-Schätzung",
+        quantities=[
+            Quantity(id="q_s", name="q_s", value=10.0, unit="mm",
+                     origin=ValueOrigin.DECISION, rationale="t"),
+            Quantity(id="q_rho", name="q_rho", value=0.00124, unit="g/mm^3",
+                     origin=ValueOrigin.GROUNDED, grounding=["c"]),
+            Quantity(id="q_fil", name="q_fil", value=0.05, unit="EUR/g",
+                     origin=ValueOrigin.GROUNDED, grounding=["c"],
+                     measurand=FILAMENT_PRICE_MEASURAND),
+            Quantity(id="q_bolt", name="q_bolt", value=0.42, unit="EUR",
+                     origin=ValueOrigin.GROUNDED, grounding=["c"]),
+        ],
+        components=[Component(id="c_part", name="part", geometry=geom, material_density="q_rho")],
+        bom=[
+            BomItem(id="b_print", name="printed", role=BomRole.PART, count=1, component_id="c_part"),
+            BomItem(id="b_bolt", name="bolt", role=BomRole.PART, count=4,
+                    sourcing=Sourcing(supplier="S", part_number="P",
+                                      price_quantity_id="q_bolt", grounding=["c"])),
+        ],
+    )
+    m = emit_bundle(spec, tmp_path)
+    assert m.cost_complete and not m.cost_fully_grounded
+    assert m.cost_estimated_parts == ["b_print"]
+    assert "geschätzt aus Filament" in m.cost_summary
+    text = (tmp_path / "MISSING.md").read_text(encoding="utf-8")
+    assert "Geschätzte Preise" in text and "b_print" in text
+    on_disk = json.loads((tmp_path / "bom.json").read_text(encoding="utf-8"))
+    assert on_disk["cost_fully_grounded"] is False and on_disk["cost_estimated_parts"] == ["b_print"]
+
+
 def test_geometryless_spec_is_honest_not_a_silent_pass(tmp_path):
     """A quantities-only spec (the drive shaft) has no printable part. The bundle still writes the
     manual, but the MANIFEST records the absence explicitly — the exact failure GENESIS prevents:
