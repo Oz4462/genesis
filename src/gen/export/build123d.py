@@ -30,6 +30,7 @@ from ..core.state import (
     Quantity,
     Specification,
 )
+from ._text import single_line as _single_line
 from .numfmt import fmt_number as _fmt
 
 # operator per boolean operation (build123d algebra mode)
@@ -120,7 +121,7 @@ def specification_to_build123d(spec: Specification) -> str:
     quantities = {q.id: q for q in spec.quantities}
     header = [
         "# GENESIS — Phase γ CSG export (build123d, algebra mode)",
-        f"# idea: {spec.idea}",
+        f"# idea: {_single_line(spec.idea)}",
         f"# run_id: {spec.run_id}",
         "# Each component lists its contributing quantity ids for traceability.",
         "from build123d import *",
@@ -129,7 +130,9 @@ def specification_to_build123d(spec: Specification) -> str:
     blocks: list[str] = []
     for comp in spec.components:
         if comp.geometry is None:
-            blocks.append(f"# component {comp.id!r} ({comp.name}) has no geometry — skipped")
+            blocks.append(
+                f"# component {comp.id!r} ({_single_line(comp.name)}) has no geometry — skipped"
+            )
             continue
         blocks.append(component_to_build123d(comp, quantities))
     if not blocks:

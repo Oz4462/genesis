@@ -19,6 +19,9 @@ from ..core.state import BomDomain, Specification, ValueOrigin
 from ..costing import bom_cost, format_cost
 from ..verification.gates import gate_delta, geometry_envelope
 from ..verification.geometry import GeometryError, geometry_length_unit, mass_of, volume_of
+from ._text import md_cell as _cell
+from ._text import single_line as _single_line
+from .numfmt import fmt_number as _fmt
 
 #: German display labels for BOM roles (PHASE_DELTA §57). The stored enum values
 #: stay English (machine values); only the rendered document is German.
@@ -52,7 +55,7 @@ def specification_to_markdown(spec: Specification) -> str:
     md: list[str] = []
     a = md.append
 
-    a(f"# Bauanleitung: {spec.idea}")
+    a(f"# Bauanleitung: {_single_line(spec.idea)}")
     a("")
     a(f"- Lauf: `{spec.run_id}`")
     if spec.approach_id:
@@ -69,14 +72,14 @@ def specification_to_markdown(spec: Specification) -> str:
         a("| id | Name | Wert | Einheit | Herkunft |")
         a("|----|------|------|---------|----------|")
         for x in spec.quantities:
-            a(f"| `{x.id}` | {x.name} | {x.value:g} | {x.unit} | {_origin(x)} |")
+            a(f"| `{x.id}` | {_cell(x.name)} | {_fmt(x.value)} | {_cell(x.unit)} | {_cell(_origin(x))} |")
         a("")
 
     if spec.components:
         a("## Bauteile (parametrische CSG-Geometrie)")
         a("")
         for comp in spec.components:
-            a(f"### {comp.name} (`{comp.id}`)")
+            a(f"### {_single_line(comp.name)} (`{comp.id}`)")
             if comp.material_density:
                 a(f"- Materialdichte: `{comp.material_density}`")
             if comp.geometry is not None:
@@ -100,9 +103,9 @@ def specification_to_markdown(spec: Specification) -> str:
                     src = f"{it.sourcing.supplier} #{it.sourcing.part_number}"
                     pid = it.sourcing.price_quantity_id
                     if pid and pid in q:
-                        price = f"{q[pid].value:g} {q[pid].unit}"
+                        price = f"{_fmt(q[pid].value)} {q[pid].unit}"
                 role = BOM_ROLE_LABELS_DE.get(it.role.value, it.role.value)
-                a(f"| {it.count} | {it.name} | {role} | {src} | {price} |")
+                a(f"| {it.count} | {_cell(it.name)} | {role} | {_cell(src)} | {_cell(price)} |")
             a("")
 
         _bom_table("Stückliste (Mechanik)", mech or [])
@@ -115,22 +118,22 @@ def specification_to_markdown(spec: Specification) -> str:
         a("## Bauschritte")
         a("")
         for s in sorted(spec.steps, key=lambda s: s.index):
-            a(f"{s.index}. {s.action}")
+            a(f"{s.index}. {_single_line(s.action)}")
             if s.tool:
-                a(f"   - Werkzeug: {s.tool}")
+                a(f"   - Werkzeug: {_single_line(s.tool)}")
             if s.uses:
                 a(f"   - verwendet: {', '.join(s.uses)}")
             if s.torque_quantity_id and s.torque_quantity_id in q:
                 tq = q[s.torque_quantity_id]
-                a(f"   - Anzugsmoment: {tq.value:g} {tq.unit}")
-            a(f"   - Prüfung: {s.check}")
+                a(f"   - Anzugsmoment: {_fmt(tq.value)} {tq.unit}")
+            a(f"   - Prüfung: {_single_line(s.check)}")
         a("")
 
     if spec.constraints:
         a("## Geprüfte Anforderungen")
         a("")
         for k in spec.constraints:
-            a(f"- `{k.left} {k.kind} {k.right}` — {k.reason}")
+            a(f"- `{k.left} {k.kind} {k.right}` — {_single_line(k.reason)}")
         a("")
 
     if spec.decisions:
@@ -139,18 +142,18 @@ def specification_to_markdown(spec: Specification) -> str:
         a("> Entscheidungen, keine Fakten — ratifizieren oder ändern.")
         a("")
         for d in spec.decisions:
-            a(f"- **{d.title}:** {d.choice} — {d.rationale}")
+            a(f"- **{_single_line(d.title)}:** {_single_line(d.choice)} — {_single_line(d.rationale)}")
         a("")
 
     if spec.site is not None:
         a("## Ort & Umgebung")
         a("")
         if spec.site.available_space is not None:
-            dims = [f"{q[qid].value:g} {q[qid].unit}" for qid in spec.site.available_space if qid in q]
+            dims = [f"{_fmt(q[qid].value)} {q[qid].unit}" for qid in spec.site.available_space if qid in q]
             if dims:
                 a(f"- verfügbarer Platz: {' × '.join(dims)}")
         for d in spec.site.requirements:
-            a(f"- **{d.title}:** {d.choice} — {d.rationale}")
+            a(f"- **{_single_line(d.title)}:** {_single_line(d.choice)} — {_single_line(d.rationale)}")
         a("")
 
     if spec.components:
@@ -159,7 +162,7 @@ def specification_to_markdown(spec: Specification) -> str:
         state = _spec_state(spec)
         env = geometry_envelope(state)
         for cid, (ex, ey, ez) in env.items():
-            a(f"- `{cid}` Hüllmaß: {ex:g} × {ey:g} × {ez:g}")
+            a(f"- `{cid}` Hüllmaß: {_fmt(ex)} × {_fmt(ey)} × {_fmt(ez)}")
             comp = next((c for c in spec.components if c.id == cid), None)
             if comp is not None and comp.geometry is not None:
                 a(f"  - {_volume_md(comp, q)}")
@@ -207,8 +210,8 @@ def _volume_md(comp, q) -> str:
     unit = geometry_length_unit(comp.geometry, q)
     us = f" {unit}³" if unit else ""
     if vol.exact:
-        return f"Volumen: {vol.value:g}{us} (exakt)"
-    return f"Volumen: ≤ {vol.value:g}{us} (obere Schranke — {vol.note})"
+        return f"Volumen: {_fmt(vol.value)}{us} (exakt)"
+    return f"Volumen: ≤ {_fmt(vol.value)}{us} (obere Schranke — {vol.note})"
 
 
 def _mass_md(comp, q) -> str | None:
@@ -218,7 +221,7 @@ def _mass_md(comp, q) -> str | None:
     if m.value is None:
         return f"Masse: nicht berechenbar — {m.note}"
     qualifier = "exakt" if m.exact else f"obere Schranke — {m.note}"
-    return f"Masse: {m.value:g} {m.unit} ({qualifier})"
+    return f"Masse: {_fmt(m.value)} {m.unit} ({qualifier})"
 
 
 def _spec_state(spec: Specification):

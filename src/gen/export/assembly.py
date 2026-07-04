@@ -21,6 +21,7 @@ import math
 from pathlib import Path
 
 from ..core.state import Component, GeometryNode, Quantity, Specification
+from ._text import single_line as _single_line
 from .numfmt import fmt_number as _fmt
 from .openscad import _emit, _module_name
 
@@ -60,7 +61,7 @@ def assembly_scad(spec: Specification) -> str | None:
     quantities = {q.id: q for q in spec.quantities}
     lines = [
         "// GENESIS — ASSEMBLED view (the finished product, parts in place)",
-        f"// idea: {spec.idea}",
+        f"// idea: {_single_line(spec.idea)}",
         f"// run_id: {spec.run_id}",
         "",
     ]
@@ -72,7 +73,7 @@ def assembly_scad(spec: Specification) -> str | None:
     for comp, (x, y, z, rx, ry, rz) in placements:
         lines.append(
             f"translate([{_fmt(x)}, {_fmt(y)}, {_fmt(z)}]) rotate([{_fmt(rx)}, {_fmt(ry)}, {_fmt(rz)}]) "
-            f"{_module_name(comp.id)}();  // {comp.name}")
+            f"{_module_name(comp.id)}();  // {_single_line(comp.name)}")
     return "\n".join(lines) + "\n"
 
 

@@ -38,8 +38,10 @@ def test_markdown_has_all_sections():
     assert "## Entscheidungsblatt" in md
     assert "## Ort & Umgebung" in md and "verfügbarer Platz: 200 mm × 200 mm × 200 mm" in md
     assert "## Geometrische Validierung" in md
-    assert "Volumen: 57409.1 mm³ (exakt)" in md
-    assert "Masse: 71.1873 g (exakt)" in md
+    # numfmt.fmt_number renders 12 significant digits (Schritt-8-Review F3:
+    # one source of truth, display rounding documented in numfmt.py)
+    assert "Volumen: 57409.1482463 mm³ (exakt)" in md
+    assert "Masse: 71.1873438254 g (exakt)" in md
     assert "## Quellen" in md and "- `c_price`" in md
 
 

@@ -30,6 +30,7 @@ from ..core.state import (
     Quantity,
     Specification,
 )
+from ._text import single_line as _single_line
 from .numfmt import fmt_number as _fmt
 
 _INDENT = "  "
@@ -150,7 +151,7 @@ def specification_to_openscad(spec: Specification) -> str:
     counts = {b.component_id: b.count for b in spec.bom if b.component_id is not None}
     header = [
         "// GENESIS — Phase γ CSG export (OpenSCAD) — full parts tray",
-        f"// idea: {spec.idea}",
+        f"// idea: {_single_line(spec.idea)}",
         f"// run_id: {spec.run_id}",
         "// Every printed part is laid out on a grid so ALL parts are visible at once;",
         "// every dimension is annotated with its originating quantity id.",
@@ -169,7 +170,9 @@ def specification_to_openscad(spec: Specification) -> str:
     # purchased / abstract parts (no geometry) — surfaced as an inventory comment, never silently dropped
     purchased = [c for c in spec.components if c.geometry is None]
     for comp in purchased:
-        modules.append(f"// component {comp.id!r} ({comp.name}) has no geometry — purchased/abstract")
+        modules.append(
+            f"// component {comp.id!r} ({_single_line(comp.name)}) has no geometry — purchased/abstract"
+        )
 
     if not geom_comps:
         return "\n".join(header) + "\n".join(modules or ["// no fabricated geometry in this specification"]) + "\n"
@@ -183,7 +186,10 @@ def specification_to_openscad(spec: Specification) -> str:
         x = _fmt((i % cols) * pitch)
         y = _fmt(-(i // cols) * pitch)
         n = counts.get(comp.id, 1)
-        layout.append(f"translate([{x}, {y}, 0]) {_module_name(comp.id)}();  // {comp.name} — {n}x drucken")
+        layout.append(
+            f"translate([{x}, {y}, 0]) {_module_name(comp.id)}();  "
+            f"// {_single_line(comp.name)} — {n}x drucken"
+        )
 
     return "\n".join(header) + "\n\n".join(modules) + "\n" + "\n".join(layout) + "\n"
 
