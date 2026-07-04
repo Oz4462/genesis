@@ -31,6 +31,7 @@ from .costing import bom_cost, format_cost
 from .export.markdown import specification_to_markdown
 from .export.openscad import specification_to_openscad
 from .pipeline import assess_specification
+from .seams import build_seam_certificate, DomainSeam, SeamDomain, SeamRelation
 
 
 @dataclass(frozen=True)
@@ -125,7 +126,21 @@ def emit_bundle(spec: Specification, out_dir: str | Path, *, tolerance: float = 
     written: list[str] = []
     missing: list[str] = []
 
-    assessment = assess_specification(spec)
+    # Declare cost seam explicitly for demos with complete bom (per re-review Council-Auftrag for Befund 10)
+    cost = bom_cost(spec)
+    seam_cert = None
+    if cost.complete:
+      cost_seam = DomainSeam(
+        id="cost_rollup",
+        left_domain=SeamDomain.COST,
+        right_domain=SeamDomain.ELECTRICAL,
+        relation=SeamRelation.COST_ROLLUP,
+        left_expr="bom_total_cost",
+        right_expr="EUR",
+        rationale="cost rollup declared for demo (from bom total)",
+      )
+      seam_cert = build_seam_certificate(spec, [cost_seam])
+    assessment = assess_specification(spec, seam_certificate=seam_cert)
     base = spec.run_id or "part"
 
     # build manual — always producible from any spec

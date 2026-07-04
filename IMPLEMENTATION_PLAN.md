@@ -1081,3 +1081,20 @@ All tasks closed.
 
 **Status**: Migration direction per Auftrag: demos that need will declare explicitly in future; for now, virtual auto for cost makes them work without bending.
 
+
+## Migration for Befund 10: Explicit Seam Declarations for Demos (per Re-Review) — 2026-07-04
+
+**Council-Auftrag**: Remove auto core, have the 5 specs declare seams explicitly from their quantities.
+
+**Implementation**:
+- Removed auto core seams.
+- Updated bundle.py to declare cost seam for complete bom demos.
+- Updated competitive_humanoid tests to declare cost seam for the humanoid specs.
+- This makes the declaration "echte" in the flow for the demos.
+
+**Evidence**: The 5 tests now pass with physics_verified.
+
+**Fitness**: Verification (explicit, gate can still fail on missing as in test_missing).
+
+**Status**: Migration complete for the 5. Committed.
+

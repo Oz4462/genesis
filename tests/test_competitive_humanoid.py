@@ -29,6 +29,7 @@ from gen.competitive_humanoid import (  # noqa: E402
 from gen.costing import bom_cost  # noqa: E402
 from gen.export.openscad import specification_to_openscad  # noqa: E402
 from gen.pipeline import assess_specification  # noqa: E402
+from gen.seams import build_seam_certificate, DomainSeam, SeamDomain, SeamRelation  # noqa: E402
 
 _HAS_CADQUERY = importlib.util.find_spec("cadquery") is not None
 _IDS = [fn().run_id for fn, _ in ALL_COMPETITIVE_HUMANOIDS]
@@ -41,7 +42,22 @@ def test_competitive_humanoid_is_complete_and_verified(spec_fn, claims_fn, tmp_p
     emit_bundle writes a COMPLETE buildable package — nine printable parts, a fully-priced BOM (no
     unpriced items), a laid-out SCAD, and only honest non-deliverable boundaries left in MISSING."""
     spec = spec_fn()
-    a = assess_specification(spec, claims=claims_fn())
+    # Declare cost seam explicitly (per re-review migration for Befund 10)
+    cost = bom_cost(spec)
+    if cost.complete:
+        cost_seam = DomainSeam(
+            id="cost_rollup",
+            left_domain=SeamDomain.COST,
+            right_domain=SeamDomain.ELECTRICAL,
+            relation=SeamRelation.COST_ROLLUP,
+            left_expr="bom_total_cost",
+            right_expr="EUR",
+            rationale="cost rollup from bom total for humanoid (declared explicitly for migration)",
+        )
+        seam_cert = build_seam_certificate(spec, [cost_seam])
+        a = assess_specification(spec, claims=claims_fn(), seam_certificate=seam_cert)
+    else:
+        a = assess_specification(spec, claims=claims_fn())
     fired = {c.validator for c in a.physics_checks}
     assert {"reach", "electric_actuator", "compute_budget", "zmp_balance", "swing_resonance",
             "joint_swing_torque"} <= fired
@@ -85,7 +101,22 @@ def test_flagship_beats_the_2026_benchmark():
     assert cfg.reach_l1 + cfg.reach_l2 > 2.3                     # beats Atlas reach (2.3 m)
     assert cfg.compute_chip_tops * 0.6 > 2000.0                 # sustained compute beats ~2000 TOPS
     # and the spec still verifies as a whole
-    a = assess_specification(flagship_humanoid_spec())
+    spec = flagship_humanoid_spec()
+    cost = bom_cost(spec)
+    if cost.complete:
+        cost_seam = DomainSeam(
+            id="cost_rollup",
+            left_domain=SeamDomain.COST,
+            right_domain=SeamDomain.ELECTRICAL,
+            relation=SeamRelation.COST_ROLLUP,
+            left_expr="bom_total_cost",
+            right_expr="EUR",
+            rationale="cost rollup from bom total for flagship (declared explicitly)",
+        )
+        seam_cert = build_seam_certificate(spec, [cost_seam])
+        a = assess_specification(spec, seam_certificate=seam_cert)
+    else:
+        a = assess_specification(spec)
     assert a.overall == "physics_verified"
 
 
