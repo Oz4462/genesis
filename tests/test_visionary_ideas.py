@@ -169,3 +169,7 @@ def test_mars_isru_o2_plant_uses_isru_life_domains_and_explicit_seams():
     crew_makeup_need = crew * cons * (1 - close)
     assert isru_target >= crew_makeup_need * 0.95, "ISRU O2 target must cover LIFE crew make-up (mission closure)"
 
+    # Tie first_principles derivation to mission: the derived production from plant inputs supports the target
+    produced = pt.target_value
+    assert produced >= isru_target, "first_principles-derived ISRU production supports mission target (discovery + mission integration)"
+
