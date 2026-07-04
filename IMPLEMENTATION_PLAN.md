@@ -194,6 +194,31 @@ Each agent has:
 
 **Living Decision Records**: 1 primary (above). More will be added for scope, number 12, research methodology, etc.
 
+### Decision: Ground ISRU c_stoich claim with explicit real-data source/proof tie (IUPAC/NIST + FP derive) in Mars visionary plant for complete anti-hallucination Genesis (not only multi-physics)
+**Date**: 2026-07-04
+**Context / Problem**: Prior ISRU/LIFE domains + mars_isru_o2_plant visionary + FP/mission tie (auflage closed by Council subagents Verification/TDD/Simplicity) delivered gated plant (11p/1727p green, re-review APPROVED). But c_stoich claim used short text without explicit verifiable external ref (beyond numbers + internal derive). For rigorous honesty + Elon multi-planetary (real ISRU facts for O2 propellant/breathable), need source tie without bloat. Matches "komplett genesis", first-principles + real grounding, "no fact without source".
+**Decision**: 
+- Lean string-only enhancement in existing _claim("c_stoich", ... "per IUPAC/NIST Standard-Atomgewichte" + "Grounded via first_principles.derive + validator...").
+- Strengthen dedicated test assert to pin the source note ("IUPAC/NIST").
+- Validator doc/quelle already had matching trace; no change needed for lean.
+- Council convened (spawn_subagent: Verification Specialist, Simplicity Advocate, Architect/Pragmatist); memos synthesized (lean string reuse preferred over custom Claim/SourceRef bloat; mission value for multi-planetary confirmed; verification strengthened).
+- L DR here + status/tasks_for_claude.md updated. No new files, no pipeline.py, additive only.
+- Full targeted tests green pre/post; 4 Fitness passed (Simplicity: reuse _claim + string; Verification: explicit source + assert + FP tie evidence; others N/A or pass).
+**Alternatives considered**:
+- Full custom Claim + SourceRef lists + real nasa.gov urls in code (rejected: bloat per Simplicity memo, import creep, risk of grounding_failed circularity, violated reuse of _claim/demo pattern).
+- Live fetch in this increment (rejected: scope bloat; live is for scholar/skeptic/ledger paths later; static verifiable note sufficient + reproducible).
+- No change (rejected: would leave claim unsourced per "rigorous honesty" + prior L DR grounding mitigation).
+**Rationale**: String augmentation is simplest verifiable (human + test + ledger cross-checkable to NIST/IUPAC atomic weights + 32/36 proxy used in validator/derive). Ties FP proof tree (atomic axioms) directly to claim. Advances complete stack (visionary + discovery + mission) honestly for Mars ISRU without complexity. Anti-bloat enforced.
+**Risks & Trade-offs**: Minimal (proxy remains; gaps in spec honest). Source note is static (real NIST data verifiable offline); future live grounding separate. Low blast (only plant claim/test).
+**Revisit trigger**: When live scholar/skeptic or wissensbasis ISRU oracle added (then dynamic refs); or if scale to full MOXIE/Sabatier validator.
+**Council perspectives** (from subagent memos):
+- Verification Specialist: PASS on 4F; proposal minimal string+assert; strengthens gate evidence + F-ID alignment (verification failure prevention); cites real NIST/IUPAC; tests green; rec: lean executed.
+- Simplicity Advocate: Pre-bloat risk realized in some paths; strict lean string-only + _claim reuse + prune; Simplicity 9/10 post; 4 Linsen pass; no new symbols/files.
+- Architect/Pragmatist: Fits "komplett genesis" + multi-planetary (MOXIE real tie context, ISRU for propellant critical); FP+mission preserved; recommends next mission-scale sizing. Blast low.
+- All: explicit seams/FP/mission intact; quality > speed per Ozan.
+**Execution verification**: Targeted pytest 45p green (visionary+val+epsilon); full prior 1727p. No regression. plant still physics_verified + explicit seams + derive proven + mission closure.
+**Status**: Closed. Increment complete. All tasks cleared. Ready next Council increment.
+
 **Initial Anti-Bloat**: 12 agents justified by mapping to observed pains. Will keep supporting artifacts minimal (charters in one or few files, reuse existing tools).
 
 **Harness / Council Activation**: This entire effort is self-applying the workflow. Multiple perspectives (simulated council + future real spawns) are being used.

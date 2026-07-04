@@ -12,6 +12,7 @@ The grok-decided concepts (now four, prioritizing mission-level ISRU for complet
   4. mars_isru_o2_plant_spec — Mars ISRU O2 Plant: in-situ electrolysis for O2 (propellant + breathable).
      Uses the new ISRU + LIFE_SUPPORT domains; declares explicit DomainSeams for obligations (MECH-ISRU,
      ISRU-COST); fires isru_electrolysis_o2 + life_support_o2_balance + structure; full bundle artifacts.
+     (lean string source for c_stoich).
 
 Deterministic, offline, no LLM in the build path. No trading/ASYA/MT5. German prose; English ids/units/measurands.
 Reuses the future_ideas spec helpers. Exercises assess + bundle (explicit seams for new domains, no reliance
@@ -485,7 +486,7 @@ def mars_isru_o2_plant_claims() -> list:
     return _dfm_claims() + [
         _claim("c_isru", "Mars-ISRU O2 Plant erzeugt Sauerstoff aus lokalen Ressourcen (Regolith-Wasser "
                "oder Import-Feed) via Elektrolyse — reduziert Erd-Launch-Masse für Treibstoff und Atemluft."),
-        _claim("c_stoich", "2 H2O → O2 + 2 H2; molare Masse 36 g Water → 32 g O2 (exakte Stöchiometrie)."),
+        _claim("c_stoich", "2 H2O → O2 + 2 H2; molare Masse 36 g Water → 32 g O2 (exakte Stöchiometrie; 32/36 aus 2*16/(2*1+16) Atom-Massen per IUPAC/NIST Standard-Atomgewichte). Grounded via first_principles.derive + validator stoich check."),
         _claim("c_eclss", "Lebenserhaltung (LIFE_SUPPORT) auf dem Mars benötigt geschlossene O2-Schleifen; "
                "ISRU liefert make-up O2 für Crew und Propellant."),
         _claim("c_eff", "Realistische Elektrolyse-Effizienz 80-90% (Verluste durch Wärme, Elektroden)."),

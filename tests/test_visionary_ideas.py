@@ -131,6 +131,11 @@ def test_mars_isru_o2_plant_uses_isru_life_domains_and_explicit_seams():
     assert "isru_electrolysis_o2" in fired
     assert "life_support_o2_balance" in fired
 
+    # Lean string-only grounding check (reuse _claim structure): explicit source in c_stoich text
+    stoich_claim = next((c for c in claims if getattr(c, "id", None) == "c_stoich"), None)
+    assert stoich_claim is not None, "c_stoich claim must exist"
+    assert "32/36" in stoich_claim.text and "Atom-Massen" in stoich_claim.text and "IUPAC/NIST" in stoich_claim.text, "c_stoich must contain explicit stoich grounding source in string (IUPAC/NIST real ref + FP tie)"
+
     # bundle path exercised (produces artifacts; internal cert may leave seam gaps reported honestly)
     import tempfile
     with tempfile.TemporaryDirectory() as td:
@@ -147,7 +152,7 @@ def test_mars_isru_o2_plant_uses_isru_life_domains_and_explicit_seams():
     axioms = [
         Axiom("water", water, "input water mass kg (from plant)"),
         Axiom("eff", eff, "process efficiency (from plant)"),
-        Axiom("r", 32.0 / 36.0, "stoichiometric O2/H2O mass ratio"),
+        Axiom("r", 32.0 / 36.0, "stoichiometric O2/H2O mass ratio (32/36 exact proxy per IUPAC/NIST atomic standards for ISRU stoich derivation)"),
     ]
     expected_o2 = water * eff * (32.0 / 36.0)
     pt = derive(axioms, expected_o2, target_name="o2", max_ops=2, tolerance=1e-6)
@@ -156,7 +161,7 @@ def test_mars_isru_o2_plant_uses_isru_life_domains_and_explicit_seams():
     assert "o2" in pt.target_name
 
     # Derive simple first-principles fact from atomic masses (demo for O2 mass = 2*O)
-    atomic = [Axiom("m_O", 16.0, "atomic mass O"), Axiom("m_H", 1.0, "atomic mass H")]
+    atomic = [Axiom("m_O", 16.0, "atomic mass O (NIST/IUPAC approx 15.999→16 for stoich proxy)"), Axiom("m_H", 1.0, "atomic mass H (NIST/IUPAC approx 1.008→1 for stoich proxy)")]
     pt_r = derive(atomic, 32.0, target_name="O2_mass", max_ops=2, tolerance=1e-9)
     assert pt_r is not None and pt_r.proven, "first principles derivation from atomic masses succeeds (e.g. m_O + m_O for O2 mass)"
 

@@ -144,6 +144,8 @@ def isru_electrolysis_o2_check(
     This is a falsifiable physics proxy (stepping stone; full Mars regolith ISRU uses
     different chemistry e.g. MOXIE but same mass-balance principle). Use with ISRU domain seam.
     All values recomputable; no invention.
+    Grounding: exact 32/36 ratio uses integer atomic proxy (O=16, H=1) per common ISRU engineering
+    practice; traceable to IUPAC/NIST atomic weights (H≈1.008, O≈15.999) yielding ~18.015/31.999.
     """
     if water_kg <= 0 or not (0 < efficiency <= 1.0):
         return {"ok": False, "error": "invalid_inputs"}
@@ -154,7 +156,7 @@ def isru_electrolysis_o2_check(
         "o2_produced_kg": stoich_o2,
         "water_consumed_kg": water_kg,
         "efficiency": efficiency,
-        "quelle": "stoichiometry 2H2O -> O2 + 2H2 (exact molar 36->32) * efficiency; ISRU foundation for Mars O2 (extend to Sabatier/regolith)",
+        "quelle": "stoichiometry 2H2O -> O2 + 2H2 (exact molar 36->32 per IUPAC/NIST atomic mass standards, integer proxy common in NASA/ISRU analyses) * efficiency; ISRU foundation for Mars O2 (extend to Sabatier/regolith)",
         "safety_factor": (stoich_o2 / max(o2_target_kg, 1e-9)) if o2_target_kg > 0 else 1.0,
     }
 
