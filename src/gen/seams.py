@@ -550,11 +550,17 @@ def gate_epsilon(
                 )
             )
 
-    if cost_rollup_required(spec) and not has_cost_rollup:
+    # COST_ROLLUP is demanded only when the roll-up is PROVABLE: with unpriced
+    # positions the BOM total is honestly incomplete (surfaced by costing/
+    # completeness/MISSING.md), and a seam over an unprovable total could not be
+    # certified anyway — build_seam_certificate refuses to auto-generate it for
+    # exactly that reason. Requiring it here regardless would force every
+    # honest-incomplete spec with any other seam pair into a permanent fail.
+    if cost_rollup_required(spec) and bom_cost(spec).complete and not has_cost_rollup:
         failures.append(
             GateFailure(
                 code="MISSING_COST_ROLLUP",
-                detail="spec has buyable BOM items but no COST_ROLLUP seam.",
+                detail="spec has a fully priced buyable BOM but no COST_ROLLUP seam.",
             )
         )
 

@@ -1023,6 +1023,11 @@ class Specification:
     #: assembled robot as a 3D image + an OpenSCAD assembly view. Empty = no assembled view.
     assembly: list[tuple[str, float, float, float, float, float, float]] = field(default_factory=list)
     model: str = ""
+    #: Optional Phase-ε output carried BY the spec (mirrors RunState.seam_certificate):
+    #: a spec whose domains require seam pairs (e.g. ELECTRICAL–FIRMWARE in the capstone)
+    #: can ship its own certified seams; pipeline.assess_specification falls back to this
+    #: when no certificate is passed explicitly. (Same design as the humanoid TP1 branch.)
+    seam_certificate: "SeamCertificate | None" = None
 
 
 # --- Phase gamma+: inverse design (HORIZON.md §2B) ---------------------------

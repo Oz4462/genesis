@@ -217,6 +217,13 @@ def assess_specification(
     contradictions = find_contradictions(spec.constraints)
     corroboration = corroboration_independence(claims) if claims is not None else None
 
+    # A spec may carry its own Phase-ε output (state.Specification.seam_certificate,
+    # e.g. the capstone demo or the humanoid specs) — the explicit argument wins,
+    # the spec's own certificate is the fallback. Without this, a caller that only
+    # passes the spec would fail seams the spec has honestly certified.
+    if seam_certificate is None:
+        seam_certificate = getattr(spec, "seam_certificate", None)
+
     # Phase ε seam verification (wired mandatorily per rigorous multi-physics expansion)
     # If the spec has required adjacent domain pairs or COST rollup, run gate_epsilon.
     # Empty cert (when none provided) produces explicit honest failures (MISSING_* etc.).
@@ -248,7 +255,14 @@ def assess_specification(
                     rationale="auto for complete bom without declared total (virtual case only)",
                 )
                 provided_seams = provided_seams + [auto_cost]
-        cert = seam_certificate or build_seam_certificate(spec, provided_seams)
+        if seam_certificate is not None and len(provided_seams) != len(seam_certificate.seams):
+            # the virtual auto-cost seam was appended above — a provided certificate
+            # must not silently drop it, or the gate would fail a coupling the code
+            # just declared (latent since the certificate path existed)
+            from dataclasses import replace as _replace
+            cert = _replace(seam_certificate, seams=provided_seams)
+        else:
+            cert = seam_certificate or build_seam_certificate(spec, provided_seams)
         seam_gate = gate_epsilon(spec, cert)
 
     geometry_status, geometry_checks = _geometry_cross_check(spec)

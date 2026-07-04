@@ -575,3 +575,13 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
     (seams/demo/web-Scope der parallelen Review, hier nicht angefasst). ruff clean.
   · Offen (deklarierte Lücke, kein Bug): echte Prior-Auswertung in physiker/techniker/designer/
     regulatorik/wirtschaft/software (Parameter sind reservierte API; Kanon-Vorlagen sagen das jetzt).
+- Schritt 9 NACHFIX (vorbestehender test_webapp-Failure, von beiden Fixern unabhängig bestätigt) —
+  DONE: capstone trägt jetzt die ehrliche ELECTRICAL–FIRMWARE-Naht (q_fw_current_limit ≤ q_psu_a,
+  DECISION + DomainSeam s_fw_strom, Zertifikat AM Spec); `Specification.seam_certificate`-Feld +
+  `assess_specification`-Fallback (spiegelt TP1-Worktree-Design → Merge trivial); gate_epsilon
+  fordert COST_ROLLUP nur noch wenn beweisbar (bom_cost.complete — vorher erzwang jede ehrlich-
+  unvollständig bepreiste BOM mit anderem Pflichtpaar einen unzertifizierbaren Dauer-Fail);
+  latenter Auto-Cost-Seam-Drop bei mitgeliefertem Zertifikat gefixt; completeness kennt
+  Seam-Ausdrücke als Referenzkanal. +1 Regressionstest. Suite 1962/0/54, ruff clean.
+  >>> DEEP-REVIEW-KAMPAGNE SCHRITT 7-9 KOMPLETT (alle 9 Schritte) — Grok-Cross-Reviews
+  für 7/8/9 NACHZUHOLEN (CLI-Outage 2026-07-04) <<<

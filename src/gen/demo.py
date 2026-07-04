@@ -179,6 +179,10 @@ def capstone_spec() -> Specification:
         _g("q_led_a", "LED-Strom", 1.5, "A", ["c_led"]),
         _g("q_psu_v", "Netzteil-Spannung", 12.0, "V", ["c_psu"]),
         _g("q_psu_a", "Netzteil-Strom", 2.0, "A", ["c_psu"]),
+        _d("q_fw_current_limit", "Firmware-Strombegrenzung", 1.5, "A",
+           "der led_resistance-Helfer arbeitet am LED-Nennstrom (1,5 A); die "
+           "Firmware-Seite der Code↔Elektrik-Naht darf nie mehr ziehen, als das "
+           "Netzteil liefert (Phase-ε-Pflichtpaar ELECTRICAL–FIRMWARE)"),
         _d("q_torque", "Schrauben-Anzugsmoment", 2.5, "N*m", "M4 in Kunststoff, handfest"),
         _g("q_price", "Schrauben-Stückpreis", 0.42, "EUR", ["c_price"]),
         # δ-layer-2 statics: does the bracket hold the verified load — counting the
@@ -379,7 +383,7 @@ def capstone_spec() -> Specification:
             Net(name="GND", pins=["b_psu.GND", "b_led.GND"]),
         ],
     )
-    return Specification(
+    spec = Specification(
         run_id="capstone",
         idea="Ein wandmontierter LED-Regalhalter, der die belegte Last trägt",
         approach_id="ap1", quantities=quantities, components=components, bom=bom,
@@ -413,6 +417,26 @@ def capstone_spec() -> Specification:
         ],
         claim_ids_used=[c.id for c in capstone_claims()], produced_by="capstone",
     )
+    # Phase-ε seam: firmware and electronics are BOTH present (code_artifacts +
+    # netlist), so the ELECTRICAL–FIRMWARE coupling is a required pair — the demo
+    # declares it honestly instead of shipping an uncertified seam: the firmware
+    # current cap must stay under the PSU capacity (1.5 A <= 2.0 A, dimensional,
+    # machine-checked by gate_epsilon). build_seam_certificate auto-adds the
+    # COST_ROLLUP seam for the priced BOM.
+    from dataclasses import replace as _replace
+
+    from .seams import DomainSeam, SeamDomain, SeamRelation, build_seam_certificate
+    fw_seam = DomainSeam(
+        id="s_fw_strom",
+        left_domain=SeamDomain.FIRMWARE,
+        right_domain=SeamDomain.ELECTRICAL,
+        relation=SeamRelation.LE,
+        left_expr="q_fw_current_limit",
+        right_expr="q_psu_a",
+        rationale="Die Firmware-Strombegrenzung (LED-Nennstrom 1,5 A) muss unter der "
+                  "Netzteil-Kapazität (2,0 A) bleiben — die deklarierte Code↔Elektrik-Naht.",
+    )
+    return _replace(spec, seam_certificate=build_seam_certificate(spec, [fw_seam]))
 
 
 def capstone_state() -> RunState:

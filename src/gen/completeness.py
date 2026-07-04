@@ -57,6 +57,16 @@ def _referenced_quantity_ids(spec: Specification) -> set[str]:
     for q in spec.quantities:
         if q.measurand == FILAMENT_PRICE_MEASURAND:
             refs.add(q.id)
+    # Phase-ε consumption: a spec-carried seam certificate references quantities in its
+    # seam expressions (gate_epsilon evaluates them) — those are consumed, not orphans
+    cert = getattr(spec, "seam_certificate", None)
+    if cert is not None:
+        for seam in cert.seams:
+            for expr in (seam.left_expr, seam.right_expr):
+                try:
+                    refs |= referenced_names(expr)
+                except FormulaError:  # non-formula side (e.g. COST_ROLLUP "EUR")
+                    pass
     return refs
 
 

@@ -524,3 +524,24 @@ def test_life_support_false_positive_regression():
     # marker-like but not full
     q_partial = _q("q_atm", 101325, "Pa", measurand="atm.pressure")
     assert not _looks_life_support(q_partial)
+
+
+def test_incomplete_bom_does_not_demand_unprovable_cost_rollup():
+    """Schritt-9-Nachfix: MISSING_COST_ROLLUP darf nur feuern, wenn der Roll-up
+    beweisbar ist (bom_cost.complete). Eine ehrlich-unvollständig bepreiste BOM
+    (capstone: LED/PSU ohne Preis) wird von costing/completeness surfaced — das
+    ε-Gate darf dafür kein unzertifizierbares Pflicht-Seam erzwingen."""
+    from gen.demo import capstone_spec
+    from gen.costing import bom_cost
+    from gen.pipeline import assess_specification
+
+    spec = capstone_spec()
+    assert bom_cost(spec).complete is False          # Vorbedingung: ehrlich unvollständig
+    a = assess_specification(spec)
+    assert a.seam_gate is not None and a.seam_gate.passed, [
+        f"{f.code}: {f.detail}" for f in (a.seam_gate.failures if a.seam_gate else [])
+    ]
+    assert a.overall == "no_physics_indicated"       # statischer Demo-Halter, keine Tags
+    # und die deklarierte Code<->Elektrik-Naht ist wirklich am Spec zertifiziert
+    assert spec.seam_certificate is not None
+    assert any(s.id == "s_fw_strom" for s in spec.seam_certificate.seams)
