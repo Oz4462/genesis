@@ -159,6 +159,29 @@ def isru_electrolysis_o2_check(
     }
 
 
+def life_support_o2_balance_check(
+    crew: float, o2_consumption_kg_per_day: float = 0.84, closure_rate: float = 0.0, *, target_closure: float = 0.0
+) -> dict:
+    """Minimal closed-form LIFE_SUPPORT O2 balance for habitats (ECLSS).
+
+    Daily crew consumption ~0.84 kg O2/person (standard NASA proxy). closure_rate 0-1.
+    Falsifiable with ECLSS test data. For multi-planetary vacuum/radiation habitats.
+    """
+    if crew <= 0 or not (0 <= closure_rate <= 1) or o2_consumption_kg_per_day <= 0:
+        return {"ok": False, "error": "invalid_inputs"}
+    consumed = crew * o2_consumption_kg_per_day
+    produced = consumed * closure_rate
+    ok = (target_closure <= 0) or (closure_rate >= target_closure * 0.95)
+    return {
+        "ok": ok,
+        "o2_consumed_kg_day": consumed,
+        "o2_produced_kg_day": produced,
+        "closure_rate": closure_rate,
+        "quelle": "crew O2 consumption proxy (0.84 kg/day/person) * closure_rate; ECLSS foundation for closed-loop habitats",
+        "safety_factor": (closure_rate / max(target_closure, 1e-9)) if target_closure > 0 else 1.0,
+    }
+
+
 # Registry of validators the gate can run. Each is a *_check function returning a dict
 # that contains at least an "ok" bool (and usually a "safety_factor"). The key is the
 # stable name a PhysicsCheck declares.
@@ -208,6 +231,8 @@ VALIDATORS = {
     "bus_latency": bus_latency_check,
     # ISRU (complete Genesis / Elon vision): electrolysis O2 as proxy for in-situ propellant/breathable on Mars
     "isru_electrolysis_o2": isru_electrolysis_o2_check,
+    # LIFE_SUPPORT (ECLSS for habitats): O2 balance for crewed multi-planetary systems
+    "life_support_o2_balance": life_support_o2_balance_check,
     # robot dynamics — motion over a gait cycle (dynamic balance + swing inverse dynamics)
     "swing_resonance": swing_resonance_check,
     "zmp_dynamic": zmp_dynamic_check,
