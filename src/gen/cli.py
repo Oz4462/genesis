@@ -699,12 +699,19 @@ def format_assessment_footer(spec) -> str:
     from .pipeline import assess_specification
 
     a = assess_specification(spec)
+    geometry_labels = {
+        "verified": "BREP == analytisch kreuzgeprüft, ok",
+        "failed": "ABWEICHUNG — gebaute Geometrie widerspricht der deklarierten (Blocker)",
+        "unavailable": "nicht geprüft — cadquery/OCP fehlt (ehrlicher Skip, kein stiller Pass)",
+        "no_geometry": "keine Geometrie in der Spezifikation (nichts beurteilt)",
+    }
     lines = [
         "",
         "Qualitätsbewertung (das ehrliche Verdikt der verdrahteten Engine):",
         f"  Gesamturteil:            {a.overall}",
         f"  Physik:                  geprüft={a.physics_checked} ok={a.physics_ok} "
         f"({len(a.physics_checks)} Prüfungen, {len(a.physics_gaps)} Lücken)",
+        f"  Geometrie:               {geometry_labels.get(a.geometry_status, a.geometry_status)}",
         f"  Anforderungen konsistent: {a.constraints_consistent}",
     ]
     if a.needs_clarification:
@@ -889,6 +896,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  Gesamturteil:           {a.overall}")
             print(f"  Physik: geprüft={a.physics_checked} vollständig={a.physics_complete} "
                   f"ok={a.physics_ok}  ({len(a.physics_checks)} Prüfungen, {len(a.physics_gaps)} Lücken)")
+            print(f"  Geometrie (BREP×analytisch): {a.geometry_status}")
             print(f"  Anforderungen konsistent: {a.constraints_consistent}")
             print(f"  Klärung nötig:          {a.needs_clarification} "
                   f"({len(a.clarification_questions)} Fragen)")

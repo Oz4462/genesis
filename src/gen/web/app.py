@@ -124,6 +124,10 @@ def _assessment_dict(a: Assessment) -> dict:
             for q in a.clarification_questions
         ],
         "corroboration_ok": a.corroboration.ok if a.corroboration else None,
+        # BREP-vs-analytic geometry cross-check: "unavailable" (no CAD kernel) stays
+        # visible as an honest skip — never folded into a pass.
+        "geometry_status": a.geometry_status,
+        "geometry_ok": a.geometry_ok,
     }
 
 

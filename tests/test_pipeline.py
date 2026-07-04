@@ -106,3 +106,80 @@ def test_circular_corroboration_is_not_called_verified():
     assert a.corroboration is not None and not a.corroboration.ok
     assert a.physics_ok                               # the PHYSICS is clean...
     assert a.overall == "grounding_failed"            # ...but the grounding failure overrides the headline
+
+
+# --- geometry cross-check wiring (D15: geometry_verification -> assess) ----------
+
+def _fake_kernel_available(monkeypatch):
+    # simulate an installed cadquery without needing the real OCCT kernel: the
+    # availability probe (`import cadquery`) succeeds, and the BREP build is
+    # stubbed with a solid derived from the ANALYTIC layer (so a consistent
+    # geometry verifies, and a divergence is injectable).
+    import types
+    monkeypatch.setitem(sys.modules, "cadquery", types.ModuleType("cadquery"))
+
+
+class _StubBB:
+    def __init__(self, ex, ey, ez):
+        self.xmin, self.xmax = -ex / 2.0, ex / 2.0
+        self.ymin, self.ymax = -ey / 2.0, ey / 2.0
+        self.zmin, self.zmax = -ez / 2.0, ez / 2.0
+
+
+class _StubSolid:
+    def __init__(self, volume, extent):
+        self._volume, self._extent = volume, extent
+
+    def isValid(self):  # noqa: N802 - cadquery API name
+        return True
+
+    def Volume(self):  # noqa: N802 - cadquery API name
+        return self._volume
+
+    def BoundingBox(self):  # noqa: N802 - cadquery API name
+        return _StubBB(*self._extent)
+
+
+def _stub_brep(monkeypatch, volume_scale=1.0):
+    import gen.geometry_verification as gv
+    from gen.verification.geometry import aabb_of, volume_of
+
+    def build(node, quantities):
+        return _StubSolid(volume_scale * volume_of(node, quantities).value,
+                          aabb_of(node, quantities).extent)
+
+    monkeypatch.setattr(gv, "csg_to_solid", build)
+
+
+def test_geometry_cross_check_runs_and_verifies_when_the_kernel_is_available(monkeypatch):
+    _fake_kernel_available(monkeypatch)
+    _stub_brep(monkeypatch)                          # BREP consistent with the spec
+    trace = RunTrace("run", clock=lambda: 0.0)
+    a = assess_specification(capstone_spec(), claims=capstone_claims(), trace=trace)
+    assert a.geometry_status == "verified" and a.geometry_ok
+    assert a.geometry_checks and all(r["ok"] for r in a.geometry_checks)
+    assert a.overall in ("no_physics_indicated", "seams_failed")   # headline unchanged
+    assert "geometry" in {e.kind for e in trace.events}
+
+
+def test_a_geometry_divergence_is_a_blocker(monkeypatch):
+    # NEGATIVTEST: the built solid has HALF the declared volume (hemisphere-class)
+    _fake_kernel_available(monkeypatch)
+    _stub_brep(monkeypatch, volume_scale=0.5)
+    a = assess_specification(capstone_spec(), claims=capstone_claims())
+    assert a.geometry_status == "failed" and not a.geometry_ok
+    assert a.overall == "geometry_failed"            # flows into the honest verdict
+
+
+def test_missing_cad_kernel_is_an_honest_skip_not_a_pass(monkeypatch):
+    monkeypatch.setitem(sys.modules, "cadquery", None)   # import cadquery -> ImportError
+    a = assess_specification(capstone_spec(), claims=capstone_claims())
+    assert a.geometry_status == "unavailable"
+    assert not a.geometry_ok                          # surfaced, never a silent pass...
+    assert a.overall != "geometry_failed"             # ...but not a fail either
+
+
+def test_a_spec_without_geometry_is_vacuous_no_geometry():
+    a = assess_specification(drive_shaft_spec(), claims=drive_shaft_state().claims)
+    assert a.geometry_status == "no_geometry" and not a.geometry_ok
+    assert a.overall == "physics_verified"            # vacuous case does not block

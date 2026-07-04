@@ -16,6 +16,9 @@ physics selection + gate, constraint consistency, and (optionally) grounding int
   • inconsistent_constraints— the requirements structurally contradict each other.
   • grounding_failed         — the claims are not independently corroborated (circular
                               self-corroboration) — the facts underneath cannot be trusted.
+  • geometry_failed          — the built BREP solid diverges from the spec's own declared
+                              geometry (cross-check via geometry_verification); an absent
+                              CAD kernel is an explicit "unavailable" skip, never a pass.
   • physics_incomplete      — a physics check was indicated but could not be evaluated
                               (a gap) — NOT a pass.
   • physics_failed          — a check ran and did not clear its margin.
@@ -54,6 +57,14 @@ class Assessment:
     required cross-domain obligations (adjacent MECH/THERM/ELEC/FIRM or COST rollup).
     `seam_gate` is None only for specs with no seam obligations (vacuous case is
     honest and never turned into a clean pass via other properties).
+
+    `geometry_status` is the BREP-vs-analytic cross-check (geometry_verification):
+    "verified" (every geometry-carrying component's built solid agrees with its
+    declared geometry), "failed" (a divergence — a blocker in `overall`),
+    "unavailable" (the optional cadquery/OCP kernel is absent — an honest skip,
+    surfaced here and in the CLI/web views, never a silent pass or fail), or
+    "no_geometry" (nothing to judge — vacuous, honest). `geometry_checks` carries
+    the per-component results.
     """
 
     clarification_questions: list[ClarifyingQuestion]
@@ -63,6 +74,8 @@ class Assessment:
     constraint_contradictions: list[Contradiction]
     corroboration: CorroborationReport | None
     seam_gate: GateResult | None
+    geometry_status: str
+    geometry_checks: list[dict]
     overall: str
 
     @property
@@ -100,16 +113,67 @@ class Assessment:
             return False  # no obligations or not yet computed (honest)
         return self.seam_gate.passed
 
+    @property
+    def geometry_ok(self) -> bool:
+        """True only when every geometry-carrying component's BREP solid was actually
+        cross-checked against the analytic layer and agreed. "unavailable" (no CAD
+        kernel) and "no_geometry" (nothing to judge) are honest non-ok — never a
+        silent pass; "failed" additionally blocks `overall` as "geometry_failed"."""
+        return self.geometry_status == "verified"
+
+
+def _geometry_cross_check(spec: Specification) -> tuple[str, list[dict]]:
+    """Cross-check every geometry-carrying component's built BREP solid against the
+    analytic layer (geometry_verification.verify_geometry) — the "two independent
+    methods agree" guard over the generated CAD, wired into the one honest verdict.
+
+    Returns ``(status, results)``: status is "no_geometry" (no component carries
+    geometry — vacuous, honest), "unavailable" (the optional cadquery/OCP kernel is
+    absent — an explicit skip with reason, the same honesty pattern as
+    PrintabilityAssessment's "unavailable", NEVER a silent pass), "failed" (a
+    component's built solid diverges from its declared geometry, or the kernel/CSG
+    could not judge it — fail-loud), or "verified". Deterministic, offline.
+    """
+    parts = [c for c in spec.components if c.geometry is not None]
+    if not parts:
+        return "no_geometry", []
+    try:
+        import cadquery  # noqa: F401  (optional CAD kernel — probe only)
+    except ImportError:
+        return "unavailable", []
+
+    from .core.errors import GeometryError
+    from .geometry_verification import verify_geometry
+
+    quantities = {q.id: q for q in spec.quantities}
+    results: list[dict] = []
+    for comp in parts:
+        try:
+            r = verify_geometry(comp.geometry, quantities)
+            results.append({"component": comp.id, **r})
+        except GeometryError as exc:
+            # kernel present but the check itself failed loudly (malformed CSG,
+            # OCCT crash): that is a finding about the geometry, not a skip.
+            results.append({"component": comp.id, "ok": False, "error": str(exc)})
+    status = "verified" if all(r["ok"] for r in results) else "failed"
+    return status, results
+
 
 def _overall_status(
     questions, gaps, gate: GateResult, contradictions, n_checks: int, corroboration,
-    seam_gate: GateResult | None
+    seam_gate: GateResult | None, geometry_status: str
 ) -> str:
     """The single honest status, in priority order (what must be resolved first).
 
     Seams (epsilon) are now part of the honest composition: if a spec has required
     cross-domain obligations (or cost rollup) and they are not satisfied, this surfaces
     as "seams_failed" (preventing masked passes on coupling).
+
+    Geometry: a BREP-vs-analytic divergence surfaces as "geometry_failed" (a built
+    artifact that does not match its own declared geometry blocks the verdict).
+    "unavailable"/"no_geometry" do NOT alter the headline — the skip stays visible
+    in Assessment.geometry_status (and geometry_ok stays False), never masked
+    either way.
     """
     if questions:
         return "needs_clarification"
@@ -117,6 +181,10 @@ def _overall_status(
         return "inconsistent_constraints"
     if corroboration is not None and not corroboration.ok:
         return "grounding_failed"            # claims not independently corroborated (circular)
+    if geometry_status == "failed":
+        # built CAD diverges from the spec's own declared geometry: the artifact itself
+        # is wrong, which outranks an uncertified seam over that artifact.
+        return "geometry_failed"
     if seam_gate is not None and not seam_gate.passed:
         return "seams_failed"                # required cross-domain coupling not satisfied (honest)
     if gaps:
@@ -179,6 +247,8 @@ def assess_specification(
         cert = seam_certificate or build_seam_certificate(spec, provided_seams)
         seam_gate = gate_epsilon(spec, cert)
 
+    geometry_status, geometry_checks = _geometry_cross_check(spec)
+
     if trace is not None:
         trace.record("clarify", "clarify", n_questions=len(questions))
         trace.record("select", "select", n_checks=len(checks), n_gaps=len(gaps))
@@ -189,8 +259,11 @@ def assess_specification(
                          circular=len(corroboration.circular))
         if seam_gate is not None:
             trace.record_gate("epsilon", seam_gate)
+        trace.record("geometry", "geometry", status=geometry_status,
+                     n_components=len(geometry_checks))
 
-    overall = _overall_status(questions, gaps, gate, contradictions, len(checks), corroboration, seam_gate)
+    overall = _overall_status(questions, gaps, gate, contradictions, len(checks), corroboration,
+                              seam_gate, geometry_status)
     return Assessment(
         clarification_questions=questions,
         physics_checks=checks,
@@ -199,6 +272,8 @@ def assess_specification(
         constraint_contradictions=contradictions,
         corroboration=corroboration,
         seam_gate=seam_gate,
+        geometry_status=geometry_status,
+        geometry_checks=geometry_checks,
         overall=overall,
     )
 

@@ -116,10 +116,14 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
   vor physics_incomplete reordern — NICHT erreichbar: gaps↔questions 1:1 gekoppelt, needs_clarification feuert zuerst).
   refinement G5 (converged vertraut result.passed ohne `not failures` — defensiv gg. malformed GateResult).
 - D15 (Schritt-6 deferred, Claude×Grok): grounding_integrity (Alias-ID-Kanonisierung für Zirkularität, body-vs-map-
-  Bijection, vakuöse independent_rate/coverage bei Nenner 0). **geometry_verification NICHT in pipeline verdrahtet
-  trotz README §6** → entweder verdrahten ODER README-Claim entschärfen; VOR dem Verdrahten: non-exact Volume-Untergrenze
-  + Extent-Containment-statt-isclose für konservative AABBs (Rotation) + Volume()/BoundingBox()-Guards. clarification
-  G2/G4 (NaN-Answer schon fail-loud; unneeded-measurand-Fold) — low.
+  Bijection, vakuöse independent_rate/coverage bei Nenner 0). **geometry_verification-Teil → ERLEDIGT 2026-07-04** (P7):
+  alle 3 Härtungen gebaut (non-exact Volume-Untergrenze `Volume.lower` mit Beweisskizzen; `Aabb.exact`-Flag +
+  Extent-Containment-statt-isclose für konservative AABBs/Rotation; isValid/Volume/BoundingBox-Guards → GeometryError)
+  UND in `pipeline.assess_specification` verdrahtet (`geometry_status` verified/failed/unavailable/no_geometry,
+  `failed` → `overall="geometry_failed"`; cadquery-fehlt = ehrlicher Skip, sichtbar in CLI-Footer/assess/Web-Dict).
+  Tests: test_geometry.py (+13 Schranken/Exaktheit), test_geometry_verification_hardening.py (neu, läuft OHNE
+  cadquery via Stub-Solid), test_pipeline.py (+4 Verdrahtung). clarification
+  G2/G4 (NaN-Answer schon fail-loud; unneeded-measurand-Fold) — low, bleibt offen.
   evaluation: per-gate leak-breakdown + jeder unsound-Case soll für seinen GELABELTEN C-Code scheitern.
 - D11: Audit-Log-Lücken (Grok, low, A5): scout._queries + skeptic._judge schlucken LLM/Parse-Fehler ohne log
   (best-effort, kein Fabrication-Risiko, aber schwer reproduzierbar) — state.log threaden. Auch: skeptic.claim.verification
@@ -256,8 +260,8 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
     3.0-mm-Bohrung, die immer bestand. Kein Code-Change nötig, nur dieser Queue-Eintrag war stale.
 - Review-Kampagne **Schritt 7-9 offen** (Reihenfolge oben): physics_validation + 27 Validatoren + fem*/modal/dfm/
   orientation/mesh_integrity/brep/circuit → export/+costing+completeness+software → pipelines/+integration/+grenzverschiebung/.
-- Deferred Findings aus Schritt 6: D14 (pipeline/refinement), D15 (grounding/geometry — geometry_verification NICHT
-  verdrahtet), D16 (goldset/telemetry/calibration/ratification Tails) — je in den Commit-Messages dokumentiert.
+- Deferred Findings aus Schritt 6: D14 (pipeline/refinement), D15 (grounding/geometry — geometry_verification-Teil
+  ERLEDIGT 2026-07-04, Rest offen), D16 (goldset/telemetry/calibration/ratification Tails) — je in den Commit-Messages dokumentiert.
 
 ## Owner-gated / blockiert
 - Branch mergen/pushen (braucht Owner-Auftrag).

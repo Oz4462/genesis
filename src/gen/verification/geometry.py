@@ -27,7 +27,7 @@ region, the per-axis overlap test). See PHASE_DELTA.md §8.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from ..core.errors import GeometryError
 from ..core.state import (
@@ -45,7 +45,14 @@ from .units import Dimension, parse_unit, unit_scale
 class Aabb:
     """An axis-aligned bounding box. ``empty`` marks a provably-empty region (an
     intersection whose operands do not overlap), distinct from a zero-extent
-    degenerate box (which is non-empty but has no volume)."""
+    degenerate box (which is non-empty but has no volume).
+
+    ``exact`` is True only when the box is provably TIGHT (it equals the solid's
+    true bounding box); False marks a sound conservative SUPERSET — e.g. after a
+    non-quarter-turn rotation, a difference (the tool may shave the extremes), or
+    an intersection (the solids need not reach the overlap-box corners). A
+    consumer must treat a non-exact box's extents as bounds, never as the solid's
+    measured extents (comparing them with isclose produces false negatives)."""
 
     min_x: float
     min_y: float
@@ -54,6 +61,7 @@ class Aabb:
     max_y: float
     max_z: float
     empty: bool = False
+    exact: bool = True
 
     @property
     def extent(self) -> tuple[float, float, float]:
@@ -160,6 +168,7 @@ def aabb_of(node: GeometryNode, quantities: dict[str, Quantity]) -> Aabb:
             return Aabb(
                 c.min_x + dx, c.min_y + dy, c.min_z + dz,
                 c.max_x + dx, c.max_y + dy, c.max_z + dz,
+                exact=c.exact,   # a pure shift preserves tightness
             )
         if kind == "rotate":
             if not node.children:
@@ -187,6 +196,11 @@ def aabb_of(node: GeometryNode, quantities: dict[str, Quantity]) -> Aabb:
                 min(p[2] for p in corners),
                 max(p[0] for p in corners), max(p[1] for p in corners),
                 max(p[2] for p in corners),
+                # exact only for a quarter-turn about a coordinate axis: such a
+                # rotation is a signed coordinate permutation, so it maps the
+                # child's TIGHT box to the rotated solid's TIGHT box. Any other
+                # rotation makes the corner re-box a (sound) superset only.
+                exact=c.exact and _is_quarter_turn_about_coordinate_axis(axis, angle),
             )
 
     if kind in GEOMETRY_OPERATIONS:
@@ -196,12 +210,35 @@ def aabb_of(node: GeometryNode, quantities: dict[str, Quantity]) -> Aabb:
         if kind == "union":
             return _union(child_boxes)
         if kind == "difference":
-            # subtracting can only shrink -> the sound bound is the minuend's box
-            return child_boxes[0]
+            # subtracting can only shrink -> the sound bound is the minuend's box.
+            # NOT exact: the tool may shave the minuend's extremes, so even a tight
+            # minuend box is only a provable SUPERSET of the result's tight box.
+            base = child_boxes[0]
+            return base if base.empty else replace(base, exact=False)
         if kind == "intersection":
             return _intersection(child_boxes)
 
     raise GeometryError(f"unknown geometry kind {kind!r}")
+
+
+def _is_quarter_turn_about_coordinate_axis(
+    axis: tuple[float, float, float], angle_deg: float, *, eps: float = 1e-9
+) -> bool:
+    """True iff the rotation provably maps axis-aligned boxes to axis-aligned boxes.
+
+    Proof sketch: a rotation by k·90° about a coordinate axis is a signed
+    permutation of the coordinates; it maps every axis-aligned box bijectively to
+    an axis-aligned box and preserves face contact, so a TIGHT child box stays
+    tight after corner re-boxing. For any other axis/angle no such claim is made
+    (the re-box is then only a sound superset)."""
+    ax, ay, az = (abs(c) for c in axis)
+    n = math.sqrt(ax * ax + ay * ay + az * az)
+    if n < 1e-12:
+        return False           # degenerate axis — rotate_point raises loudly anyway
+    axis_aligned = max(ax, ay, az) / n > 1.0 - eps
+    remainder = angle_deg % 90.0
+    quarter_turn = remainder < eps or (90.0 - remainder) < eps
+    return axis_aligned and quarter_turn
 
 
 def _union(boxes: list[Aabb]) -> Aabb:
@@ -211,6 +248,9 @@ def _union(boxes: list[Aabb]) -> Aabb:
     return Aabb(
         min(b.min_x for b in present), min(b.min_y for b in present), min(b.min_z for b in present),
         max(b.max_x for b in present), max(b.max_y for b in present), max(b.max_z for b in present),
+        # the envelope of TIGHT boxes is tight for the union (every extreme of the
+        # union is attained by some child, whose tight box records it exactly)
+        exact=all(b.exact for b in present),
     )
 
 
@@ -226,7 +266,9 @@ def _intersection(boxes: list[Aabb]) -> Aabb:
     # inverted on any axis -> the operands do not all overlap -> provably empty
     if min_x > max_x or min_y > max_y or min_z > max_z:
         return _EMPTY
-    return Aabb(min_x, min_y, min_z, max_x, max_y, max_z)
+    # NOT exact: the solids need not reach the corners of the overlap box, so this
+    # is only a provable superset of the intersection's tight box.
+    return Aabb(min_x, min_y, min_z, max_x, max_y, max_z, exact=False)
 
 
 # --- volume (deterministic, exact where provable) ----------------------------
@@ -238,11 +280,26 @@ class Volume:
     value is provably the exact volume — otherwise it is an honest upper bound and
     ``note`` says why it could not be computed exactly. GENESIS never presents an
     estimated volume as exact (PHASE_DELTA.md §0 honesty, applied to a property).
+
+    ``lower`` is ALWAYS a sound LOWER BOUND on the true volume: for an exact value
+    it equals ``value``; for a non-exact value it defaults to the honest (possibly
+    vacuous) 0.0 unless the caller proves something better. The invariant
+    ``0 ≤ lower ≤ value`` is enforced loudly — an inverted bracket is a bug, never
+    a silently-returned estimate.
     """
 
     value: float
     exact: bool
     note: str = ""
+    lower: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.lower is None:
+            object.__setattr__(self, "lower", self.value if self.exact else 0.0)
+        if self.lower > self.value + 1e-9 * max(1.0, abs(self.value)):
+            raise GeometryError(
+                f"unsound volume bracket: lower bound {self.lower} exceeds upper bound {self.value}"
+            )
 
 
 def _contains(outer: Aabb, inner: Aabb) -> bool:
@@ -276,17 +333,25 @@ def _disjoint_pairwise(boxes: list[Aabb]) -> bool:
 
 
 def volume_of(node: GeometryNode, quantities: dict[str, Quantity]) -> Volume:
-    """Deterministic CSG volume — exact where provable, else a sound upper bound.
+    """Deterministic CSG volume — exact where provable, else a sound [lower, upper] bracket.
 
     Primitive volumes are exact (box = x·y·z, cylinder = π·r²·h, sphere =
-    4/3·π·r³ — standard formulas). For composites:
+    4/3·π·r³ — standard formulas; lower == value). For composites (upper bound as
+    before, plus a provable LOWER bound on every non-exact path):
       * union: exact = Σ parts when the children are pairwise disjoint (provable
-        via AABB); otherwise Σ parts is a sound upper bound (union ≤ Σ).
+        via AABB); otherwise Σ parts is a sound upper bound (union ≤ Σ) and
+        max(part lowers) a sound lower bound — every child is a subset of the
+        union, so vol(union) ≥ vol(childᵢ) ≥ lowerᵢ for each i.
       * difference: exact = vol(A) − Σ vol(tool) only when A's solid equals its
         AABB (a box), every tool is contained in A, and tools are pairwise
-        disjoint; otherwise vol(A) is a sound upper bound (removing only shrinks).
-      * intersection: min(parts) is a sound upper bound (∩ ≤ each part); exactness
-        is not claimed in general.
+        disjoint; otherwise vol(A) is a sound upper bound (removing only shrinks)
+        and max(0, lower(A) − Σ upper(toolᵢ)) a sound lower bound — the removed
+        material is vol(A ∩ ⋃toolᵢ) ≤ Σ vol(toolᵢ) ≤ Σ upperᵢ even when tools
+        overlap each other or protrude outside A, so
+        vol(A∖tools) ≥ vol(A) − Σ upperᵢ ≥ lower(A) − Σ upperᵢ (clamped at 0).
+      * intersection: min(parts) is a sound upper bound (∩ ≤ each part); the lower
+        bound is the honest vacuous 0 (disjoint interiors are not excludable here)
+        — stated in ``note``, never dressed up as information.
     Raises ``GeometryError`` (via aabb_of / value lookup) on an unrenderable node.
     """
     kind = node.kind
@@ -330,7 +395,9 @@ def volume_of(node: GeometryNode, quantities: dict[str, Quantity]) -> Volume:
             upper = sum(p.value for p in parts)
             exact = all(p.exact for p in parts) and _disjoint_pairwise(boxes)
             note = "" if exact else "overlapping geometry — value is an upper bound (union ≤ Σ parts)"
-            return Volume(upper, exact=exact, note=note)
+            # sound lower bound: each child ⊆ union ⇒ vol(union) ≥ max(part lowers)
+            return Volume(upper, exact=exact, note=note,
+                          lower=None if exact else max(p.lower for p in parts))
         if kind == "difference":
             a = parts[0]
             tools = parts[1:]
@@ -339,15 +406,21 @@ def volume_of(node: GeometryNode, quantities: dict[str, Quantity]) -> Volume:
             tools_disjoint = _disjoint_pairwise(tool_boxes)
             if a.exact and _is_box_solid(node.children[0]) and contained and tools_disjoint and all(t.exact for t in tools):
                 return Volume(a.value - sum(t.value for t in tools), exact=True)
+            # sound lower bound: removed ≤ Σ vol(toolᵢ) ≤ Σ upperᵢ (tools may overlap
+            # each other or lie outside A — both only make the removal smaller), so
+            # vol(A∖tools) ≥ lower(A) − Σ upperᵢ, clamped at the trivial 0.
             return Volume(
                 a.value, exact=False,
                 note="tool not provably contained / minuend not a box — value is an upper bound (vol of minuend)",
+                lower=max(0.0, a.lower - sum(t.value for t in tools)),
             )
         if kind == "intersection":
             upper = min(p.value for p in parts)
             return Volume(
                 upper, exact=False,
-                note="intersection volume not computed exactly — value is an upper bound (∩ ≤ each part)",
+                note="intersection volume not computed exactly — value is an upper bound "
+                     "(∩ ≤ each part); lower bound is the vacuous 0",
+                lower=0.0,
             )
 
     raise GeometryError(f"unknown geometry kind {kind!r}")

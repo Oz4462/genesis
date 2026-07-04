@@ -263,3 +263,134 @@ def test_mass_none_for_unknown_unit():
     comp, q = _solid_box_component("mm", rho)
     m = mass_of(comp, q)
     assert m.value is None
+
+
+# --- volume LOWER bounds (sound, honest — D15 hardening) ------------------------
+
+def test_exact_volume_lower_bound_equals_value():
+    q = _qs(("r", 5.0))
+    v = volume_of(GeometryNode(kind="sphere", params={"radius": "r"}), q)
+    assert v.exact and v.lower == v.value
+
+
+def test_nonbox_difference_has_a_sound_lower_bound():
+    # cylinder minus a small sphere: inexact (minuend is not a box), but the true
+    # volume is provably >= vol(cyl) - vol(sphere) — the hemisphere-bug class is
+    # now catchable even on the non-exact path.
+    q = _qs(("r", 10.0), ("h", 10.0), ("sr", 1.0))
+    geom = GeometryNode(kind="difference", children=[
+        GeometryNode(kind="cylinder", params={"radius": "r", "height": "h"}),
+        GeometryNode(kind="sphere", params={"radius": "sr"}),
+    ])
+    v = volume_of(geom, q)
+    assert not v.exact
+    assert v.lower == pytest.approx(math.pi * 100 * 10 - (4 / 3) * math.pi * 1.0)
+    assert 0.0 <= v.lower <= v.value
+
+
+def test_difference_lower_bound_clamps_at_zero():
+    # tool upper bound exceeds the minuend volume -> lower bound is an honest 0
+    q = _qs(("r", 1.0), ("h", 1.0), ("sr", 50.0))
+    geom = GeometryNode(kind="difference", children=[
+        GeometryNode(kind="cylinder", params={"radius": "r", "height": "h"}),
+        GeometryNode(kind="sphere", params={"radius": "sr"}),
+    ])
+    v = volume_of(geom, q)
+    assert not v.exact and v.lower == 0.0
+
+
+def test_overlapping_union_lower_bound_is_the_largest_part():
+    # union >= each part, so max(part lowers) is a sound lower bound
+    q = _qs(("s", 4.0), ("near", 1.0), ("z0", 0.0))
+    a = GeometryNode(kind="box", params={"size_x": "s", "size_y": "s", "size_z": "s"})
+    b = GeometryNode(kind="translate", params={"x": "near", "y": "z0", "z": "z0"}, children=[a])
+    v = volume_of(GeometryNode(kind="union", children=[a, b]), q)
+    assert not v.exact
+    assert v.lower == 64.0 and v.value == 128.0
+
+
+def test_intersection_lower_bound_is_vacuously_zero():
+    q = _qs(("s", 4.0), ("near", 1.0), ("z0", 0.0))
+    a = GeometryNode(kind="box", params={"size_x": "s", "size_y": "s", "size_z": "s"})
+    b = GeometryNode(kind="translate", params={"x": "near", "y": "z0", "z": "z0"}, children=[a])
+    v = volume_of(GeometryNode(kind="intersection", children=[a, b]), q)
+    assert not v.exact and v.lower == 0.0
+
+
+def test_translate_and_rotate_propagate_the_lower_bound():
+    q = _qs(("r", 10.0), ("h", 10.0), ("sr", 1.0), ("d", 5.0), ("z0", 0.0))
+    inexact = GeometryNode(kind="difference", children=[
+        GeometryNode(kind="cylinder", params={"radius": "r", "height": "h"}),
+        GeometryNode(kind="sphere", params={"radius": "sr"}),
+    ])
+    moved = GeometryNode(kind="translate", params={"x": "d", "y": "z0", "z": "z0"},
+                         children=[inexact])
+    v = volume_of(moved, q)
+    assert not v.exact and v.lower == pytest.approx(math.pi * 1000 - (4 / 3) * math.pi)
+
+
+# --- AABB exactness flag (rotation-conservatism made explicit — D15) -------------
+
+def test_primitive_and_translate_aabbs_are_exact():
+    q = _qs(("r", 3.0), ("d", 10.0), ("z0", 0.0))
+    sph = GeometryNode(kind="sphere", params={"radius": "r"})
+    assert aabb_of(sph, q).exact
+    moved = GeometryNode(kind="translate", params={"x": "d", "y": "z0", "z": "z0"},
+                         children=[sph])
+    assert aabb_of(moved, q).exact
+
+
+def test_rotation_by_45_degrees_is_conservative_not_exact():
+    q = _qs(("r", 5.0), ("h", 20.0), ("ax", 0.0), ("ay", 0.0), ("az", 1.0), ("ang", 45.0))
+    geom = GeometryNode(kind="rotate",
+                        params={"axis_x": "ax", "axis_y": "ay", "axis_z": "az", "angle_deg": "ang"},
+                        children=[GeometryNode(kind="cylinder", params={"radius": "r", "height": "h"})])
+    box = aabb_of(geom, q)
+    assert not box.exact
+    # the conservative box inflates the r=5 cylinder to 10*sqrt(2) in x/y
+    assert box.extent[0] == pytest.approx(10.0 * math.sqrt(2.0))
+
+
+def test_quarter_turn_about_a_coordinate_axis_stays_exact():
+    q = _qs(("r", 5.0), ("h", 20.0), ("ax", 0.0), ("ay", 1.0), ("az", 0.0), ("ang", 90.0))
+    geom = GeometryNode(kind="rotate",
+                        params={"axis_x": "ax", "axis_y": "ay", "axis_z": "az", "angle_deg": "ang"},
+                        children=[GeometryNode(kind="cylinder", params={"radius": "r", "height": "h"})])
+    box = aabb_of(geom, q)
+    assert box.exact
+    assert box.extent == pytest.approx((20.0, 10.0, 10.0))
+
+
+def test_quarter_turn_about_a_skew_axis_is_not_claimed_exact():
+    q = _qs(("s", 4.0), ("ax", 1.0), ("ay", 1.0), ("az", 0.0), ("ang", 90.0))
+    geom = GeometryNode(kind="rotate",
+                        params={"axis_x": "ax", "axis_y": "ay", "axis_z": "az", "angle_deg": "ang"},
+                        children=[GeometryNode(kind="box", params={"size_x": "s", "size_y": "s", "size_z": "s"})])
+    assert not aabb_of(geom, q).exact
+
+
+def test_difference_aabb_is_not_claimed_exact():
+    # subtraction may shave the extremes: the minuend box is only a sound superset
+    q = _qs(("big", 10.0), ("small", 2.0))
+    body = GeometryNode(kind="box", params={"size_x": "big", "size_y": "big", "size_z": "big"})
+    hole = GeometryNode(kind="cylinder", params={"radius": "small", "height": "big"})
+    assert not aabb_of(GeometryNode(kind="difference", children=[body, hole]), q).exact
+
+
+def test_intersection_aabb_is_not_claimed_exact():
+    q = _qs(("s", 4.0), ("dx", 2.0), ("z0", 0.0))
+    a = GeometryNode(kind="box", params={"size_x": "s", "size_y": "s", "size_z": "s"})
+    b = GeometryNode(kind="translate", params={"x": "dx", "y": "z0", "z": "z0"}, children=[a])
+    assert not aabb_of(GeometryNode(kind="intersection", children=[a, b]), q).exact
+
+
+def test_union_propagates_exactness():
+    q = _qs(("s", 2.0), ("far", 100.0), ("z0", 0.0),
+            ("ax", 0.0), ("ay", 0.0), ("az", 1.0), ("ang", 45.0))
+    a = GeometryNode(kind="box", params={"size_x": "s", "size_y": "s", "size_z": "s"})
+    b = GeometryNode(kind="translate", params={"x": "far", "y": "z0", "z": "z0"}, children=[a])
+    assert aabb_of(GeometryNode(kind="union", children=[a, b]), q).exact
+    rotated = GeometryNode(kind="rotate",
+                           params={"axis_x": "ax", "axis_y": "ay", "axis_z": "az", "angle_deg": "ang"},
+                           children=[a])
+    assert not aabb_of(GeometryNode(kind="union", children=[a, rotated]), q).exact
