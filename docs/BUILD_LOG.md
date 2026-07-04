@@ -7665,3 +7665,17 @@ All keep public API (list[tuple]) + GateResult unchanged. Deterministic.
 **Result:** All Befunde fixed with strict honesty. No fake outputs. Specialization Memo below in response. Next: owner may wire designed via measurand or extend.
 
 **Ehrliche Grenze:** Dose limit currently default-permissive (caller provides via PhysicsCheck extra); full TID limit seam future. Runner radiation trigger heuristic. No whole-suite 1600 re-run (time); targeted + smoke green.
+
+---
+
+## 2026-07-04 — Humanoid Teilprojekt 1: Energie & Thermik (Claude)
+
+Batterie-Laufzeit (battery_endurance) und Motor-Überhitzung (overtemperature,
+Konduktions-Schranke) sind jetzt gate-relevante Checks beider Humanoiden.
+Leistungskette als DERIVED-Formeln (q_p_mech_joint → q_p_loco → q_p_total),
+kein neuer Validator. Negativ-Tests beweisen Schärfe (200-Wh-Akku und
+Miniatur-Wärmepfad fallen durch). Benchmark: Flagship ≥ 180 min (real: 196.3 min),
+Printed 120 min gefordert (real: 256.2 min). THERM-ELEC und MECH-THERM seams
+sind deklariert und verifiziert (Energiebilanz + Materialgrenzwerte);
+Runner serialisiert seam_certificate für beide Domains.
+Spec: docs/superpowers/specs/2026-07-04-humanoid-energy-thermal-design.md

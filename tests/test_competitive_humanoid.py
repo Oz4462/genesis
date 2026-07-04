@@ -24,10 +24,12 @@ from gen.competitive_humanoid import (  # noqa: E402
     ALL_COMPETITIVE_HUMANOIDS,
     FLAGSHIP,
     PRINTED,
+    build_humanoid,
     flagship_humanoid_spec,
 )
 from gen.costing import bom_cost  # noqa: E402
 from gen.export.openscad import specification_to_openscad  # noqa: E402
+from gen.physics_validation import run_physics_checks  # noqa: E402
 from gen.pipeline import assess_specification  # noqa: E402
 
 _HAS_CADQUERY = importlib.util.find_spec("cadquery") is not None
@@ -87,6 +89,11 @@ def test_flagship_beats_the_2026_benchmark():
     # and the spec still verifies as a whole
     a = assess_specification(flagship_humanoid_spec())
     assert a.overall == "physics_verified"
+    # 2026-Energie-Anker: Flagship muss >= 180 min Dauerbetrieb nachweisen
+    endurance = next(r for c, r in zip(a.physics_checks, run_physics_checks(a.physics_checks))
+                     if c.name == "robot battery endurance")
+    assert endurance["result"]["endurance_min"] >= 180.0
+    assert endurance["ok"]
 
 
 def test_bundle_renders_the_assembled_robot_not_only_the_parts_tray():
