@@ -12,7 +12,7 @@
 
 **Kennzahlen (gemessen)**
 - ~19.700 LOC allein in den Top-Level-Modulen von `src/gen/`, **24 Subpackages**.
-- **246 Testdateien / 1755 Testfunktionen** (`tests/`).
+- **260 Testdateien / 2064 Testfunktionen** (`tests/`; Suite 2079 passed / 0 failed / 43 skipped, gemessen 2026-07-04 nachts).
 - **24 CLI-Modi** (`--mode`), zusätzlich Web-UI.
 - **40 Physik-Validatoren** (`physics_validation.VALIDATORS`), **35 Auto-Select-Rezepte** (`physics_selection.RECIPES`), **27 Closed-Form-Physik-/FEM-Module**.
 - Sehr wenige echte Stubs: 1 (`LeanKernelStub`); die ~21 „Unavailable"-Stellen sind **ehrliche Skip-Pfade** für optionale Dependencies (PyBullet, MuJoCo, GPU-Materials-Oracle, Postgres), keine Platzhalter.
@@ -57,7 +57,7 @@ Jeder faktische Claim mit Quelle, Confidence, Verifikations-Status.
 - Cross-Model-Default: Generator `grok-build`, Verifier `claude-opus-4-8` (andere Familie, Kernprinzip #3).
 
 ## 5. Physik-/FEM-/Validierungs-Module ✅ (gezählt)
-**40 Validatoren / 35 Auto-Select-Rezepte / 27 Closed-Form-Module.** Auto-Select feuert aus measurand-Tags.
+**43 Validatoren / 38 Auto-Select-Rezepte** (nachgezählt 2026-07-04 via len(VALIDATORS)/len(RECIPES); 7 bewusst manual-only, siehe MANUAL_ONLY_VALIDATORS). Auto-Select feuert aus measurand-Tags.
 - Statik/Festigkeit: `structural.py`, `bracket_fem.py`, `fem.py`, `fem3d.py`, `fem3d_quadratic.py`, `plate_bending.py`, `plate_hole.py`, `bolted_joint.py`, `section_optimizer.py`.
 - Versagen: `buckling.py`, `fatigue.py`, `notch_fatigue.py`, `fracture.py`, `creep.py`, `torsion.py`, `pressure_vessel.py`, `contact.py` (Hertz).
 - Thermik/Modal: `thermal.py`, `thermal_stress.py`, `modal.py`.
@@ -172,7 +172,7 @@ Meta-/Vorausschau-Layer: `lumencrucible.py` (Selbst-Verbesserung), `technology_b
 
 ## Gesamtbild (nüchtern)
 
-**Nachweislich nutzbar (✅):** der Verifikations-/Gate-Kern, das Fakten-Ledger (in-memory), die α–δ-Spezifikationskette mit 40 Physik-Validatoren, CSG-CAD + Export + Druckbarkeits-Beweis, Elektronik/DFM/G-Code/KiCad, die 11 Fach-Pipelines (Realisierung), der Discovery-Kern (Power-Law-Rediscovery + polynomialer z3-Beweis), der Inventor-Loop, die Wissensbasis/Retrieval-Schicht, das Web-UI und 24 CLI-Modi — alles durch 1755 Tests und CLI-Verdrahtung gedeckt, offline + deterministisch.
+**Nachweislich nutzbar (✅):** der Verifikations-/Gate-Kern, das Fakten-Ledger (in-memory), die α–δ-Spezifikationskette mit 43 Physik-Validatoren, CSG-CAD + Export + Druckbarkeits-Beweis, Elektronik/DFM/G-Code/KiCad, die 11 Fach-Pipelines (Realisierung), der Discovery-Kern (Power-Law-Rediscovery + polynomialer z3-Beweis), der Inventor-Loop, die Wissensbasis/Retrieval-Schicht, das Web-UI und 24 CLI-Modi — alles durch 2064 Testfunktionen und CLI-Verdrahtung gedeckt, offline + deterministisch.
 
 **Vorhanden, aber begrenzt/optional (🟡):** Mehrkörper-Simulation (nur Einzel-DOF eigen; PyBullet/MuJoCo optional), Postgres-Ledger (kein DB-Lauf in der Sandbox), Live-LLM-Pfade (claude/grok-CLI, owner-/netz-gated), Materials-Oracle (GPU-gated, nur Offline-Twin), CAD-Fidelity (Primitive), Inventor-Grounding (eine Domäne), HORIZON/Grenzverschiebung (explorativ).
 
