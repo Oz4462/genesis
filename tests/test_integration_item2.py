@@ -10,7 +10,9 @@ import hashlib
 import numpy as np
 import pytest
 
-pytest.importorskip("trust_core")
+# Dotted on purpose: the PyPI 'trust-core' namesake ships no `conformal` — a bare
+# importorskip("trust_core") would pass there and turn collection into an ERROR.
+pytest.importorskip("trust_core.conformal.ccdd")
 
 from gen.core.state import Claim, ClaimStatus, SourceRef  # noqa: E402
 from gen.integration.drift import detect_run_drift  # noqa: E402

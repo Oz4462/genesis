@@ -27,10 +27,14 @@ from ..core.state import Claim, ClaimStatus
 
 try:
     from trust_core.receipts.keystore import KeyStore
-except ImportError as exc:  # pragma: no cover - exercised only without the extra
+except ImportError as exc:  # tested via tests/test_verify_extra_seam.py
     raise ImportError(
-        "trust-core is required for gen.audit. Install the optional extra: "
-        "pip install -e '.[verify]'."
+        "gen.audit needs trust_core.receipts.keystore from the REAL trust-core "
+        "companion library (private sibling repo, see "
+        "docs/integration/PHASE1_TRUSTCORE.md). The 'trust-core' package on PyPI "
+        "is an unrelated namesake WITHOUT this module — do not install it from "
+        "PyPI. Install the companion library instead: "
+        "pip install -e <path-to>/trust-core."
     ) from exc
 
 _PAYLOAD_TYPE = "application/vnd.genesis.run-audit+json"

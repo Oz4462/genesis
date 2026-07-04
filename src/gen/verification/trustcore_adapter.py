@@ -27,11 +27,14 @@ try:
     )
     from trust_core.math.fdr import bh_adjusted as _tc_bh_adjusted
     from trust_core.math.fdr import bh_threshold as _tc_bh_threshold
-except ImportError as exc:  # pragma: no cover - exercised only without the extra
+except ImportError as exc:  # tested via tests/test_verify_extra_seam.py
     raise ImportError(
-        "trust-core is required for gen.verification.trustcore_adapter. "
-        "Install the optional extra: pip install -e '.[verify]' "
-        "(or: pip install -e <path-to>/trust-core)."
+        "gen.verification.trustcore_adapter needs trust_core.conformal.split and "
+        "trust_core.math.fdr from the REAL trust-core companion library (private "
+        "sibling repo, see docs/integration/PHASE1_TRUSTCORE.md). The 'trust-core' "
+        "package on PyPI is an unrelated namesake WITHOUT these modules — do not "
+        "install it from PyPI. Install the companion library instead: "
+        "pip install -e <path-to>/trust-core."
     ) from exc
 
 

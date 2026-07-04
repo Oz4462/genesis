@@ -13,7 +13,11 @@ import random
 
 import pytest
 
-pytest.importorskip("trust_core")
+# Dotted on purpose: the PyPI 'trust-core' namesake ships neither `conformal` nor
+# `math.fdr` — a bare importorskip("trust_core") would pass there and turn
+# collection into an ERROR.
+pytest.importorskip("trust_core.conformal.split")
+pytest.importorskip("trust_core.math.fdr")
 
 from gen.calibration import conformal_quantile  # noqa: E402
 from gen.verification import trustcore_adapter as tca  # noqa: E402

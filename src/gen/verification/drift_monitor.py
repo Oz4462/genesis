@@ -7,10 +7,21 @@ fires on a real shift and stays quiet on a no-shift stream.
 
 This wraps trust_core.conformal.ccdd (calibrate + StreamingDetector), which gives a
 marginal per-window false-alarm-rate <= alpha_outer under exchangeability of the
-calibration data. It is a MONITORING signal (opens a review), not a hard phase gate:
-GENESIS RunState does not yet carry output embeddings, so wiring it into the phase
-gates is deferred until embedding capture exists. Import is guarded so GENESIS core
-stays numpy-only.
+calibration data. It is a MONITORING signal (opens a review), never a phase gate:
+GENESIS phase gates are deterministic and LLM-free by design. The run-level wiring
+EXISTS as `gen.integration.drift.detect_run_drift` (embeds a run's output claim
+texts, tests them against a baseline of prior runs); wiring that into the run
+composition (`gen.integration.audited_run` hook + visible result field) stays
+OWNER-GATED because an honest hook is not yet provable offline (audited 2026-07-04):
+  (i)  no cross-run baseline store exists — CCDD calibration needs >= 100 output
+       embeddings accumulated from REAL prior runs, which no module persists yet;
+  (ii) the production embedder is a live local model call
+       (`gen.memory.ollama_embedder`); a hash/toy embedder cannot see semantic
+       drift, so monitoring with it would be fake coverage;
+  (iii) the real trust-core is a private companion library (the PyPI 'trust-core'
+       is an unrelated namesake, see the guard below), so a wiring test cannot run
+       in the sandboxed dev environment — it would be a permanently-skipped test.
+Import is guarded so GENESIS core stays numpy-only.
 """
 
 from __future__ import annotations
@@ -19,10 +30,14 @@ import numpy as np
 
 try:
     from trust_core.conformal.ccdd import StreamingDetector, calibrate
-except ImportError as exc:  # pragma: no cover - exercised only without the extra
+except ImportError as exc:  # tested via tests/test_verify_extra_seam.py
     raise ImportError(
-        "trust-core is required for gen.verification.drift_monitor. "
-        "Install the optional extra: pip install -e '.[verify]'."
+        "gen.verification.drift_monitor needs trust_core.conformal.ccdd from the "
+        "REAL trust-core companion library (private sibling repo, see "
+        "docs/integration/PHASE1_TRUSTCORE.md). The 'trust-core' package on PyPI "
+        "is an unrelated namesake WITHOUT this module — do not install it from "
+        "PyPI. Install the companion library instead: "
+        "pip install -e <path-to>/trust-core."
     ) from exc
 
 

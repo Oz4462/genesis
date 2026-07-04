@@ -19,7 +19,8 @@
     Honest: Monitoring-Signal (öffnet Review), kein harter Phasen-Gate, da RunState noch
     keine Output-Embeddings trägt (Verdrahtung deferred bis Embedding-Capture existiert).
 - **Tests:** `tests/test_trustcore_adapter.py` (4) + `tests/test_drift_monitor.py` (3),
-  `pytest.importorskip("trust_core")` → skip-sauber ohne den Extra (offline-core erhalten).
+  `pytest.importorskip("trust_core.<benötigtes submodul>")` → skip-sauber ohne den Extra
+  UND unter dem PyPI-Namesake (offline-core erhalten; s. „deferred" unten, 2026-07-04).
 
 ## Bewusste Abweichung (Owner-ratifizierbar)
 
@@ -42,6 +43,18 @@ conformal-Tests werden `verify`-gated) bevorzugt, ist das ein kleiner Folge-Comm
 
 ## Nicht erledigt / deferred
 
-- DriftMonitor in die Phasen-Gates verdrahten (braucht Output-Embeddings in RunState).
+- DriftMonitor-Verdrahtung in die Lauf-Komposition (Audit 2026-07-04, **owner-gated**):
+  Drift bleibt Monitoring-Signal, NIE Phasen-Gate (Gates sind deterministisch + LLM-frei;
+  die Lauf-Ebene existiert bereits als `gen.integration.drift.detect_run_drift`). Ein
+  ehrlicher Hook in `audited_run` ist offline nicht beweisbar: (i) kein Cross-Run-
+  Baseline-Store (CCDD braucht ≥100 Output-Embeddings aus ECHTEN früheren Läufen),
+  (ii) Produktions-Embedder = live Ollama (`gen.memory.ollama_embedder`; Toy-Embedder
+  sähe semantischen Drift nicht → Fake-Coverage), (iii) das echte trust-core ist die
+  private companion-Library — **das PyPI-Paket `trust-core` 0.1.0 ist ein namensgleiches
+  Fremdpaket** (engine/keys/proof/wire, ohne conformal/receipts). Der Namesake machte
+  aus `pytest.importorskip("trust_core")` 5 Collection-ERRORS statt Skips → Guards jetzt
+  gepunktet (`trust_core.conformal.ccdd` / `.conformal.split`+`.math.fdr` /
+  `.receipts.keystore`), Fehlermeldungen der drei Import-Seams warnen vor dem Namesake
+  (Beweis: `tests/test_verify_extra_seam.py`, läuft in JEDER Env via sys.modules-Stand-ins).
 - Optional: harter conformal-Rip-out (s. o.) nach Owner-Entscheid.
 - Live-Token-/Zeit-Messung (Phase-2/3-Live-Läufe).

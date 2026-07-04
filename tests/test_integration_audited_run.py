@@ -15,7 +15,9 @@ import json
 import numpy as np
 import pytest
 
-pytest.importorskip("trust_core")
+# Dotted on purpose: the PyPI 'trust-core' namesake ships no `receipts` — a bare
+# importorskip("trust_core") would pass there and turn collection into an ERROR.
+pytest.importorskip("trust_core.receipts.keystore")
 
 from gen.core.state import SourceCandidate  # noqa: E402
 from gen.integration import audited_run  # noqa: E402

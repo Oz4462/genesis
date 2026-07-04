@@ -11,7 +11,9 @@ import base64
 
 import pytest
 
-pytest.importorskip("trust_core")
+# Dotted on purpose: the PyPI 'trust-core' namesake ships no `receipts` — a bare
+# importorskip("trust_core") would pass there and turn collection into an ERROR.
+pytest.importorskip("trust_core.receipts.keystore")
 
 from nacl.exceptions import BadSignatureError  # noqa: E402
 

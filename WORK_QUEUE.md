@@ -118,6 +118,25 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
   BEWUSST OFFEN: calibration vakuöse Skalare (dokumentierte Konvention, `threshold_for_precision` guarded
   `n_accepted>0`, verifiziert 2026-07-04: KEIN src-Konsument importiert precision_recall_at/ECE/consistency);
   ratification G8 (stale Packet vs live Spec = Caller-Kontrakt „Packet frisch bauen", API-Umbau nicht low-risk).
+- Audit Prio-2 drift_monitor-Verdrahtung **ENTSCHIEDEN 2026-07-04: EHRLICH VERTAGT (owner-gated), Beifang-Bug GEFIXT**:
+  · Entscheidung: KEINE Verdrahtung des `DriftMonitor` in eine Phase. Drift bleibt Monitoring-Signal, nie Gate
+    (Gates deterministisch+LLM-frei); die Lauf-Ebene existiert bereits als `gen.integration.drift.detect_run_drift`
+    (CLEAN reviewt). Ein ehrlicher Hook in `audited_run` ist offline NICHT beweisbar: (i) kein Cross-Run-Baseline-
+    Store — CCDD braucht ≥100 Output-Embeddings aus ECHTEN früheren Läufen, nichts persistiert die bisher;
+    (ii) Produktions-Embedder = live Ollama (`gen.memory.ollama_embedder`), Toy-/Hash-Embedder sieht semantischen
+    Drift nicht → Fake-Coverage; (iii) das echte trust-core (conformal.ccdd) ist die PRIVATE companion-Library
+    (Nachbar-Repo `alle apps/trust-core`, hier nicht vorhanden) → jeder Verdrahtungs-Test wäre permanent geskippt
+    = Gate ohne lauffähigen Test. OWNER-GATED: verdrahten, sobald (a) Baseline-Store für Output-Embeddings existiert
+    (Betreiber akkumuliert echte Läufe) und (b) das echte trust-core in der Dev-Env installierbar ist.
+  · Beifang-Bug (live reproduziert): **PyPI `trust-core` 0.1.0 ist ein namensgleiches FREMDPAKET** (engine/keys/
+    proof/wire, ohne conformal/receipts). `pip install -e '.[verify]'` installiert den Namesake; damit bestand
+    `pytest.importorskip("trust_core")` und 5 Testdateien wurden zu Collection-ERRORS statt Skips; die alten
+    Guard-Messages EMPFAHLEN genau diesen Install. GEFIXT: Guards gepunktet (`trust_core.conformal.ccdd` /
+    `.conformal.split`+`.math.fdr` / `.receipts.keystore`), Messages der 3 Import-Seams (drift_monitor,
+    trustcore_adapter, run_audit) warnen vor dem Namesake, pyproject-Kommentar + PHASE1_TRUSTCORE.md dokumentieren
+    es. NEU `tests/test_verify_extra_seam.py` (6 Tests, läuft in JEDER Env via sys.modules-Namesake/-Absent-Stand-ins;
+    TDD rot→grün). drift_monitor.py-Docstring präzisiert (statt der falschen Begründung „RunState trägt keine
+    Embeddings": die 3 echten Gründe oben). Suite 2022/0/43, ruff clean.
 - D14 **ERLEDIGT 2026-07-04** (Schritt-6, Claude×Grok): pipeline G3 GEFIXT (assess_printability behält bei
   GeometryError die schon gefundenen Blocker → „not_printable" statt Reset auf „unavailable"; blockerfreier
   Teil-Lauf bleibt „unavailable"; Test via Monkeypatch-Blocker-Fixture kernel-frei). refinement G5 GEFIXT
