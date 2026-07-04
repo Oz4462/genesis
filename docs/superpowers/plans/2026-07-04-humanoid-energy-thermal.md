@@ -338,18 +338,115 @@ Plausibilitätsrechnung printed (τ=45 N*m? — exakten cfg-Wert nehmen): ΔT = 
 ```
 (Konvertierung: Quantity in W/m/K → Recipe fordert W/mm/K, Faktor 0.001; m² → mm² Faktor 1e6; m → mm Faktor 1000 — macht `_resolve` automatisch. Damit rechnet der Validator konsistent in mm-Einheiten, thermal.py:24.)
 
-- [ ] **Step 4: Tests grün** — beide neuen Tests + Humanoiden-Suite + `tests/test_phase_epsilon.py` (Seam-Regression: neue Quantities dürfen keine neuen Pflicht-Paare erzeugen; THERMAL/ELEC waren schon präsent).
+- [ ] **Step 4: Tests laufen — ERWARTETER Zwischenstand: seams_failed**
+
+ACHTUNG (verifiziert am 2026-07-04): Der Humanoid hat VOR diesem Teilprojekt keine
+THERMAL-Domain (`present: cost, electrical, mechanical`, required pairs: []). Die
+neuen K-Quantities machen THERMAL präsent → NEUE Pflicht-Paare (MECHANICAL, THERMAL)
+und (ELECTRICAL, THERMAL). Ohne deklarierte Seams kippen die Humanoiden-Tests auf
+`overall == "seams_failed"` — das ist hier der KORREKTE rote Zustand für Task 3b.
+`test_motor_overtemperature_check_fires_and_passes` bleibt in diesem Task rot
+(overall ist noch nicht physics_verified) und wird erst durch Task 3b grün.
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 uv run -q --extra dev python -m pytest tests/test_humanoid_energy.py tests/test_competitive_humanoid.py tests/test_phase_epsilon.py -p no:cacheprovider -q
 ```
 Expected: alle PASS.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Commit (Zwischenstand mit dokumentiert-rotem Humanoid-Test ist ok, Message sagt es ehrlich)**
 
 ```bash
 git add src/gen/competitive_humanoid.py src/gen/physics_selection.py tests/test_humanoid_energy.py
-git commit -m "feat(humanoid): Motor-Overtemperature-Check (Konduktions-Schranke) via Recipe"
+git commit -m "feat(humanoid): Motor-Overtemperature-Check via Recipe (Seams folgen in Task 3b)"
+```
+
+---
+
+### Task 3b: Deklarierte DomainSeams für die neuen Pflicht-Paare + Pipeline-Fallback
+
+**Files:**
+- Modify: `src/gen/competitive_humanoid.py` (Seam-Deklaration + Anhängen ans Spec), `src/gen/pipeline.py:161` (Fallback auf `spec.seam_certificate`)
+- Test: `tests/test_humanoid_energy.py` (erweitern)
+
+**Interfaces:**
+- Consumes: `DomainSeam`, `SeamRelation`, `SeamCertificate`, `SeamDomain` aus `gen.core.state`; `build_seam_certificate` aus `gen.seams`; `Specification.seam_certificate` (state.py:1328, Feld existiert); Pipeline-Logik `assess_specification` (pipeline.py:136-181: liest bisher NUR den Parameter, nicht das Spec-Feld).
+- Produces: `build_humanoid` liefert Spec mit `seam_certificate`, das (ELECTRICAL,THERMAL) + (MECHANICAL,THERMAL) abdeckt; `assess_specification(spec)` (ohne Parameter) verifiziert diese Seams.
+
+- [ ] **Step 1: Failing Test ergänzen**
+
+```python
+def test_humanoid_declares_thermal_seams_and_verifies():
+    for cfg in (PRINTED, FLAGSHIP):
+        spec = build_humanoid(cfg)
+        assert spec.seam_certificate is not None
+        pairs = {tuple(sorted((s.left_domain.value, s.right_domain.value)))
+                 for s in spec.seam_certificate.seams}
+        assert ("electrical", "thermal") in pairs
+        assert ("mechanical", "thermal") in pairs
+        a = assess_specification(spec)
+        assert a.overall == "physics_verified", a.overall
+        assert a.seam_gate is not None and a.seam_gate.passed
+```
+(Import-Namen an Task-1-Testkopf angleichen: PRINTED/FLAGSHIP heißen die Configs im Modul.)
+
+- [ ] **Step 2: rot laufen lassen** — Expected: `spec.seam_certificate is None` bzw. seams_failed.
+
+- [ ] **Step 3: Implementieren**
+
+3a. Neue Quantities für die Seam-Ausdrücke (falls noch nicht da): Der THERM-ELEC-Seam
+koppelt elektrische Verlustleistung an den Wärmeeintrag; der MECH-THERM-Seam koppelt
+die Motorwärme-Spitzentemperatur an die Servicegrenze des Druckmaterials:
+
+```python
+        _der("q_heat_in", "Wärmeeintrag aller Antriebe",
+             cfg.n_drive_motors * cfg.joint_torque_nm * cfg.joint_speed_rad_s * cfg.locomotion_duty * (1.0 - cfg.efficiency) / cfg.efficiency,
+             "W", "q_n_drive * q_p_motor_loss", ("q_n_drive", "q_p_motor_loss")),
+        _gm("q_mat_service_temp", "Servicegrenze Druckmaterial", cfg.material_service_temp_k,
+            "K", ["c_material_service"], "material.service_temp"),
+```
+Neues Config-Feld `material_service_temp_k: float` (PLA/PETG-CF ~ 330-390 K; PRINTED 330.0, FLAGSHIP 390.0) + Claim `c_material_service` ("PLA erweicht ab ~57 °C…" bzw. CF-Nylon-Wert).
+
+3b. In `build_humanoid` vor dem `Specification(...)`-Return:
+
+```python
+    from .core.state import DomainSeam, SeamRelation  # falls nicht schon importiert
+    from .seams import build_seam_certificate
+    seams = [
+        DomainSeam(
+            id="s_elec_therm_loss", left_domain=SeamDomain.ELECTRICAL,
+            right_domain=SeamDomain.THERMAL, relation=SeamRelation.EQ,
+            left_expr="q_n_drive * q_p_motor_loss", right_expr="q_heat_in",
+            rationale="Antriebs-Verlustleistung wird vollständig Wärme (Energieerhaltung)"),
+        DomainSeam(
+            id="s_therm_mech_service", left_domain=SeamDomain.THERMAL,
+            right_domain=SeamDomain.MECHANICAL, relation=SeamRelation.LE,
+            left_expr="q_ambient + q_p_motor_loss * q_motor_len / (q_motor_k * q_motor_area)",
+            right_expr="q_mat_service_temp",
+            rationale="Motor-Peaktemperatur (Konduktionsschranke) bleibt unter der Servicegrenze des tragenden Druckteils"),
+    ]
+    cert = build_seam_certificate(spec_stub_oder_nach_konstruktion, seams)
+```
+KONKRET: `Specification(...)` erst bauen, dann `spec = replace(spec, seam_certificate=build_seam_certificate(spec, seams))` — oder `seam_certificate=` direkt im Konstruktor, falls `build_seam_certificate` nur `spec.run_id` braucht (seams.py:390 lesen: es braucht `spec.run_id` und für COST `spec.quantities` — Reihenfolge: erst Spec ohne cert, dann cert bauen, dann via `dataclasses.replace` anhängen; wenn Specification pydantic ist: `model_copy(update=...)`).
+WICHTIG Einheiten-Check der Seam-Ausdrücke: `q_p_motor_loss * q_motor_len / (q_motor_k * q_motor_area)` → W·m/(W/m/K·m²) = K ✓; `q_ambient + ...` = K ✓. Der Seam-Evaluator prüft Dimensionen (evaluate_seam_expression) — Ausdrucks-Syntax vorher gegen `referenced_names` prüfen (nur Quantity-IDs + Operatoren + Klammern).
+
+3c. Pipeline-Fallback (`src/gen/pipeline.py`, Zeile ~161):
+
+```python
+        effective_cert = seam_certificate or spec.seam_certificate
+        provided_seams = list(effective_cert.seams) if effective_cert else []
+```
+und unten `cert = effective_cert or build_seam_certificate(spec, provided_seams)` —
+dabei die bestehende auto_cost-Logik erhalten: wenn `effective_cert` existiert, aber
+auto_cost angehängt wurde, muss der cert NEU gebaut werden:
+`cert = build_seam_certificate(spec, provided_seams) if (effective_cert is None or len(provided_seams) != len(effective_cert.seams)) else effective_cert`.
+
+- [ ] **Step 4: Tests grün** — `tests/test_humanoid_energy.py` KOMPLETT (inkl. des in Task 3 rot gebliebenen `test_motor_overtemperature_check_fires_and_passes`) + `tests/test_competitive_humanoid.py` + `tests/test_phase_epsilon.py` + `tests/test_pipeline.py`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/gen/competitive_humanoid.py src/gen/pipeline.py tests/test_humanoid_energy.py
+git commit -m "feat(humanoid): deklarierte THERM-ELEC/MECH-THERM-Seams + Pipeline-Fallback auf spec.seam_certificate"
 ```
 
 ---

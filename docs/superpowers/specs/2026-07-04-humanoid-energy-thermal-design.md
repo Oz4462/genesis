@@ -128,8 +128,11 @@ In `tests/test_competitive_humanoid.py` (bzw. neuem `test_humanoid_energy.py`):
 
 - `competitive_humanoid.py` wird erst angefasst, NACHDEM Groks Seam-Migration
   (deklarierte DomainSeams für die 5 Specs) committet ist; danach Rebase auf main.
-- Neue Quantities fügen keine neue Seam-Domain hinzu (THERMAL/ELEC bereits präsent) —
-  keine neuen Pflicht-Paare, kein Migrationskonflikt.
+- KORREKTUR (verifiziert 2026-07-04): Der Humanoid hatte VORHER keine THERMAL-Domain.
+  Die neuen K-Quantities erzeugen die Pflicht-Paare (MECH,THERM) und (ELEC,THERM).
+  Das Teilprojekt liefert deshalb deklarierte DomainSeams mit (Energieerhaltung
+  Verlustleistung→Wärme; Motor-Peaktemperatur ≤ Material-Servicegrenze) plus einen
+  Pipeline-Fallback auf `spec.seam_certificate` (Feld existiert, wurde nie gelesen).
 - Nach Implementierung: Cross-Review durch Grok über die Bridge.
 
 ## Erfolgskriterien
