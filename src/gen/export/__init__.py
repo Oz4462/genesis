@@ -21,7 +21,12 @@ from __future__ import annotations
 from .build123d import component_to_build123d, specification_to_build123d
 from .markdown import specification_to_markdown
 from .openscad import component_to_openscad, specification_to_openscad
-from .stl import component_to_stl, specification_to_stl
+from .stl import (
+    CsgBooleanRefusal,
+    component_to_stl,
+    specification_to_stl,
+    specification_to_stl_report,
+)
 
 __all__ = [
     "specification_to_openscad",
@@ -29,6 +34,8 @@ __all__ = [
     "specification_to_build123d",
     "component_to_build123d",
     "specification_to_stl",
+    "specification_to_stl_report",
+    "CsgBooleanRefusal",
     "component_to_stl",
     "specification_to_markdown",
 ]

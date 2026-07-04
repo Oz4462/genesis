@@ -20,7 +20,7 @@ geometry shape, C-9), but fails loudly rather than fabricating output.
 
 from __future__ import annotations
 
-from ..core.errors import ExportError
+from ..core.errors import ExportError, GeometryError
 from ..core.state import (
     GEOMETRY_OPERATIONS,
     GEOMETRY_PRIMITIVES,
@@ -30,6 +30,7 @@ from ..core.state import (
     Quantity,
     Specification,
 )
+from ..verification.geometry import aabb_of
 from ._text import single_line as _single_line
 from .numfmt import fmt_number as _fmt
 
@@ -117,24 +118,22 @@ def component_to_openscad(component: Component, quantities: dict[str, Quantity])
     return "\n".join(lines)
 
 
-def _footprint(node: GeometryNode | None, quantities: dict[str, Quantity]) -> tuple[float, float]:
-    """Best-effort (width_x, depth_y) of a component's outer envelope, for laying parts out without
-    overlap. Walks to the root primitive: a box gives its size_x/size_y, a cylinder/sphere its
-    diameter; an operation/transform recurses into its first child. Unknown/None → a safe default."""
-    if node is None:
-        return (120.0, 120.0)
-    try:
-        if node.kind == "box":
-            return (float(quantities[node.params["size_x"]].value),
-                    float(quantities[node.params["size_y"]].value))
-        if node.kind in ("cylinder", "sphere"):
-            r = float(quantities[node.params["radius"]].value)
-            return (2.0 * r, 2.0 * r)
-        if node.children:
-            return _footprint(node.children[0], quantities)
-    except (KeyError, AttributeError, TypeError, ValueError):
-        pass
-    return (120.0, 120.0)
+def _footprint(node: GeometryNode | None,
+               quantities: dict[str, Quantity]) -> tuple[float, float, float, float]:
+    """(width_x, depth_y, center_x, center_y) of a component's outer envelope, from the SOUND
+    analytic AABB (``verification.geometry.aabb_of``) — internal translate/rotate included, so
+    the parts-tray placement can compensate the AABB center and guarantee disjoint envelopes
+    (the old root-primitive walk ignored offsets and could overlap). Unknown or provably-empty
+    geometry falls back to a safe default envelope centered at the origin."""
+    if node is not None:
+        try:
+            bb = aabb_of(node, quantities)
+        except GeometryError:
+            bb = None
+        if bb is not None and not bb.empty:
+            return (bb.max_x - bb.min_x, bb.max_y - bb.min_y,
+                    (bb.min_x + bb.max_x) / 2.0, (bb.min_y + bb.max_y) / 2.0)
+    return (120.0, 120.0, 0.0, 0.0)
 
 
 def specification_to_openscad(spec: Specification) -> str:
@@ -177,14 +176,17 @@ def specification_to_openscad(spec: Specification) -> str:
     if not geom_comps:
         return "\n".join(header) + "\n".join(modules or ["// no fabricated geometry in this specification"]) + "\n"
 
-    # assembly layout: a square-ish grid, pitch = the largest part + margin (so nothing overlaps)
-    footprints = [_footprint(c.geometry, quantities) for c in geom_comps if c.geometry is not None]
-    pitch = max(max(w, d) for w, d in footprints) + 60.0
+    # assembly layout: a square-ish grid. Pitch = the largest AABB extent + margin, and each
+    # part is shifted by MINUS its own AABB center, so every placed envelope occupies
+    # [grid ± extent/2] — pairwise disjoint by construction (internal offsets included).
+    footprints = [_footprint(c.geometry, quantities) for c in geom_comps]
+    pitch = max(max(w, d) for w, d, _, _ in footprints) + 60.0
     cols = max(1, int((len(geom_comps) - 1) ** 0.5) + 1)
     layout = ["", "// ---- PARTS TRAY: every printed part laid out so all are visible at once ----"]
     for i, comp in enumerate(geom_comps):
-        x = _fmt((i % cols) * pitch)
-        y = _fmt(-(i // cols) * pitch)
+        _, _, cx, cy = footprints[i]
+        x = _fmt((i % cols) * pitch - cx)
+        y = _fmt(-(i // cols) * pitch - cy)
         n = counts.get(comp.id, 1)
         layout.append(
             f"translate([{x}, {y}, 0]) {_module_name(comp.id)}();  "

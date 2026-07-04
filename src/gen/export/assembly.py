@@ -27,16 +27,24 @@ from .openscad import _emit, _module_name
 
 
 def _bbox_dims(geometry: GeometryNode | None, quantities: dict[str, Quantity]) -> tuple[float, float, float] | None:
-    """(size_x, size_y, size_z) of a part's outer box, walking to the root ``box``; None if none."""
+    """(size_x, size_y, size_z) of a part's outer primitive envelope, walking to the first
+    primitive: a ``box`` gives its sizes, a ``cylinder`` (2r, 2r, h), a ``sphere`` (2r, 2r, 2r).
+    None if no primitive is reachable or a param is unresolvable — the caller REPORTS such
+    parts (image title) instead of dropping them silently."""
     node = geometry
-    while node is not None and node.kind != "box":
+    while node is not None and node.kind not in ("box", "cylinder", "sphere"):
         node = node.children[0] if node.children else None
     if node is None:
         return None
     try:
-        return (float(quantities[node.params["size_x"]].value),
-                float(quantities[node.params["size_y"]].value),
-                float(quantities[node.params["size_z"]].value))
+        if node.kind == "box":
+            return (float(quantities[node.params["size_x"]].value),
+                    float(quantities[node.params["size_y"]].value),
+                    float(quantities[node.params["size_z"]].value))
+        r = float(quantities[node.params["radius"]].value)
+        if node.kind == "cylinder":
+            return (2.0 * r, 2.0 * r, float(quantities[node.params["height"]].value))
+        return (2.0 * r, 2.0 * r, 2.0 * r)   # sphere
     except (KeyError, AttributeError, TypeError, ValueError):
         return None
 
@@ -133,8 +141,10 @@ def _part_color(name: str) -> str:
 
 
 def render_assembly_png(spec: Specification, path: str | Path) -> bool:
-    """Render the ASSEMBLED robot to a PNG (each part its bounding-box solid at its pose). Returns True
-    on success; False (no fake image) if matplotlib is absent or the spec declares no assembly poses."""
+    """Render the ASSEMBLED robot to a PNG (each part its bounding-box solid at its pose —
+    box/cylinder/sphere envelopes, see ``_bbox_dims``). Returns True on success; False (no fake
+    image) if matplotlib is absent or the spec declares no assembly poses. A part whose envelope
+    cannot be derived is NOT silently dropped: it is named in the image title as un-renderable."""
     placements = _placements(spec)
     if not placements:
         return False
@@ -150,9 +160,11 @@ def render_assembly_png(spec: Specification, path: str | Path) -> bool:
     fig = plt.figure(figsize=(6, 9))
     ax = fig.add_subplot(111, projection="3d")
     all_pts: list[tuple[float, float, float]] = []
+    skipped: list[str] = []
     for comp, pose in placements:
         dims = _bbox_dims(comp.geometry, quantities)
         if dims is None:
+            skipped.append(_single_line(comp.name))
             continue
         faces = _box_faces(dims, pose)
         for f in faces:
@@ -173,7 +185,11 @@ def render_assembly_png(spec: Specification, path: str | Path) -> bool:
     ax.set_zlim(cz - rng, cz + rng)
     ax.view_init(elev=12, azim=-70)
     ax.set_axis_off()
-    ax.set_title(f"GENESIS — montierter Roboter\n{spec.run_id}", fontsize=10)
+    title = f"GENESIS — montierter Roboter\n{spec.run_id}"
+    if skipped:
+        # honest gap in the picture, not a silent omission
+        title += f"\nnicht darstellbar (keine Primitiv-Hülle): {', '.join(sorted(set(skipped)))}"
+    ax.set_title(title, fontsize=10)
     fig.tight_layout()
     fig.savefig(str(path), dpi=130)
     plt.close(fig)

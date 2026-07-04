@@ -38,7 +38,7 @@ from .ledger.store import InMemoryLedgerStore
 from .export.build123d import specification_to_build123d
 from .export.markdown import BOM_ROLE_LABELS_DE, specification_to_markdown
 from .export.openscad import specification_to_openscad
-from .export.stl import specification_to_stl
+from .export.stl import specification_to_stl_report
 from .runner import Dependencies, run, run_solution, run_specification
 from .tools.http import HttpResponse, default_http_get
 from .tools.formula_backend import FormulaBackend
@@ -685,10 +685,25 @@ def render_spec(spec: Specification, fmt: str) -> str:
                     "Integritätsprüfung nicht bestanden: "
                     + "; ".join(verdict["issues"]))
         try:
-            return specification_to_stl(spec)
+            fallback, skipped = specification_to_stl_report(spec)
         except GenesisError as exc:
             # honest: a CSG-boolean part is not mesh-evaluated here
             return f"# STL-Export nicht verfügbar: {exc}"
+        if skipped:
+            # a partial mesh that silently misses parts would be a lie — refuse
+            # and point to the real-kernel exporters (same honesty as above).
+            ids = ", ".join(sorted(skipped))
+            return ("# STL-Export verweigert: die Komponenten [" + ids + "] enthalten "
+                    "CSG-Booleans, die ohne Mesh-Kernel nicht vermascht werden — ein "
+                    "Teil-STL ohne diese Teile wäre unvollständig. Nutze --format scad "
+                    "oder b123d (echter CSG-Kernel).")
+        # the fallback mesh gets the SAME integrity gate as the kernel path
+        from .mesh_integrity import stl_integrity_check
+        verdict = stl_integrity_check(fallback)
+        if not verdict["ok"]:
+            return ("# STL-Export verweigert: das Primitiv-Mesh hat die "
+                    "Integritätsprüfung nicht bestanden: " + "; ".join(verdict["issues"]))
+        return fallback
     return format_specification(spec)
 
 
