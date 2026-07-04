@@ -1,8 +1,10 @@
 """GENESIS opt-in live wiring: compose the optional integrations around the core
-pipeline (memory + audit). The audited-run path pulls the ``verify`` extra (trust-core);
-the core pipeline — and the default-off side-channel hooks (e.g. identity_research_hook) —
-stay numpy-only. Exports are therefore LAZY (PEP 562): importing a submodule that does NOT
-need trust-core (the research hook) must not drag the extra in. See audited_run.py."""
+pipeline (memory + audit). Only the AUDIT path pulls the ``verify`` extra (trust-core) —
+lazily inside audited_run, loud exactly when keystore+key are given; a memory-only
+composition, the core pipeline and the default-off side-channel hooks (e.g.
+identity_research_hook) stay numpy-only. Exports are additionally LAZY (PEP 562):
+importing a submodule that does NOT need trust-core (the research hook) must not drag
+the drift module's extra in. See audited_run.py."""
 
 from __future__ import annotations
 

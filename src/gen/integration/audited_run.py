@@ -2,8 +2,9 @@
 
 This composes the optional integrations (Phase 2 memory + Phase 4 audit) AROUND the
 core pipeline without touching it: GENESIS core stays numpy-only, and only callers
-that import `gen.integration` pull the `verify` extra. The run's claims are read back
-from the ledger by run_id — no change to runner/agents is needed.
+that request a signed audit pull the `verify` extra (trust-core) — the import is lazy
+and fails LOUD exactly when keystore+key are given, never silently. The run's claims
+are read back from the ledger by run_id — no change to runner/agents is needed.
 
 After a run:
   * every VERIFIED claim is deposited into the cross-run `VerifiedFactsLibrary` (so the
@@ -15,17 +16,31 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Literal
 
-from ..audit import AuditEnvelope, RunAuditRecord, audit_from_claims, sign_audit
 from ..config import Config, config_hash, default_config
 from ..core.state import Claim, Report
 from ..memory import RecalledFact, VerifiedFactsLibrary
 from ..runner import Dependencies, make_run_id, run
 
+if TYPE_CHECKING:  # audit types only for annotations — runtime import is lazy (verify extra)
+    from ..audit import AuditEnvelope, RunAuditRecord
+
+RecallStatus = Literal["disabled", "uncalibrated", "no_match", "hit"]
+
 
 @dataclass(frozen=True)
 class AuditedRunResult:
-    """What an audited run produced, for the operator's records."""
+    """What an audited run produced, for the operator's records.
+
+    ``recall_status`` makes the prefilter outcome honest instead of overloading an
+    empty ``reused_facts`` tuple:
+      * ``"disabled"``     — recall was not requested (or no library was given),
+      * ``"uncalibrated"`` — the library's conformal gate is cold, so it ABSTAINED by
+                             design; "nothing found" was never even decidable,
+      * ``"no_match"``     — the gate is warm and honestly found nothing reusable,
+      * ``"hit"``          — prior verified facts were returned in ``reused_facts``.
+    """
 
     run_id: str
     report: Report
@@ -34,6 +49,7 @@ class AuditedRunResult:
     audit: AuditEnvelope | None
     audit_record: RunAuditRecord | None
     reused_facts: tuple[RecalledFact, ...] = ()
+    recall_status: RecallStatus = "disabled"
 
 
 async def audited_run(
@@ -58,17 +74,33 @@ async def audited_run(
             library FIRST; prior verified facts within the conformal band are returned
             as ``reused_facts`` (each carrying its original provenance). This is the
             cross-run prefilter — a provenance-preserving signal of what need not be
-            re-researched. It does not yet short-circuit the run itself (that would
-            collide with the per-run fetch-audit invariant; deferred).
-        keystore / audit_key_id: if both given, a signed audit envelope is produced.
+            re-researched. PRECONDITION: the caller must warm the library's conformal
+            gate via ``library.add_calibration(...)`` beforehand — this function never
+            calibrates. On a cold library the recall ABSTAINS by design and the result
+            reports ``recall_status == "uncalibrated"`` (not a fake "no_match"). The
+            prefilter does not yet short-circuit the run itself (that would collide
+            with the per-run fetch-audit invariant; deferred).
+        keystore / audit_key_id: if both given, a signed audit envelope is produced
+            (requires the ``verify`` extra / trust-core; imported lazily and loudly
+            HERE — a memory-only composition stays numpy-only).
+
+    Raises:
+        ImportError: keystore + audit_key_id were given but the ``verify`` extra
+            (trust-core) is not installed — fail-loud at the audit seam, no silent
+            unsigned fallback.
     """
     config = config or default_config()
     chash = config_hash(config)
     rid = run_id or make_run_id(question_text, chash)
 
     reused: tuple[RecalledFact, ...] = ()
+    recall_status: RecallStatus = "disabled"
     if recall and library is not None:
-        reused = library.recall(question_text).accepted
+        if not library.calibrated:
+            recall_status = "uncalibrated"  # honest: gate cold -> abstention, not "no match"
+        else:
+            reused = library.recall(question_text).accepted
+            recall_status = "hit" if reused else "no_match"
 
     report = await run(question_text, deps, config=config, run_id=rid)
     claims = await deps.ledger.get_claims(rid)
@@ -78,6 +110,10 @@ async def audited_run(
     audit_env: AuditEnvelope | None = None
     record: RunAuditRecord | None = None
     if keystore is not None and audit_key_id is not None:
+        # Lazy + loud: only the audit path needs trust-core (gen.audit raises a clear
+        # ImportError without the `verify` extra — the fail-loud seam is preserved).
+        from ..audit import audit_from_claims, sign_audit
+
         record = audit_from_claims(
             run_id=rid,
             generator_model=deps.generator_llm.model,
@@ -96,7 +132,8 @@ async def audited_run(
         audit=audit_env,
         audit_record=record,
         reused_facts=reused,
+        recall_status=recall_status,
     )
 
 
-__all__ = ["AuditedRunResult", "audited_run"]
+__all__ = ["AuditedRunResult", "RecallStatus", "audited_run"]

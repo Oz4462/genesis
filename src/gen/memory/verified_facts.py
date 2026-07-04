@@ -93,18 +93,30 @@ class VerifiedFactsLibrary:
 
         Only ``ClaimStatus.VERIFIED`` claims are kept — the library is a library of
         facts that already cleared verification, never of unbacked assertions.
+
+        Deduplicates by claim id (= step ``capture_id``): re-running the same
+        reproducible run re-produces the same claim ids, and depositing them again
+        would create duplicate steps that inflate recall with identical neighbours.
+        The guard lives HERE (vendored storage stays untouched); a claim id already
+        present in the store — or seen earlier in the same call — is skipped.
         """
-        steps = [
-            ReasoningStep.make(
-                capture_id=c.id,
-                text=c.text,
-                intent="verified_fact",
-                produces=tuple(s.url_or_id for s in c.sources),  # keep provenance
-                tags=(c.status.value,),
+        seen: set[str] = set()
+        steps = []
+        for c in claims:
+            if c.status is not ClaimStatus.VERIFIED:
+                continue
+            if c.id in seen or self._store.list_steps_for_trace(c.id):
+                continue  # already deposited (same capture_id) -> no duplicate step
+            seen.add(c.id)
+            steps.append(
+                ReasoningStep.make(
+                    capture_id=c.id,
+                    text=c.text,
+                    intent="verified_fact",
+                    produces=tuple(s.url_or_id for s in c.sources),  # keep provenance
+                    tags=(c.status.value,),
+                )
             )
-            for c in claims
-            if c.status is ClaimStatus.VERIFIED
-        ]
         if steps:
             self._store.add_steps(steps)
         return len(steps)

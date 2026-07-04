@@ -77,3 +77,19 @@ def test_abstains_on_unrelated_query():
     lib.add_calibration([1e-6] * 40)
     res = lib.recall("unrelated nonsense about glubbex polymer")
     assert res.abstained  # orthogonal -> score ~1 -> above tau -> no false reuse
+
+
+def test_remember_deduplicates_by_capture_id_across_calls():
+    # Re-running the same (reproducible) run re-produces the same claim id; a second
+    # deposit must NOT create a duplicate step (duplicate steps = recall noise).
+    lib = _lib()
+    again = lib.remember([_claim("c0", "standard gravity is 9.80665 m/s^2", ClaimStatus.VERIFIED)])
+    assert again == 0
+    assert lib.n_facts == 3
+
+
+def test_remember_deduplicates_within_one_call():
+    lib = VerifiedFactsLibrary(_embedder(), alpha=0.1)
+    c = _claim("c0", "standard gravity is 9.80665 m/s^2", ClaimStatus.VERIFIED)
+    assert lib.remember([c, c]) == 1
+    assert lib.n_facts == 1

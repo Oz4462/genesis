@@ -109,3 +109,6 @@ def test_audited_run_deposits_and_signs():
     recalled = lib.recall(SUBJECT)
     assert not recalled.abstained
     assert recalled.accepted[0].text == SUBJECT
+
+    # recall was not requested -> the honest status says so
+    assert res.recall_status == "disabled"

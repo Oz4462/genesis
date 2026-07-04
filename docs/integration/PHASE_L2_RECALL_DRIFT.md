@@ -27,6 +27,13 @@
   (verifiziert-in-früherem-Lauf, nicht quellenlos).
 - `gen.integration.audited_run(recall=True, library=…)` recallt die Frage VOR dem Lauf gegen
   die Library und liefert die Treffer als `reused_facts` (mit Provenance) — der Cross-Run-Vorfilter.
+- **Vorbedingung (ehrlich, Schritt-9-Fix):** Der Vorfilter feuert NUR, wenn der Aufrufer die
+  Library vorher separat kalibriert hat (`library.add_calibration(...)`, `min_calibration=30`) —
+  `audited_run` kalibriert nie selbst. Auf kalter Library abstiniert der Recall per Design;
+  das Ergebnis sagt das explizit über `AuditedRunResult.recall_status`
+  (`"disabled" | "uncalibrated" | "no_match" | "hit"`), damit „abstiniert weil unkalibriert"
+  nie wie „ehrlich nichts gefunden" aussieht. End-zu-End-Beweis auf gewarmter Library:
+  `tests/test_audited_run_recall.py`.
 - **Ehrliche Grenze:** Der Vorfilter *signalisiert* Wiederverwendbares; er **kürzt den Lauf
   noch nicht ab**. Ein echtes Scout-Short-Circuit kollidiert mit der per-Lauf-Fetch-Audit-
   Invariante (recallte Quellen wurden nicht in DIESEM Lauf gefetcht) → bewusst deferred,
