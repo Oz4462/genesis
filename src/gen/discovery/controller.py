@@ -98,6 +98,11 @@ class ControllerResult:
     #: MAP-Elites quality-diversity archive of this run's gate-confirmed laws (a convenience over the
     #: graph; on resume it holds the resumed portion — the graph stays the complete, lossless record).
     archive: EliteArchive = field(default_factory=EliteArchive)
+    #: Frontier-7 open-form outcomes (``gp_search.GPSearchOutcome``) keyed by problem id — only for
+    #: problems where the dimensional path confirmed nothing and the budget afforded the GP ladder.
+    #: Follows the archive precedent: on resume it holds the resumed portion (a GP law carries no
+    #: exponent fingerprint, so it lives here, not in the exponent-keyed graph — honest boundary).
+    open_form_outcomes: dict = field(default_factory=dict)
 
 
 def _problem_id(problem: DiscoveryProblem, index: int) -> str:
@@ -114,9 +119,18 @@ class ExplorationController:
         budget: int | None = None,
         base_seed: int = 0,
         prioritize_by_information_gain: bool = False,
+        open_form_fallback: bool = False,
+        gp_config=None,
+        gp_rungs: tuple[str, ...] | None = None,
     ) -> None:
         if tier not in TIERS:
             raise ValueError(f"unknown tier {tier!r}; choose from {sorted(TIERS)}")
+        if open_form_fallback and prioritize_by_information_gain:
+            raise ValueError(
+                "open_form_fallback is not supported with prioritize_by_information_gain: the "
+                "InfoBAX path spends its budget on tournament refinement selection; combining the "
+                "two budget policies would make the spend order ambiguous. Use one at a time."
+            )
         self.tier = TIERS[tier]
         self.budget = budget
         self.base_seed = base_seed
@@ -124,9 +138,23 @@ class ExplorationController:
         #: eligible problems (InfoBAX uncertainty sampling via active_search) instead of input order.
         #: The gate still decides every verdict — this only chooses which problems get refined.
         self.prioritize_by_information_gain = prioritize_by_information_gain
+        #: When True, a problem the dimensional path (single-shot + tournament) could NOT confirm
+        #: falls back to the Frontier-7 open-form search (``gp_search.gp_occam_discover``: Occam
+        #: ladder → π-scaffolded GP behind the gates), if the budget affords its worst case.
+        self.open_form_fallback = open_form_fallback
+        self._gp_config = gp_config      # None → symbolic_search.GPConfig() defaults, resolved lazily
+        self._gp_rungs = tuple(gp_rungs) if gp_rungs is not None else None
 
     def _affordable(self, spent: int, cost: int) -> bool:
         return self.budget is None or spent + cost <= self.budget
+
+    def _resolved_gp_config(self):
+        """The GP config for the open-form fallback (lazy: symbolic_search defaults if unset)."""
+        if self._gp_config is None:
+            from .symbolic_search import GPConfig
+
+            return GPConfig()
+        return self._gp_config
 
     def _tournament(
         self,
@@ -135,18 +163,21 @@ class ExplorationController:
         known_laws: dict[str, dict[str, float]] | None,
         graph: DiscoveryGraph,
         archive: EliteArchive,
-    ) -> bool:
+    ) -> tuple[bool, bool]:
         """Run the tier's tournament for ONE problem; if it improves on the single-shot best, record
-        the evolved candidate — judged by the SAME gates — in the graph and archive. Returns whether it
-        improved. Cost accounting stays with the caller. Deterministic (seed = ``base_seed + index``)."""
+        the evolved candidate — judged by the SAME gates — in the graph and archive. Returns
+        ``(improved, gate_passed)``. Cost accounting stays with the caller. Deterministic
+        (seed = ``base_seed + index``)."""
         report = evolve(problem, generations=self.tier.generations,
                         population=self.tier.population, seed=self.base_seed + index)
+        passed = False
         if report.improved:  # record the evolved best, judged by the same gates
             verdict = judge_candidate(problem, report.best, known_laws=known_laws)
             graph.add_verdict(verdict, idea=problem.idea, target_name=problem.target.name,
                               provenance=("controller", f"tier:{self.tier.name}", "tournament"))
             archive.add(verdict.candidate, passed=verdict.passed)
-        return report.improved
+            passed = verdict.passed
+        return report.improved, passed
 
     def _run_prioritized(
         self,
@@ -188,7 +219,7 @@ class ExplorationController:
                 # (input/constant counts) lets the surrogate generalise "problems like this one".
                 selection = active_select(
                     eligible,
-                    lambda item: self._tournament(item[0], item[1], known_laws, graph, archive),
+                    lambda item: self._tournament(item[0], item[1], known_laws, graph, archive)[0],
                     lambda item: (float(len(item[0].inputs)), float(len(item[0].constants))),
                     budget=int(affordable),
                 )
@@ -220,6 +251,7 @@ class ExplorationController:
         done = set(state.problems_done)
         completed: list[str] = list(state.problems_done)
         skipped: list[str] = []
+        open_form: dict = {}  # Frontier-7 outcomes of THIS run's fresh problems (archive precedent)
         spent = state.budget_spent
         fresh = 0
 
@@ -250,11 +282,30 @@ class ExplorationController:
 
                 # spend tournament budget only where evolution can help (under-determined or not
                 # already solved) and the budget allows it — budget flows to the promising candidates
+                tournament_passed = False
                 if self.tier.use_tournament and best_r2 < ALREADY_SOLVED_R2:
                     tcost = self.tier.generations * self.tier.population
                     if self._affordable(spent, tcost):
-                        self._tournament(problem, index, known_laws, graph, archive)
+                        _, tournament_passed = self._tournament(problem, index, known_laws,
+                                                                graph, archive)
                         spent += tcost
+
+                # Frontier-7 fallback: the dimensional path confirmed nothing → open-form search
+                # (Occam ladder → π-scaffolded GP), only if the budget affords its WORST case
+                # (population·generations GP evaluations). An Occam collapse short-circuits the GP,
+                # so only the evaluated ladder rungs are charged then. Seed = base_seed + index —
+                # position-independent, so resume == uninterrupted stays true.
+                if self.open_form_fallback and not result.validated and not tournament_passed:
+                    gp_cfg = self._resolved_gp_config()
+                    worst = gp_cfg.population * gp_cfg.generations
+                    if self._affordable(spent, worst):
+                        from .gp_search import gp_occam_discover
+
+                        kwargs = {} if self._gp_rungs is None else {"rungs": self._gp_rungs}
+                        outcome = gp_occam_discover(problem, seed=self.base_seed + index,
+                                                    cfg=gp_cfg, **kwargs)
+                        open_form[pid] = outcome
+                        spent += worst if outcome.gp_verdict is not None else len(outcome.rungs)
 
                 graph.add_result(result, target_name=problem.target.name,
                                  provenance=("controller", f"tier:{self.tier.name}"))
@@ -267,4 +318,5 @@ class ExplorationController:
             tier=self.tier.name, base_seed=self.base_seed, budget=self.budget,
             problems_done=completed, graph_records=graph.to_ledger_records(), budget_spent=spent)
         return ControllerResult(graph=graph, budget_spent=spent, completed=tuple(completed),
-                                deferred_to_resume=tuple(skipped), state=new_state, archive=archive)
+                                deferred_to_resume=tuple(skipped), state=new_state, archive=archive,
+                                open_form_outcomes=open_form)

@@ -79,3 +79,63 @@ def test_state_json_round_trips():
     assert again.problems_done == res.state.problems_done
     assert again.budget_spent == res.state.budget_spent
     assert again.graph_records == res.state.graph_records
+
+
+# --- Frontier-7 open-form fallback (gp_search) ------------------------------------------------
+
+_CHEAP_RUNGS = ("power_law", "power_of_pi", "multiterm", "transzendent")
+
+
+def _freefall(run_id):
+    g = 9.80665
+    t = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    return DiscoveryProblem(idea="Freier Fall mit Offset",
+                            target=Variable("v", "m/s", tuple(g * t + 40.0)),
+                            inputs=(Variable("t", "s", tuple(t)),),
+                            constants=(Constant("g", g, "m/s^2"),), run_id=run_id)
+
+
+def _noise(run_id):
+    rng = np.random.default_rng(123)
+    x = np.linspace(1.0, 5.0, 14)
+    z = np.abs(rng.standard_normal(14) * 3.0 + 5.0)
+    return DiscoveryProblem(idea="Rauschen", target=Variable("z", "1", tuple(z)),
+                            inputs=(Variable("x", "1", tuple(x)),), run_id=run_id)
+
+
+def test_open_form_fallback_records_outcomes_and_budget():
+    from gen.discovery.symbolic_search import GPConfig
+
+    small = GPConfig(population=40, generations=10, max_depth=3)
+    ctrl = ExplorationController("fast", base_seed=0, open_form_fallback=True,
+                                 gp_config=small, gp_rungs=_CHEAP_RUNGS)
+    res = ctrl.run([_kepler("k-1"), _freefall("ff-1"), _noise("nz-1")])
+    # confirmed problems get NO open-form spend; unconfirmed ones get an honest outcome
+    assert "k-1" not in res.open_form_outcomes
+    ff = res.open_form_outcomes["ff-1"]
+    assert ff.occam_winner == "multiterm" and ff.gp_verdict is None  # Occam collapse, no GP burned
+    nz = res.open_form_outcomes["nz-1"]
+    assert nz.verdict != "bestaetigt" and nz.gp_verdict is not None  # GP ran, hygiene held
+    # budget accounting: baseline + evaluated ladder rungs (collapse) + full GP worst case (noise)
+    base = ExplorationController("fast", base_seed=0).run(
+        [_kepler("k-1"), _freefall("ff-1"), _noise("nz-1")]).budget_spent
+    assert res.budget_spent == base + len(ff.rungs) + small.population * small.generations
+
+
+def test_open_form_fallback_respects_budget():
+    from gen.discovery.symbolic_search import GPConfig
+
+    small = GPConfig(population=40, generations=10, max_depth=3)
+    ctrl = ExplorationController("fast", budget=10, base_seed=0, open_form_fallback=True,
+                                 gp_config=small, gp_rungs=_CHEAP_RUNGS)
+    res = ctrl.run([_freefall("ff-1")])
+    assert res.open_form_outcomes == {}          # worst case (400) unaffordable → honestly skipped
+    assert res.budget_spent <= 10
+
+
+def test_open_form_with_information_gain_priority_is_refused():
+    import pytest
+
+    with pytest.raises(ValueError):
+        ExplorationController("fast", open_form_fallback=True,
+                              prioritize_by_information_gain=True)

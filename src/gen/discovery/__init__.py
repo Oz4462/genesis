@@ -129,6 +129,11 @@ __all__ = [
     "GPConfig",
     "SymbolicModel",
     "GPVerdict",
+    "gp_occam_discover",
+    "GPSearchOutcome",
+    "OccamRung",
+    "PiScaffold",
+    "build_pi_scaffold",
     "open_form_benchmark",
     "OpenFormReport",
     "OpenFormCaseResult",
@@ -226,6 +231,11 @@ def __getattr__(name: str):
     if name in ("gp_fit", "gp_discover", "GPConfig", "SymbolicModel", "GPVerdict"):
         from . import symbolic_search as _m
         for n in ("gp_fit", "gp_discover", "GPConfig", "SymbolicModel", "GPVerdict"):
+            globals()[n] = getattr(_m, n)
+        return globals()[name]
+    if name in ("gp_occam_discover", "GPSearchOutcome", "OccamRung", "PiScaffold", "build_pi_scaffold"):
+        from . import gp_search as _m
+        for n in ("gp_occam_discover", "GPSearchOutcome", "OccamRung", "PiScaffold", "build_pi_scaffold"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     if name in ("discover_multiterm", "candidate_term_exponents", "Term", "MultiTermLaw",
