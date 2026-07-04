@@ -413,3 +413,40 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
     src/gen/export/ (paralleler Review) unberührt.
   · +19 Tests (TDD: 5 costing + 1 bundle + 7 completeness + 4 software rot vor dem Fix, Rest
     Pins/Wächter). Suite 1871/0/61, ruff clean. Commits 5fade13 / 2be78f9 / 5ad4e70.
+- Schritt 8: export/ — DONE (Claude-Review-Findings gefixt, TDD, 2 Commits):
+  · F1 MITTEL GEFIXT (Injection): mehrzeilige spec.idea/comp.name brachen aus //-/#-Kommentaren
+    und Markdown-Headings aus (nicht-öffnendes .scad, nicht kompilierendes .py) — zentraler Helfer
+    export/_text.py (single_line/md_cell, reine Display-Sanitisierung, Zitat-Pfade C-4 laufen NIE
+    hindurch) an allen Stellen in openscad/build123d/assembly/markdown; b123d-Output per compile()
+    bewiesen.
+  · F2 MITTEL GEFIXT (Markdown-Korruption): | und Newlines in name/rationale/formula/action/reason
+    sprengten Tabellen — md_cell (| → \|, Newline → Leerzeichen) an allen Zellwerten; Spaltenzahl-
+    Invariante (6 Separatoren) getestet.
+  · F3 MITTEL GEFIXT (Single-Source + Genauigkeit): markdown.py umging fmt_number mit inline :g;
+    :g rundete auf 6 signifikante Stellen → sichtbare Backend-Divergenz. Alles über
+    numfmt.fmt_number geroutet, Präzision .12g (double fast verlustfrei, locale-frei); numfmt-
+    Docstring dokumentiert Display-Rundung + bewusste Ausnahmen (stl.py %.9g = eigener Mesh-
+    Kontrakt, unberührt; Zitate C-4 byte-genau, nie durch den Formatter). 6-Stellen-Pins in
+    test_markdown.py nach Intentions-Prüfung nachgezogen.
+  · F4 GEFIXT (Overlap-Overclaim): openscad._footprint ignorierte interne translate/rotate — der
+    PARTS-TRAY konnte real überlappen. Footprint jetzt aus der sounden analytischen AABB
+    (verification.geometry.aabb_of) + Zentrums-Kompensation → Hüllen paarweise disjunkt per
+    Konstruktion (Gegenbeispiel inner-translate=Pitch als Test).
+  · F5 GEFIXT: assembly._bbox_dims kannte nur box — cylinder/sphere-Teile fielen still aus dem
+    Assembly-PNG. Jetzt cylinder (2r,2r,h) / sphere (2r,2r,2r); nicht ableitbare Teile werden im
+    Bild-Titel benannt statt verschluckt.
+  · F6 GEFIXT (Skip-Konflation): specification_to_stl verschluckte JEDEN ExportError als Boolean-
+    Skip. API-Entscheidung (einziger Aufrufer cli.render_spec; STL hat keine Kommentar-Syntax):
+    CsgBooleanRefusal(ExportError) als markierte erwartete Verweigerung + neues
+    specification_to_stl_report → (stl, skipped: id→Grund); echte Fehler propagieren laut;
+    specification_to_stl bleibt str-Wrapper (API-kompatibel). CLI verweigert Teil-STL ehrlich.
+  · F7 GEFIXT: _triangles_to_stl filtert Nullflächen-Facetten (<1e-15, identisch brep_stl) und
+    wirft bei leerem Rest; CLI-Primitiv-Fallback läuft durch dasselbe stl_integrity_check-Gate
+    wie der Kernel-Pfad (verweigern statt liefern bei !ok).
+  · F8 bewusst NICHT gefixt (skopiert): Ein-Solid-Fusion in specification_to_brep_stl — Docstring
+    erklärt den Kontrakt bereits explizit inkl. per-Part-Alternative; kein Zusatz nötig.
+  · DEFENDED nicht angefasst: state.py-NaN-Guard, mesh_integrity-Gates der OCCT-Pfade,
+    Identifier-Sanitisierung (_module_name/_safe_name), _origin-Provenienz, δ-Neuberechnung im
+    Markdown, bundle-Fehlerprotokollierung, brep_stl-%.6e/Degenerate-Filter.
+  · +24 Tests in tests/test_step8_export_hardening.py (TDD: 12 + 9 rot vor dem Fix, Rest Pins).
+    Suite 1895/0/61, ruff clean. Commits 0d44a1b / 6917343.
