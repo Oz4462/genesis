@@ -193,3 +193,109 @@ def test_a_delaminating_cross_layer_load_fails_the_gate():
     ]))
     assert not result["gate"].passed
     assert result["gate"].failures[0].code == "PHYSICS_CHECK_FAILED"
+
+
+# --- Schritt-7-Review-Fixes physics_selection (2026-07-04): S-F1/S-F2/S-F3/S-F6 ---
+
+def _q_m(qid, value, unit, measurand):
+    return _q(qid, value, unit, measurand)
+
+
+def _spec_with(quantities):
+    return Specification(run_id="sel-fix", idea="test", quantities=quantities)
+
+
+def test_dose_units_sv_and_prefixed_msv_resolve():
+    """S-F6: Sv/Gy are known dimensions; mSv converts to Sv (factor 1e-3);
+    Sv and Gy do NOT silently interconvert (quality factor is not dimensionless)."""
+    from gen.verification.units import parse_unit, unit_scale
+    assert parse_unit("mSv") == parse_unit("Sv")
+    assert unit_scale("mSv") == 1e-3 and unit_scale("Sv") == 1.0
+    assert parse_unit("Sv") != parse_unit("Gy")
+    assert parse_unit("Sv") != parse_unit("J/kg")
+
+
+def test_optional_input_present_but_unresolvable_is_gap_not_zero():
+    """S-F2: a DECLARED dose in a wrong-dimension unit must become a gap —
+    never silently 0.0 (which would green-light the dose check)."""
+    spec = _spec_with([
+        _q_m("q_abs", 100.0, "W", "thermal.radiation_absorbed"),
+        _q_m("q_eps", 0.8, "1", "material.emissivity"),
+        _q_m("q_area", 1.0, "m^2", "surface.area"),
+        _q_m("q_t", 300.0, "K", "thermal.temperature"),
+        _q_m("q_dose", 20.0, "K", "radiation.total_ionizing_dose"),  # wrong dimension!
+    ])
+    checks, gaps = select_physics_checks(spec)
+    fired = {c.validator for c in checks}
+    assert "vacuum_radiation_balance" not in fired
+    assert any("total_ionizing_dose" in g for g in gaps)
+
+
+def test_optional_input_msv_converts_to_sv():
+    """S-F2+S-F6 positive path: dose declared in mSv resolves and converts."""
+    spec = _spec_with([
+        _q_m("q_abs", 100.0, "W", "thermal.radiation_absorbed"),
+        _q_m("q_eps", 0.8, "1", "material.emissivity"),
+        _q_m("q_area", 1.0, "m^2", "surface.area"),
+        _q_m("q_t", 300.0, "K", "thermal.temperature"),
+        _q_m("q_dose", 250.0, "mSv", "radiation.total_ionizing_dose"),
+    ])
+    checks, gaps = select_physics_checks(spec)
+    vac = next(c for c in checks if c.validator == "vacuum_radiation_balance")
+    assert abs(vac.inputs["radiation_dose_sv"] - 0.25) < 1e-12
+    assert not any("total_ionizing_dose" in g for g in gaps)
+
+
+def test_absent_optional_input_still_defaults_without_gap():
+    """S-F2 must not regress the documented absent->0.0 path."""
+    spec = _spec_with([
+        _q_m("q_abs", 100.0, "W", "thermal.radiation_absorbed"),
+        _q_m("q_eps", 0.8, "1", "material.emissivity"),
+        _q_m("q_area", 1.0, "m^2", "surface.area"),
+        _q_m("q_t", 300.0, "K", "thermal.temperature"),
+    ])
+    checks, gaps = select_physics_checks(spec)
+    vac = next(c for c in checks if c.validator == "vacuum_radiation_balance")
+    assert vac.inputs["radiation_dose_sv"] == 0.0
+    assert not gaps
+
+
+def test_all_siblings_present_but_missing_trigger_becomes_gap():
+    """S-F1: every non-trigger input of the torsion recipe present, only the
+    trigger measurand absent (typo'd) -> an honest gap, not silent nothing."""
+    spec = _spec_with([
+        _q_m("q_d", 0.02, "m", "shaft.diameter"),
+        _q_m("q_l", 0.5, "m", "shaft.length"),
+        _q_m("q_g", 8.0e10, "Pa", "material.shear_modulus"),
+        _q_m("q_tau", 2.0e8, "Pa", "material.shear_strength"),
+        # trigger shaft.torque MISSING (e.g. tagged "shaft.torqe")
+    ])
+    checks, gaps = select_physics_checks(spec)
+    assert not any(c.validator == "torsion" for c in checks)
+    assert any("shaft.torque" in g and "torsion" in g for g in gaps)
+
+
+def test_two_stray_material_measurands_do_not_gap():
+    """S-F1 negative: partial sibling presence (< all) stays silent — generic
+    material data alone must not spam gaps for unrelated physics."""
+    spec = _spec_with([
+        _q_m("q_g", 8.0e10, "Pa", "material.shear_modulus"),
+        _q_m("q_tau", 2.0e8, "Pa", "material.shear_strength"),
+    ])
+    checks, gaps = select_physics_checks(spec)
+    assert not gaps and not checks
+
+
+def test_evaluate_spec_physics_reports_honest_pass():
+    """S-F3: the combined honest verdict (gate passed AND no gaps) ships in the
+    result so the safe value is the convenient one."""
+    spec_gap = _spec_with([
+        _q_m("q_d", 0.02, "m", "shaft.diameter"),
+        _q_m("q_l", 0.5, "m", "shaft.length"),
+        _q_m("q_g", 8.0e10, "Pa", "material.shear_modulus"),
+        _q_m("q_tau", 2.0e8, "Pa", "material.shear_strength"),
+    ])
+    res = evaluate_spec_physics(spec_gap)
+    assert res["gate"].passed is True          # nothing assembled -> vacuous gate
+    assert res["gaps"]                          # but the sibling gap is there
+    assert res["honest_pass"] is False          # and the honest verdict says so

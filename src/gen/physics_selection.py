@@ -56,9 +56,11 @@ class CheckRecipe:
     `extra`      fixed non-quantity kwargs (config the validator needs, e.g. an end
                  condition or a wall model) — declared defaults, refined later from
                  spec Decisions. Passed verbatim to validator.
-    `optional_inputs`  like `inputs` but missing measurand does not gap; falls back to 0.0
-                       (for e.g. radiation_dose_sv which is optional for the balance but
-                       must be mapped from spec when present to be non-decorative).
+    `optional_inputs`  like `inputs` but an ABSENT measurand does not gap; falls back
+                       to 0.0 (e.g. radiation_dose_sv: optional for the balance, but
+                       mapped from spec when present to be non-decorative). A quantity
+                       that IS declared but unresolvable (wrong dimension / opaque
+                       unit) gaps like a required input — never silently zeroed.
     """
 
     name: str
@@ -473,14 +475,32 @@ def select_physics_checks(spec: Specification) -> tuple[list[PhysicsCheck], list
     than dropped. A recipe whose trigger is absent contributes neither. Deterministic.
 
     optional_inputs on CheckRecipe are resolved when present (enables real mapping e.g.
-    radiation_dose_sv from "radiation.total_ionizing_dose" measurand without forcing gaps).
+    radiation_dose_sv from "radiation.total_ionizing_dose"); only a genuinely ABSENT
+    optional measurand defaults to 0.0 — declared-but-unresolvable ones gap honestly.
+    A recipe whose trigger is absent while ALL its other input measurands are declared
+    emits a mis-tag gap instead of vanishing silently.
     """
     by_measurand = _measurand_map(spec)
     checks: list[PhysicsCheck] = []
     gaps: list[str] = []
     for recipe in RECIPES:
         if recipe.trigger not in by_measurand:
-            continue                                # this physics is simply not present
+            # this physics is USUALLY simply not present — but when EVERY other
+            # input measurand of the recipe is declared, the spec plainly
+            # indicates this physics and only the trigger tag is missing
+            # (typo'd / mis-tagged). Silence would delete an indicated check,
+            # so that one specific constellation becomes an honest gap
+            # (Schritt-7-Review S-F1; >=2 siblings required so a lone shared
+            # material measurand cannot spam unrelated recipes).
+            siblings = [m for (m, _u) in recipe.inputs.values() if m != recipe.trigger]
+            present = [m for m in siblings if m in by_measurand]
+            if len(siblings) >= 2 and len(present) == len(siblings):
+                gaps.append(
+                    f"{recipe.name} ({recipe.validator}): alle {len(siblings)} übrigen "
+                    f"Input-Measurands sind deklariert, aber der Trigger {recipe.trigger!r} "
+                    f"fehlt — vertipptes/fehlendes Measurand-Tag?"
+                )
+            continue
         inputs = dict(recipe.extra)
         problems: list[str] = []
         for arg, (measurand, unit) in recipe.inputs.items():
@@ -489,13 +509,19 @@ def select_physics_checks(spec: Specification) -> tuple[list[PhysicsCheck], list
                 problems.append(reason)
             else:
                 inputs[arg] = value
-        # optional_inputs: map if present (for dose etc.); default 0.0 if absent (no gap)
+        # optional_inputs: ABSENT -> documented default 0.0 (no gap); but a quantity
+        # that IS declared and cannot be resolved (wrong dimension / opaque unit)
+        # must become a gap — zeroing a declared dose would green-light the very
+        # check it was meant to feed (Schritt-7-Review S-F2).
         for arg, (measurand, unit) in recipe.optional_inputs.items():
+            if measurand not in by_measurand:
+                inputs[arg] = 0.0
+                continue
             value, reason = _resolve(by_measurand, measurand, unit)
             if reason is None:
                 inputs[arg] = value
             else:
-                inputs[arg] = 0.0
+                problems.append(reason)
         if problems:
             gaps.append(
                 f"{recipe.name} ({recipe.validator}) ist durch {recipe.trigger!r} "
@@ -513,4 +539,8 @@ def evaluate_spec_physics(spec: Specification) -> dict:
     physics (which a caller may treat as a soft fail / a reason to enrich the spec)."""
     checks, gaps = select_physics_checks(spec)
     gate: GateResult = gate_delta_physics(checks)
-    return {"gate": gate, "checks": checks, "gaps": gaps}
+    # honest_pass makes the SAFE reading the convenient one: a vacuous/partial gate
+    # pass with open gaps is not an honest overall pass (Schritt-7-Review S-F3;
+    # pipeline.py and evaluation.py already combine exactly this way).
+    return {"gate": gate, "checks": checks, "gaps": gaps,
+            "honest_pass": bool(gate.passed and not gaps)}

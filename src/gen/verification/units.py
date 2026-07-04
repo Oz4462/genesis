@@ -110,6 +110,8 @@ _FREQ = DIMENSIONLESS / _TIME                         # Hz = T⁻¹
 _VOLTAGE = _POWER / _CURRENT                          # V  = W/A
 _RESISTANCE = _VOLTAGE / _CURRENT                     # Ω  = V/A
 _CHARGE = _CURRENT * _TIME                            # Ah / C = I·T
+_DOSE_EQUIVALENT = _base("Sv")                        # sievert (dose equivalent)
+_DOSE_ABSORBED = _base("Gy")                          # gray (absorbed dose)
 
 _KNOWN_UNITS: dict[str, Dimension] = {
     # dimensionless
@@ -129,6 +131,12 @@ _KNOWN_UNITS: dict[str, Dimension] = {
     "J": _ENERGY, "W": _POWER, "Hz": _FREQ,
     "V": _VOLTAGE, "ohm": _RESISTANCE, "Ω": _RESISTANCE,
     "Ah": _CHARGE, "Wh": _ENERGY,
+    # radiation dose: each its OWN base dimension, deliberately NOT J/kg — the
+    # Sv↔Gy weighting factor is biology, not a unit conversion, so equating them
+    # (or either with J/kg) would let a dimensional check silently launder an
+    # absorbed dose into an equivalent dose. Prefixes (mSv, µSv, kGy) now resolve
+    # via the standard prefix branch instead of collapsing to opaque dimensions.
+    "Sv": _DOSE_EQUIVALENT, "Gy": _DOSE_ABSORBED,
 }
 
 # SI prefixes -> (kept only to RECOGNIZE a prefixed unit; scale is irrelevant to

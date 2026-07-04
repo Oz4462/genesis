@@ -315,8 +315,15 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
     Margin"); Fail-Detail "no margin reported" statt "safety_factor=None".
   · DEFENDED bestätigt: vakuöser Leer-Checklisten-Pass, designed-sink-Bypass, Gate-Aggregation CLEAN.
   · +8 Tests (TDD). Suite 1799/0/61, ruff clean.
-- physics_selection.py — Review DONE (Claude; Grok nachzuholen), Fixes ausstehend:
-  S-F2 MED optional_inputs present-but-unresolvable → still 0.0 (gegen Modul-Zusage) + S-F6 Sv/Gy
-  fehlen in _KNOWN_UNITS (mSv unauflösbar → Dosis genullt) + S-F1 MED Trigger-Tippfehler löscht
-  Physik trotz Geschwister-Measurands + S-F3 honest_pass-Feld. CLEAN: _resolve-Gaps, Determinismus,
-  Registry 38/38, Signaturen.
+- physics_selection.py + verification/units.py — DONE (Claude-Review; Grok nachzuholen), alle 4 GEFIXT:
+  · S-F2 MED: optional_inputs — deklarierte-aber-unauflösbare Größe wurde still 0.0 (genullte Dosis
+    → dose_ok=True); jetzt Gap wie Pflicht-Input, nur echt-abwesend defaultet 0.0. Doc-Truth repariert.
+  · S-F6: Sv/Gy als EIGENE Basisdimensionen in _KNOWN_UNITS (bewusst nicht J/kg, kein Sv↔Gy-Laundering);
+    mSv/µSv/kGy lösen jetzt über den Prefix-Zweig auf (mSv→Sv Faktor 1e-3 getestet).
+  · S-F1 MED (konservative Variante): Trigger fehlt, aber ALLE übrigen Input-Measurands (≥2) deklariert
+    → ehrlicher Mis-Tag-Gap statt lautlosem Verschwinden; Teil-Präsenz bleibt bewusst still
+    (kein Gap-Spam aus geteilten material.*-Measurands).
+  · S-F3: evaluate_spec_physics liefert honest_pass = gate.passed AND not gaps (der sichere Wert
+    ist jetzt der bequemste; pipeline/evaluation kombinierten schon so).
+  · CLEAN bestätigt: _resolve-Gaps, Determinismus, Registry 38/38, Signaturen, first-wins (C-17).
+  · +7 Tests (TDD). Suite 1806/0/61, ruff clean.
