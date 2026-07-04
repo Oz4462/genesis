@@ -23,6 +23,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
+from .development_front import is_jetpack_traum
+
 if TYPE_CHECKING:
     from .safety_ladder import SafetyStagePlan
     from .boundary_reviser import RevisedFrontMap
@@ -79,6 +81,13 @@ def apply_learning_cycle(
     Wendet den 8-Schritt-Prozess (§3.8) auf die kumulierten Grenz-Outputs an.
     Für Jetpack: extrahiert konkrete Regeln/Failure-Modes aus den 6 Safety-Stufen + revised Tech + breakthrough.
     Produziert Delta, das später boundary_reviser / neue front / safety verbessern kann.
+
+    Hinweis (ehrlich, Review F4): aus ``safety``/``revised`` wird derzeit nur
+    ``source_traum`` konsumiert; Stufen/Revisions sind reservierte Inputs (API)
+    und werden noch nicht ausgewertet (Lücke — keine Schein-Auswertung). Die
+    Modul-Namen in den Regel-quellen sind Plan-Anker, keine Input-Auswertung.
+    Review F6: Erkenntnisse, die auf synthetischer Front-Evidenz beruhen
+    (fabrizierte breakthrough_watch-Items), sind explizit so gelabelt.
     """
     traum = (safety.source_traum if safety else (revised.source_traum if revised else "unbekannt"))
 
@@ -87,18 +96,18 @@ def apply_learning_cycle(
     wissens: list[WissensEintrag] = []
     vorschlaege: list[str] = []
 
-    if "jetpack" in traum.lower() or ("mensch" in traum.lower() and "fliegen" in traum.lower()):
+    if is_jetpack_traum(traum):  # Wortgrenzen-Trigger (Review F5)
         # 8-Schritt angewendet (hier als Delta kodiert; Schritte 1-3 aus Input, 4-7 in Delta, 8 = nächste Nutzung)
         rules = [
             LearningRule(
-                regel="Solid-State Battery (Sulfid, >350 Wh/kg Pack-Level) verschiebt portable Energie von needs_breakthrough zu possible_but_unsafe_directly.",
-                evidenz="Frontier Item + revised boundary (S0-S5 Gates berücksichtigen neue Dichte).",
-                quelle="GENESIS_PLATFORM_PLAN.md §3.3 + breakthrough_watch Solid-State + boundary_reviser + safety S0/S4",
+                regel="Solid-State Battery (Sulfid, >350 Wh/kg Pack-Level) WÜRDE portable Energie von needs_breakthrough zu possible_but_unsafe_directly verschieben — Aufwertung erst nach verifizierter Evidenz (synthetische Front-Items werten nicht auf).",
+                evidenz="Synthetisches Frontier Item (unverifiziert); boundary_reviser notiert nur Kandidaten.",
+                quelle="GENESIS_PLATFORM_PLAN.md §3.3 + breakthrough_watch Solid-State (synthetisch) + boundary_reviser (Plan-Anker, Input nicht ausgewertet — Review F4)",
             ),
             LearningRule(
                 regel="Dissimilar redundant FC + <50ms Switch + <1kg erlaubt leichtere P2-Architektur; Recovery-Zeit <3s bleibt hartes Gate.",
                 evidenz="Frontier Verfahren + S2/S4 messkriterien (Recovery <3s in allen Failure-Tests).",
-                quelle="breakthrough_watch dissimilar FC + safety_ladder S2/S4 + teststand",
+                quelle="breakthrough_watch dissimilar FC (synthetisch) + safety_ladder S2/S4 + teststand (Plan-Anker, Input nicht ausgewertet — Review F4)",
             ),
             LearningRule(
                 regel="Jede Safety-Stufe muss ein explizites Gate + messkriterien + abbruch haben; fehlendes Gate = Abbruch vor nächster Stufe.",
@@ -111,7 +120,7 @@ def apply_learning_cycle(
                 modus="Single-Failure ohne sichere Recovery in Simulation/Stand (S0/S1)",
                 aus_stufe="S0 — Modell + Simulation / S1 — Prüfstand",
                 evidenz="Abbruchkriterium in S0: 'Simulation zeigt ungelöste Single-Failure'; S1 erbt Bench-Abbruch.",
-                quelle="safety_ladder S0/S1 + bench_test_runner",
+                quelle="safety_ladder S0/S1 + bench_test_runner (Plan-Anker, Input nicht ausgewertet — Review F4)",
             ),
             FailureMode(
                 modus="Recovery >3s oder fehlende dissimilar Redundanz bei free flight (S2/S4)",
@@ -122,10 +131,10 @@ def apply_learning_cycle(
         ]
         wissens = [
             WissensEintrag(
-                titel="Jetpack Energy Model Update 2026",
-                inhalt="Mit Solid-State >350 Wh/kg (Lab) ist portable Energie für 5+ min free flight unter 100kg+ Pilot-Last technisch möglich (possible_but_unsafe_directly).",
-                evidenz="Frontier + revised + Safety S4 (5+ min free mit Pilot-äquivalenter Last).",
-                quelle="breakthrough_watch + boundary_reviser + safety S4",
+                titel="Jetpack Energy Model Update 2026 (SYNTHETISCH, unverifiziert)",
+                inhalt="SYNTHETISCHE Front-Evidenz (fabriziertes Plan-Beispiel, keine echte Messung): WENN Solid-State >350 Wh/kg (Lab) verifiziert würde, wäre portable Energie für 5+ min free flight unter 100kg+ Pilot-Last möglich (Kandidat possible_but_unsafe_directly).",
+                evidenz="Synthetisches Frontier-Item (evidence_level='synthetic') — kein Wissens-Fakt, nur Kandidat bis zur Verifikation (Review F6).",
+                quelle="breakthrough_watch (synthetisch) + boundary_reviser Kandidaten-Notiz + safety S4 (Plan-Anker)",
             ),
             WissensEintrag(
                 titel="Safety Gate Invariante",
@@ -135,7 +144,7 @@ def apply_learning_cycle(
             ),
         ]
         vorschlaege = [
-            "boundary_reviser + development_front: 'portable Energie' Grenztyp updated zu possible_but_unsafe_directly (Solid-State) in nächstem Zyklus.",
+            "boundary_reviser + development_front: 'portable Energie' Grenztyp erst nach VERIFIZIERTER Solid-State-Evidenz aufwerten (synthetische Items werten nicht auf).",
             "safety_ladder S2/S4: Recovery <3s als hartes Gate in allen free-flight Stufen beibehalten; neue dissimilar FC als zusätzliches Kriterium prüfen.",
             "learning_integrator nächste Runde: Delta in Wissensbasis schreiben und bei neuer Idee als Kontext für front_mapper nutzen.",
             "8-Schritt-Zyklus schließen: Nach Bench/Safety neue Delta erzeugen und revised_front füttern (Lernmaschine aktiv).",
@@ -166,5 +175,5 @@ def apply_learning_cycle(
         naechste_verbesserungsvorschlaege=vorschlaege,
         zusammenfassung=zusammenfassung,
         run_id=run_id,
-        quelle="learning_integrator (12/12 letzter Stein) + safety_ladder + revised + breakthrough + GENESIS_PLATFORM_PLAN.md §3.3 + §3.8",
+        quelle="learning_integrator (12/12 letzter Stein) + safety/revised (nur source_traum konsumiert; Stufen/Revisions noch nicht ausgewertet — Lücke) + GENESIS_PLATFORM_PLAN.md §3.3 + §3.8",
     )

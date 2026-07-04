@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from .development_front import ExperimentleiterSchritt
+from .development_front import ExperimentleiterSchritt, Grenztyp, is_jetpack_traum
 
 if TYPE_CHECKING:
     from .development_front import DevelopmentFrontMap
@@ -57,7 +57,13 @@ def revise_boundary(
     Erste Version des boundary_reviser.
 
     Für das Jetpack-Beispiel (PLAN) nimmt sie die aktuellen Grenzen und die neuen Frontier-Items
-    und revised die Map (z.B. "portable Energie" von NEEDS_BREAKTHROUGH zu possible_but_unsafe_directly dank Solid-State, neue Stufen in ladder).
+    und revised die Map (z.B. "portable Energie" von NEEDS_BREAKTHROUGH zu possible_but_unsafe_directly, neue Stufen in ladder).
+
+    Evidenz-Regel (Review F6): Grenztypen werden NUR aus Items mit
+    ``evidence_level == "verified"`` aufgewertet. Synthetische Items (der Default
+    aus breakthrough_watch — fabrizierte Plan-Beispiele) erzeugen nur eine
+    Kandidaten-Notiz (``old_typ == new_typ``) und lassen Map + fehlende
+    Fähigkeiten unverändert.
     """
     traum = current_front.traum
 
@@ -66,53 +72,70 @@ def revise_boundary(
     revised_ladder = list(current_front.experimentleiter)
     revised_fehlend = list(current_front.fehlende_faehigkeiten)
 
-    if "jetpack" in traum.lower() or ("mensch" in traum.lower() and "fliegen" in traum.lower()):
-        # Incorporate new items from frontier_update
+    if is_jetpack_traum(traum):  # Wortgrenzen-Trigger (Review F5)
+        # Incorporate new items from frontier_update (Review F6): NUR Items mit
+        # evidence_level == "verified" dürfen einen Grenztyp aufwerten. Synthetische
+        # Items (fabrizierte Plan-Beispiele aus breakthrough_watch) werden nur als
+        # unverifizierte Kandidaten notiert — old_typ == new_typ, Map unverändert.
+        def _apply(item, boundary: str, new_typ: Grenztyp, verified_reason: str) -> None:
+            if boundary not in revised_grenzen:
+                return
+            old = revised_grenzen[boundary]
+            if getattr(item, "evidence_level", "synthetic") == "verified":
+                revised_grenzen[boundary] = new_typ
+                revisions.append(BoundaryRevision(
+                    changed_boundary=boundary,
+                    old_typ=str(old),
+                    new_typ=str(new_typ),
+                    reason=verified_reason,
+                    quelle=item.quelle,
+                ))
+            else:
+                revisions.append(BoundaryRevision(
+                    changed_boundary=boundary,
+                    old_typ=str(old),
+                    new_typ=str(old),  # KEINE Aufwertung
+                    reason=(
+                        f"Synthetische Front-Evidenz, unverifiziert ('{item.titel}') — "
+                        f"Grenztyp NICHT aufgewertet (Kandidat für {new_typ} erst nach echter Verifikation)."
+                    ),
+                    quelle=item.quelle,
+                ))
+
         for item in frontier_update.items:
             if "Solid-State" in item.titel or "Energie" in item.titel:
-                if "portable Energie für 5+ min bemannten Hover >80kg" in revised_grenzen:
-                    old = revised_grenzen["portable Energie für 5+ min bemannten Hover >80kg"]
-                    revised_grenzen["portable Energie für 5+ min bemannten Hover >80kg"] = "possible_but_unsafe_directly"  # downgraded thanks to new tech
-                    revisions.append(BoundaryRevision(
-                        changed_boundary="portable Energie für 5+ min bemannten Hover >80kg",
-                        old_typ=str(old),
-                        new_typ="possible_but_unsafe_directly",
-                        reason="New Solid-State Battery results (2026) make it less breakthrough-dependent.",
-                        quelle=item.quelle,
-                    ))
+                _apply(item, "portable Energie für 5+ min bemannten Hover >80kg",
+                       Grenztyp.POSSIBLE_BUT_UNSAFE_DIRECTLY,
+                       "Verified Solid-State Battery results make it less breakthrough-dependent.")
+                if getattr(item, "evidence_level", "synthetic") == "verified":
                     revised_fehlend = [f for f in revised_fehlend if "Energie-Dichte" not in f]  # remove from fehlend if addressed
             if "Redundant" in item.titel or "Control" in item.titel:
-                if "validierte Manned Single-Failure Recovery <0.1s" in revised_grenzen:
-                    old = revised_grenzen["validierte Manned Single-Failure Recovery <0.1s"]
-                    revised_grenzen["validierte Manned Single-Failure Recovery <0.1s"] = "known_possible"  # now known thanks to paper
-                    revisions.append(BoundaryRevision(
-                        changed_boundary="validierte Manned Single-Failure Recovery <0.1s",
-                        old_typ=str(old),
-                        new_typ="known_possible",
-                        reason="New dissimilar redundant architecture paper (2026) provides path.",
-                        quelle=item.quelle,
-                    ))
+                _apply(item, "validierte Manned Single-Failure Recovery <0.1s", Grenztyp.KNOWN_POSSIBLE,
+                       "Verified dissimilar redundant architecture provides path.")
             if "Parachute" in item.titel or "Recovery" in item.titel:
-                if "bemannter freier Flug über Menschenmenge ohne Failure-Risiko" in revised_grenzen:
-                    old = revised_grenzen["bemannter freier Flug über Menschenmenge ohne Failure-Risiko"]
-                    revised_grenzen["bemannter freier Flug über Menschenmenge ohne Failure-Risiko"] = "possible_but_unsafe_directly"
-                    revisions.append(BoundaryRevision(
-                        changed_boundary="bemannter freier Flug über Menschenmenge ohne Failure-Risiko",
-                        old_typ=str(old),
-                        new_typ="possible_but_unsafe_directly",
-                        reason="New ultra-light parachute system makes recovery path feasible.",
-                        quelle=item.quelle,
-                    ))
+                _apply(item, "bemannter freier Flug über Menschenmenge ohne Failure-Risiko",
+                       Grenztyp.POSSIBLE_BUT_UNSAFE_DIRECTLY,
+                       "Verified ultra-light parachute system makes recovery path feasible.")
 
-        # Add new step to ladder based on new evidence
+        upgrades = [r for r in revisions if r.new_typ != r.old_typ]
+
+        # Add new step to ladder based on the frontier update (honest wording)
         revised_ladder.append(
             ExperimentleiterSchritt(
-                beschreibung="Neue Evidenz aus FrontierUpdate integrieren: Solid-State + redundant FC + light recovery → revised Grenze und nächste Stufe definieren (z.B. free flight mit reduced risk).",
+                beschreibung=(
+                    "Frontier-Kandidaten prüfen (Solid-State + redundant FC + light recovery): "
+                    + ("verifizierte Items in revised Grenze integrieren und nächste Stufe definieren."
+                       if upgrades else
+                       "alle Items synthetisch/unverifiziert — Grenztypen unverändert; erst echte Verifikation beschaffen, dann aufwerten.")
+                ),
                 quelle="breakthrough_watch Items + boundary_reviser",
             )
         )
 
-        revised_heutige = current_front.heutige_grenze + " | REVISED: New 2026 tech (Solid-State, dissimilar FC, light parachute) downgrades some needs_breakthrough to possible/known. See revisions."
+        if upgrades:
+            revised_heutige = current_front.heutige_grenze + " | REVISED: verifizierte Frontier-Items werten einzelne Grenztypen auf. See revisions."
+        else:
+            revised_heutige = current_front.heutige_grenze + " | REVIEWED: nur synthetische Front-Evidenz (unverifiziert) — Grenztypen unverändert, Kandidaten notiert."
         revised_naechste = "safety_ladder + boundary_reviser Iteration + learning_integrator für updated Map"
     else:
         revised_heutige = current_front.heutige_grenze + " | REVISED: New frontier items incorporated (generic)."

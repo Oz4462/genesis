@@ -17,6 +17,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from .development_front import is_jetpack_traum
+
 if TYPE_CHECKING:
     from .development_front import DevelopmentFrontMap
     from .capability_gap_analyzer import CapabilityGapReport
@@ -55,14 +57,17 @@ def build_milestone_ladder(
     Erste Version des milestone_builder.
 
     Für das Jetpack-Beispiel (PLAN) erzeugt sie eine realistische, geordnete Leiter
-    von 4–6 Meilensteinen, die direkt aus den identifizierten Gaps und der
-    Experimentleiter im FrontMap abgeleitet sind.
+    von 4–6 Meilensteinen.
+
+    Hinweis (ehrlich, Review F4): aus ``front_map`` wird derzeit nur ``.traum``
+    konsumiert; ``gap_report`` ist reservierte API und wird noch nicht
+    ausgewertet (Lücke — keine Schein-Auswertung).
     """
     traum = front_map.traum
 
     milestones: list[Milestone] = []
 
-    if "jetpack" in traum.lower() or ("mensch" in traum.lower() and "fliegen" in traum.lower()):
+    if is_jetpack_traum(traum):  # Wortgrenzen-Trigger (Review F5)
         milestones = [
             Milestone(
                 name="M0 — Tethered Scale Demo (1:5)",
@@ -133,5 +138,5 @@ def build_milestone_ladder(
         milestones=milestones,
         zusammenfassung=zusammenfassung,
         run_id=run_id,
-        quelle="milestone_builder (erster Stein) + front_map + gap_report + GENESIS_PLATFORM_PLAN.md §3.3",
+        quelle="milestone_builder (erster Stein) + front_map (nur traum konsumiert) + gap_report (reserviert, noch nicht ausgewertet — Lücke) + GENESIS_PLATFORM_PLAN.md §3.3",
     )

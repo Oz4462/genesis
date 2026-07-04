@@ -17,6 +17,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from .development_front import is_jetpack_traum
+
 if TYPE_CHECKING:
     from .teststand_architect import TestStandPlan
 
@@ -53,14 +55,18 @@ def build_technology_roadmap(
     """
     Erste Version des technology_roadmapper.
 
-    Für das Jetpack-Beispiel (PLAN) erzeugt sie eine Roadmap der zentralen fehlenden
-    Technologien, die aus den vorherigen Gaps, Meilensteinen und Prüfständen abgeleitet sind.
+    Für das Jetpack-Beispiel (PLAN) erzeugt sie eine Roadmap der zentralen
+    fehlenden Technologien.
+
+    Hinweis (ehrlich, Review F4): aus ``stand_plan`` wird derzeit nur
+    ``source_traum`` konsumiert; die Prüfstand-Specs sind reservierte API und
+    werden noch nicht ausgewertet (Lücke — keine Schein-Auswertung).
     """
     traum = stand_plan.source_traum
 
     gaps: list[TechnologyGap] = []
 
-    if "jetpack" in traum.lower() or ("mensch" in traum.lower() and "fliegen" in traum.lower()):
+    if is_jetpack_traum(traum):  # Wortgrenzen-Trigger (Review F5)
         gaps = [
             TechnologyGap(
                 name="Hochdichte portable Energie (Li-Metal / Solid-State / Wasserstoff)",
@@ -126,5 +132,5 @@ def build_technology_roadmap(
         gaps=gaps,
         zusammenfassung=zusammenfassung,
         run_id=run_id,
-        quelle="technology_roadmapper (erster Stein) + teststand_plan + GENESIS_PLATFORM_PLAN.md §3.3",
+        quelle="technology_roadmapper (erster Stein) + teststand_plan (nur source_traum konsumiert; Stände noch nicht ausgewertet — Lücke) + GENESIS_PLATFORM_PLAN.md §3.3",
     )

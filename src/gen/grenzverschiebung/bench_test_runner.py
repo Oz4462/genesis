@@ -17,6 +17,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from .development_front import is_jetpack_traum
+
 if TYPE_CHECKING:
     from .technology_builder import TechnologyPrototypePlan
 
@@ -55,14 +57,19 @@ def run_bench_test(
     """
     Erste Version des bench_test_runner.
 
-    Für das Jetpack-Beispiel (PLAN) plant sie die konkreten Messläufe für die Prototypen aus dem Builder
-    und liefert die Struktur für die Bewertung (die tatsächliche Ausführung und Datenerfassung kommt später mit realen Ständen).
+    Für das Jetpack-Beispiel (PLAN) plant sie die konkreten Messläufe und liefert
+    die Struktur für die Bewertung (die tatsächliche Ausführung und Datenerfassung
+    kommt später mit realen Ständen).
+
+    Hinweis (ehrlich, Review F4): aus ``prototype_plan`` wird derzeit nur
+    ``source_traum`` konsumiert; die Prototyp-Specs sind reservierte API und
+    werden noch nicht ausgewertet (Lücke — keine Schein-Auswertung).
     """
     traum = prototype_plan.source_traum
 
     results: list[BenchTestResult] = []
 
-    if "jetpack" in traum.lower() or ("mensch" in traum.lower() and "fliegen" in traum.lower()):
+    if is_jetpack_traum(traum):  # Wortgrenzen-Trigger (Review F5)
         results = [
             BenchTestResult(
                 prototype_name="P1 — Portable High-Density Energy Module (erste Zelle + Pack)",
@@ -135,5 +142,5 @@ def run_bench_test(
         results=results,
         zusammenfassung=zusammenfassung,
         run_id=run_id,
-        quelle="bench_test_runner (erster Stein) + technology_prototype_plan + GENESIS_PLATFORM_PLAN.md §3.3",
+        quelle="bench_test_runner (erster Stein) + technology_prototype_plan (nur source_traum konsumiert; Prototypen noch nicht ausgewertet — Lücke) + GENESIS_PLATFORM_PLAN.md §3.3",
     )

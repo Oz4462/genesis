@@ -18,6 +18,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from .development_front import is_jetpack_traum
+
 if TYPE_CHECKING:
     from .milestone_builder import MilestoneLadder
 
@@ -54,15 +56,18 @@ def design_experiment_plan(
     """
     Erste Version des experiment_designer.
 
-    Für das Jetpack-Beispiel (PLAN) erzeugt sie zu jedem relevanten Meilenstein
-    ein konkretes, falsifizierbares Experiment, das die zentrale Annahme des
-    Meilensteins wirklich prüft (nicht nur "bauen und hoffen").
+    Für das Jetpack-Beispiel (PLAN) erzeugt sie konkrete, falsifizierbare
+    Experimente (nicht nur "bauen und hoffen").
+
+    Hinweis (ehrlich, Review F4): aus ``ladder`` wird derzeit nur
+    ``source_traum`` konsumiert; die Milestones selbst sind reservierte API und
+    werden noch nicht ausgewertet (Lücke — keine Schein-Auswertung).
     """
     traum = ladder.source_traum
 
     experiments: list[Experiment] = []
 
-    if "jetpack" in traum.lower() or ("mensch" in traum.lower() and "fliegen" in traum.lower()):
+    if is_jetpack_traum(traum):  # Wortgrenzen-Trigger (Review F5)
         experiments = [
             Experiment(
                 name="E0 — Tethered Scale Hover + Abort (M0)",
@@ -149,5 +154,5 @@ def design_experiment_plan(
         experiments=experiments,
         zusammenfassung=zusammenfassung,
         run_id=run_id,
-        quelle="experiment_designer (erster Stein) + milestone_ladder + GENESIS_PLATFORM_PLAN.md §3.3",
+        quelle="experiment_designer (erster Stein) + milestone_ladder (nur source_traum konsumiert; Milestones noch nicht ausgewertet — Lücke) + GENESIS_PLATFORM_PLAN.md §3.3",
     )

@@ -17,6 +17,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from .development_front import is_jetpack_traum
+
 if TYPE_CHECKING:
     from .technology_roadmapper import TechnologyRoadmap
 
@@ -54,14 +56,18 @@ def build_technology_prototype(
     """
     Erste Version des technology_builder.
 
-    Für das Jetpack-Beispiel (PLAN) wählt sie die höchst-priorisierten Gaps aus der Roadmap
-    und liefert die erste sichere Prototyp-Spec (z.B. für die Energie-Dichte oder die redundante Control).
+    Für das Jetpack-Beispiel (PLAN) liefert sie die ersten sicheren
+    Prototyp-Specs (Energie-Dichte, redundante Control).
+
+    Hinweis (ehrlich, Review F4): aus ``roadmap`` wird derzeit nur
+    ``source_traum`` konsumiert; die Gaps selbst sind reservierte API und
+    werden noch nicht ausgewertet (Lücke — keine Schein-Auswertung).
     """
     traum = roadmap.source_traum
 
     prototypes: list[TechnologyPrototypeSpec] = []
 
-    if "jetpack" in traum.lower() or ("mensch" in traum.lower() and "fliegen" in traum.lower()):
+    if is_jetpack_traum(traum):  # Wortgrenzen-Trigger (Review F5)
         prototypes = [
             TechnologyPrototypeSpec(
                 name="P1 — Portable Hochdichte-Energie-Einheit (erste Zelle + Pack)",
@@ -118,5 +124,5 @@ def build_technology_prototype(
         prototypes=prototypes,
         zusammenfassung=zusammenfassung,
         run_id=run_id,
-        quelle="technology_builder (erster Stein) + technology_roadmap + GENESIS_PLATFORM_PLAN.md §3.3",
+        quelle="technology_builder (erster Stein) + technology_roadmap (nur source_traum konsumiert; Gaps noch nicht ausgewertet — Lücke) + GENESIS_PLATFORM_PLAN.md §3.3",
     )

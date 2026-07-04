@@ -38,6 +38,30 @@ def test_jetpack_produces_rich_learning_delta_with_rules_failures_and_vorschlaeg
     assert delta.quelle is not None
 
 
+def test_jetpack_wissens_eintrag_from_synthetic_frontier_is_labeled():
+    """Review F6: Der WissensEintrag, der aus den synthetischen Frontier-Items
+    (fabrizierte '2026 Lab Results') stammt, muss explizit als synthetisch /
+    unverifiziert gelabelt sein — er darf nicht als echtes Wissen verewigt werden."""
+    idee = "Ich will ein Jetpack bauen, das Menschen sicher über einer Menge frei fliegen lässt."
+    front = map_development_front(idee, run_id="learn-test-syn-001")
+    revised = RevisedFrontMap(
+        source_traum=front.traum,
+        revised_map=front,
+        revisions=[],
+        zusammenfassung="test revised",
+        run_id="learn-test-syn-001",
+        quelle="test",
+    )
+    safety = build_safety_ladder(revised, run_id="learn-test-syn-001")
+    delta = apply_learning_cycle(safety=safety, revised=revised, run_id="learn-test-syn-001")
+
+    energy_entries = [w for w in delta.wissens_eintraege if "Energy" in w.titel or "Energie" in w.titel]
+    assert energy_entries, "Energie-Wissenseintrag muss existieren"
+    for w in energy_entries:
+        text = (w.titel + " " + w.inhalt).lower()
+        assert "synthetisch" in text or "unverifiziert" in text
+
+
 def test_generic_idea_produces_minimal_learning_delta():
     """Generische Idee → minimales Delta (eine Rule, leere Failures, Vorschlag für volle Analyse)."""
     idee = "Ein tragbares Gerät, das Schwerkraft lokal aufhebt."

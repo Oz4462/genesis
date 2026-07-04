@@ -17,6 +17,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from .development_front import is_jetpack_traum
+
 if TYPE_CHECKING:
     from .boundary_reviser import RevisedFrontMap
 
@@ -53,13 +55,19 @@ def build_safety_ladder(
     """
     Erste Version des safety_ladder.
 
-    Für das Jetpack-Beispiel (PLAN) erzeugt sie die 6-stufige Leiter mit safe forms, Gates und Kriterien, die die revised Grenze schrittweise mit zunehmendem Risiko (aber immer sicher) erproben.
+    Für das Jetpack-Beispiel (PLAN) erzeugt sie die 6-stufige Leiter mit safe
+    forms, Gates und Kriterien (schrittweise zunehmendes, aber immer
+    kontrolliertes Risiko).
+
+    Hinweis (ehrlich, Review F4): aus ``revised`` wird derzeit nur
+    ``source_traum`` konsumiert; die Revisions selbst sind reservierte API und
+    werden noch nicht ausgewertet (Lücke — keine Schein-Auswertung).
     """
     traum = revised.source_traum
 
     stages: list[SafetyStage] = []
 
-    if "jetpack" in traum.lower() or ("mensch" in traum.lower() and "fliegen" in traum.lower()):
+    if is_jetpack_traum(traum):  # Wortgrenzen-Trigger (Review F5)
         stages = [
             SafetyStage(
                 name="S0 — Modell + Simulation",
@@ -139,5 +147,5 @@ def build_safety_ladder(
         stages=stages,
         zusammenfassung=zusammenfassung,
         run_id=run_id,
-        quelle="safety_ladder (erster Stein) + revised_front + GENESIS_PLATFORM_PLAN.md §3.3",
+        quelle="safety_ladder (erster Stein) + revised_front (nur source_traum konsumiert; Revisions noch nicht ausgewertet — Lücke) + GENESIS_PLATFORM_PLAN.md §3.3",
     )

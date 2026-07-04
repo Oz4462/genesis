@@ -20,8 +20,32 @@ Design-Regeln aus dem Projekt:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum
+
+# --- Gemeinsamer Jetpack-Trigger (Review F5, Muster wie pipelines/_triggers) ---
+
+#: Wortgrenzen-genaue Marker: der frühere Substring-Check ("mensch" in x and
+#: "fliegen" in x) feuerte auch in "unmenschlich" + "Fliegengitter".
+_JETPACK_WORD = re.compile(r"\bjetpacks?\b")
+_MENSCH_WORD = re.compile(r"\bmensch(?:en)?\b")
+_FLIEGEN_WORD = re.compile(r"\bfliegen\b")
+
+
+def is_jetpack_traum(text: str) -> bool:
+    """True gdw. der Traum den kanonischen Jetpack-Fall (PLAN §3.2/3.3) benennt.
+
+    Wortgrenzen statt Substrings: "jetpack(s)" ODER ("mensch(en)" UND "fliegen"
+    jeweils als ganzes Wort). Case-insensitiv (lowercased hier — Aufrufer brauchen
+    kein eigenes ``.lower()``). Fehlerfälle: keine; ``""`` → False. Gemeinsamer
+    Helfer für alle Grenzverschiebungs-Steine (eine Quelle statt 12 Kopien).
+    """
+    t = text.lower()
+    return bool(_JETPACK_WORD.search(t)) or (
+        bool(_MENSCH_WORD.search(t)) and bool(_FLIEGEN_WORD.search(t))
+    )
+
 
 # --- Grenztypen (exakt aus PLATFORM_PLAN.md §3.3) ---
 
@@ -94,7 +118,7 @@ def map_development_front(
 
     # Deterministische Analyse für das kanonische Jetpack-Beispiel (PLAN §3.2/3.3)
     # Später: Ersetzbar durch Wissensbasis + capability_gap_analyzer.
-    if "jetpack" in idee.lower() or ("mensch" in idee.lower() and "fliegen" in idee.lower()):
+    if is_jetpack_traum(idee):
         traum = idee
         heutige_grenze = (
             "Wir haben deterministische Physik-Modelle und Validatoren für unbemannte "
@@ -148,9 +172,12 @@ def map_development_front(
     else:
         # Ehrlicher Fallback für beliebige Ideen (noch nicht reichhaltig analysiert)
         traum = idee
-        heutige_grenze = "Noch nicht detailliert kartiert für diese Idee — siehe Experimentleiter und offene Lücken. Volle Analyse erfordert Wissensbasis + capability_gap_analyzer (zukünftiger Stein)."
+        # Review F9: capability_gap_analyzer/milestone_builder sind GEBAUT — der
+        # frühere Text "zukünftiger Stein" war Kommentar-Drift. Ehrlich ist: die
+        # Steine existieren, ihre Verdrahtung in diesen generischen Fallback fehlt.
+        heutige_grenze = "Noch nicht detailliert kartiert für diese Idee — siehe Experimentleiter und offene Lücken. Volle Analyse erfordert Wissensbasis + capability_gap_analyzer (Stein gebaut, in diesen Fallback noch nicht verdrahtet — Lücke)."
         fehlende_faehigkeiten = [
-            "Vollständige Grenz-Kartierung mit realen Quellen/Tests und Domänen-Wissen (zukünftiger Stein)",
+            "Vollständige Grenz-Kartierung mit realen Quellen/Tests und Domänen-Wissen (Steine gebaut, Verdrahtung in diesen Fallback fehlt — Lücke)",
             "Sichere Demo-Varianten + SafetyStagePlan",
         ]
         experimentleiter = [
@@ -173,7 +200,7 @@ def map_development_front(
         abbruchkriterien = [
             "Keine sichere Stufe definierbar ohne neue Technologie (needs_breakthrough)",
         ]
-        naechste_stufe = "capability_gap_analyzer + milestone_builder (nächste Grenzverschiebungs-Module)"
+        naechste_stufe = "capability_gap_analyzer + milestone_builder (gebaute Grenzverschiebungs-Steine — nächster Schritt in der Kette)"
 
     front_map = DevelopmentFrontMap(
         traum=traum,

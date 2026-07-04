@@ -18,6 +18,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from .development_front import is_jetpack_traum
+
 if TYPE_CHECKING:
     from .milestone_builder import MilestoneLadder
 
@@ -53,15 +55,18 @@ def build_test_stand(
     """
     Erste Version des teststand_architect.
 
-    Für das Jetpack-Beispiel (PLAN) erzeugt sie zu den relevanten Meilensteinen
-    konkrete, sichere Prüfstand-Specs (tethered + Wasser + Scale + Bench), die
-    die Annahmen ohne unnötiges Risiko für Menschen prüfen können.
+    Für das Jetpack-Beispiel (PLAN) erzeugt sie konkrete, sichere Prüfstand-Specs
+    (tethered + Wasser + Scale + Bench) ohne unnötiges Risiko für Menschen.
+
+    Hinweis (ehrlich, Review F4): aus ``ladder`` wird derzeit nur
+    ``source_traum`` konsumiert; die Milestones selbst sind reservierte API und
+    werden noch nicht ausgewertet (Lücke — keine Schein-Auswertung).
     """
     traum = ladder.source_traum
 
     stands: list[TestStandSpec] = []
 
-    if "jetpack" in traum.lower() or ("mensch" in traum.lower() and "fliegen" in traum.lower()):
+    if is_jetpack_traum(traum):  # Wortgrenzen-Trigger (Review F5)
         stands = [
             TestStandSpec(
                 name="T0 — Tethered 1:5 Scale Hover + Water Abort Bench (M0 + E0)",
@@ -139,5 +144,5 @@ def build_test_stand(
         stands=stands,
         zusammenfassung=zusammenfassung,
         run_id=run_id,
-        quelle="teststand_architect (erster Stein) + milestone_ladder + GENESIS_PLATFORM_PLAN.md §3.3",
+        quelle="teststand_architect (erster Stein) + milestone_ladder (nur source_traum konsumiert; Milestones noch nicht ausgewertet — Lücke) + GENESIS_PLATFORM_PLAN.md §3.3",
     )

@@ -17,13 +17,22 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from .development_front import is_jetpack_traum
+
 if TYPE_CHECKING:
     from .development_front import DevelopmentFrontMap
 
 
 @dataclass(frozen=True)
 class FrontierItem:
-    """Ein einzelnes beobachtetes Item (Paper, Tool, Material, Verfahren)."""
+    """Ein einzelnes beobachtetes Item (Paper, Tool, Material, Verfahren).
+
+    ``evidence_level`` (Review F6): "synthetic" = deterministisch fabriziertes
+    Plan-Beispiel (KEINE echte Beobachtung/Messung — der Default, weil der Watcher
+    noch keinen Live-Scan hat); "verified" erst, wenn eine echte, unabhängig
+    geprüfte Quelle dahintersteht. Nur "verified"-Items dürfen im boundary_reviser
+    Grenztypen aufwerten.
+    """
 
     titel: str
     typ: str                           # "Paper", "Tool", "Material", "Verfahren"
@@ -31,6 +40,7 @@ class FrontierItem:
     relevanz_fuer_gap: str             # z.B. "Energie-Dichte P1"
     moeglicher_impact: str
     quelle: str | None = None
+    evidence_level: str = "synthetic"  # "synthetic" | "verified"
 
 
 @dataclass(frozen=True)
@@ -52,15 +62,20 @@ def watch_frontier(
     """
     Erste Version des breakthrough_watch.
 
-    Für das Jetpack-Beispiel (PLAN) "beobachtet" sie bekannte aktuelle Entwicklungen in den relevanten Domänen
-    (Energie, Control, Recovery) und bewertet ihre Relevanz für die offenen Gaps aus der Roadmap.
-    (Die tatsächliche live Suche kommt später mit realen Tools.)
+    Für das Jetpack-Beispiel (PLAN) "beobachtet" sie bekannte Entwicklungen in den
+    relevanten Domänen (Energie, Control, Recovery) — als SYNTHETISCHE
+    Plan-Beispiele (evidence_level='synthetic'); die tatsächliche live Suche
+    kommt später mit realen Tools.
+
+    Hinweis (ehrlich, Review F4): aus ``front_map`` wird derzeit nur ``.traum``
+    konsumiert; ein BenchTestPlan-Input ist NICHT verdrahtet (Lücke — die
+    frühere quelle behauptete das fälschlich).
     """
     traum = front_map.traum
 
     items: list[FrontierItem] = []
 
-    if "jetpack" in traum.lower() or ("mensch" in traum.lower() and "fliegen" in traum.lower()):
+    if is_jetpack_traum(traum):  # Wortgrenzen-Trigger (Review F5)
         items = [
             FrontierItem(
                 titel="Solid-State Battery Breakthrough (2026 Lab Results)",
@@ -88,8 +103,9 @@ def watch_frontier(
             ),
         ]
         zusammenfassung = (
-            "3 aktuelle Frontier-Items (2026 Stand), die die drei zentralen Roadmap-Gaps direkt adressieren. "
-            "Jedes Item hat Relevanz-Bewertung und möglichen Impact auf die Prototypen und Meilensteine."
+            "3 SYNTHETISCHE Frontier-Items (deterministische Plan-Beispiele, unverifiziert — kein Live-Scan), "
+            "die die drei zentralen Roadmap-Gaps adressieren KÖNNTEN. Jedes Item hat Relevanz-Bewertung und "
+            "möglichen Impact; Grenztyp-Aufwertung erst nach echter Verifikation (evidence_level='verified')."
         )
     else:
         items = [
@@ -109,5 +125,5 @@ def watch_frontier(
         items=items,
         zusammenfassung=zusammenfassung,
         run_id=run_id,
-        quelle="breakthrough_watch (erster Stein) + bench_test_plan + GENESIS_PLATFORM_PLAN.md §3.3",
+        quelle="breakthrough_watch (erster Stein) + front_map (nur traum konsumiert; kein bench_test_plan-Input verdrahtet — Lücke) + GENESIS_PLATFORM_PLAN.md §3.3",
     )

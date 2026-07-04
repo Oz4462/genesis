@@ -32,7 +32,7 @@ from ..omega import (
     gate_receipt as _omega_gate_receipt,
 )
 from ..verification.gates import GateResult  # for typing the internal check
-from .development_front import map_development_front, DevelopmentFrontMap, Grenztyp
+from .development_front import map_development_front, DevelopmentFrontMap, Grenztyp, is_jetpack_traum
 
 # New hardened simulation layer (Punkt 4 complete)
 try:
@@ -384,7 +384,7 @@ class LumenCrucible:
         Für Jetpack-Kanon: tethered Thrust-Rig mit Load-Cell + bestehendem CAD-Builder.
         Gibt konkrete next_step + gate_to_pass (real existierend).
         """
-        is_jetpack = "jetpack" in dream.lower() or ("mensch" in dream.lower() and "fliegen" in dream.lower())
+        is_jetpack = is_jetpack_traum(dream)  # Wortgrenzen-Trigger (Review F5)
 
         if is_jetpack:
             exp_name = "EmberNest_Thrust_Rig_v0.1"

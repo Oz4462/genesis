@@ -18,6 +18,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from .development_front import is_jetpack_traum
+
 if TYPE_CHECKING:
     from .development_front import DevelopmentFrontMap
 
@@ -72,6 +74,10 @@ def analyze_capability_gaps(
 
     Aktuell regelbasiert + deterministisch für das Jetpack-Beispiel (PLAN).
     Später: Ersetzbar durch Wissensbasis-Query + echte frontier-Daten.
+
+    Hinweis (ehrlich, Review F4): aus ``front_map`` wird derzeit nur ``.traum``
+    konsumiert; grenzen/experimentleiter sind reservierte API und werden noch
+    nicht ausgewertet (Lücke — keine Schein-Auswertung).
     """
     if front_map is not None:
         traum = front_map.traum
@@ -87,7 +93,7 @@ def analyze_capability_gaps(
     gaps: list[CapabilityGap] = []
 
     # Kanonische Analyse für bemannten Jetpack / freien Flug (PLAN §3.2/3.3)
-    if "jetpack" in traum.lower() or ("mensch" in traum.lower() and "fliegen" in traum.lower()):
+    if is_jetpack_traum(traum):  # Wortgrenzen-Trigger (Review F5)
         gaps.append(
             CapabilityGap(
                 category=GapCategory.MISSING_TECHNOLOGY,
@@ -151,5 +157,5 @@ def analyze_capability_gaps(
         gaps=gaps,
         summary=summary,
         run_id=run_id,
-        quelle=f"capability_gap_analyzer (erster Stein) + {source} + GENESIS_PLATFORM_PLAN.md §3.3",
+        quelle=f"capability_gap_analyzer (erster Stein) + {source} (nur traum konsumiert; übrige Map-Felder noch nicht ausgewertet — Lücke) + GENESIS_PLATFORM_PLAN.md §3.3",
     )
