@@ -30,7 +30,8 @@ Genesis härtet heute eine **fertige** Idee:
 α (belegte Recherche) → β (verankerter Lösungsraum) → γ (Spezifikation, parametrisches
 CAD) → δ (deterministische Physik-/Geometrie-Validierung), plus die integrierte Schicht
 (trust-core, ANAMNESIS-Memory, N-Judge-Consensus, signierter Audit, arXiv, SMT).
-1185 passed / 9 skipped, offline, deterministisch.
+1727 passed / 0 failed / 61 skipped (gemessen 2026-07-04, offline, deterministisch;
+Skips = optionale Deps).
 
 Das ist die **mittlere** Hälfte des Wegs. HORIZONT ergänzt die erste und die dritte.
 

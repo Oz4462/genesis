@@ -1,5 +1,9 @@
 # DOC ↔ CODE DRIFT — was geschrieben steht vs. was implementiert ist
 
+> **ABGELÖST (2026-07-04):** Dieses Dokument ist selbst gedriftet (nennt „27 Validatoren",
+> real 43; KiCad-Zeile durch `cad/kicad.py` vom 2026-06-18 widerlegt; HORIZON-φ/χ-Fix längst
+> erledigt). Aktuelle Wahrheitsquelle: `docs/AUDIT_2026-07-04.md`. Historisch belassen.
+
 **Stand:** 2026-06-17 · **Methode:** die Plan-/TODO-/HORIZON-Dokumente gegen den realen
 `src/gen/`-Baum + die Test-Suite geprüft (**Existenz** via `grep`/`find` + **Test-Präsenz**,
 kein tiefer Reife-Audit). Suite zum Zeitpunkt: **1185 passed / 9 skipped**, `ruff check .` clean.

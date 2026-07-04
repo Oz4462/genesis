@@ -182,12 +182,13 @@
 ## GESAMTSTAND — alle 5 Phasen + alle Features `[GEBAUT]` + Frontier 6.1–6.5
 
 Der gesamte Mehr-Wochen-Plan aus `GROK_BUILD_GENESIS_UNIVERSE_EXPLORER.md` ist gebaut, getestet,
-grok-build-drift-geprüft und committet (lokal, kein Push). **100 Discovery-Tests** über 18 Module;
+grok-build-drift-geprüft und committet (lokal, kein Push). **146 Discovery-Testfunktionen** über
+35 Module (nachgezählt 2026-07-04, `docs/AUDIT_2026-07-04.md`);
 `rediscovery_benchmark()` 100 %/100 % (6 Fälle); ZERO Trading-Terme. Mit Frontier 6.1–6.5 sind nun
 **Summen mehrerer dimensional-gültiger Terme** (inkl. OOS), **transzendente Formen**, die **Active
 Resolution of Uncertainty** UND **Minimal-Correction bei Komposition** (Residuen-SR auf gequellte
 Gesetze, signed lstsq + strenges Gate `residual_explained≥0.9` ∧ `ΔR²>1e-3` ∧ Leave-One-Out) abgedeckt.
-Volle Offline-Suite **1329 passed / 0 failed / 19 skipped**. Ehrliche verbleibende Grenze:
+Volle Offline-Suite **1727 passed / 0 failed / 61 skipped** (gemessen 2026-07-04). Ehrliche verbleibende Grenze:
 multiplikative/transzendente Kopplungen, Produkte/Kompositionen von Transzendenten, volle GP-Suche.
 
 ## Drift-Kontroll-Protokoll (jede Tour)

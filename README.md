@@ -9,7 +9,7 @@
 <br/>
 
 ![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB?logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-1784%20passed%20%2F%200%20failed-2ea44f)
+![Tests](https://img.shields.io/badge/tests-1727%20passed%20%2F%200%20failed-2ea44f)
 ![Determinism](https://img.shields.io/badge/runs-deterministisch%20%C2%B7%20reproduzierbar-blue)
 ![Offline](https://img.shields.io/badge/läuft-100%25%20lokal%20%C2%B7%20kein%20Cloud--Zwang-555)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
@@ -273,7 +273,7 @@ GENESIS sagt nie „funktioniert", wenn es nicht verifizierbar ist. Was offline 
 
 | | Status | Bedeutung |
 |---|---|---|
-| 🟢 **Kern** | live | numpy/sympy/scipy/mpmath — alles offline-deterministisch, 1784 Tests |
+| 🟢 **Kern** | live | numpy/sympy/scipy/mpmath — alles offline-deterministisch, 1727 Tests grün |
 | 🟢 **OpenAlex** | live ✓ | CC0-Literatur-Connector, gegen echten Endpoint verifiziert (HTTP 200) |
 | 🟡 **pip-opt-in** | nachrüstbar | PySINDy · pymoo · Ax/BoTorch · MuJoCo · OpenEvolve — Adapter gebaut, import-gegated |
 | 🔴 **Live-LLM-Council** | B1 BLOCKED | `claude -p` mit dem Council-Prompt > 300s-Timeout → `--live` degradiert *graceful* offline |
@@ -296,11 +296,11 @@ src/gen/
 ├── external/        Lizenz-Ledger (registry) + external_oracle (oracle)
 ├── tools/sources/   Freie-API-Connectoren (openalex CC0, patents)
 ├── simulation/      RK4 multibody · PyBullet · SimulatorBackend-Naht
-├── physics_*.py     δ-Physik-Engine: ~36 Validatoren + Auto-Select
+├── physics_*.py     δ-Physik-Engine: 43 Validatoren + 38 Auto-Select-Recipes
 ├── bundle.py        Bau-Bundle-Emitter (STL + BOM + Bauanleitung)
 └── cli.py           der CLI-Einstiegspunkt (alle Modi)
 
-tests/               243 Test-Dateien · 1784 passed / 10 skipped / 0 failed
+tests/               247 Test-Dateien · 1727 passed / 61 skipped / 0 failed (2026-07-04, offline)
 docs/                ARCHITECTURE · DATA_MODEL · PIPELINE · phases/ · EXTERNAL_INTEGRATION
 ```
 
@@ -328,7 +328,7 @@ pip install -e ".[web]"      # lokale Web-UI (genesis-web)
 ## 🧪 Tests
 
 ```bash
-pytest -q                                      # volle Suite: 1784 passed / 10 skipped / 0 failed
+pytest -q                                      # volle Suite: 1727 passed / 61 skipped / 0 failed
 pytest tests/test_inventor_loop.py -q          # der Erfindungs-Loop (M1)
 pytest tests/test_discovery_sindy.py -q        # SINDy-Entdeckung
 pytest tests/test_external_registry.py -q      # das Lizenz-Gate
