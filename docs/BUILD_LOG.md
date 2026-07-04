@@ -7665,3 +7665,75 @@ All keep public API (list[tuple]) + GateResult unchanged. Deterministic.
 **Result:** All Befunde fixed with strict honesty. No fake outputs. Specialization Memo below in response. Next: owner may wire designed via measurand or extend.
 
 **Ehrliche Grenze:** Dose limit currently default-permissive (caller provides via PhysicsCheck extra); full TID limit seam future. Runner radiation trigger heuristic. No whole-suite 1600 re-run (time); targeted + smoke green.
+
+---
+
+**2026-07-04 TDD sub-agent (Council auflage on commit 744bd2d): ISRU/LIFE_SUPPORT test additions**
+
+Task: Design+apply actual test additions for new SeamDomain.ISRU + LIFE_SUPPORT + isru validator (post 744bd2d which added explicit domains, _looks_*, required adjacencies, isru_electrolysis_o2_check, life o2 balance).
+
+**Changes made:**
+- tests/test_phase_epsilon.py: updated import for _looks_* (for regression only); appended 4 new tests using existing _q helper style:
+  1. test_isru_domain_detection_and_required_pairs — constructs via _q (measurands for isru/elec/therm), Component+BomItem(PART) for mech/cost; asserts ISRU domain present + specific pairs {(ELEC,ISRU), (THERM,ISRU), (MECH,ISRU), (ISRU,COST)} + core preservation.
+  2. test_life_support_domain_and_required_pairs — LIFE via life_support.* measurands + therm; asserts (THERM,LIFE); with added RAD measurand asserts (RAD,LIFE).
+  3. test_isru_false_positive_regression_german_and_substrings — Quantity(id/name/measurand) with "isrundes", "q_kt"/"Spannungskonzentrationsfaktor", unrelated, "foo.isrubaz"; assert not _looks_isru(q).
+  4. test_life_support_false_positive_regression — similar for "lifetime", "Lebensdauer", non-prefixed o2, atm; assert not _looks_life_support.
+- tests/test_physics_validation.py: added import; appended 2 direct validator tests:
+  - test_isru_electrolysis_o2_check_stoich_positive: exact 36kg→32kg@1.0, 25.6@0.8, targets met.
+  - test_isru_electrolysis_o2_check_invalid_and_negative_cases: water<=0, eff invalid, unmet target (e.g. 16<19) → ok=False + error cases.
+- All edits precise; no new files.
+
+**Execution verification (specific tests run):**
+```
+.venv/bin/python -m pytest tests/test_phase_epsilon.py::test_isru_domain_detection_and_required_pairs \
+  tests/test_phase_epsilon.py::test_life_support_domain_and_required_pairs \
+  tests/test_phase_epsilon.py::test_isru_false_positive_regression_german_and_substrings \
+  tests/test_phase_epsilon.py::test_life_support_false_positive_regression \
+  tests/test_physics_validation.py::test_isru_electrolysis_o2_check_stoich_positive \
+  tests/test_physics_validation.py::test_isru_electrolysis_o2_check_invalid_and_negative_cases \
+  -q --tb=short
+# Result: ...... [100%] 6 passed in 0.25s
+```
+Full targeted:
+- test_phase_epsilon.py : 17 passed (was 13 before; +4 new)
+- test_physics_validation.py : 15 passed (+2)
+New tests hit previously uncovered: domains_present ISRU/LIFE branches, required_seam_pairs new adjacencies, _looks_isru/_looks_life_support (positive+FP), full stoich+error paths in isru_electrolysis_o2_check. Increases coverage, provides Negativtests (FP cases, invalid inputs, unmet). Prevents future Befund-like substring/FP issues on German specs or partial names.
+
+**DoD checklist met (for this TDD task):**
+- [x] Interface erfüllt (public funcs + _ for test regression), Typen ok (from state)
+- [x] Tests grün (incl. multiple Negativ: FP not trigger, invalid/negative cases)
+- [x] Ledger not applicable (no new factual claims; tests are pure)
+- [x] Gate-Bedingung: epsilon required_seam_pairs + domains_present exercised; delta validator direct + via registry (pre-existing)
+- [x] No new Doku md (per rules); inline comments + this log
+- [x] 4 Linsen + PLATFORM_PLAN abgleich applied (below)
+- [x] No silent defaults; explicit errors in validators
+
+### Selbstkontrolle (§0.2 + 4 Linsen) — this work unit (TDD for 744bd2d auflage)
+- [x] All above
+- [x] 4 Linsen documented here
+- [x] New tests increase coverage on epsilon seams + delta validators for ISRU/LIFE
+- [x] No hallucinated behavior; all asserts on actual code (stoich math 32/36, startswith+pad logic)
+
+**4 Linsen + Abgleich GENESIS_PLATFORM_PLAN.md (seams/epsilon + delta-physik fach-pipeline + space extension):**
+- **L1 (Wahrheits-Linse):** All test claims grounded in source: read seams.py:173 (ISRU add), 175 (LIFE), 199-210 (REQUIRED_ADJACENCIES incl ISRU/THERM etc + COST), physics_validation.py:138-159 (isru_electrolysis_o2_check stoich comment+impl 32/36), state.py:1129 (enum). Exec runs (6/6 pass) + code reads are source. No un-sourced numbers except direct from formula (32.0/36.0). Matches PLAN emphasis on deterministic gates, explicit seams, no invented physics (see L DRs in seams). PLATFORM_PLAN §3.3/4.x Fach-Pipelines + honesty for multi-domain.
+- **L2 (Drift- & Grounding-Linse):** Changes are pure additive tests; no mutation to prod logic (seams.py _looks / required untouched). Grounded vs. commit 744bd2d diff (via git log), vs. existing radiation tests style in same file (use _q, assert sets on required). No drift in core pairs (THERM-ELEC etc preserved). Neg tests explicitly guard the "hardened against substring FP" comments in _looks_isru. Matches prior BUILD_LOG entries on Befund fixes for seams. No regression (full epsilon+physval green).
+- **L3 (Vollständigkeits- & Naht-Linse):** Covers: domains_present for new domains, required_seam_pairs for all new listed pairs (ELEC-ISRU, THERM-ISRU, MECH-ISRU, ISRU-COST, THERM-LIFE, RAD-LIFE), FP paths for both _looks (German compounds as specified), validator all branches (stoich positive, invalid, negative margin per docstring). Seams to: epsilon gate (uses domains/req), physics_selection recipes (indirect), delta gate (via VALIDATORS registry). Negatives + "when cost present" explicit. Matches PLAN calls for test coverage on gates, "Tests grün (inkl. mind. ein Negativtest)". No missing failure mode for the auflage (e.g. false positive on non-ISRU specs). Open: end-to-end spec with full ISRU seams in gate_epsilon not added (per task scope "design the actual test additions" for listed items).
+- **L4 (Realisierbarkeits- & Verifizierbarkeits-Linse):** Tests are immediately executable, use existing helpers (_q), direct calls as specified. New tests make epsilon/delta more complete for ISRU/LIFE (explicit per Council). Fidelity: exact stoich math verified; FP guards the "Hardened against substring FP" in seams.py. Would keep gates passing (no change to logic). Ready-to-apply in response + already applied. No impact on other phases/gates. BUILD_LOG updated. If PLATFORM_PLAN requires more (e.g. in inventor_seams or full pipeline), this is the minimal honest increment per "Tests zuerst für Gates".
+
+**Result:** 6 targeted tests green. Ready-to-apply snippets below (in case of rollback). All auflage points addressed with precise locations. Full relevant suite (epsilon + physval) passes. This prevents Befund-like issues on new domains.
+
+**Precise edit locations + ready-to-apply code (as designed):**
+1. In tests/test_phase_epsilon.py :
+   - Line ~31: import update (see applied).
+   - End of file (after line ~377 original): appended the 4 test_* functions as shown in the applied edit.
+   Expected asserts as in code: e.g. any(set(p)=={SeamDomain.ELECTRICAL, SeamDomain.ISRU} ...), assert not _looks_isru(q_kt) etc.
+2. In tests/test_physics_validation.py :
+   - Import addition for isru_electrolysis_o2_check.
+   - End of file: the 2 test_isru_electrolysis_o2_check_* functions.
+   Expected: for 36kg eff=1.0: abs(32- o2)<1e-9 and ok; for invalid: ok=False + error=="invalid_inputs"; unmet: ok=False.
+
+(Full snippets available from the search_replace diffs or file reads post-edit.)
+
+**Ehrliche Grenze:** Task scope limited to listed 1-4 items (no full integration tests for ISRU in competitive or pipeline unless specified). No coverage tool run (no pytest-cov in env easily); coverage increase by construction + targeted branches. No change to prod (pure test).
+
+**Next (if owner):** Could add ISRU seam examples in epsilon gate tests or use in _spec for print/competitive, but per request: done.

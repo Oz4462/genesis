@@ -18,6 +18,8 @@ from gen.physics_validation import (  # noqa: E402
     VALIDATORS,
     PhysicsCheck,
     gate_delta_physics,
+    isru_electrolysis_o2_check,
+    life_support_o2_balance_check,
     run_physics_checks,
     vacuum_radiation_balance_check,
 )
@@ -167,3 +169,100 @@ def test_radiation_recipe_maps_dose_real_via_select():
     assert chk.inputs["radiation_dose_sv"] == 4.2
     # also designed from extra
     assert chk.inputs.get("designed_as_sink_or_source") is False
+
+
+# --- ISRU electrolysis validator tests (direct calls, per auflage on commit 744bd2d) ---
+# Exact stoich 36 kg H2O -> 32 kg O2 (molar 2H2O->O2+2H2), scaled by efficiency.
+# Covers positive (incl target), invalid inputs, negative margin cases.
+# These + epsilon tests increase coverage and guard against regression on ISRU/LIFE.
+
+
+def test_isru_electrolysis_o2_check_stoich_positive():
+    """36kg water at eff=1.0 yields exactly 32kg O2; eff=0.8/0.9 scale and meet reasonable targets."""
+    # exact stoich eff=1
+    res = isru_electrolysis_o2_check(36.0, efficiency=1.0)
+    assert res["ok"] is True
+    assert abs(res["o2_produced_kg"] - 32.0) < 1e-9
+    assert res["water_consumed_kg"] == 36.0
+    assert res["efficiency"] == 1.0
+
+    # eff=0.8 → 25.6 kg
+    res80 = isru_electrolysis_o2_check(36.0, efficiency=0.8)
+    assert res80["ok"] is True
+    assert abs(res80["o2_produced_kg"] - 25.6) < 1e-9
+
+    # eff=0.9 yields ~28.8 >= target 25.0 (and >= target*0.95)
+    res_tgt = isru_electrolysis_o2_check(36.0, efficiency=0.9, o2_target_kg=25.0)
+    assert res_tgt["ok"] is True
+    assert res_tgt["o2_produced_kg"] > 25.0
+
+    # no target (o2_target<=0) is always ok if inputs valid
+    res_notgt = isru_electrolysis_o2_check(10.0, efficiency=0.75)
+    assert res_notgt["ok"] is True
+
+
+def test_isru_electrolysis_o2_check_invalid_and_negative_cases():
+    """Invalid (water<=0, eff not in (0,1]) → error; unmet target → ok=False."""
+    res_bad_w = isru_electrolysis_o2_check(water_kg=0.0)
+    assert res_bad_w["ok"] is False
+    assert res_bad_w.get("error") == "invalid_inputs"
+
+    res_bad_eff = isru_electrolysis_o2_check(10.0, efficiency=0.0)
+    assert res_bad_eff["ok"] is False
+    assert res_bad_eff.get("error") == "invalid_inputs"
+
+    res_neg = isru_electrolysis_o2_check(-5.0, efficiency=0.8)
+    assert res_neg["ok"] is False
+
+    # valid inputs but target not met (16kg produced < 20*0.95=19)
+    res_unmet = isru_electrolysis_o2_check(36.0, efficiency=0.5, o2_target_kg=20.0)
+    assert res_unmet["ok"] is False
+    assert res_unmet["o2_produced_kg"] < 20.0
+
+
+# --- LIFE_SUPPORT O2 balance validator tests (symmetric to ISRU stoich; per task for LIFE one) ---
+# Proxy: 0.84 kg O2 / crew / day * closure_rate (0-1). Covers positive (target met / no target),
+# invalid inputs, unmet target (falsifiable margin). Lean + negative cases.
+
+
+def test_life_support_o2_balance_check_positive():
+    """Valid crew, default/valid rates: no-target always ok; target met when closure >= target*0.95."""
+    # basic valid no target (closure default 0) -> ok
+    res = life_support_o2_balance_check(crew=3.0)
+    assert res["ok"] is True
+    assert abs(res["o2_consumed_kg_day"] - 3.0 * 0.84) < 1e-9
+    assert res["o2_produced_kg_day"] == 0.0
+    assert res["closure_rate"] == 0.0
+
+    # with closure 0.8, no target -> ok
+    res80 = life_support_o2_balance_check(crew=2.0, closure_rate=0.8)
+    assert res80["ok"] is True
+    assert abs(res80["o2_produced_kg_day"] - 2.0 * 0.84 * 0.8) < 1e-9
+
+    # target met: closure 0.9 >= 0.8*0.95
+    res_tgt = life_support_o2_balance_check(crew=1.0, closure_rate=0.9, target_closure=0.8)
+    assert res_tgt["ok"] is True
+    assert res_tgt["safety_factor"] > 1.0
+
+
+def test_life_support_o2_balance_check_invalid_and_negative_cases():
+    """Invalid (crew<=0, consumption<=0, closure out of [0,1]) -> error; unmet target -> ok=False."""
+    res_bad_crew = life_support_o2_balance_check(crew=0.0)
+    assert res_bad_crew["ok"] is False
+    assert res_bad_crew.get("error") == "invalid_inputs"
+
+    res_bad_rate = life_support_o2_balance_check(crew=2.0, o2_consumption_kg_per_day=0.0)
+    assert res_bad_rate["ok"] is False
+    assert res_bad_rate.get("error") == "invalid_inputs"
+
+    res_bad_closure = life_support_o2_balance_check(crew=1.0, closure_rate=1.5)
+    assert res_bad_closure["ok"] is False
+
+    # negative crew
+    res_neg = life_support_o2_balance_check(crew=-1.0)
+    assert res_neg["ok"] is False
+
+    # valid inputs, target not met (closure 0.5 < 0.9*0.95)
+    res_unmet = life_support_o2_balance_check(crew=4.0, closure_rate=0.5, target_closure=0.9)
+    assert res_unmet["ok"] is False
+    assert res_unmet["closure_rate"] < 0.9 * 0.95

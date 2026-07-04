@@ -28,7 +28,7 @@ from gen.core.state import (  # noqa: E402
     Specification,
     ValueOrigin,
 )
-from gen.seams import build_seam_certificate, domains_present, gate_epsilon, required_seam_pairs  # noqa: E402
+from gen.seams import build_seam_certificate, domains_present, gate_epsilon, required_seam_pairs, _looks_isru, _looks_life_support  # noqa: E402
 
 
 def _q(qid: str, value: float, unit: str, *, measurand: str | None = None) -> Quantity:
@@ -376,3 +376,152 @@ def test_therm_elec_seam_triggered_for_quantity_only_t_e_spec():
     req = required_seam_pairs(spec)
     assert any(set(p) == {SeamDomain.THERMAL, SeamDomain.ELECTRICAL} for p in req)
     # gate would be triggered in assess (needs_seams)
+
+
+# --- ISRU / LIFE_SUPPORT domain + seam pair tests (per auflage on 744bd2d; explicit for multi-planetary) ---
+# Use _q helper for consistency with existing style. New domains must produce specific required pairs.
+# These increase coverage on domains_present/required_seam_pairs + _looks_* and prevent Befund regressions.
+
+
+def test_isru_domain_detection_and_required_pairs():
+    """ISRU via measurand prefix + markers; asserts exact required pairs:
+    (electrical, isru), (thermal, isru), (mechanical, isru), (isru, cost) when cost present.
+    """
+    spec = Specification(
+        run_id="r-isru-test",
+        idea="mars isru electrolysis plant",
+        quantities=[
+            _q("water", 100.0, "kg", measurand="isru.water_input_kg"),
+            _q("o2", 25.0, "kg", measurand="isru.o2_yield"),
+            _q("pwr", 5000.0, "W", measurand="electronics.dissipated_power"),  # triggers ELECTRICAL
+            _q("heat", 4000.0, "W", measurand="thermal.heat_power"),  # THERMAL
+        ],
+        components=[Component(id="c_excav", name="regolith excavator")],  # MECHANICAL
+        bom=[
+            BomItem(id="b_reactor", name="isru reactor", role=BomRole.PART, count=1, domain=BomDomain.MECHANICAL),
+            # PART → COST domain present
+        ],
+    )
+    present = domains_present(spec)
+    assert SeamDomain.ISRU in present
+    assert SeamDomain.ELECTRICAL in present
+    assert SeamDomain.THERMAL in present
+    assert SeamDomain.MECHANICAL in present
+    assert SeamDomain.COST in present
+
+    req = required_seam_pairs(spec)
+    assert any(set(p) == {SeamDomain.ELECTRICAL, SeamDomain.ISRU} for p in req), req
+    assert any(set(p) == {SeamDomain.THERMAL, SeamDomain.ISRU} for p in req), req
+    assert any(set(p) == {SeamDomain.MECHANICAL, SeamDomain.ISRU} for p in req), req
+    assert any(set(p) == {SeamDomain.ISRU, SeamDomain.COST} for p in req), req
+    # core pairs still required independently
+    assert any(set(p) == {SeamDomain.THERMAL, SeamDomain.ELECTRICAL} for p in req)
+
+
+def test_life_support_domain_and_required_pairs():
+    """LIFE_SUPPORT detection + pairs: (thermal, life_support); with RADIATION also (radiation, life_support)."""
+    qs = [
+        _q("crew", 4.0, "1", measurand="life_support.crew"),
+        _q("o2c", 0.84, "kg/day", measurand="life_support.o2_consumption_rate"),
+        _q("close", 0.7, "1", measurand="life_support.o2_closure"),
+        _q("heat", 200.0, "W", measurand="thermal.heat_power"),
+    ]
+    spec = Specification(
+        run_id="r-life",
+        idea="habitat eclss",
+        quantities=qs,
+        components=[Component(id="c_hab", name="habitat module")],
+        bom=[],
+    )
+    present = domains_present(spec)
+    assert SeamDomain.LIFE_SUPPORT in present
+    assert SeamDomain.THERMAL in present
+    req = required_seam_pairs(spec)
+    assert any(set(p) == {SeamDomain.THERMAL, SeamDomain.LIFE_SUPPORT} for p in req), req
+
+    # add radiation to trigger RAD + LIFE pair
+    qs2 = list(qs) + [
+        _q("dose", 1.0, "Sv", measurand="radiation.total_ionizing_dose"),
+    ]
+    spec_rad = Specification(
+        run_id="r-life-rad",
+        idea="space habitat with radiation",
+        quantities=qs2,
+        components=[Component(id="c_hab", name="habitat")],
+        bom=[],
+    )
+    present_rad = domains_present(spec_rad)
+    assert SeamDomain.RADIATION in present_rad
+    assert SeamDomain.LIFE_SUPPORT in present_rad
+    req_rad = required_seam_pairs(spec_rad)
+    assert any(set(p) == {SeamDomain.RADIATION, SeamDomain.LIFE_SUPPORT} for p in req_rad), req_rad
+    assert any(set(p) == {SeamDomain.THERMAL, SeamDomain.LIFE_SUPPORT} for p in req_rad)
+
+
+def test_isru_false_positive_regression_german_and_substrings():
+    """FP regression: German terms ("isrundes", "spannungskonzentrationsfaktor", "q_kt") + non-matching
+    must return False for _looks_isru. Hardening (padded whole-word) must not regress to naive substring.
+    """
+    # German compound "isrundes"
+    q_de = Quantity(
+        id="q_desc",
+        name="isrundes Bauteil",
+        value=1.0,
+        unit="1",
+        origin=ValueOrigin.DECISION,
+        rationale="FP regression test",
+        measurand="material.desc",
+    )
+    assert not _looks_isru(q_de)
+
+    # q_kt + German Kt factor name
+    q_kt = Quantity(
+        id="q_kt",
+        name="Spannungskonzentrationsfaktor",
+        value=2.5,
+        unit="1",
+        origin=ValueOrigin.DECISION,
+        rationale="FP regression test",
+        measurand="mechanical.kt",
+    )
+    assert not _looks_isru(q_kt)
+
+    # unrelated that might contain letters
+    q_other = _q("q_sp", 10.0, "MPa", measurand="structural.stress")
+    assert not _looks_isru(q_other)
+
+    # measurand not starting with isru. prefix and no isolated 'isru' token (e.g. compound without boundary)
+    q_prefix = _q("bad", 1.0, "kg", measurand="foo.isrubaz")
+    assert not _looks_isru(q_prefix)
+
+
+def test_life_support_false_positive_regression():
+    """Similar FP regression guard for _looks_life_support (German + substring traps e.g. 'lifetime')."""
+    q_lifetime = Quantity(
+        id="q_life",
+        name="lifetime estimate",
+        value=1000.0,
+        unit="h",
+        origin=ValueOrigin.DECISION,
+        rationale="FP regression",
+    )
+    assert not _looks_life_support(q_lifetime)
+
+    q_lebens = Quantity(
+        id="q_leb",
+        name="Lebensdauer und crew",
+        value=5.0,
+        unit="a",
+        origin=ValueOrigin.DECISION,
+        rationale="FP german",
+        measurand="system.lebensdauer",
+    )
+    assert not _looks_life_support(q_lebens)
+
+    # o2 without life_support. prefix
+    q_o2 = _q("q_o2", 1.0, "kg", measurand="gas.o2_pure")
+    assert not _looks_life_support(q_o2)
+
+    # marker-like but not full
+    q_partial = _q("q_atm", 101325, "Pa", measurand="atm.pressure")
+    assert not _looks_life_support(q_partial)
