@@ -34,6 +34,27 @@ def test_regulatorik_jetpack_produces_norms_and_human_freigabe():
     assert "Jetpack" in spec.zusammenfassung or "tether" in spec.zusammenfassung.lower()
 
 
+def test_regulatorik_no_fabricated_prior_attribution_and_norm_gap_declared():
+    """Schritt-9-Review #9 + #10: ``ingenieur`` wird NIE gelesen — Normen/Risiken dürfen
+    keinen Konsum von Elektriker/Techniker/Lern/DFM/Safety-Ladder behaupten. Und weil hier
+    Rechts-/Sicherheitsaussagen stehen, muss der Kanon-Zweig seine EASA-Zuordnung explizit
+    als Kanon-Annahme ohne Norm-Connector deklarieren."""
+    concept = map_to_system_concept("Ich will ein Jetpack bauen.", run_id="reg-honest-001")
+    ing = map_to_ingenieur_spec(concept, run_id="reg-honest-001")
+    spec = map_to_regulatorik_spec(concept, ing, run_id="reg-honest-001")
+
+    quellen = [spec.quelle or ""] + [n.quelle or "" for n in spec.normen] + [r.quelle or "" for r in spec.risiken]
+    for tok in ("elektriker", "techniker", "lern", "dfm", "safety-ladder", "safety_ladder"):
+        assert not any(tok in q.lower() for q in quellen), f"fabrizierte Herkunft: {tok}"
+    # auch Maßnahmen-Texte dürfen keinen Prior-Konsum behaupten
+    assert not any("techniker" in r.massnahme.lower() or "elektriker" in r.massnahme.lower() for r in spec.risiken)
+    assert "kein Prior konsumiert" in (spec.quelle or "")
+    # #10: ehrliche Lücke bei Rechts-/Sicherheitsaussagen
+    assert "Lücke" in spec.zusammenfassung
+    assert "Norm-Connector" in spec.zusammenfassung
+    assert "Kanon-Annahme" in spec.zusammenfassung
+
+
 def test_regulatorik_generic_fallback_honest_gaps():
     idee = "Ein portables Gerät für Tests."
     concept = map_to_system_concept(idee, run_id="reg-gen-001")

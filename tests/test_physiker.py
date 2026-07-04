@@ -20,11 +20,37 @@ def test_jetpack_produces_rich_physiker_spec_with_naht():
     assert len(phys.modell_gleichungen) >= 2
     assert len(phys.unsicherheits_budget) >= 2
     assert len(phys.falsifikations_plan) >= 2
-    # Naht
     assert any("Energie" in d.name or "Kräfte" in d.name for d in phys.relevante_domaenen)
-    assert "ingenieur" in (phys.quelle or "").lower() or "architekt" in (phys.quelle or "").lower()
-    assert "breakthrough" in (phys.quelle or "").lower() or "gren" in (phys.quelle or "").lower()
+    # Ehrlichkeit statt Schein-Naht (Schritt 9, #1): kein Prior wird konsumiert,
+    # und die quelle sagt das explizit.
+    assert "kein Prior konsumiert" in (phys.quelle or "")
     assert phys.run_id == "phys-test-001"
+
+
+def _alle_quellen(phys) -> list[str]:
+    return (
+        [phys.quelle or ""]
+        + [d.quelle or "" for d in phys.relevante_domaenen]
+        + [g.quelle or "" for g in phys.modell_gleichungen]
+        + [b.quelle_ref or "" for b in phys.unsicherheits_budget]
+        + [f.quelle or "" for f in phys.falsifikations_plan]
+    )
+
+
+def test_physiker_no_fabricated_prior_attribution():
+    """Schritt-9-Review #1: der ``ingenieur``-Parameter wird NIE gelesen; quelle/quelle_ref
+    dürfen keinen Konsum von breakthrough/ingenieur/safety_ladder/gren/CAD behaupten.
+    Ehrliches Label ist die PLAN-§4.3-Kanon-Vorlage mit deklarierter Lücke."""
+    concept = map_to_system_concept("Ich will ein Jetpack bauen.", run_id="phys-honest-001")
+    ingen = map_to_ingenieur_spec(concept, run_id="phys-honest-001")
+    phys = map_to_physiker_spec(concept, ingen, run_id="phys-honest-001")
+
+    for tok in ("breakthrough", "ingenieur", "safety_ladder", "learning_integrator", "gren ", "lab data"):
+        assert not any(tok in q.lower() for q in _alle_quellen(phys)), f"fabrizierte Herkunft: {tok}"
+    assert "kein Prior konsumiert" in (phys.quelle or "")
+    # Der Jetpack-Pfad deklariert seine Werte als Kanon-Annahmen, nicht als abgeleitete Naht.
+    assert "Kanon-Annahme" in phys.zusammenfassung
+    assert "aus keinem Prior abgeleitet" in phys.zusammenfassung
 
 
 def test_generic_produces_minimal_physiker_spec():

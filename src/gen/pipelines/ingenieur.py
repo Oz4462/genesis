@@ -81,7 +81,11 @@ def map_to_ingenieur_spec(
     Nimmt ein SystemConcept und erzeugt erste mechanisch belastbare Daten.
     Für Jetpack: baut auf den Baugruppen + prior Grenz (Recovery, Safety) auf.
     """
-    if "jetpack" in concept.source_idea.lower() or any("jetpack" in a.name.lower() for a in concept.main_assemblies):
+    # Schritt-9 #12: der frühere ``any("jetpack" in a.name ...)``-Zweig über main_assemblies
+    # war tot — keine Architekt-Baugruppe heißt je "jetpack" (Kanon-Namen: Frame/Propulsion/
+    # Recovery/Tether/Control). Entfernt statt korrigiert: der source_idea-Check deckt alle
+    # realen Pfade; ein Assembly-Namens-Trigger wäre eine neue, unbelegte Heuristik.
+    if "jetpack" in concept.source_idea.lower():
         lastfaelle = [
             LoadCase("Tether-Last (S1-S3)", "Max. Zug bei Ausfall oder Wind", "bis 5 kN (angenommen 100kg Pilot + Dynamik)", "safety_ladder S1 + prior Grenz + CAD tether plate"),
             LoadCase("Propulsion-Schub", "Kontrollierter Aufstieg / Schweben", "ca. 2.5–3.5 kN für 100kg+ System", "technology_roadmap P1 + breakthrough"),

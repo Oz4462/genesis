@@ -25,7 +25,8 @@ falsification experiments for bench measurement.
 
 Generic: honest Lücken, minimal structure, no over-claim.
 
-Naht: Nimmt SystemConcept + IngenieurSpec (+ optional Physiker loads/thermal), erzeugt
+Naht: Nimmt SystemConcept + IngenieurSpec (ein Physiker-Parameter existiert NICHT —
+Physiker-Loads/Thermal sind eine geplante, noch nicht verdrahtete Naht), erzeugt
 Elektronik-Anforderungen + Netlist + BOM + CAD-Artifacts die in Specification (γ), gate_erc,
 simulation/runner (thermal co-sim), cad/assembly, integrator (Realisierungspaket), lernmaschine,
 wissensbasis, software (Embedded signals), fertigungs (PCB DFM) und reality fließen.

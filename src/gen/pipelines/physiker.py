@@ -6,10 +6,14 @@ Gemäß GENESIS_PLATFORM_PLAN.md §4.3:
 - Outputs: Modellkarte, Gleichungen, Grenzfälle, erwartete Messgrößen, Unsicherheitsbudget, Falsifikationsplan.
 - Gate: Dimensionshomogenität, Grenzfallprüfung, keine Modellanwendung außerhalb ihres Gültigkeitsbereichs, Messbarkeit der zentralen Vorhersagen.
 
-Erster Stein: deterministischer Mapper von SystemConcept + IngenieurSpec zu PhysikerSpec.
-Jetpack-Beispiel baut direkt auf den vorherigen Stones auf (Energie aus Ingenieur, Recovery/Thrust aus Grenz/CAD, Tether-Lasten etc.).
+Erster Stein: deterministischer Mapper von SystemConcept zu PhysikerSpec (Kanon-Vorlage).
 
-Naht: Nimmt vorherige Outputs, erzeugt Physik-Modell + Unsicherheitsbudget + Falsifikationsplan, die in CAD-Anforderungen, Manufacturing-Checks und spätere Teststände fließen.
+HONESTY (Schritt-9-Review #1, S-1-Muster): der ``ingenieur``-Parameter wird akzeptiert
+(API-Stabilität), aber derzeit NICHT konsumiert — kein Prior (Ingenieur/Grenz/CAD/
+breakthrough) speist diesen Mapper. Jeder Output ist eine PLAN-§4.3-Kanon-Vorlage; die
+deklarierte Lücke ist die echte Prior-Auswertung. Geplante Naht (NOCH NICHT verdrahtet):
+Prior-Stones rein, Physik-Modell/Unsicherheitsbudget/Falsifikationsplan in
+CAD-Anforderungen, Manufacturing-Checks und Teststände raus.
 """
 
 from __future__ import annotations
@@ -18,6 +22,9 @@ from dataclasses import dataclass
 
 from .architekt import SystemConcept
 from .ingenieur import IngenieurSpec
+
+#: Honest provenance label (S-1): a canon template, not a consumed prior.
+_CANON_QUELLE = "PLAN §4.3 Kanon-Vorlage, kein Prior konsumiert (Lücke: echte Prior-Auswertung)"
 
 
 @dataclass(frozen=True)
@@ -77,15 +84,18 @@ def map_to_physiker_spec(
     run_id: str | None = None,
 ) -> PhysikerSpec:
     """
-    Erster Stein der Physiker-Pipeline.
-    Für das Jetpack-Beispiel: Energie, Kräfte, Aerodynamik, Schwingungen, Wärme (aus vorherigen Stones).
+    Erster Stein der Physiker-Pipeline: deterministische PLAN-§4.3-Kanon-Vorlage je Konzept.
+
+    ``ingenieur`` ist für die geplante Prior-Naht reserviert und wird derzeit NICHT
+    konsumiert (#1, S-1-Muster) — kein quelle-Feld behauptet eine Prior-Ableitung;
+    alle Zahlen (±12 % Schub etc.) sind als Kanon-Annahmen deklariert.
     """
-    if "jetpack" in concept.source_idea.lower() or any("jetpack" in a.name.lower() for a in concept.main_assemblies):
+    if "jetpack" in concept.source_idea.lower():
         domaenen = [
-            PhysikDomäne("Energie & Leistung", "Batterie/Propulsion Bilanz für 5+ min Flight", "breakthrough + ingenieur lastfaelle"),
-            PhysikDomäne("Kräfte & Dynamik", "Tether-Zug, Schub, Recovery-Impact, Aerodynamik", "ingenieur + gren safety"),
-            PhysikDomäne("Schwingungen & Stabilität", "Vibrationen, Control-Response, Tether-Mode", "prior gren + breakthrough FC"),
-            PhysikDomäne("Wärme & Thermik", "Motor/Batterie Wärme bei Last, Dissipation", "ingenieur material + energy"),
+            PhysikDomäne("Energie & Leistung", "Batterie/Propulsion Bilanz für 5+ min Flight", _CANON_QUELLE),
+            PhysikDomäne("Kräfte & Dynamik", "Tether-Zug, Schub, Recovery-Impact, Aerodynamik", _CANON_QUELLE),
+            PhysikDomäne("Schwingungen & Stabilität", "Vibrationen, Control-Response, Tether-Mode", _CANON_QUELLE),
+            PhysikDomäne("Wärme & Thermik", "Motor/Batterie Wärme bei Last, Dissipation", _CANON_QUELLE),
         ]
         gleichungen = [
             ModellGleichung(
@@ -93,27 +103,27 @@ def map_to_physiker_spec(
                 "E_in - E_out - Verluste = E_verbleibend",
                 "Wh",
                 "5-10 min Flight, 20-80% SOC",
-                "breakthrough Solid-State + ingenieur",
+                _CANON_QUELLE,
             ),
             ModellGleichung(
                 "Tether-Dynamik (vereinfacht)",
                 "F_tether = m * a + Drag + Gravity_comp",
                 "N",
                 "Low altitude, <50 km/h Wind",
-                "safety_ladder + CAD anchor",
+                _CANON_QUELLE,
             ),
             ModellGleichung(
                 "Recovery-Entfaltung",
                 "t_open < 3s bei v_fall < v_max",
                 "s, m/s",
                 "Single-Failure Case",
-                "learning_integrator + gren",
+                _CANON_QUELLE,
             ),
         ]
         budget = [
-            UnsicherheitsBudget("Schub", "±12%", "Reichweite/Energie stark betroffen", "breakthrough lab data 2026"),
-            UnsicherheitsBudget("Tether-Last", "±20% (Dynamik)", "Struktur/Recovery Dimensionierung", "ingenieur + real tether tests"),
-            UnsicherheitsBudget("Recovery-Zeit", "±0.8s", "Sicherheitsabstand", "gren simulation + prior"),
+            UnsicherheitsBudget("Schub", "±12% (Kanon-Annahme)", "Reichweite/Energie stark betroffen", _CANON_QUELLE),
+            UnsicherheitsBudget("Tether-Last", "±20% Dynamik (Kanon-Annahme)", "Struktur/Recovery Dimensionierung", _CANON_QUELLE),
+            UnsicherheitsBudget("Recovery-Zeit", "±0.8s (Kanon-Annahme)", "Sicherheitsabstand", _CANON_QUELLE),
         ]
         falsi = [
             FalsifikationsPlan(
@@ -121,28 +131,29 @@ def map_to_physiker_spec(
                 "Statische + dynamische Last bis Bruch oder 1.5x Max",
                 "F_max, Dehnung",
                 "Bruch vor 1.5x oder Dehnung > Grenze",
-                "ingenieur toleranzen + CAD",
+                _CANON_QUELLE,
             ),
             FalsifikationsPlan(
                 "Single-Failure Recovery Drop",
                 "Simulierter Ausfall bei 30m Höhe, Recovery auslösen",
                 "t_open, v_impact",
                 "t_open > 3s oder v_impact > sicher",
-                "safety_ladder S2 + learning",
+                _CANON_QUELLE,
             ),
             FalsifikationsPlan(
                 "Energie-Margin Flight",
                 "Vollast Flight bis SOC 20%, Verbrauch messen",
                 "Wh/km oder Wh/min, SOC",
                 "Verbrauch > 120% Modell oder SOC < 15% vor 5 min",
-                "breakthrough + ingenieur",
+                _CANON_QUELLE,
             ),
         ]
         zusammen = (
             "PhysikerSpec für Jetpack: 4 Domänen (Energie, Kräfte, Schwingung, Wärme), "
             "3 Kern-Gleichungen mit Gültigkeitsbereich, 3 Unsicherheitsbudgets, "
-            "3 Falsifikationspläne (direkt messbar, knüpfen an CAD + Manufacturing + Teststand). "
-            "Naht zu vorherigen Stones + bestehenden Physics-Modulen vorbereitet."
+            "3 Falsifikationspläne (direkt messbar). "
+            "Alle Werte sind Kanon-Annahmen (aus keinem Prior abgeleitet) — die geplante "
+            "Naht zu Prior-Stones und Physics-Modulen ist noch nicht verdrahtet."
         )
     else:
         domaenen = [PhysikDomäne("Grundmechanik", "Statik + einfache Dynamik", "generic")]
@@ -159,5 +170,5 @@ def map_to_physiker_spec(
         falsifikations_plan=falsi,
         zusammenfassung=zusammen,
         run_id=run_id,
-        quelle="physiker (third pipeline stone) + GENESIS_PLATFORM_PLAN.md §4.3 + prior Architekt + Ingenieur + Grenz + CAD",
+        quelle="physiker (third pipeline stone) + GENESIS_PLATFORM_PLAN.md §4.3 — Kanon-Vorlage, kein Prior konsumiert (Lücke: echte Prior-Auswertung)",
     )

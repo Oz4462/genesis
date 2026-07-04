@@ -5,11 +5,17 @@ Gemäß GENESIS_PLATFORM_PLAN.md §4:
 - Outputs: Normen-Liste, Risiko-Matrix, Warnhinweise, Freigabe-Prozess, Haftungsgrenzen.
 - Gate: no Netzspannung without safety path, no claim without human sign-off, risks visible.
 
-Erster Stein: Mapper from prior (Elektriker safety, Techniker, Lern test cases, DFM) to RegulatorikSpec.
+Erster Stein: deterministischer Mapper von SystemConcept zu RegulatorikSpec (Kanon-Vorlage).
 Jetpack: EASA-like for manned tether flight, human pilot sign-off, tether failure risk, battery fire, liability.
 Generic: honest gaps.
 
-Naht: Pulls from Elektriker (safety interlock), Techniker (maintenance), Lern (fault tests), DFM (printable risks), Realisierungspaket (regulatorik hints in package).
+HONESTY (Schritt-9-Review #9/#10, S-1-Muster): der ``ingenieur``-Parameter wird akzeptiert
+(API-Stabilität), aber derzeit NICHT konsumiert — kein Prior (Elektriker/Techniker/Lern/DFM)
+speist diesen Mapper. Jeder Output ist eine PLAN-§4-Kanon-Vorlage; weil hier RECHTS- und
+SICHERHEITSAUSSAGEN stehen, deklariert der Kanon-Zweig zusätzlich explizit: die
+EASA-Zuordnung/Zertifizierung ist eine Kanon-Annahme, kein Norm-Connector. Geplante Naht
+(NOCH NICHT verdrahtet): Elektriker (safety interlock), Techniker (maintenance), Lern
+(fault tests), DFM (printable risks), Realisierungspaket.
 """
 
 from __future__ import annotations
@@ -19,6 +25,9 @@ from dataclasses import dataclass
 from ._triggers import is_flight_idea
 from .architekt import SystemConcept
 from .ingenieur import IngenieurSpec
+
+#: Honest provenance label (S-1): a canon template, not a consumed prior.
+_CANON_QUELLE = "PLAN §4 Kanon-Vorlage, kein Prior konsumiert (Lücke: echte Prior-Auswertung)"
 
 
 @dataclass(frozen=True)
@@ -59,18 +68,22 @@ def map_to_regulatorik_spec(
     run_id: str | None = None,
 ) -> RegulatorikSpec:
     """
-    Erster Stein Regulatorik-Pipeline.
+    Erster Stein Regulatorik-Pipeline: deterministische PLAN-§4-Kanon-Vorlage je Konzept.
     Jetpack: manned tether flight norms, human pilot sign-off, specific risks.
     Generic: honest gaps.
+
+    ``ingenieur`` ist für die geplante Prior-Naht reserviert und wird derzeit NICHT
+    konsumiert (#9, S-1-Muster). Der Kanon-Zweig markiert seine Rechts-/Sicherheits-
+    aussagen explizit als Kanon-Annahme ohne Norm-Connector (#10).
     """
     if is_flight_idea(concept.source_idea):
         normen = [
-            Norm("EASA CS-23 / equivalent for experimental manned tether", "Manned personal flight device with tether recovery", quelle="PLAN §4 + Elektriker safety + Safety-Ladder"),
-            Norm("EN ISO 12100 (Machinery safety)", "General risk assessment for the system", quelle="PLAN §4"),
+            Norm("EASA CS-23 / equivalent for experimental manned tether", "Manned personal flight device with tether recovery (Kanon-Annahme, kein Norm-Connector)", quelle=_CANON_QUELLE),
+            Norm("EN ISO 12100 (Machinery safety)", "General risk assessment for the system (Kanon-Annahme, kein Norm-Connector)", quelle=_CANON_QUELLE),
         ]
         risiken = [
-            Risiko("Tether failure / loss of recovery", "Free fall or uncontrolled flight in crowd", "high", "Redundant cutoff + pilot training + tether inspection (Techniker)", "Mandatory pilot + ground crew sign-off before flight", quelle="Lern fault injection + Techniker + Elektriker"),
-            Risiko("Battery fire / thermal runaway", "Fire during tethered flight", "high", "BMS + thermal monitoring + fire suppression consideration", "Human pilot sign-off + pre-flight thermal check", quelle="DFM thermal + Elektriker"),
+            Risiko("Tether failure / loss of recovery", "Free fall or uncontrolled flight in crowd", "high", "Redundant cutoff + pilot training + tether inspection", "Mandatory pilot + ground crew sign-off before flight", quelle=_CANON_QUELLE),
+            Risiko("Battery fire / thermal runaway", "Fire during tethered flight", "high", "BMS + thermal monitoring + fire suppression consideration", "Human pilot sign-off + pre-flight thermal check", quelle=_CANON_QUELLE),
         ]
         warn = [
             "WARNING: This is an experimental tethered flight device. Only for trained pilots in controlled areas.",
@@ -78,8 +91,14 @@ def map_to_regulatorik_spec(
         ]
         freigabe = "Human pilot + safety officer sign-off required for every flight (no autonomous release). Pre-flight checklist + post-flight report mandatory."
         haftung = "Full operator liability for any damage/injury. Device is prototype/experimental - no warranty for safety in real use. Consult local aviation authority before any public demo."
-        zusammen = "Jetpack RegulatorikSpec: EASA-like + ISO norms, high risks (tether, battery) with massnahmen + human freigabe, warnings, full haftung. Naht to Elektriker/Techniker/Lern/DFM/Realisierungspaket."
-        quelle = "GENESIS_PLATFORM_PLAN.md §4 (Regulatorik-Pipeline) + prior Elektriker/Techniker/Lern/DFM + Jetpack-Kanon"
+        zusammen = (
+            "Jetpack RegulatorikSpec: EASA-like + ISO norms, high risks (tether, battery) mit "
+            "Maßnahmen + menschlicher Freigabe, Warnungen, voller Haftung. "
+            "Lücke: EASA-Zuordnung/Zertifizierung ist Kanon-Annahme, kein Norm-Connector — "
+            "kein Prior (Elektriker/Techniker/Lern/DFM) konsumiert; die geplante Naht ist "
+            "noch nicht verdrahtet."
+        )
+        quelle = "GENESIS_PLATFORM_PLAN.md §4 (Regulatorik-Pipeline) — Kanon-Vorlage, kein Prior konsumiert (Lücke: echte Prior-Auswertung)"
     else:
         normen = [Norm("Basic machinery safety (ISO 12100)", "Generic device", quelle="Generic")]
         risiken = [Risiko("Generic failure", "Underspecified", "medium", "Basic interlock", "Human sign-off", quelle="Generic + PLAN §4")]

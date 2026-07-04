@@ -33,6 +33,26 @@ def test_designer_jetpack_produces_ergonomie_and_marked_decisions():
     assert "Jetpack" in spec.zusammenfassung or "Harness" in spec.zusammenfassung
 
 
+def test_designer_no_fabricated_prior_attribution():
+    """Schritt-9-Review #9: ``ingenieur`` wird NIE gelesen — Ergonomie/Form/Bedien-quellen
+    dürfen keinen Konsum von Techniker/Elektriker/Safety-Ladder/CAD/Realisierungspaket
+    behaupten. Ehrliches Label: PLAN-§4.6-Kanon-Vorlage mit deklarierter Lücke."""
+    concept = map_to_system_concept("Ich will ein Jetpack bauen.", run_id="designer-honest-001")
+    ing = map_to_ingenieur_spec(concept, run_id="designer-honest-001")
+    spec = map_to_designer_spec(concept, ing, run_id="designer-honest-001")
+
+    quellen = (
+        [spec.quelle or ""]
+        + [e.quelle or "" for e in spec.ergonomie_anforderungen]
+        + [f.quelle or "" for f in spec.form_entscheidungen]
+        + [b.quelle or "" for b in spec.bedien_szenarien]
+    )
+    for tok in ("techniker", "elektriker", "safety-ladder", "safety_ladder", "realisierungspaket", "ingenieur", "architekt", "cad "):
+        assert not any(tok in q.lower() for q in quellen), f"fabrizierte Herkunft: {tok}"
+    assert "kein Prior konsumiert" in (spec.quelle or "")
+    assert "Kanon-Annahme" in spec.zusammenfassung
+
+
 def test_designer_generic_fallback_honest_gaps():
     idee = "Ein portables Gerät für Tests."
     concept = map_to_system_concept(idee, run_id="designer-gen-001")

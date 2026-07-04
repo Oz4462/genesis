@@ -16,10 +16,28 @@ def test_jetpack_idea_produces_rich_system_concept_with_naht_to_cad():
     assert len(concept.main_assemblies) >= 4
     assert len(concept.variants) >= 5
     assert len(concept.open_decisions) >= 1
-    # Naht zu CAD + Manufacturing
+    # Struktur bleibt; Ehrlichkeit statt Schein-Naht (Schritt 9, #11):
+    # map_to_system_concept konsumiert nur den Ideen-String — keinen Grenz-/CAD-Prior.
     assert any("CAD" in a.purpose or "tether" in a.purpose.lower() or "Recovery" in a.purpose for a in concept.main_assemblies)
-    assert "safety_ladder" in (concept.quelle or "").lower() or "gren" in (concept.quelle or "").lower()
+    assert "kein Prior konsumiert" in (concept.quelle or "")
     assert concept.run_id == "arch-test-001"
+
+
+def test_architekt_no_fabricated_prior_attribution():
+    """Schritt-9-Review #11 (quelle-Überklaim): die Funktion nimmt nur die Idee entgegen;
+    quelle-Felder dürfen keinen Konsum von safety_ladder/learning_integrator/boundary_reviser/
+    prototype_cad_builder/breakthrough behaupten."""
+    concept = map_to_system_concept("Ich will ein Jetpack bauen.", run_id="arch-honest-001")
+    quellen = (
+        [concept.quelle or ""]
+        + [r.quelle or "" for r in concept.requirements]
+        + [a.quelle or "" for a in concept.main_assemblies]
+    )
+    for tok in ("safety_ladder", "learning_integrator", "boundary_reviser", "prototype_cad_builder", "breakthrough", "technology_roadmap"):
+        assert not any(tok in q.lower() for q in quellen), f"fabrizierte Herkunft: {tok}"
+    # auch Anforderungs-Texte dürfen keine abgeleitete Herkunft behaupten
+    assert not any("breakthrough" in r.text.lower() for r in concept.requirements)
+    assert "kein Prior konsumiert" in (concept.quelle or "")
 
 
 def test_generic_idea_produces_minimal_system_concept():

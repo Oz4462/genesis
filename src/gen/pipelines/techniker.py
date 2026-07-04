@@ -6,10 +6,16 @@ Gemäß GENESIS_PLATFORM_PLAN.md §4.4:
 - Outputs: Montageplan, Werkzeugliste, Prüfschritte, Wartungsplan, Reparaturhinweise.
 - Gate: jeder Schritt hat Input, Output und Check; kein Schritt verlangt ein nicht vorhandenes Werkzeug; keine unzugängliche Schraube; kein versteckter Kalibrierungsbedarf.
 
-Erster Stein: deterministischer Mapper von SystemConcept + IngenieurSpec + PhysikerSpec zu TechnikerSpec.
-Jetpack-Beispiel fokussiert auf die reale Montage der Tether-Anchor-Plate (aus CAD + Physik), mit Zugänglichkeit für Recovery-Container, typischen Fehlern bei Fillet/Lochbohrungen, Wartung.
+Erster Stein: deterministischer Mapper von SystemConcept zu TechnikerSpec (Kanon-Vorlage).
+Jetpack-Beispiel fokussiert auf die Montage einer Tether-Anchor-Plate mit Zugänglichkeit
+für Recovery-Container, typischen Fehlern bei Fillet/Lochbohrungen, Wartung.
 
-Naht: Outputs füttern Manufacturing-Check, Prüfstände und spätere Realisierungspakete (Wartungsplan als Teil des Pakets).
+HONESTY (Schritt-9-Review #2, S-1-Muster): die Parameter ``ingenieur`` und ``physiker``
+werden akzeptiert (API-Stabilität), aber derzeit NICHT konsumiert — kein Prior (Ingenieur/
+Physiker/CAD/manufacturing_check) speist diesen Mapper. Jeder Output ist eine
+PLAN-§4.4-Kanon-Vorlage; die deklarierte Lücke ist die echte Prior-Auswertung. Geplante
+Naht (NOCH NICHT verdrahtet): Outputs in Manufacturing-Check, Prüfstände und
+Realisierungspakete (Wartungsplan als Teil des Pakets).
 """
 
 from __future__ import annotations
@@ -19,6 +25,9 @@ from dataclasses import dataclass
 from .architekt import SystemConcept
 from .ingenieur import IngenieurSpec
 from .physiker import PhysikerSpec
+
+#: Honest provenance label (S-1): a canon template, not a consumed prior.
+_CANON_QUELLE = "PLAN §4.4 Kanon-Vorlage, kein Prior konsumiert (Lücke: echte Prior-Auswertung)"
 
 
 @dataclass(frozen=True)
@@ -57,43 +66,46 @@ def map_to_techniker_spec(
     run_id: str | None = None,
 ) -> TechnikerSpec:
     """
-    Erster Stein der Techniker-Pipeline.
-    Für Jetpack: reale Montage der Tether-Anchor-Plate (aus CAD real STL + Physik Lasten + Ingenieur Toleranzen).
+    Erster Stein der Techniker-Pipeline: deterministische PLAN-§4.4-Kanon-Vorlage je Konzept.
+
+    ``ingenieur`` und ``physiker`` sind für die geplante Prior-Naht reserviert und werden
+    derzeit NICHT konsumiert (#2, S-1-Muster) — kein Schritt behauptet eine Ableitung aus
+    CAD-STL, Physik-Lasten oder Manufacturing-Check; Lastannahmen sind Kanon-Annahmen.
     """
-    if "jetpack" in concept.source_idea.lower() or any("jetpack" in a.name.lower() for a in concept.main_assemblies):
+    if "jetpack" in concept.source_idea.lower():
         montage_plan = [
             MontageSchritt(
                 "Vorbereitung Platte",
                 "Reine 2mm Alu/CFK Platte einspannen, Kanten entgraten",
-                "Rohplatte + CAD STL",
+                "Rohplatte + Geometrie-Vorlage (Kanon-Annahme)",
                 "Vorbereitete Platte",
                 ["Schleifmaschine", "Entgrater"],
                 "Vollflächig zugänglich",
                 "Kantenradius visuell + Tastatur",
                 ["Überhitzung → Verzug", "Zu aggressives Schleifen → Dünnstellen"],
-                "CAD prototype + ingenieur toleranzen",
+                _CANON_QUELLE,
             ),
             MontageSchritt(
                 "Tether-Löcher bohren (4x + zentrale 8mm)",
                 "Geführte Bohrung mit H7/g6 Passung für Schäkel + Recovery",
-                "Vorbereitete Platte + Physik Lastfall 5kN",
+                "Vorbereitete Platte + Lastannahme 5kN (Kanon-Annahme)",
                 "Bohrungen mit korrekter Toleranz",
                 ["Bohrmaschine", "HSS-Bohrer", "Reibahle für H7"],
                 "Beidseitig + Unterseite zugänglich (keine Sacklöcher)",
                 "Durchmesser + Position + Oberflächengüte",
                 ["Verkanteter Bohrer → ovale Löcher", "Falsche Reihenfolge → Grat"],
-                "CAD anchor + physiker dynamik",
+                _CANON_QUELLE,
             ),
             MontageSchritt(
                 "Recovery-Container Interface montieren",
                 "Gewindebolzen + Container-Halter auf der Rückseite",
-                "Bohrungen + physiker Recovery-Entfaltung",
+                "Bohrungen + Recovery-Entfaltungsannahme (Kanon-Annahme)",
                 "Montiertes Interface",
                 ["Inbus-Schlüssel", "Gewindeschneider"],
                 "Zugang nur von einer Seite → spezielles Werkzeug",
                 "Drehmoment + Ausrichtung",
                 ["Zu hohes Drehmoment → Riss im CFK", "Schief → Recovery blockiert"],
-                "safety_ladder + physiker falsifikation",
+                _CANON_QUELLE,
             ),
             MontageSchritt(
                 "Endkontrolle + Kalibrierung",
@@ -104,7 +116,7 @@ def map_to_techniker_spec(
                 "Vollständig zugänglich (keine verdeckten Stellen)",
                 "Jeder Montageschritt + Endmaß",
                 ["Vergessene Grat → Verletzung + Fadenbruch", "Falsche Passung → Tether verrutscht"],
-                "manufacturing_check + ingenieur",
+                _CANON_QUELLE,
             ),
         ]
         werkzeug_liste = [
@@ -131,8 +143,9 @@ def map_to_techniker_spec(
         ]
         zusammenfassung = (
             "TechnikerSpec für Jetpack Tether-Anchor: 4 konkrete Montageschritte mit Werkzeugen, "
-            "Zugang, Prüfpunkten und typischen Fehlern. Direkte Anbindung an reales CAD-STL + "
-            "Physik-Lasten + Manufacturing-Check. Wartungs- und Reparaturplan für reale Nutzung."
+            "Zugang, Prüfpunkten und typischen Fehlern; Wartungs- und Reparaturplan. "
+            "Alle Schritte sind Kanon-Annahmen (aus keinem Prior abgeleitet) — die geplante "
+            "Anbindung an CAD-STL, Physik-Lasten und Manufacturing-Check ist noch nicht verdrahtet."
         )
     else:
         montage_plan = [
@@ -153,5 +166,5 @@ def map_to_techniker_spec(
         reparatur_hinweise=reparatur_hinweise,
         zusammenfassung=zusammenfassung,
         run_id=run_id,
-        quelle="techniker (fourth pipeline stone) + GENESIS_PLATFORM_PLAN.md §4.4 + prior Architekt + Ingenieur + Physiker + CAD real + manufacturing_check",
+        quelle="techniker (fourth pipeline stone) + GENESIS_PLATFORM_PLAN.md §4.4 — Kanon-Vorlage, kein Prior konsumiert (Lücke: echte Prior-Auswertung)",
     )

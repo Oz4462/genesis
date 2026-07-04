@@ -23,11 +23,30 @@ def test_jetpack_produces_realistic_techniker_spec_with_montage_steps():
     assert len(tech.pruef_schritte) >= 2
     assert len(tech.wartungs_plan) >= 1
     assert len(tech.reparatur_hinweise) >= 1
-    # Naht + Realismus
+    # Realismus + Ehrlichkeit statt Schein-Naht (Schritt 9, #2)
     assert any("Tether" in s.name or "Recovery" in s.name for s in tech.montage_plan)
     assert any("Bohrmaschine" in w or "Messschieber" in w for w in tech.werkzeug_liste)
-    assert "techniker" in (tech.quelle or "").lower() or "physiker" in (tech.quelle or "").lower()
+    assert "kein Prior konsumiert" in (tech.quelle or "")
     assert tech.run_id == "tech-test-001"
+
+
+def test_techniker_no_fabricated_prior_attribution():
+    """Schritt-9-Review #2: ``ingenieur`` und ``physiker`` werden NIE gelesen; die
+    Montageschritte (quelle + input) dürfen keinen Konsum von physiker/ingenieur/
+    manufacturing_check/safety_ladder behaupten. Ehrliches Label: PLAN-§4.4-Kanon-Vorlage."""
+    concept = map_to_system_concept("Ich will ein Jetpack bauen.", run_id="tech-honest-001")
+    ingen = map_to_ingenieur_spec(concept, run_id="tech-honest-001")
+    phys = map_to_physiker_spec(concept, ingen, run_id="tech-honest-001")
+    tech = map_to_techniker_spec(concept, ingen, phys, run_id="tech-honest-001")
+
+    felder = [tech.quelle or ""]
+    for s in tech.montage_plan:
+        felder += [s.quelle or "", s.input]
+    for tok in ("physiker", "ingenieur", "manufacturing_check", "safety_ladder"):
+        assert not any(tok in f.lower() for f in felder), f"fabrizierte Herkunft: {tok}"
+    assert "kein Prior konsumiert" in (tech.quelle or "")
+    assert "Kanon-Annahme" in tech.zusammenfassung
+    assert "aus keinem Prior abgeleitet" in tech.zusammenfassung
 
 
 def test_generic_produces_minimal_techniker_spec():
