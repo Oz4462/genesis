@@ -1233,3 +1233,8 @@ Next (Council): mission layer stub or first_principles ISRU derivation (still av
 
 We build the honest engine... (repeat for emphasis on loop).
 
+### FP-mission tie enhancement
+Tied first_principles-derived o2 production to the mission target in the plant test. Commit 2a59fb3.
+This integrates discovery (FP) with mission-level for the complete multi-planetary example.
+Tests: 45p relevant, full 1727p. Suite green. (Bg task confirmation processed.)
+
