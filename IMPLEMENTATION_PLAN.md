@@ -1193,6 +1193,10 @@ Tests remain green (11p visionary).
 
 (Also: TDD subagent 019f2c2a-1e18-74a0-91bc-ac2dac0be697 completed with exact auflage-closing tests for domains/pairs/FP/validators; BUILD_LOG updated; 6 new tests pass, coverage increased.)
 
+### Tightened first_principles integration (plant test)
+The derive now pulls water/eff directly from the Mars ISRU plant spec (100 kg, 0.85) and derives the exact produced O2. Ties discovery more tightly to the complete vision artifact.
+Commit 12189ad. Tests green.
+
 ### Follow-on after visionary ISRU (per "ready go" + complete vision)
 - Integrated first_principles.derive for the ISRU stoich yield (water * r * eff proven from axioms) inside the Mars plant dedicated test.
 - Commit: a2d9edb.
