@@ -158,7 +158,11 @@ def assess_specification(
     needs_seams = bool(required_pairs) or (cost_rollup_required(spec) and bom_cost(spec).complete)
     seam_gate: GateResult | None = None
     if needs_seams:
-        provided_seams = list(seam_certificate.seams) if seam_certificate else []
+        # Fall back to the certificate the spec ships with (e.g. a builder that already
+        # declared its cross-domain seams) when no `seam_certificate` argument is passed —
+        # a caller that just runs `assess_specification(spec)` still gets those seams verified.
+        effective_cert = seam_certificate or spec.seam_certificate
+        provided_seams = list(effective_cert.seams) if effective_cert else []
         if cost_rollup_required(spec) and bom_cost(spec).complete and not any(s.relation == SeamRelation.COST_ROLLUP for s in provided_seams):
             has_declared_total = any(
                 "total" in (q.id or "").lower() and q.unit in ("EUR", "USD", "€", "$")
@@ -176,7 +180,11 @@ def assess_specification(
                     rationale="auto for complete bom without declared total (virtual case only)",
                 )
                 provided_seams = provided_seams + [auto_cost]
-        cert = seam_certificate or build_seam_certificate(spec, provided_seams)
+        # If a cert was provided/found but auto_cost got appended on top of it, the cert must be
+        # rebuilt from `provided_seams` — returning the stale `effective_cert` would silently
+        # drop the auto-added cost seam and fail MISSING_COST_ROLLUP.
+        needs_rebuild = effective_cert is None or len(provided_seams) != len(effective_cert.seams)
+        cert = build_seam_certificate(spec, provided_seams) if needs_rebuild else effective_cert
         seam_gate = gate_epsilon(spec, cert)
 
     if trace is not None:

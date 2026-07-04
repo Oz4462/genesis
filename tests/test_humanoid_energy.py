@@ -1,8 +1,6 @@
 """Teilprojekt 1 (Energie & Thermik): Laufzeit- und Motor-Thermik-Checks der Humanoiden."""
 from dataclasses import replace
 
-import pytest
-
 from gen.competitive_humanoid import FLAGSHIP, PRINTED, build_humanoid
 from gen.physics_selection import select_physics_checks
 from gen.physics_validation import run_physics_checks
@@ -40,12 +38,6 @@ def _check_names(assessment):
     return {c.name for c in assessment.physics_checks}
 
 
-# Same seams_failed cascade as test_motor_overtemperature_check_fires_and_passes below (the
-# new motor.loss_power/robot.ambient_temp measurands make THERMAL present, which requires
-# declared (MECHANICAL, THERMAL) and (ELECTRICAL, THERMAL) seams that only Task 3b adds) —
-# this PRE-EXISTING Task-1 test asserts overall == physics_verified too, so it goes red for
-# the identical reason and is marked xfail here rather than left silently broken.
-@pytest.mark.xfail(reason="Task 3b liefert die deklarierten Seams", strict=True)
 def test_battery_endurance_check_fires_and_passes():
     for cfg in (PRINTED, FLAGSHIP):
         a = assess_specification(build_humanoid(cfg))
@@ -71,15 +63,7 @@ def test_robot_battery_endurance_check_selected_with_no_gaps():
 
 
 # --- Teilprojekt 3 (Motor-Thermik): Verlustleistung -> konduktiver Overtemperature-Check ---
-#
-# ACHTUNG: die neuen K-Quantities (measurand-Präfix "motor.*"/"robot.ambient_temp") machen die
-# THERMAL-Domain im Humanoiden präsent, was neue Pflicht-Seam-Paare (MECHANICAL, THERMAL) und
-# (ELECTRICAL, THERMAL) erzeugt. Diese werden erst in Task 3b deklariert, also kippt
-# `assess_specification` hier auf overall == "seams_failed" statt "physics_verified" — der
-# Check selbst (Recipe-Verdrahtung + Validator-Ergebnis) ist aber bereits korrekt und wird
-# unten direkt über select_physics_checks/run_physics_checks verifiziert, ohne den Seam-Gate
-# zu durchlaufen.
-@pytest.mark.xfail(reason="Task 3b liefert die deklarierten Seams", strict=True)
+
 def test_motor_overtemperature_check_fires_and_passes():
     for cfg in (PRINTED, FLAGSHIP):
         a = assess_specification(build_humanoid(cfg))
@@ -108,3 +92,18 @@ def test_motor_overtemperature_check_selected_and_passes_directly():
         assert result["status"] == "ran", result
         assert result["ok"] is True, result
         assert result["result"]["margin"] > 0, result
+
+
+# --- Task 3b: deklarierte THERM-ELEC/MECH-THERM-Seams + Pipeline-Fallback ---
+
+def test_humanoid_declares_thermal_seams_and_verifies():
+    for cfg in (PRINTED, FLAGSHIP):
+        spec = build_humanoid(cfg)
+        assert spec.seam_certificate is not None
+        pairs = {tuple(sorted((s.left_domain.value, s.right_domain.value)))
+                 for s in spec.seam_certificate.seams}
+        assert ("electrical", "thermal") in pairs
+        assert ("mechanical", "thermal") in pairs
+        a = assess_specification(spec)
+        assert a.overall == "physics_verified", a.overall
+        assert a.seam_gate is not None and a.seam_gate.passed

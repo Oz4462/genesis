@@ -37,7 +37,10 @@ from .core.state import (
     Component,
     Constraint,
     Decision,
+    DomainSeam,
     GeometryNode,
+    SeamDomain,
+    SeamRelation,
     Sourcing,
     Specification,
     Step,
@@ -45,6 +48,7 @@ from .core.state import (
 from .demo import _claim, _d, _der, _dm, _g, _gm
 from .dfm import FDM_MIN_HOLE_DIAMETER_MM, FDM_NOZZLE_DIAMETER_MM, FDM_WALL_PERIMETERS_MIN, min_wall_formula
 from .mechanics_formulas import rod_inertia_about_end
+from .seams import build_seam_certificate
 from .structural import (
     BOLT_SHEAR_COEFFICIENT_88,
     BOLT_UTS_CLASS_88_MPA,
@@ -97,6 +101,10 @@ class HumanoidConfig:
     required_endurance_min: float      # geforderte Dauerbetriebszeit
     locomotion_duty: float             # RMS-Duty der Antriebe über den Gangzyklus
     n_drive_motors: float              # gleichzeitig arbeitende Antriebsmotoren
+    # --- Werkstoff-Servicegrenze (Teilprojekt 3b, MECH-THERM-Seam) ---
+    # No default: every humanoid class must declare its own printed/structural material's
+    # service temperature (must precede the defaulted fields below for dataclass field order).
+    material_service_temp_k: float     # Formbeständigkeitstemperatur des tragenden Druckwerkstoffs
     # --- Motor-Thermik (Teilprojekt 3) ---
     motor_housing_conductivity_w_mk: float = 0.0  # Wärmepfad Wicklung→Gehäuse, W/(m*K)
     motor_housing_area_m2: float = 0.0            # Leitquerschnitt, m^2
@@ -376,6 +384,14 @@ def build_humanoid(cfg: HumanoidConfig) -> Specification:
             ["c_motor_thermal"], "motor.max_winding_temp"),
         _dm("q_ambient", "Auslegungs-Umgebungstemperatur", cfg.ambient_temp_k, "K",
             "Innenraum 25 °C", "robot.ambient_temp"),
+        # --- Task 3b: THERM-ELEC-Seam (Verlustleistung == Wärmeeintrag) + MECH-THERM-Seam
+        # (Motor-Peaktemperatur <= Servicegrenze des tragenden Druckmaterials) ---
+        _der("q_heat_in", "Wärmeeintrag aller Antriebe",
+             cfg.n_drive_motors * cfg.joint_torque_nm * cfg.joint_speed_rad_s * cfg.locomotion_duty
+             * (1.0 - cfg.efficiency) / cfg.efficiency,
+             "W", "q_n_drive * q_p_motor_loss", ("q_n_drive", "q_p_motor_loss")),
+        _gm("q_mat_service_temp", "Servicegrenze Druckmaterial", cfg.material_service_temp_k,
+            "K", ["c_material_service"], "material.service_temp"),
     ]
 
     components = [
@@ -535,7 +551,7 @@ def build_humanoid(cfg: HumanoidConfig) -> Specification:
                  rationale="hohe Drehmomentdichte + Rückfahrbarkeit", informed_by=["c_motor"]),
     ]
 
-    return Specification(
+    spec = Specification(
         run_id=cfg.run_id, idea=cfg.idea, approach_id="ap_" + cfg.run_id,
         quantities=quantities, components=components, bom=bom, steps=steps,
         constraints=constraints, decisions=decisions, assembly=HUMANOID_ASSEMBLY,
@@ -552,6 +568,30 @@ def build_humanoid(cfg: HumanoidConfig) -> Specification:
         ],
         claim_ids_used=[c.id for c in _humanoid_claims(cfg)], produced_by=cfg.run_id,
     )
+
+    # Task 3b: declare the two mandatory cross-domain seams the new THERMAL measurands trigger
+    # (see gen.seams.required_seam_pairs) — energy conservation (ELECTRICAL loss == THERMAL heat
+    # input) and the conductive motor-peak-temperature bound against the printed material's
+    # service limit (MECHANICAL/THERMAL). build_seam_certificate only needs `spec.run_id` plus
+    # (for its own COST_ROLLUP auto-add) `spec.bom`/`spec.quantities`, all already set above, so
+    # the spec is built once, then the certificate is attached via `replace` (Specification is a
+    # plain, non-frozen dataclass; `replace` keeps this a single clear construction step instead
+    # of mutating the instance in place).
+    seams = [
+        DomainSeam(
+            id="s_elec_therm_loss", left_domain=SeamDomain.ELECTRICAL,
+            right_domain=SeamDomain.THERMAL, relation=SeamRelation.EQ,
+            left_expr="q_n_drive * q_p_motor_loss", right_expr="q_heat_in",
+            rationale="Antriebs-Verlustleistung wird vollständig Wärme (Energieerhaltung)"),
+        DomainSeam(
+            id="s_therm_mech_service", left_domain=SeamDomain.THERMAL,
+            right_domain=SeamDomain.MECHANICAL, relation=SeamRelation.LE,
+            left_expr="q_ambient + q_p_motor_loss * q_motor_len / (q_motor_k * q_motor_area)",
+            right_expr="q_mat_service_temp",
+            rationale="Motor-Peaktemperatur (Konduktionsschranke) bleibt unter der Servicegrenze "
+                      "des tragenden Druckteils"),
+    ]
+    return _dc_replace(spec, seam_certificate=build_seam_certificate(spec, seams))
 
 
 def _humanoid_claims(cfg: HumanoidConfig) -> list:
@@ -592,6 +632,10 @@ def _humanoid_claims(cfg: HumanoidConfig) -> list:
         _claim("c_motor_thermal",
                "Die Antriebe nutzen Klasse-F-Isolation (155 °C) mit Alu-Gehäusepfad "
                "zur Wärmeabfuhr; der konduktive Worst-Case bleibt unter der Grenze."),
+        _claim("c_material_service",
+               f"Der tragende Druckwerkstoff dieser Klasse ({cfg.material_name}) behält seine "
+               f"Formbeständigkeit bis etwa {cfg.material_service_temp_k:.0f} K "
+               f"({cfg.material_service_temp_k - 273.15:.0f} °C) Dauergebrauchstemperatur."),
     ]
     return base + list(cfg.extra_claims)
 
@@ -622,6 +666,7 @@ PRINTED = HumanoidConfig(
     # ~256 min at 2100 Wh (0.8 usable), margin ~2.1x over the 120 min requirement.
     battery_capacity_wh=2100.0, required_endurance_min=120.0, locomotion_duty=0.20,
     n_drive_motors=8.0,
+    material_service_temp_k=330.0,
     motor_housing_conductivity_w_mk=170.0, motor_housing_area_m2=0.0015,
     motor_housing_length_m=0.02, motor_max_winding_temp_k=428.0, ambient_temp_k=298.0,
     prices={"filament_eur_g": 0.06, "motor": 180.0, "chip": 2000.0, "battery": 600.0,
@@ -670,6 +715,7 @@ FLAGSHIP = HumanoidConfig(
     # boundary, not a fudged number (see task-1-report.md Fix-3 for the full calculation).
     battery_capacity_wh=2600.0, required_endurance_min=180.0, locomotion_duty=0.10,
     n_drive_motors=8.0,
+    material_service_temp_k=390.0,
     motor_housing_conductivity_w_mk=170.0, motor_housing_area_m2=0.0015,
     motor_housing_length_m=0.02, motor_max_winding_temp_k=428.0, ambient_temp_k=298.0,
     prices={"filament_eur_g": 0.08, "motor": 600.0, "chip": 7000.0, "battery": 900.0,
