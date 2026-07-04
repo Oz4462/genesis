@@ -110,6 +110,13 @@ __all__ = [
     "ProductValidation",
     "discover_multiplicative_correction",
     "MultiplicativeCorrection",
+    "discover_blind_product",
+    "BlindProductLaw",
+    "discover_blind_rivals",
+    "BlindRival",
+    "evaluate_blind_rival",
+    "refit_blind_rival",
+    "blind_product_out_of_sample_validate",
     "gp_fit",
     "gp_discover",
     "GPConfig",
@@ -245,6 +252,13 @@ def __getattr__(name: str):
         for n in ("discover_product_law", "ProductLaw", "discover_product_rivals", "ProductRival",
                   "evaluate_product_rival", "refit_product_rival", "product_out_of_sample_validate",
                   "ProductValidation", "discover_multiplicative_correction", "MultiplicativeCorrection"):
+            globals()[n] = getattr(_m, n)
+        return globals()[name]
+    if name in ("discover_blind_product", "BlindProductLaw", "discover_blind_rivals", "BlindRival",
+                "evaluate_blind_rival", "refit_blind_rival", "blind_product_out_of_sample_validate"):
+        from . import blind_product as _m
+        for n in ("discover_blind_product", "BlindProductLaw", "discover_blind_rivals", "BlindRival",
+                  "evaluate_blind_rival", "refit_blind_rival", "blind_product_out_of_sample_validate"):
             globals()[n] = getattr(_m, n)
         return globals()[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
