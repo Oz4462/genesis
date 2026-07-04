@@ -56,16 +56,17 @@ src/gen/<physik>.py         δ-Achsen (structural…security) · tests/  247 Dat
 - Live-Default: Generator `qwen3.5:9b` + Verifier `gemma4:12b` (Fallback qwen2.5:14b/gemma4:latest).
 - Git: `main` lokal ist der Live-Stand (35 Commits vor `origin/main`); **Push nur auf Owner-Ansage.**
 
-## Aktueller Fokus (2026-07-04)
-1. **Humanoid Teilprojekt 2 „Struktur-Härtung"** — Spec approved (Worktree-Branch
-   `worktree-claude-orchestrator`, `docs/superpowers/specs/2026-07-04-humanoid-structure-hardening-design.md`):
-   4 Checks über vorhandene Validatoren (Goodman-Fatigue, Kerb-Fatigue Hüftloch, Euler-Knickung
-   Unterschenkel, Struktur-Resonanz), TDD, keine neuen Validatoren. TP1 (Energie & Thermik) liegt
-   fertig im selben Branch (14 Commits unmerged; main 11 voraus → Merge owner-gated).
+## Aktueller Fokus (2026-07-04, nachgeführt)
+1. **Humanoid TP2 „Struktur-Härtung" GEBAUT** (Worktree-Branch `worktree-claude-orchestrator`,
+   Commits `b03b4be`/`0b0a0f9`/`f779ed9`): 4 Checks (Goodman-, Kerb-Fatigue, Euler-Knickung,
+   Resonanz) feuern via Measurand-Tagging auf beide Humanoiden, 0 neue Validatoren/Recipes;
+   Margen echt (printed Kerbe 1.04 dünn — hängt an DECISION a=6 mm, wartet auf Datenblatt).
+   Worktree-Suite 1743/0/61. **Offen: Grok-Cross-Review + Merge (owner-gated;** TP1+TP2 =
+   17 Commits unmerged, main 11 voraus; Achtung: runner.py-F821-Fix existiert in beiden Ästen).
 2. **Deep-Review-Kampagne Schritt 7–9** (`WORK_QUEUE.md`): physics_validation + 43 Validatoren →
    export/costing/completeness/software → pipelines/integration/grenzverschiebung.
-3. **Deferred-Backlog D1–D16** (`WORK_QUEUE.md`; D3 resolved): zuerst D13 (Forge-id-Hashing),
-   D8–D10 (tools-Security), D2 (`_now()`-Determinismus vs. Prinzip 5).
+3. **Deferred-Backlog** (`WORK_QUEUE.md`): D13(a–d) ERLEDIGT `393d7dc`; D8–D10 (tools-Security)
+   in Arbeit; danach D2 (`_now()`-Determinismus vs. Prinzip 5), D1, D4–D6, D14–D16.
 4. **Doku-Hygiene:** Zähl-Drift in README/STATUS/HORIZON fixen (P2 im Audit-Plan).
 - **Owner-gated (kein Autonomie-Zugriff):** Push/Merge; Live-Ollama-Läufe + Extraction-Bottleneck;
   measurand-Emission live-Architect; Refine-Loop live-Conductor.
