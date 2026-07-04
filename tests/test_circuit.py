@@ -18,6 +18,8 @@ import math
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from gen.circuit import (  # noqa: E402
@@ -69,6 +71,88 @@ def test_capstone_psu_delivers_the_rated_led_current():
     assert math.isclose(v["VCC"], 12.0, rel_tol=1e-9)
     assert math.isclose(i["PSU"], a_led, rel_tol=1e-9)      # PSU delivers exactly 1.5 A
     assert i["PSU"] <= q["q_psu_a"].value                   # within the 2 A rating
+
+
+# --- Schritt-7-Härtungen (Review 2026-07-04): Eingangs-Validierung -------------
+
+def test_duplicate_source_names_fail_loud():
+    """C1: zwei gleichnamige Quellen überschrieben sich still in source_i —
+    das muss ein lauter ValueError sein, kein verschwundener Strom."""
+    with pytest.raises(ValueError, match="[Dd]uplicate"):
+        solve_dc([
+            VoltageSource("A", "0", 5.0, "S"), VoltageSource("B", "0", 3.0, "S"),
+            Resistor("A", "0", 10.0), Resistor("B", "0", 10.0),
+        ])
+
+
+def test_two_default_named_sources_fail_loud():
+    """C1b: der Default-Name 'V' ist truthy — zwei unbenannte Quellen kollidieren
+    genauso und müssen genauso laut scheitern."""
+    with pytest.raises(ValueError, match="[Dd]uplicate"):
+        solve_dc([
+            VoltageSource("A", "0", 5.0), VoltageSource("B", "0", 3.0),
+            Resistor("A", "0", 10.0), Resistor("B", "0", 10.0),
+        ])
+
+
+def test_empty_source_name_falls_back_to_indexed_key():
+    """C1c: der f'V{k}'-Fallback war toter Code — bei leerem Namen ist er jetzt live."""
+    _, i = solve_dc([VoltageSource("A", "0", 5.0, name=""), Resistor("A", "0", 10.0)])
+    assert math.isclose(i["V0"], 0.5, rel_tol=1e-9)
+
+
+def test_invalid_resistance_raises_value_error():
+    """C2: ohms=0 war ZeroDivisionError, negative/NaN ohms wurden still gestempelt."""
+    for bad in (0.0, -8.0, float("nan"), float("inf")):
+        with pytest.raises(ValueError, match="ohms"):
+            solve_dc([VoltageSource("A", "0", 12.0, "S"), Resistor("A", "0", bad)])
+
+
+def test_transient_rejects_bad_dt_and_reactives():
+    """C2b: dt<=0/NaN crashte; negative farads/henries liefen still durch."""
+    parts = [VoltageSource("IN", "0", 5.0, "S"), Resistor("IN", "OUT", 1000.0),
+             Capacitor("OUT", "0", 1e-6)]
+    for bad_dt in (0.0, -1e-6, float("nan"), float("inf")):
+        with pytest.raises(ValueError, match="dt"):
+            solve_transient(parts, t_end=1e-3, dt=bad_dt)
+    with pytest.raises(ValueError, match="t_end"):
+        solve_transient(parts, t_end=float("nan"), dt=1e-6)
+    with pytest.raises(ValueError, match="farads"):
+        solve_transient([VoltageSource("IN", "0", 5.0, "S"), Resistor("IN", "OUT", 1e3),
+                         Capacitor("OUT", "0", -1e-6)], t_end=1e-3, dt=1e-6)
+    with pytest.raises(ValueError, match="henries"):
+        solve_transient([VoltageSource("IN", "0", 5.0, "S"), Resistor("IN", "M", 1e3),
+                         Inductor("M", "0", 0.0)], t_end=1e-3, dt=1e-6)
+
+
+def test_ac_rejects_omega_zero_with_inductor_and_bad_parts():
+    """C5: omega=0 mit L war ZeroDivisionError — jetzt ein klarer ValueError;
+    C2c: auch die AC-Stempel validieren ohms/farads/henries."""
+    with pytest.raises(ValueError, match="omega"):
+        solve_ac([VoltageSource("IN", "0", 1.0, "S"), Inductor("IN", "0", 1e-3)], 0.0)
+    for bad_w in (float("nan"), float("inf"), -100.0):
+        with pytest.raises(ValueError, match="omega"):
+            solve_ac([VoltageSource("IN", "0", 1.0, "S"), Resistor("IN", "0", 1.0)], bad_w)
+    with pytest.raises(ValueError, match="ohms"):
+        solve_ac([VoltageSource("IN", "0", 1.0, "S"), Resistor("IN", "0", 0.0)], 100.0)
+    with pytest.raises(ValueError, match="henries"):
+        solve_ac([VoltageSource("IN", "0", 1.0, "S"), Inductor("IN", "0", -1e-3)], 100.0)
+    with pytest.raises(ValueError, match="farads"):
+        solve_ac([VoltageSource("IN", "0", 1.0, "S"), Capacitor("IN", "0", 0.0)], 100.0)
+
+
+def test_nonlinear_dc_with_zero_unknown_nodes_converges_trivially():
+    """C4: Diode von Ground nach Ground → leere nodes-Liste → max() warf ValueError
+    statt trivial zu konvergieren."""
+    node_v, _ = solve_dc_nonlinear([Diode("0", "0", 1e-12, 1.0)])
+    assert node_v["0"] == 0.0
+
+
+def test_empty_network_is_vacuous_not_an_error():
+    """C3 (Doc-Truth): solve_dc([]) ist als Solver ok (leeres System), aber als
+    Gate vakuös — der Docstring deklariert das; dieser Test pinnt das Verhalten."""
+    v, i = solve_dc([])
+    assert v == {"0": 0.0} and i == {}
 
 
 # --- AC (frequency-domain) MNA vs the analytic transfer function ---------------

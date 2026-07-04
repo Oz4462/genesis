@@ -24,6 +24,8 @@ statics / DFM / FEM layers. A passed geometry check stays necessary, not suffici
 
 from __future__ import annotations
 
+import math
+
 from .core.errors import GeometryError
 from .core.state import (
     GEOMETRY_OPERATIONS,
@@ -53,41 +55,72 @@ def _val(qid: str, quantities: dict[str, Quantity]) -> float:
     return float(q.value)
 
 
+def _param(node: GeometryNode, key: str) -> str:
+    """The quantity id behind a node parameter — GeometryError (the documented
+    error contract), never a raw KeyError, when the key is absent."""
+    try:
+        return node.params[key]
+    except KeyError as exc:
+        raise GeometryError(
+            f"{node.kind!r} node is missing required parameter {key!r}"
+        ) from exc
+
+
+def _positive(value: float, what: str, kind: str) -> float:
+    """A primitive dimension must be a positive finite number — `not (v > 0)` also
+    catches NaN. GATE γ C-9 checks this on the pipeline path; direct callers of
+    this module get the same GeometryError instead of a raw OCCT failure."""
+    if not (value > 0.0) or math.isinf(value):
+        raise GeometryError(
+            f"{kind} {what} must be positive and finite, got {value!r}"
+        )
+    return value
+
+
 def csg_to_solid(node: GeometryNode, quantities: dict[str, Quantity]):
     """Translate a GENESIS CSG tree into an OpenCASCADE solid (centered primitives).
-    Raises GeometryError on an unknown kind or a missing parameter quantity."""
+    Raises GeometryError on an unknown kind, a missing parameter key or quantity,
+    a non-positive/non-finite primitive dimension, a transform without a child,
+    or a zero/non-finite rotation axis — never a raw KeyError/IndexError/OCCT
+    failure."""
     Solid, Vector = _require_cadquery()
 
     if node.kind in GEOMETRY_PRIMITIVES:
         if node.kind == "box":
-            sx = _val(node.params["size_x"], quantities)
-            sy = _val(node.params["size_y"], quantities)
-            sz = _val(node.params["size_z"], quantities)
+            sx = _positive(_val(_param(node, "size_x"), quantities), "size_x", "box")
+            sy = _positive(_val(_param(node, "size_y"), quantities), "size_y", "box")
+            sz = _positive(_val(_param(node, "size_z"), quantities), "size_z", "box")
             return Solid.makeBox(sx, sy, sz, Vector(-sx / 2, -sy / 2, -sz / 2))
         if node.kind == "cylinder":
-            r = _val(node.params["radius"], quantities)
-            h = _val(node.params["height"], quantities)
+            r = _positive(_val(_param(node, "radius"), quantities), "radius", "cylinder")
+            h = _positive(_val(_param(node, "height"), quantities), "height", "cylinder")
             return Solid.makeCylinder(r, h, Vector(0, 0, -h / 2), Vector(0, 0, 1))
         if node.kind == "sphere":
-            r = _val(node.params["radius"], quantities)
+            r = _positive(_val(_param(node, "radius"), quantities), "radius", "sphere")
             # full sphere centered at the origin: makeSphere's defaults make only a
             # hemisphere (latitude 0..90), so the angles must be given explicitly.
             return Solid.makeSphere(r, Vector(0, 0, 0), Vector(0, 0, 1), -90, 90, 360)
 
     if node.kind in GEOMETRY_TRANSFORMS:
+        if not node.children:
+            raise GeometryError(f"{node.kind!r} transform has no child")
         child = csg_to_solid(node.children[0], quantities)
         if node.kind == "translate":
-            x = _val(node.params["x"], quantities)
-            y = _val(node.params["y"], quantities)
-            z = _val(node.params["z"], quantities)
+            x = _val(_param(node, "x"), quantities)
+            y = _val(_param(node, "y"), quantities)
+            z = _val(_param(node, "z"), quantities)
             return child.translate(Vector(x, y, z))
         if node.kind == "rotate":
-            ax = _val(node.params["axis_x"], quantities)
-            ay = _val(node.params["axis_y"], quantities)
-            az = _val(node.params["axis_z"], quantities)
+            ax = _val(_param(node, "axis_x"), quantities)
+            ay = _val(_param(node, "axis_y"), quantities)
+            az = _val(_param(node, "axis_z"), quantities)
+            if not all(math.isfinite(v) for v in (ax, ay, az)):
+                raise GeometryError(
+                    f"rotate axis components must be finite, got ({ax!r}, {ay!r}, {az!r})"
+                )
             if (ax * ax + ay * ay + az * az) ** 0.5 < 1e-12:
                 raise GeometryError("rotate axis must be non-zero")
-            angle = _val(node.params["angle_deg"], quantities)
+            angle = _val(_param(node, "angle_deg"), quantities)
             # cadquery Shape.rotate(axisStart, axisEnd, angleDegrees) — axis
             # through the origin, the shared geometry convention.
             return child.rotate(Vector(0, 0, 0), Vector(ax, ay, az), angle)
@@ -130,12 +163,25 @@ def interferes(
     """Exact interference: True iff the two solids actually overlap (intersection
     volume > tolerance). Unlike the AABB test this is EXACT — two parts whose
     bounding boxes overlap but whose solids do not are correctly reported as
-    non-interfering."""
+    non-interfering.
+
+    Error contract (the SAFE direction): only a provably empty intersection — a
+    null result shape — is "no overlap". An unexpected kernel failure (boolean
+    op or volume measurement) raises GeometryError; it is NEVER swallowed into
+    False, because "collision check crashed" must not read as "no collision"."""
     solid_a = csg_to_solid(node_a, quantities)
     solid_b = csg_to_solid(node_b, quantities)
-    inter = solid_a.intersect(solid_b)
+    try:
+        inter = solid_a.intersect(solid_b)
+    except Exception as exc:  # noqa: BLE001 - raw OCCT error, translated
+        raise GeometryError(f"OCCT boolean intersection failed: {exc}") from exc
+    wrapped = getattr(inter, "wrapped", None)
+    if inter is None or wrapped is None or (hasattr(wrapped, "IsNull") and wrapped.IsNull()):
+        return False  # empty intersection IS the proof of no overlap
     try:
         vol = float(inter.Volume())
-    except Exception:  # noqa: BLE001 - an empty intersection can be a null shape
-        return False
+    except Exception as exc:  # noqa: BLE001 - raw OCCT error, translated
+        raise GeometryError(
+            f"OCCT could not measure the intersection volume: {exc}"
+        ) from exc
     return vol > tolerance

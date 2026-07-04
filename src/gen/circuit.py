@@ -97,16 +97,47 @@ def _nodes(component) -> tuple[str, ...]:
     raise TypeError(f"unknown component {component!r}")
 
 
+def _positive_value(value: float, what: str) -> float:
+    """A component value that must be positive and finite — ``not (v > 0)`` also
+    catches NaN. Raises ValueError with the component context, never a
+    ZeroDivisionError from a silent 1/0 stamp."""
+    if not (value > 0.0) or math.isinf(value):
+        raise ValueError(f"{what} must be positive and finite, got {value!r}")
+    return value
+
+
+def _source_keys(vsources) -> list[str]:
+    """Unique result keys for the voltage sources: the declared name, or ``V{k}``
+    for an empty name. Raises ValueError on duplicates — two same-named sources
+    would silently overwrite each other's current in the result dict."""
+    keys = [vs.name or f"V{k}" for k, vs in enumerate(vsources)]
+    if len(set(keys)) != len(keys):
+        dup = sorted({k for k in keys if keys.count(k) > 1})
+        raise ValueError(
+            f"duplicate voltage-source name(s) {dup}: source currents are keyed "
+            "by name — give each VoltageSource a unique `name`"
+        )
+    return keys
+
+
 def solve_dc(components, ground: str = GROUND) -> tuple[dict[str, float], dict[str, float]]:
     """Solve the DC operating point. Returns ``(node_voltages, source_currents)``
     — node voltages in volts (ground = 0), and each voltage source's delivered
-    current in amperes (positive = current out of the + terminal into the circuit).
+    current in amperes (positive = current out of the + terminal into the circuit),
+    keyed by the source's unique ``name`` (``V{index}`` for an empty name).
     Deterministic; raises ``numpy.linalg.LinAlgError`` on a singular network
-    (e.g. a floating subgraph) rather than guessing.
+    (e.g. a floating subgraph) rather than guessing, and ``ValueError`` on a
+    non-positive/non-finite resistance or duplicate voltage-source names.
+
+    Honest boundary: an EMPTY component list is a valid (empty) linear system and
+    returns ``({ground: 0.0}, {})`` — as a solver that is correct, but as a GATE
+    it is vacuous; a caller using this as evidence must check the netlist is
+    non-empty itself.
     """
     nodes = sorted({nd for c in components for nd in _nodes(c)} - {ground})
     idx = {nd: i for i, nd in enumerate(nodes)}
     vsources = [c for c in components if isinstance(c, VoltageSource)]
+    source_keys = _source_keys(vsources)
     n, m = len(nodes), len(vsources)
 
     A = np.zeros((n + m, n + m))
@@ -114,7 +145,7 @@ def solve_dc(components, ground: str = GROUND) -> tuple[dict[str, float], dict[s
 
     for c in components:
         if isinstance(c, Resistor):
-            g = 1.0 / c.ohms
+            g = 1.0 / _positive_value(c.ohms, f"Resistor({c.a!r},{c.b!r}).ohms")
             if c.a != ground:
                 A[idx[c.a], idx[c.a]] += g
             if c.b != ground:
@@ -143,9 +174,7 @@ def solve_dc(components, ground: str = GROUND) -> tuple[dict[str, float], dict[s
     node_v[ground] = 0.0
     # the MNA branch current j flows from + to - INSIDE the source; the current
     # the source delivers to the circuit is its negative.
-    source_i = {
-        (vs.name or f"V{k}"): float(-x[n + k]) for k, vs in enumerate(vsources)
-    }
+    source_i = {source_keys[k]: float(-x[n + k]) for k in range(m)}
     return node_v, source_i
 
 
@@ -198,10 +227,14 @@ def solve_dc_nonlinear(
             companions.append(CurrentSource(d.anode, d.cathode, i_eq))
 
         node_v, source_i = solve_dc(linear + companions, ground)
-        delta = max(abs(node_v[nd] - v[nd]) for nd in nodes)
+        # default=0.0: with every terminal on ground there are zero unknown nodes
+        # and the (trivial) solution has converged — max() on an empty sequence
+        # must not crash the loop.
+        delta = max((abs(node_v[nd] - v[nd]) for nd in nodes), default=0.0)
         v = {nd: node_v[nd] for nd in nodes}
         v[ground] = 0.0
-        # converge on the diode junction voltages too (the non-linear unknowns)
+        # node-voltage convergence implies junction-voltage convergence: each
+        # diode's Vd is a difference of two of these node voltages.
         if delta < tol:
             return node_v, source_i
 
@@ -235,9 +268,20 @@ def solve_transient(
 
     Returns ``(times, node_history)`` where node_history maps each node to its
     voltage at each time in `times` (starting from a zero-state t=0). Deterministic.
+    Raises ``ValueError`` on a non-positive/non-finite `dt`, a non-finite or
+    negative `t_end`, or a non-positive/non-finite capacitance/inductance —
+    never a ZeroDivisionError or a silently wrong companion stamp.
     """
+    if not (dt > 0.0) or math.isinf(dt):
+        raise ValueError(f"dt must be a positive finite time step, got {dt!r}")
+    if not math.isfinite(t_end) or t_end < 0.0:
+        raise ValueError(f"t_end must be finite and >= 0, got {t_end!r}")
     caps = [c for c in components if isinstance(c, Capacitor)]
     inds = [c for c in components if isinstance(c, Inductor)]
+    for c in caps:
+        _positive_value(c.farads, f"Capacitor({c.a!r},{c.b!r}).farads")
+    for c in inds:
+        _positive_value(c.henries, f"Inductor({c.a!r},{c.b!r}).henries")
     linear = [c for c in components if not isinstance(c, (Capacitor, Inductor))]
     nodes = sorted({nd for c in components for nd in _nodes(c)} - {ground})
 
@@ -284,8 +328,18 @@ def solve_ac(
     node voltage phasors (magnitude = amplitude, angle = phase). Deterministic.
 
     The frequency-domain counterpart of `solve_dc` (DC is the ω→0 special case for
-    a purely resistive network).
+    a purely resistive network). Raises ``ValueError`` on a non-finite or negative
+    `omega`, on `omega == 0` when the circuit contains inductors (Y_L = 1/(jωL)
+    would divide by zero — that operating point is `solve_dc`'s job), and on
+    non-positive/non-finite component values.
     """
+    if not math.isfinite(omega) or omega < 0.0:
+        raise ValueError(f"omega must be finite and >= 0 rad/s, got {omega!r}")
+    if omega == 0.0 and any(isinstance(c, Inductor) for c in components):
+        raise ValueError(
+            "omega must be > 0 when the circuit contains inductors "
+            "(Y_L = 1/(jωL) is singular at ω = 0 — use solve_dc for the DC point)"
+        )
     nodes = sorted({nd for c in components for nd in _nodes(c)} - {ground})
     idx = {nd: i for i, nd in enumerate(nodes)}
     vsources = [c for c in components if isinstance(c, VoltageSource)]
@@ -305,11 +359,21 @@ def solve_ac(
 
     for c in components:
         if isinstance(c, Resistor):
-            _stamp_admittance(c.a, c.b, 1.0 / c.ohms)
+            _stamp_admittance(
+                c.a, c.b, 1.0 / _positive_value(c.ohms, f"Resistor({c.a!r},{c.b!r}).ohms")
+            )
         elif isinstance(c, Capacitor):
-            _stamp_admittance(c.a, c.b, 1j * omega * c.farads)
+            _stamp_admittance(
+                c.a, c.b,
+                1j * omega * _positive_value(c.farads, f"Capacitor({c.a!r},{c.b!r}).farads"),
+            )
         elif isinstance(c, Inductor):
-            _stamp_admittance(c.a, c.b, 1.0 / (1j * omega * c.henries))
+            _stamp_admittance(
+                c.a, c.b,
+                1.0 / (1j * omega * _positive_value(
+                    c.henries, f"Inductor({c.a!r},{c.b!r}).henries"
+                )),
+            )
         elif isinstance(c, CurrentSource):
             if c.frm != ground:
                 z[idx[c.frm]] -= c.amps

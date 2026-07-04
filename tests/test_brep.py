@@ -17,6 +17,7 @@ Run:  pytest tests/test_brep.py
 
 from __future__ import annotations
 
+import math
 import sys
 from pathlib import Path
 
@@ -58,6 +59,15 @@ def test_capstone_bracket_is_a_valid_solid():
     bracket = spec.components[0]
     q = {x.id: x for x in spec.quantities}
     assert is_valid(bracket.geometry, q)
+
+
+def test_sphere_volume_matches_closed_form():
+    """B6 (Review Schritt 7): die makeSphere-Winkelargumente (-90, 90, 360) waren
+    nirgends gegen die geschlossene Form gepinnt — eine Halbkugel wäre still
+    durchgegangen. V = 4/3·π·r³ ist der Anker."""
+    q = {"r": _dec("r", 3.0)}
+    node = GeometryNode(kind="sphere", params={"radius": "r"})
+    assert math.isclose(exact_volume(node, q), 4.0 / 3.0 * math.pi * 3.0 ** 3, rel_tol=1e-9)
 
 
 def test_overlapping_solids_interfere():

@@ -17,8 +17,11 @@ The mathematics is exact, not heuristic:
     duplicated directed edge is a flipped or non-manifold facet.
   * EULER CHARACTERISTIC — chi = V − E + F = 2 − 2g for a closed connected
     orientable surface of genus g (Euler–Poincaré). A box mesh must give chi = 2
-    (genus 0); a part with one through-hole, chi = 0 (genus 1). A chi that is odd
-    or that exceeds 2 per shell is a topology defect no visual inspection finds.
+    (genus 0); a part with one through-hole, chi = 0 (genus 1). An ODD chi is a
+    topology defect no visual inspection finds and is flagged. There is NO
+    per-shell decomposition: for multi-shell files chi is the SUM over shells,
+    so an even chi > 2 is possible for valid meshes — it only suppresses the
+    genus (None), it is reported, not flagged.
   * OUTWARD ORIENTATION — the divergence-theorem signed volume of a closed,
     consistently wound mesh is positive iff the normals point outward. An
     inside-out solid has exactly the negative volume.
@@ -40,6 +43,7 @@ in PrusaSlicer/Cura).
 
 from __future__ import annotations
 
+import math
 import re
 
 _VERTEX_RE = re.compile(r"vertex\s+([^\s]+)\s+([^\s]+)\s+([^\s]+)")
@@ -49,8 +53,10 @@ Vec = tuple[float, float, float]
 
 def _triangles(stl_text: str) -> list[tuple[Vec, Vec, Vec]]:
     """Parse the facet vertices of an ASCII STL into triangles (groups of three).
-    Raises ValueError when the vertex count is not a multiple of three — a
-    malformed file must surface, not produce a half-parsed verdict."""
+    Raises ValueError when the vertex count is not a multiple of three, or when
+    any vertex component is non-finite (nan/inf/1e999) — a malformed file must
+    surface, not produce a half-parsed verdict: a +inf vertex can still yield
+    volume_positive=True while chi/genus are garbage."""
     verts: list[Vec] = [
         (float(m.group(1)), float(m.group(2)), float(m.group(3)))
         for m in _VERTEX_RE.finditer(stl_text)
@@ -61,6 +67,12 @@ def _triangles(stl_text: str) -> list[tuple[Vec, Vec, Vec]]:
         raise ValueError(
             f"malformed STL: {len(verts)} vertices is not a multiple of three"
         )
+    for v in verts:
+        if not all(math.isfinite(c) for c in v):
+            raise ValueError(
+                f"malformed STL: non-finite vertex {v!r} — every coordinate must "
+                "be finite for topology and volume to mean anything"
+            )
     return [tuple(verts[i : i + 3]) for i in range(0, len(verts), 3)]  # type: ignore[misc]
 
 
@@ -81,6 +93,13 @@ def _is_degenerate(a: Vec, b: Vec, c: Vec) -> bool:
     ux, uy, uz = b[0] - a[0], b[1] - a[1], b[2] - a[2]
     vx, vy, vz = c[0] - a[0], c[1] - a[1], c[2] - a[2]
     nx, ny, nz = uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx
+    # Absolute threshold, justified for the GENESIS mm convention (PHASE_DELTA §1):
+    # |u×v| is twice the triangle area, so 1e-15 means area < 5e-16 mm². True
+    # degeneracies (repeated vertex, exactly collinear points) give exactly 0.0;
+    # the smallest real tessellation facets of printable parts are many orders of
+    # magnitude above this. Honest boundary: NOT unit-agnostic — a mesh authored
+    # in metres with sub-µm features would need a relative threshold, which is
+    # out of scope for the mm-based export pipeline this module checks.
     return (nx * nx + ny * ny + nz * nz) ** 0.5 < 1e-15
 
 

@@ -77,6 +77,15 @@ def test_degenerate_facet_is_flagged():
     assert r["n_degenerate"] == 1 and not r["ok"]
 
 
+def test_non_finite_vertices_raise():
+    """M1 (Review Schritt 7): nan/inf/1e999-Vertices müssen werfen — +inf konnte
+    volume_positive=True liefern, während chi/genus Müll sind (Verdikt aus Schrott)."""
+    for bad in ("nan", "inf", "-inf", "1e999"):
+        broken = _stl(TETRA_FACES).replace("vertex 1.0 0.0 0.0", f"vertex {bad} 0.0 0.0", 1)
+        with pytest.raises(ValueError, match="finite"):
+            stl_integrity_check(broken)
+
+
 def test_unparseable_raises():
     with pytest.raises(ValueError):
         stl_integrity_check("solid empty\nendsolid empty\n")

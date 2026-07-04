@@ -347,3 +347,38 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
     (Elimination, penalty-frei), kein Exception-Schlucken.
   · +20 Tests (TDD, tests/test_step7_fem_hardening.py, stub-basiert ohne gmsh). Suite (ohne die
     parallel in Arbeit befindlichen circuit/mesh_integrity/brep-Dateien) 1812/0/59, ruff clean.
+- mesh_integrity+brep+circuit — DONE (Batch 2, Claude-Tiefenreview 2026-07-04):
+  · M1 MED GEFIXT: STL-Parser akzeptierte nan/inf/1e999-Vertices — +inf konnte volume_positive=True
+    liefern bei Müll-chi/genus; jetzt math.isfinite über alle Komponenten in _triangles → ValueError.
+  · M2 Doc-Truth GEFIXT: Modul-Doc behauptete „chi odd OR exceeds 2 per shell wird geflaggt" — Code
+    flaggt nur ungerades chi; Doc ehrlich korrigiert (chi>2 = Summe über Shells, unterdrückt nur
+    genus, wird berichtet, nicht geflaggt). Shell-Zerlegung bewusst NICHT gebaut.
+  · M3 LOW: 1e-15-Degeneriertheits-Schwelle mit mm-Welt-Begründung kommentiert (|u×v|=2·Fläche, echte
+    Degeneriertheit = exakt 0.0; ehrliche Grenze dokumentiert: nicht einheitsagnostisch).
+  · B1/B2/B4/B7 GEFIXT: brep.py hält jetzt seinen GeometryError-Kontrakt — fehlender params-Key
+    (_param statt roher KeyError), nicht-positive/non-finite Primitivmaße (_positive je box/cylinder/
+    sphere-Maß; Defense-in-depth — Quantity-Root-Guard fängt non-finite schon upstream), Transform
+    ohne Kind (war IndexError), NaN-Rotationsachse (passierte den <1e-12-Guard, NaN-Vergleich=False).
+  · B3 MED GEFIXT (sichere Richtung): interferes meldete Kernel-Fehler als „keine Kollision"
+    (except→return False); jetzt: nur echte Null-Shape-Schnittmenge = False, boolesche/Volumen-Fehler
+    → GeometryError. „Kollisionscheck crashte" liest sich nie mehr als „keine Kollision".
+  · B6 LOW: Kugel-Volumen-Regressionstest gegen 4/3·π·r³ (makeSphere-Winkelargumente jetzt gepinnt;
+    skippt ohne cadquery, läuft in Full-Dep-Umgebungen).
+  · C1 MED GEFIXT (fail-loud-Variante): Duplikat-Quellennamen (auch 2× Default "V") überschrieben
+    source_i still → ValueError; f"V{k}"-Fallback nur für leeren Namen (jetzt getestet-live).
+    Begründung: alle realen Aufrufer (Tests, electronics.py BAT48) nutzen explizite eindeutige
+    Namen — Index-Keying hätte deren API gebrochen, fail-loud bricht keinen korrekten Aufrufer.
+  · C2 MED GEFIXT: ohms=0 war ZeroDivisionError, negative/NaN ohms/farads/henries wurden still
+    gestempelt, dt<=0/NaN crashte → _positive_value an allen Stempeln (solve_dc, solve_ac,
+    solve_transient inkl. dt>0- und t_end>=0-Guard); Docstrings deklarieren die ValueErrors.
+  · C4 LOW: solve_dc_nonlinear max(..., default=0.0) — Diode Ground→Ground (0 unbekannte Knoten)
+    konvergiert trivial statt max()-ValueError; Kommentar-Drift korrigiert (Knoten-Konvergenz
+    impliziert Junction-Konvergenz, Vd ist Differenz zweier Knotenspannungen).
+  · C5 LOW: solve_ac omega=0 mit L war ZeroDivision → klarer ValueError (+ omega finite/>=0 generell).
+  · C3 Doc-Truth: solve_dc([]) als vakuös deklariert (als Solver korrekt-leer, als Gate kein Beweis;
+    Caller muss Nicht-Leere selbst prüfen) + Test pinnt das Verhalten.
+  · DEFENDED nicht angefasst: THERMAL_VOLTAGE, MNA-Stempelung, _pnjlim; mesh_integrity-Kernmathematik
+    (Euler–Poincaré, Divergenzsatz, gerichtete Kanten) unverändert.
+  · +23 Test-Items (TDD, 19 davon erst rot: 1 mesh, 8 circuit, 13 brep-Stub-Items in
+    tests/test_step7_brep_hardening.py nach test_step7_hardening.py-Muster + 1 kernel-gebundener
+    in test_brep.py). Suite 1853/0/61, ruff clean.
