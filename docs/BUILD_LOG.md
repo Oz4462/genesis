@@ -7779,3 +7779,37 @@ New tests hit previously uncovered: domains_present ISRU/LIFE branches, required
 **Ehrliche Grenze (per task):** Minimal change only per spec (c_stoich + test assert + re-derive note; validator for rigor as it executes the numbers). No ledger new entries (text in claim suffices per current _claim pattern), no external fetch at runtime. Real sources via search here (cited). Next if owner: integrate live tools/wissensbasis for dynamic ISRU refs or expand to Sabatier.
 
 (End of entry)
+
+---
+
+## 2026-07-04 — Autonome Voll-Session: Audit, Doku-Konsolidierung, Deep-Review-Kampagne 7–9 KOMPLETT
+
+**Auftrag (Ozan):** Repo prüfen, offene Aufgaben finden, MD-Claims verifizieren, Plan, neue CLAUDE.md
+(einzige Quelle), dann dauerhaft autonom weiterarbeiten.
+
+**Ergebnis (alles lokal committet, ~40 Commits, KEIN Push):**
+- Voll-Audit `docs/AUDIT_2026-07-04.md` (P1–P10) + neue schlanke CLAUDE.md (nur Messwerte,
+  Historie → `docs/BUILD_HISTORY.md`); Doku-Zähl-Drift in README/HORIZON/STATUS gefixt.
+- **Suite 1727 → 1979 passed / 0 failed** (54 skipped), ruff 0 Findings, durchgängig TDD.
+- **Deep-Review-Kampagne Schritt 7–9 abgeschlossen** (24 Module, Claude-seitig; Grok-CLI-Outage →
+  Cross-Reviews als NACHZUHOLEN im Queue-Ledger): NaN-Schranke am δ-Gate (NaN passierte jeden
+  Vergleichs-Guard), MANUAL_ONLY-Registry-Wächter, Sv/Gy-Dimensionen, FEM-fail-loud,
+  `interferes`-Sicherheitsrichtung, Injection/Byte-Präzision im Export, Cost zweistufig
+  (`complete`/`fully_grounded`), fabrizierte Provenienz paketweit entfernt (pipelines,
+  grenzverschiebung, software), „flug"-Substring-Klasse gebannt, tote Integrator-Fertigungs-Naht
+  repariert, fingierter Lernzyklus (`or True`) ehrlich gemacht, capstone trägt jetzt seine
+  ELECTRICAL–FIRMWARE-Naht als Zertifikat AM Spec (+ `Specification.seam_certificate`).
+- **Deferred-Backlog:** D8–D10 (SSRF/final_url/XXE), D13(a–d), D15-geometry (Untergrenzen-Beweise,
+  Containment, Verdrahtung in assess), **D2 (Run-Clock, Prinzip 5)**, D11 + D12-Kern erledigt.
+  Offen: D1, D4–D6 (owner-level), D12-Rest (URL-Kanonisierung, braucht Design), D14/D16-Tails,
+  Recipes für 7 MANUAL_ONLY-Validatoren (nach Worktree-Merge).
+- **Humanoid TP2 „Struktur-Härtung" GEBAUT** (Worktree `worktree-claude-orchestrator`, 1743/0/61
+  dort): 4 Checks via Measurand-Tagging, Margen echt (printed-Kerbe 1.04 wartet auf Datenblatt).
+- Owner-gated offen: Push (70+ Commits), Worktree-Merge (Achtung: runner-F821-Fix + CLAUDE.md in
+  beiden Ästen), Live-Ollama-Läufe, Grok-Cross-Reviews.
+
+**4 Linsen (Session-Ebene):** L1 jede Zahl aus eigenem Messlauf, jedes Review-Finding vor Fix
+empirisch reproduziert; L2 kein Gate aufgeweicht — nur Unbeweisbares wird nicht erzwungen
+(COST_ROLLUP), Ehrlichkeit ersetzt Schein-Provenienz; L3 Nähte systematisch geschlossen
+(Spec↔assess↔ε-Gate, units↔selection↔validator, Worktree-Merge-Konflikte vorgemerkt);
+L4 alles offline verifizierbar, owner-gated sauber abgegrenzt.
