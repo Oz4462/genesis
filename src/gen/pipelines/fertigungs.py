@@ -17,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Any
 
+from ._triggers import is_flight_idea
 from .architekt import SystemConcept
 from .ingenieur import IngenieurSpec
 # Naht to advanced DFM (from prior stone)
@@ -120,9 +121,7 @@ def map_to_fertigungs_spec(
     Jetpack: FDM primary für Tether Plate (real volume/wall aus CAD + DFM), CNC alt.
     Generic: ehrliche Lücken (z.B. exakte Supplier-Preise via Wissensbasis später).
     """
-    idee_lower = concept.source_idea.lower()
-
-    if "jetpack" in idee_lower or "flug" in idee_lower:
+    if is_flight_idea(concept.source_idea):
         # Primary FDM from DFM example (tether plate)
         prozesse = [
             FertigungsProzess(

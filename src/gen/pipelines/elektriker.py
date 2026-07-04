@@ -37,6 +37,7 @@ import warnings
 from dataclasses import dataclass, field
 from typing import Any
 
+from ._triggers import is_flight_idea
 from .architekt import SystemConcept
 from .ingenieur import IngenieurSpec
 
@@ -155,8 +156,7 @@ def map_to_elektriker_spec(
     The resulting ElektronikSpec is a strict superset — all original attributes
     are identical for the Jetpack and generic cases.
     """
-    idee_lower = concept.source_idea.lower()
-    is_jet = "jetpack" in idee_lower or "flug" in idee_lower
+    is_jet = is_flight_idea(concept.source_idea)
 
     # --- high-level (exact same numbers/texts as first stone for test compat) ---
     if is_jet:

@@ -17,18 +17,14 @@ output is a PLAN §4 canon template; the declared gap is a real prior evaluation
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
+from ._triggers import is_flight_idea
 from .architekt import SystemConcept
 from .ingenieur import IngenieurSpec
 
 #: Honest provenance label for the flight-canon outputs (S-1): a template, not a consumed prior.
 _CANON_QUELLE = "PLAN §4 Kanon-Vorlage, kein Prior konsumiert (Lücke: echte Prior-Auswertung)"
-
-#: Flight trigger (S-2): word-boundary terms only — the bare word "flug", a flight DEVICE
-#: (fluggerät/flugzeug) or "jetpack". Substrings like "Ausflug" or "Flughafen" must NOT match.
-_FLIGHT_TRIGGER = re.compile(r"jetpack|fluggerät|fluggeraet|flugzeug|\bflug\b")
 
 
 @dataclass(frozen=True)
@@ -88,9 +84,7 @@ def map_to_software_spec(
     its assumptions as such. Flight terms match on word boundaries (S-2), so
     "Ausflug"/"Flughafen" fall through to the generic path with honest gaps.
     """
-    idee_lower = concept.source_idea.lower()
-
-    if _FLIGHT_TRIGGER.search(idee_lower):
+    if is_flight_idea(concept.source_idea):
         embedded = [
             EmbeddedComponent("ThrustController", "Closed-loop thrust from pilot command to motor drivers", "PWM + CAN", ["overtemp", "loss_of_feedback", "comm_loss"], quelle=_CANON_QUELLE),
             EmbeddedComponent("TetherSafety", "Interlock: only enable if tether present + emergency line high", "Digital in + discrete enable", ["tether_loss", "false_positive"], quelle=_CANON_QUELLE),

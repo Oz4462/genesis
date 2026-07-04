@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ._triggers import is_flight_idea
 from .architekt import SystemConcept
 from .ingenieur import IngenieurSpec
 
@@ -73,9 +74,7 @@ def map_to_designer_spec(
     Jetpack: Harness-Komfort, Trage-Form, einfache Bedienung (thrust + emergency), sichtbare Sicherheit.
     Generic: ehrliche Lücken.
     """
-    idee_lower = concept.source_idea.lower()
-
-    if "jetpack" in idee_lower or "flug" in idee_lower:
+    if is_flight_idea(concept.source_idea):
         ergo = [
             ErgonomieAnforderung("Harness Fit", "Tether/Harness passt 5.-95. Perzentil Körper (ca. 150-190cm)", "durchschnittliche Nutzergröße 170cm +/-20cm", "Trade-off: mehr Verstellbarkeit vs. Gewicht/Volumen", quelle="PLAN §4.6 + Techniker Montage + Safety-Ladder"),
             ErgonomieAnforderung("Haptik / Bedienung", "Thrust-Control und Emergency-Cutoff erreichbar ohne Loslassen der Griffe", "Zwei-Hand-Bedienung typisch für Jetpack", None, quelle="Elektriker Bedien + Architekt Nutzer"),

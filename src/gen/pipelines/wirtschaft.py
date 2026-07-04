@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ._triggers import is_flight_idea
 from .architekt import SystemConcept
 from .ingenieur import IngenieurSpec
 
@@ -63,9 +64,7 @@ def map_to_wirtschaft_spec(
     Jetpack: experimental/hobby market, low volume, high repair, scaling gated by regulatorik.
     Generic: honest gaps.
     """
-    idee_lower = concept.source_idea.lower()
-
-    if "jetpack" in idee_lower or "flug" in idee_lower:
+    if is_flight_idea(concept.source_idea):
         kosten = KostenStruktur(
             prototype="8-25 EUR (FDM dominant, from Fertigungs/Realisierungspaket)",
             low_volume="50-150 EUR (small batch CNC + electronics)",

@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ._triggers import has_fliegen_word
+
 
 @dataclass(frozen=True)
 class SystemRequirement:
@@ -55,7 +57,7 @@ def map_to_system_concept(
     Für das Jetpack-Beispiel erzeugt es eine belastbare Systemstruktur,
     die direkt aus den prior Grenz- und Safety-Outputs abgeleitet ist (keine Erfindung).
     """
-    if "jetpack" in idea.lower() or ("mensch" in idea.lower() and "fliegen" in idea.lower()):
+    if "jetpack" in idea.lower() or ("mensch" in idea.lower() and has_fliegen_word(idea)):
         requirements = [
             SystemRequirement("Sichere Demonstration über Menschenmenge (kein unkontrollierter Absturz)", "PLAN 3.2 + safety_ladder S3/S5"),
             SystemRequirement("Erste Tests tethered / unbemannt / gesichert (kleinster sicherer Test)", "safety_ladder S0-S2 + prior Grenz"),

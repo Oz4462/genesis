@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ._triggers import is_flight_idea
 from .architekt import SystemConcept
 from .ingenieur import IngenieurSpec
 
@@ -62,9 +63,7 @@ def map_to_regulatorik_spec(
     Jetpack: manned tether flight norms, human pilot sign-off, specific risks.
     Generic: honest gaps.
     """
-    idee_lower = concept.source_idea.lower()
-
-    if "jetpack" in idee_lower or "flug" in idee_lower:
+    if is_flight_idea(concept.source_idea):
         normen = [
             Norm("EASA CS-23 / equivalent for experimental manned tether", "Manned personal flight device with tether recovery", quelle="PLAN §4 + Elektriker safety + Safety-Ladder"),
             Norm("EN ISO 12100 (Machinery safety)", "General risk assessment for the system", quelle="PLAN §4"),
