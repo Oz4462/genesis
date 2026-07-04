@@ -124,3 +124,26 @@ def test_web_research_rejects_bad_relation(client):
 def test_web_research_rejects_unparsable_expression(client):
     r = client.post("/api/research/assess", json={"lhs": "x +* y", "rhs": "x"})
     assert r.status_code == 400
+
+
+def test_web_research_rejects_overlong_expression(client):
+    # hardening: length cap BEFORE any SymPy parsing (DoS guard on the HTTP body)
+    r = client.post("/api/research/assess", json={"lhs": "x+" * 300 + "x", "rhs": "x"})
+    assert r.status_code == 400
+    assert "500" in r.json()["detail"]
+
+
+def test_web_research_rejects_dunder_payload(client):
+    # hardening: dunder attribute chains (the classic sympify-eval escape) never reach the parser
+    r = client.post("/api/research/assess", json={"lhs": "().__class__.__mro__", "rhs": "1"})
+    assert r.status_code == 400
+
+
+def test_web_research_valid_expression_behavior_unchanged_after_hardening(client):
+    # the hardened parse path must keep valid expressions byte-identical in verdict + variables
+    r = client.post("/api/research/assess",
+                    json={"lhs": "sin(x)**2 + cos(x)**2", "rhs": "1"})
+    assert r.status_code == 200
+    d = r.json()
+    assert d["variables"] == ["x"]
+    assert d["status"].startswith(("SURVIVED", "KNOWN"))

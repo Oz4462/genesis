@@ -362,6 +362,9 @@ class AskBody(BaseModel):
     mode: str = "report"           # report | solution | spec
 
 
+_MAX_EXPR_LEN = 500  # hard cap for lhs/rhs BEFORE any SymPy parsing (parser-DoS guard)
+
+
 class ResearchBody(BaseModel):
     lhs: str
     rhs: str
@@ -546,6 +549,16 @@ def create_app() -> FastAPI:
     def research_assess(body: ResearchBody) -> dict:
         # Math-research branch over the honest deterministic gates. Structured input only
         # (lhs/rhs/relation/domain) — no freetext NL->math parser. Offline + deterministic.
+        #
+        # Hardening (defense in depth; the primary mitigation is that the server binds
+        # loopback-only, see web/__main__.py): the expression strings come straight from
+        # the HTTP body and reach SymPy's eval-based parser, so BEFORE parsing we
+        #   1. cap the length (parser-DoS guard),
+        #   2. reject dunder tokens ('__' — the classic sympify attribute-chain escape),
+        #   3. parse with evaluate=False, so no arithmetic (e.g. integer power towers)
+        #      is evaluated at the web layer. Only the free-symbol NAMES are needed here;
+        #      assess_identity/-inequality re-parse against the manifest symbols
+        #      themselves, so valid expressions behave exactly as before.
         import sympy as sp
 
         from .. import identity_research as ir
@@ -555,10 +568,18 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=400, detail=f"unknown relation {relation!r} (eq|ge|gt|le|lt)")
         if body.domain_id not in ("R", "R+", "N", "Z", "C"):
             raise HTTPException(status_code=400, detail=f"unknown domain_id {body.domain_id!r}")
+        for label, expr_s in (("lhs", body.lhs), ("rhs", body.rhs)):
+            if len(expr_s) > _MAX_EXPR_LEN:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"{label} too long ({len(expr_s)} > {_MAX_EXPR_LEN} chars)")
+            if "__" in expr_s:
+                raise HTTPException(
+                    status_code=400, detail=f"{label} contains the forbidden token '__'")
         try:
-            free = sorted({s.name for s in (sp.sympify(body.lhs).free_symbols
-                                            | sp.sympify(body.rhs).free_symbols)})
-        except (sp.SympifyError, SyntaxError, TypeError) as exc:
+            free = sorted({s.name for s in (sp.parse_expr(body.lhs, evaluate=False).free_symbols
+                                            | sp.parse_expr(body.rhs, evaluate=False).free_symbols)})
+        except (sp.SympifyError, SyntaxError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=f"could not parse expressions: {exc}")
         manifest = ir.AssumptionManifest(domain_id=body.domain_id,
                                          variables={n: "real" for n in free})

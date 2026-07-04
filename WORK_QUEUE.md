@@ -450,3 +450,37 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
     Markdown, bundle-Fehlerprotokollierung, brep_stl-%.6e/Degenerate-Filter.
   · +24 Tests in tests/test_step8_export_hardening.py (TDD: 12 + 9 rot vor dem Fix, Rest Pins).
     Suite 1895/0/61, ruff clean. Commits 0d44a1b / 6917343.
+- Schritt 9: integration+memory+web — DONE (Claude-Review-Findings gefixt, TDD, 2 Commits):
+  · #1 MED GEFIXT (Ehrlichkeit, Recall-Vorfilter): audited_run(recall=True) konnte in der
+    komponierten Form NIE feuern (Library abstiniert bis min_calibration=30, add_calibration
+    wurde in integration/ nirgends gerufen) und ein leeres reused_facts sah aus wie „nichts
+    gefunden". Jetzt: AuditedRunResult.recall_status ("disabled"|"uncalibrated"|"no_match"|
+    "hit") macht die Abstention sichtbar; Docstring + PHASE_L2_RECALL_DRIFT.md nennen die
+    Vorbedingung explizit (Aufrufer kalibriert separat, audited_run kalibriert nie). NEU
+    tests/test_audited_run_recall.py fährt recall=True auf manuell gewarmter Library
+    END-ZU-END zu einem echten Hit (Provenance + claim_id-Rückverweis bewiesen) + Negativtests
+    uncalibrated/no_match. Dafür audit-Import in audited_run lazy gemacht: Memory-only-
+    Komposition bleibt numpy-only/testbar OHNE verify-Extra; fail-loud der Audit-Naht bleibt
+    exakt dort erhalten, wo keystore+key gegeben sind (eigener Negativtest ImportError).
+  · #2 LOW GEFIXT (Härtung, web): POST /api/research/assess ließ HTTP-Body-Strings direkt in
+    sympify (eval-basiert). Jetzt VOR dem Parsen: Längenschranke _MAX_EXPR_LEN=500 → 400,
+    Dunder-Token-Sperre ('__' = klassische sympify-Attribut-Ketten-Flucht) → 400, und
+    parse_expr(evaluate=False) statt sympify (keine Arithmetik/Power-Tower-Auswertung im
+    Web-Layer; nur freie Symbolnamen werden gebraucht — assess_identity/-inequality parsen
+    selbst gegen die Manifest-Symbole). Loopback-Bindung (web/__main__.py, 127.0.0.1) als
+    primäre Milderung im Kommentar dokumentiert. Paritätstest: valide Ausdrücke verhalten
+    sich identisch (sin²+cos²=1 → gleiche variables + Verdikt); bestehende 400-Tests grün.
+  · #3 LOW GEFIXT (Dedupe): VerifiedFactsLibrary.remember() deduplziert jetzt gegen vorhandene
+    capture_id (Prüfung in verified_facts.py via store.list_steps_for_trace — vendored storage
+    UNVERÄNDERT) + Intra-Call-seen-Set; zweimal remember(gleicher Claim) → genau ein Step,
+    kein Recall-Rauschen durch identische Nachbarn. Der e2e-Recall-Test beweist zusätzlich
+    n_remembered==0 beim reproduzierten Lauf (gleiche run_id → gleiche capture_id).
+  · DEFENDED nicht angefasst: audit-Naht fail-loud (per Negativtest sogar gepinnt), drift,
+    identity_research_hook, Lazy-Exports (PEP-562-Getattr unverändert), web-Escaping/Gating,
+    kein NaN-Guard-Leck; vendored anamnesis_mem nur an der Naht geprüft, nicht editiert.
+  · +9 Tests (4 recall-e2e/-status, 2 dedupe, 3 web-Härtung; TDD: dedupe+web rot vor dem Fix).
+    Eigene Scope-Suite grün, ruff clean. EHRLICH: Voll-Suite hatte zum Zeitpunkt des Laufs
+    10–16 Failures AUSSCHLIESSLICH in parallel bearbeiteten Dateien (pipelines/*,
+    grenzverschiebung/*, deren Tests + test_webapp-Kollateral); per git-stash-Gegenprobe
+    bewiesen, dass test_webapp OHNE diese Änderungen identisch failt. Suite ohne die
+    parallel-bearbeiteten Dateien: 0 failed.
