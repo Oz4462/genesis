@@ -105,3 +105,18 @@ def test_resonance_check_nan_excitation_raises():
     assert math.isfinite(
         resonance_check(first_natural_hz=100.0, excitation_hz=10.0)["ratio"]
     )
+
+
+# --- D1 (2026-07-04): subsystem types moved out of the framework-free core -------
+
+def test_d1_subsystem_types_moved_with_compat_shim():
+    """ModuleSpec/ColonyModule/NanoRecipe live in gen.subsystem_types; the old
+    core.state import path keeps working via lazy PEP-562 re-export, and the
+    shim raises AttributeError for genuinely unknown names."""
+    import pytest as _pytest
+    from gen import subsystem_types
+    from gen.core import state
+    for name in ("ModuleSpec", "ColonyModule", "NanoRecipe"):
+        assert getattr(state, name) is getattr(subsystem_types, name)
+    with _pytest.raises(AttributeError):
+        state.DefinitelyNotAType  # noqa: B018

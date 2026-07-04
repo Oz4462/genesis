@@ -193,7 +193,7 @@ class LumenCrucible:
 
                 # Stärkere Subsystem-Abstraktion (general for ALL ideas, not elec-only)
                 try:
-                    from ..core.state import ModuleSpec
+                    from ..subsystem_types import ModuleSpec
                     modules = []
                     modules.append(ModuleSpec(name="main_power", kind="power_distribution", interfaces={"elec": "48V_rail", "thermal": "heatsink", "safety": "S3"}, power_budget_w=1400, safety_level="S3", quelle="LUMEN multi-domain + subsystem abstraction"))
                     if "multi-board" in raw_dream.lower() or "distributed" in raw_dream.lower():
@@ -260,7 +260,7 @@ class LumenCrucible:
         # B2: Always include subsystem modules in multi_domain for generalist abstraction (even non-elec)
         if is_complex:
             try:
-                from ..core.state import ModuleSpec
+                from ..subsystem_types import ModuleSpec
                 if "subsystem_modules" not in multi_domain_data:
                     multi_domain_data["subsystem_modules"] = [
                         ModuleSpec(name="general_control", kind="software_control", interfaces={"data": "sensor_bus", "safety": "S2"}, quelle="B2 Subsystem-Abstraktion general for all ideas"),

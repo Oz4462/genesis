@@ -347,6 +347,12 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
 > Wiederkehr. Diese eine Zeile bleibt als Dedup-Seed stehen. Vollständige Historie bleibt im Git.
 
 ## Schritt 7 (Review-Kampagne) — Fortschritt 2026-07-04
+- D1 — **ERLEDIGT 2026-07-04:** ModuleSpec/ColonyModule/NanoRecipe aus dem framework-freien Kern
+  nach `gen/subsystem_types.py` (stdlib-only) ausgelagert; `core.state` behält lazy PEP-562-Re-Export
+  (alte Imports funktionieren, kein Import-Zyklus); lumencrucible auf den neuen Pfad umgestellt.
+  Befund dabei: ColonyModule/NanoRecipe hatten NULL Code-Konsumenten (nur Docstring-Verweise).
+  +1 Test. Suite 1992/0/54, ruff clean.
+
 - physics_validation.py + fatigue.py — DONE (Claude-Tiefenreview, 8 Findings F1-F8; Grok-CLI-Outage
   [2x Timeout], Cross-Review NACHZUHOLEN wie beim Klassifizierer-Outage-Präzedenzfall):
   · F1/F6 HIGH GEFIXT: NaN/Inf → stiller Grün-Pass in isru/life/vacuum (NaN passiert jeden <=-Guard);
