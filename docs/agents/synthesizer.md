@@ -32,6 +32,15 @@ Referenziert ausschließlich `claim_id`s — behauptet selbst nichts.
 - Keine VERIFIED-Claims → kein Ansatz (Abstention), geloggt.
 - Unparsebare LLM-Ausgabe → Abstention (keine Ansätze), geloggt — nie erfinden.
 - Ansatz ohne überlebende VERIFIED-Verankerung → verworfen, geloggt.
+- Non-dict-Elemente im LLM-Array → gefiltert **mit Count-Log** (Audit-Spur), nie still.
+- Mehr als `_MAX_APPROACHES` (= 10, wie `conductor._MAX_SUB_QUESTIONS`) geparste
+  Ansätze → Überschuss geloggt gekappt.
+- Grounding-/Tradeoff-IDs werden **vor** id-Berechnung dedupliziert (`c1|c1` == `c1`,
+  Reihenfolge = erstes Vorkommen, deterministisch).
+- Duplikat (gleicher `approach_id` aus name+sorted grounding): Tradeoffs des Duplikats
+  werden in den **Survivor gemergt** (Union, geloggt) statt verloren; das Sekundärfeld
+  ist bewusst **nicht** Teil des id-Keys, damit bestehende ids/Checkpoints stabil
+  bleiben (Prinzip 5). Symmetrisch in `forge` (mechanism per `"; "` gemergt).
 
 ## Garantie gegenüber GATE β
 Weil jeder emittierte Ansatz nur in VERIFIED-Claims (≥ τ) verankert ist und nur

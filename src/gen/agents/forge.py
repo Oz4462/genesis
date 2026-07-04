@@ -34,9 +34,19 @@ _SYSTEM = (
     'Return JSON: [{"statement":"...","mechanism":"...","grounding":["id",...]}].'
 )
 
+# Cap on parsed possibilities per round — same bound as the conductor's
+# _MAX_SUB_QUESTIONS (LLM output is token-bounded, but the cap makes the limit
+# explicit and the overflow auditable instead of implicit).
+_MAX_POSSIBILITIES = 10
+
 
 def possibility_id(spark_id: str, statement: str, grounding: list[str]) -> str:
-    """Deterministic id from (spark, statement, grounding) — stable across identical runs."""
+    """Deterministic id from (spark, statement, grounding) — stable across identical runs.
+
+    `mechanism` is deliberately NOT part of the key: two proposals that differ only
+    in mechanism are the SAME direction and are merged into one entry (see ``run``).
+    Keeping the key unchanged preserves ids across existing checkpoints (Prinzip 5).
+    """
     key = statement + "|" + "|".join(sorted(grounding))
     digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:12]
     return f"{spark_id}:poss:{digest}"
@@ -46,6 +56,17 @@ def _as_str_list(v: object) -> list[str]:
     if not isinstance(v, list):
         return []
     return [str(x).strip() for x in v if str(x).strip()]
+
+
+def _dedup(ids: list[str]) -> list[str]:
+    """Order-preserving de-duplication (first occurrence wins — deterministic)."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for i in ids:
+        if i not in seen:
+            seen.add(i)
+            out.append(i)
+    return out
 
 
 class Forge:
@@ -82,43 +103,73 @@ class Forge:
             return state
 
         try:
-            proposed = await self._open(spark.raw, verified)
+            raw = await self._open(spark.raw, verified)
         except LLMOutputError as exc:
             state.log.append(f"forge: unparseable LLM output -> abstain: {exc}")
             return state
 
-        seen: set[str] = set()
+        # Non-dict array elements are filtered with a count log (audit trail),
+        # never silently.
+        proposed = [v for v in raw if isinstance(v, dict)]
+        skipped = len(raw) - len(proposed)
+        if skipped:
+            state.log.append(
+                f"forge: skipped {skipped} non-dict array element(s) in LLM output"
+            )
+        if len(proposed) > _MAX_POSSIBILITIES:
+            state.log.append(
+                f"forge: capping {len(proposed)} proposed possibilities "
+                f"to {_MAX_POSSIBILITIES}"
+            )
+            proposed = proposed[:_MAX_POSSIBILITIES]
+
+        emitted: dict[str, Possibility] = {}
         for item in proposed:
             statement = str(item.get("statement") or "").strip()
             mechanism = str(item.get("mechanism") or "").strip()
             # Validate every cited id against the VERIFIED set. The model cannot invent
             # grounding: ids that are absent or not VERIFIED are dropped here.
-            grounding = [cid for cid in _as_str_list(item.get("grounding")) if cid in verified]
+            # De-duplicate grounding BEFORE id derivation so `c1|c1` == `c1`.
+            grounding = _dedup(
+                [cid for cid in _as_str_list(item.get("grounding")) if cid in verified]
+            )
             if not statement or not mechanism or not grounding:
                 state.log.append(
                     f"forge: drop possibility {statement!r} (no verified grounding)"
                 )
                 continue
             pid = possibility_id(spark.id, statement, grounding)
-            if pid in seen:
-                state.log.append(f"forge: drop duplicate possibility {statement!r}")
-                continue
-            seen.add(pid)
-            state.divergence.possibilities.append(
-                Possibility(
-                    id=pid,
-                    statement=statement,
-                    mechanism=mechanism,
-                    grounding=grounding,
-                    produced_by=self.name,
-                    model=self._llm.model,
+            if pid in emitted:
+                # Same direction proposed twice: merge the secondary field into the
+                # survivor instead of losing it (mechanism is not part of the id).
+                survivor = emitted[pid]
+                parts = survivor.mechanism.split("; ")
+                added = 0
+                if mechanism not in parts:
+                    survivor.mechanism = survivor.mechanism + "; " + mechanism
+                    added = 1
+                state.log.append(
+                    f"forge: merge duplicate possibility {statement!r} -> {survivor.id} "
+                    f"(+{added} mechanism)"
                 )
+                continue
+            possibility = Possibility(
+                id=pid,
+                statement=statement,
+                mechanism=mechanism,
+                grounding=grounding,
+                produced_by=self.name,
+                model=self._llm.model,
             )
+            emitted[pid] = possibility
+            state.divergence.possibilities.append(possibility)
         if not state.divergence.possibilities:
             state.log.append("forge: no possibility survived grounding validation (abstain)")
         return state
 
-    async def _open(self, spark_raw: str, verified: dict) -> list[dict]:
+    async def _open(self, spark_raw: str, verified: dict) -> list[object]:
+        """Return the raw parsed array; ``run`` filters non-dict elements WITH a
+        count log (audit trail) — filtering here would be silent."""
         # Sort by claim id so the prompt is byte-identical for the same verified set,
         # independent of state.claims insertion order (reproducibility — CLAUDE.md §5).
         claim_lines = "\n".join(f"{cid}: {c.text}" for cid, c in sorted(verified.items()))
@@ -127,4 +178,4 @@ class Forge:
         value = extract_json(resp.text, agent="forge")
         if not isinstance(value, list):
             raise LLMOutputError("forge", "expected a JSON array of possibilities")
-        return [v for v in value if isinstance(v, dict)]
+        return value

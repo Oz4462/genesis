@@ -16,7 +16,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from gen.agents.synthesizer import Synthesizer  # noqa: E402
+from gen.agents.synthesizer import (  # noqa: E402
+    _MAX_APPROACHES,
+    Synthesizer,
+    approach_id,
+)
 from gen.core.state import (  # noqa: E402
     Claim,
     ClaimStatus,
@@ -148,10 +152,10 @@ def test_non_string_name_is_coerced_not_crashed():
     assert st.approaches[0].grounding == ["c1"]  # grounding still validated
 
 
-def test_duplicate_approach_is_dropped_and_logged():
-    # Two proposals with identical name+grounding collapse to one approach; the drop
-    # is now logged so the audit trail can explain the missing duplicate (parity with
-    # forge.py). Before the log line the drop was silent.
+def test_duplicate_approach_is_merged_and_logged():
+    # Two proposals with identical name+grounding collapse to one approach; the
+    # merge is logged so the audit trail can explain the missing duplicate (parity
+    # with forge.py). An exact duplicate contributes nothing (+0 tradeoff ids).
     c1 = _vclaim("c1", "Token bucket rate-limits APIs.")
     payload = json.dumps(
         [
@@ -161,4 +165,69 @@ def test_duplicate_approach_is_dropped_and_logged():
     )
     st = run(Synthesizer(_llm(lambda s, u: payload)).run(_state([c1])))
     assert len(st.approaches) == 1
-    assert any("drop duplicate approach" in line for line in st.log)
+    assert any("merge duplicate approach" in line for line in st.log)
+
+
+def test_duplicate_approach_merges_tradeoffs_into_survivor():
+    # D13(a): the id hashes only (name, sorted grounding) — two proposals that differ
+    # ONLY in tradeoffs are the same approach. The duplicate's tradeoffs must be
+    # merged into the survivor (not lost), and the id must stay exactly the id of the
+    # (name, grounding) key: no id change for existing checkpoints (Prinzip 5).
+    c1 = _vclaim("c1", "Token bucket rate-limits APIs.")
+    c2 = _vclaim("c2", "Allows bursts up to bucket size.")
+    c3 = _vclaim("c3", "Needs a refill timer per key.")
+    payload = json.dumps(
+        [
+            {"name": "Token bucket", "grounding": ["c1"], "tradeoffs": ["c2"]},
+            {"name": "Token bucket", "grounding": ["c1"], "tradeoffs": ["c3", "c2"]},
+        ]
+    )
+    st = run(Synthesizer(_llm(lambda s, u: payload)).run(_state([c1, c2, c3])))
+    assert len(st.approaches) == 1
+    ap = st.approaches[0]
+    assert ap.tradeoffs == ["c2", "c3"]     # union, first-seen order, no c2 twice
+    assert ap.id == approach_id("r1", "Token bucket", ["c1"])   # id unchanged
+    assert any("merge duplicate approach" in line for line in st.log)
+
+
+def test_grounding_ids_are_deduplicated_before_id_and_emit():
+    # D13(c): `c1|c1` must equal `c1` — duplicated grounding ids would otherwise
+    # weaken duplicate detection (different id for the same grounding set) and leak
+    # duplicated ids into the emitted approach.
+    c1 = _vclaim("c1", "Token bucket rate-limits APIs.")
+    c2 = _vclaim("c2", "Allows bursts.")
+    payload = json.dumps(
+        [{"name": "Token bucket", "grounding": ["c1", "c1"], "tradeoffs": ["c2", "c2"]}]
+    )
+    st = run(Synthesizer(_llm(lambda s, u: payload)).run(_state([c1, c2])))
+    assert len(st.approaches) == 1
+    ap = st.approaches[0]
+    assert ap.grounding == ["c1"] and ap.tradeoffs == ["c2"]
+    assert ap.id == approach_id("r1", "Token bucket", ["c1"])   # same id as plain c1
+
+
+def test_approach_count_is_capped_and_logged():
+    # D13(b): parsed approaches are capped at _MAX_APPROACHES (same bound as the
+    # conductor's _MAX_SUB_QUESTIONS); the overflow is logged, never silent.
+    c1 = _vclaim("c1", "Verified claim.")
+    payload = json.dumps(
+        [
+            {"name": f"Ansatz {i}", "grounding": ["c1"], "tradeoffs": []}
+            for i in range(_MAX_APPROACHES + 2)
+        ]
+    )
+    st = run(Synthesizer(_llm(lambda s, u: payload)).run(_state([c1])))
+    assert len(st.approaches) == _MAX_APPROACHES
+    assert any("capping" in line for line in st.log)
+
+
+def test_non_dict_array_elements_are_filtered_with_count_log():
+    # D13(d): non-dict elements in the LLM array are filtered, but WITH a count log
+    # for the audit trail — before, they vanished silently in _cluster.
+    c1 = _vclaim("c1", "Verified claim.")
+    payload = json.dumps(
+        ["junk", {"name": "Token bucket", "grounding": ["c1"], "tradeoffs": []}, 42]
+    )
+    st = run(Synthesizer(_llm(lambda s, u: payload)).run(_state([c1])))
+    assert len(st.approaches) == 1
+    assert any("skipped 2 non-dict" in line for line in st.log)

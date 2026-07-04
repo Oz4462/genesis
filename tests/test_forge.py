@@ -8,8 +8,9 @@ GATE φ; no spark / no verified claims yields honest abstention.
 from __future__ import annotations
 
 import asyncio
+import json
 
-from gen.agents.forge import Forge
+from gen.agents.forge import _MAX_POSSIBILITIES, Forge, possibility_id
 from gen.core.state import (
     Claim,
     ClaimStatus,
@@ -100,6 +101,69 @@ def test_unparseable_llm_abstains():
     state = _run(forge, _state([_verified()], Spark(id="s1", raw="x")))
     assert state.divergence is not None
     assert state.divergence.possibilities == []
+
+
+def test_duplicate_possibility_merges_mechanism_into_survivor():
+    # D13(a): the id hashes only (statement, sorted grounding) — two proposals that
+    # differ ONLY in mechanism are the same direction. The duplicate's mechanism is
+    # merged into the survivor ("; "-joined, deduped), and the id stays exactly the
+    # id of the (statement, grounding) key: no id change for existing checkpoints
+    # (Prinzip 5). Symmetric to synthesizer's tradeoff merge.
+    payload = json.dumps(
+        [
+            {"statement": "Richtung A", "mechanism": "latente Wärme", "grounding": ["c1"]},
+            {"statement": "Richtung A", "mechanism": "Phasenwechsel", "grounding": ["c1"]},
+            {"statement": "Richtung A", "mechanism": "latente Wärme", "grounding": ["c1"]},
+        ]
+    )
+    forge = Forge(ScriptedLLM("qwen3.5:9b", lambda s, u: payload))
+    state = _run(forge, _state([_verified()], Spark(id="s1", raw="x")))
+    assert len(state.divergence.possibilities) == 1
+    p = state.divergence.possibilities[0]
+    assert p.mechanism == "latente Wärme; Phasenwechsel"   # merged, no third copy
+    assert p.id == possibility_id("s1", "Richtung A", ["c1"])   # id unchanged
+    assert any("merge duplicate possibility" in m for m in state.log)
+
+
+def test_grounding_ids_are_deduplicated_before_id_and_emit():
+    # D13(c): `c1|c1` must equal `c1` — duplicated grounding ids would otherwise
+    # weaken duplicate detection and leak duplicated ids into the possibility.
+    forge = Forge(ScriptedLLM(
+        "qwen3.5:9b",
+        lambda s, u: '[{"statement":"Richtung","mechanism":"m","grounding":["c1","c1"]}]',
+    ))
+    state = _run(forge, _state([_verified()], Spark(id="s1", raw="x")))
+    assert len(state.divergence.possibilities) == 1
+    p = state.divergence.possibilities[0]
+    assert p.grounding == ["c1"]
+    assert p.id == possibility_id("s1", "Richtung", ["c1"])   # same id as plain c1
+
+
+def test_possibility_count_is_capped_and_logged():
+    # D13(b): parsed possibilities are capped at _MAX_POSSIBILITIES (same bound as
+    # the conductor's _MAX_SUB_QUESTIONS); the overflow is logged, never silent.
+    payload = json.dumps(
+        [
+            {"statement": f"Richtung {i}", "mechanism": "m", "grounding": ["c1"]}
+            for i in range(_MAX_POSSIBILITIES + 2)
+        ]
+    )
+    forge = Forge(ScriptedLLM("qwen3.5:9b", lambda s, u: payload))
+    state = _run(forge, _state([_verified()], Spark(id="s1", raw="x")))
+    assert len(state.divergence.possibilities) == _MAX_POSSIBILITIES
+    assert any("capping" in m for m in state.log)
+
+
+def test_non_dict_array_elements_are_filtered_with_count_log():
+    # D13(d): non-dict elements in the LLM array are filtered, but WITH a count log
+    # for the audit trail — before, they vanished silently in _open.
+    forge = Forge(ScriptedLLM(
+        "qwen3.5:9b",
+        lambda s, u: '["junk",{"statement":"Richtung","mechanism":"m","grounding":["c1"]},42]',
+    ))
+    state = _run(forge, _state([_verified()], Spark(id="s1", raw="x")))
+    assert len(state.divergence.possibilities) == 1
+    assert any("skipped 2 non-dict" in m for m in state.log)
 
 
 def test_non_string_statement_or_mechanism_is_coerced_not_crashed():

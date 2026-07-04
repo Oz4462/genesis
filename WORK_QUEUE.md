@@ -134,6 +134,16 @@ Status-Ledger (pro Modul nachführen): [reviewed | fixed <commit> | clean].
   schwächt Dedup). (d) non-dict-Array-Elemente in `_cluster`/`_open` still gefiltert (Count-Log fehlt für Audit).
   Architect-spezifisch deferred: `_SYSTEM`-Schema listet sourcing/domain/site/material_density/tool/torque_quantity_id
   nicht, die Parser aber akzeptieren (owner: Live-Prompt-Änderung → Live-Remeasure) + per-Feld-Array-Caps (DoS, token-bounded).
+  **→ ERLEDIGT 2026-07-04 (a-d), symmetrisch in synthesizer+forge:** (a) **Merge-Variante** — Sekundärfeld des Duplikats
+  in den Survivor gemergt (synthesizer: tradeoffs-Union in first-seen-Order; forge: mechanism per `"; "` dedupliziert
+  angehängt), geloggt; id-Key bewusst UNVERÄNDERT, damit bestehende ids/Checkpoints reproduzierbar bleiben (Prinzip 5;
+  kein Test/Checkpoint assertet auf Hash-ids, aber Key-Erweiterung hätte alle künftigen Replays alter Läufe divergieren
+  lassen). (b) `_MAX_APPROACHES`/`_MAX_POSSIBILITIES` = 10 (== `conductor._MAX_SUB_QUESTIONS`), Überschuss geloggt
+  gekappt. (c) grounding (+ synthesizer-tradeoffs) vor id/emit `_dedup` (order-preserving, first occurrence,
+  deterministisch). (d) non-dict-Filter aus `_cluster`/`_open` nach `run()` gezogen mit Count-Log
+  (`skipped N non-dict array element(s)`). 8 neue Tests + 1 auf Merge angepasst (test_synthesizer.py/test_forge.py),
+  Suite 1736/0/61, ruff clean.
+  **Architect-Teil (`_SYSTEM`-Schema + per-Feld-Array-Caps) bleibt OFFEN (owner-gated).**
 - FEATURE DONE: Abo-OAuth LLM-Adapter — ClaudeCLI + GrokCLI (shellen `claude -p`/`grok -p`, keylos, Max-Abos),
   make_llm-Factory (family-routed) im cli.py-Live-Wiring, config-Default claude-opus-4-8 / grok-composer-2.5-fast.
   LIVE PONG-verifiziert (beide), 11 Offline-Tests, ruff clean, Suite 1132 grün, kein Import-Zyklus.

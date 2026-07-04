@@ -34,9 +34,19 @@ _SYSTEM = (
     'Return JSON: [{"name":"...","grounding":["id",...],"tradeoffs":["id",...]}].'
 )
 
+# Cap on parsed approaches per round — same bound as the conductor's
+# _MAX_SUB_QUESTIONS (LLM output is token-bounded, but the cap makes the limit
+# explicit and the overflow auditable instead of implicit).
+_MAX_APPROACHES = 10
+
 
 def approach_id(run_id: str, name: str, grounding: list[str]) -> str:
-    """Deterministic id from (run, name, grounding) — stable across identical runs."""
+    """Deterministic id from (run, name, grounding) — stable across identical runs.
+
+    `tradeoffs` is deliberately NOT part of the key: two proposals that differ only
+    in tradeoffs are the SAME approach and are merged into one entry (see ``run``).
+    Keeping the key unchanged preserves ids across existing checkpoints (Prinzip 5).
+    """
     key = name + "|" + "|".join(sorted(grounding))
     digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:12]
     return f"{run_id}:ap:{digest}"
@@ -46,6 +56,17 @@ def _as_str_list(v: object) -> list[str]:
     if not isinstance(v, list):
         return []
     return [str(x).strip() for x in v if str(x).strip()]
+
+
+def _dedup(ids: list[str]) -> list[str]:
+    """Order-preserving de-duplication (first occurrence wins — deterministic)."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for i in ids:
+        if i not in seen:
+            seen.add(i)
+            out.append(i)
+    return out
 
 
 class Synthesizer:
@@ -75,51 +96,84 @@ class Synthesizer:
             return state
 
         try:
-            proposed = await self._cluster(state.question.raw, verified)
+            raw = await self._cluster(state.question.raw, verified)
         except LLMOutputError as exc:
             state.log.append(f"synthesizer: unparseable LLM output -> abstain: {exc}")
             return state
 
-        seen: set[str] = set()
+        # Non-dict array elements are filtered with a count log (audit trail),
+        # never silently.
+        proposed = [v for v in raw if isinstance(v, dict)]
+        skipped = len(raw) - len(proposed)
+        if skipped:
+            state.log.append(
+                f"synthesizer: skipped {skipped} non-dict array element(s) in LLM output"
+            )
+        if len(proposed) > _MAX_APPROACHES:
+            state.log.append(
+                f"synthesizer: capping {len(proposed)} proposed approaches "
+                f"to {_MAX_APPROACHES}"
+            )
+            proposed = proposed[:_MAX_APPROACHES]
+
+        emitted: dict[str, Approach] = {}
         for item in proposed:
             name = str(item.get("name") or "").strip()
             # Validate every referenced id against the VERIFIED set. The model cannot
             # invent grounding: ids that are absent or not VERIFIED are dropped here.
-            grounding = [cid for cid in _as_str_list(item.get("grounding")) if cid in verified]
-            tradeoffs = [
-                cid
-                for cid in _as_str_list(item.get("tradeoffs"))
-                if cid in verified and cid not in grounding
-            ]
+            # De-duplicate id lists BEFORE id derivation so `c1|c1` == `c1`.
+            grounding = _dedup(
+                [cid for cid in _as_str_list(item.get("grounding")) if cid in verified]
+            )
+            tradeoffs = _dedup(
+                [
+                    cid
+                    for cid in _as_str_list(item.get("tradeoffs"))
+                    if cid in verified and cid not in grounding
+                ]
+            )
             if not name or not grounding:
                 state.log.append(
                     f"synthesizer: drop approach {name!r} (no verified grounding)"
                 )
                 continue
             ap_id = approach_id(run_id, name, grounding)
-            if ap_id in seen:
-                state.log.append(f"synthesizer: drop duplicate approach {name!r}")
-                continue
-            seen.add(ap_id)
-            state.approaches.append(
-                Approach(
-                    id=ap_id,
-                    name=name,
-                    grounding=grounding,
-                    tradeoffs=tradeoffs,
-                    produced_by=self.name,
-                    model=self._llm.model,
+            if ap_id in emitted:
+                # Same approach proposed twice: merge the secondary field into the
+                # survivor instead of losing it (tradeoffs are not part of the id).
+                survivor = emitted[ap_id]
+                merged = [
+                    cid
+                    for cid in tradeoffs
+                    if cid not in survivor.tradeoffs and cid not in survivor.grounding
+                ]
+                survivor.tradeoffs.extend(merged)
+                state.log.append(
+                    f"synthesizer: merge duplicate approach {name!r} -> {survivor.id} "
+                    f"(+{len(merged)} tradeoff id(s))"
                 )
+                continue
+            approach = Approach(
+                id=ap_id,
+                name=name,
+                grounding=grounding,
+                tradeoffs=tradeoffs,
+                produced_by=self.name,
+                model=self._llm.model,
             )
+            emitted[ap_id] = approach
+            state.approaches.append(approach)
         if not state.approaches:
             state.log.append("synthesizer: no approach survived grounding validation (abstain)")
         return state
 
-    async def _cluster(self, problem: str, verified: dict) -> list[dict]:
+    async def _cluster(self, problem: str, verified: dict) -> list[object]:
+        """Return the raw parsed array; ``run`` filters non-dict elements WITH a
+        count log (audit trail) — filtering here would be silent."""
         claim_lines = "\n".join(f"{cid}: {c.text}" for cid, c in sorted(verified.items()))
         user = f"PROBLEM:\n{problem}\n\nVERIFIED CLAIMS:\n{claim_lines}"
         resp = await self._llm.complete(system=_SYSTEM, user=user)
         value = extract_json(resp.text, agent="synthesizer")
         if not isinstance(value, list):
             raise LLMOutputError("synthesizer", "expected a JSON array of approaches")
-        return [v for v in value if isinstance(v, dict)]
+        return value
