@@ -382,3 +382,34 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
   · +23 Test-Items (TDD, 19 davon erst rot: 1 mesh, 8 circuit, 13 brep-Stub-Items in
     tests/test_step7_brep_hardening.py nach test_step7_hardening.py-Muster + 1 kernel-gebundener
     in test_brep.py). Suite 1853/0/61, ruff clean.
+- Schritt 8: costing+completeness+software — DONE (Claude-Review-Findings gefixt, TDD, 3 Commits):
+  · C-1 HOCH GEFIXT: Filament-geschätzte (gedruckte) Teile zählten unmarkiert in complete=True —
+    Cost jetzt mit estimated_count/fabricated_estimated + fully_grounded (Beweis-Ebene: NUR belegte
+    Kaufpreise); complete = "jede Position erfasst: belegt ODER explizit Schätzung". Konsumenten
+    nachgezogen: format_cost labelt "geschätzt aus Filament (Schätzung, kein belegter Preis)",
+    bundle schreibt cost_fully_grounded/cost_estimated_parts/cost_notes (bom.json+MANIFEST) und
+    MISSING.md bekommt die Sektion "Geschätzte Preise"; pipeline/seams dokumentieren: COST_ROLLUP-
+    Seam beweist arithmetische Kopplung, nicht Preis-Erdung.
+  · C-2 MITTEL GEFIXT: bom_cost summierte jeden Preis-Origin trotz GROUNDED-Versprechen (C-16) —
+    nur ValueOrigin.GROUNDED zählt; andere Origins → unpriced + ehrliche Notiz (Cost.notes).
+    DECISION-Filamentpreis bleibt zulässig (Position ist ohnehin Schätzung).
+  · C-3 NIEDRIG GEFIXT: negative BomItem.count rechnete Positionen weg → geflaggt, nie verrechnet.
+  · K-1 HOCH GEFIXT: leerer-Spec-Blindfleck (rein negativer Kritiker ⇒ [] ⇒ "vollständig") —
+    3 Positiv-Untergrenzen als weiche deutsche Warnungen (keine Schritte / keine Stückliste /
+    erzeugt kein Artefakt); Demo-Welten geprüft: capstone weiter 0 Warnungen.
+  · K-2 MITTEL GEFIXT: per Measurand konsumierte Filamentpreis-Größe war falscher Orphan —
+    Measurand-Konsum in der Referenzmenge (Import aus costing, kein Zyklus).
+  · K-3 NIEDRIG: doppelter Drift-Wächter (Regex-Pin der quantity-id-Felder in core/state.py +
+    Funktionaltest über alle Referenzkanäle). K-4 NIEDRIG: except Exception → FormulaError.
+  · S-1 HOCH GEFIXT (Anti-Halluzination): erfundene "Elektriker/Techniker/DFM/Lern"-Provenienz aus
+    quelle/Docstring entfernt → "PLAN §4 Kanon-Vorlage, kein Prior konsumiert (Lücke: echte
+    Prior-Auswertung)"; ingenieur-Parameter bleibt (API), als reserviert deklariert, KEINE
+    Schein-Auswertung. S-2 MITTEL: "flug"-Substring → Wortgrenzen-Regex (Ausflug/Flughafen matchen
+    nicht mehr; Drohne bewusst nicht aufgenommen). S-3 MITTEL: Jetpack-Kanon deklariert
+    "Kanon-Annahmen (aus keinem Prior abgeleitet)". Beifang: trailing comma machte update_pfad
+    zum 1-Tupel statt UpdatePfad — gefixt + Typ-Pin.
+  · DEFENDED nicht angefasst: Währungstrennung/kein FX, NaN-Schutz via Quantity, Determinismus
+    (costing); Warnungs-statt-Gate-Semantik (completeness); Generic-Fallback-Gaps (software);
+    src/gen/export/ (paralleler Review) unberührt.
+  · +19 Tests (TDD: 5 costing + 1 bundle + 7 completeness + 4 software rot vor dem Fix, Rest
+    Pins/Wächter). Suite 1871/0/61, ruff clean. Commits 5fade13 / 2be78f9 / 5ad4e70.
