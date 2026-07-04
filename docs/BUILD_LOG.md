@@ -7749,3 +7749,48 @@ New tests hit previously uncovered: domains_present ISRU/LIFE branches, required
 
 **Next (if owner):** Could add ISRU seam examples in epsilon gate tests or use in _spec for print/competitive, but per request: done.
 
+
+---
+
+## 2026-07-04 — Humanoid Teilprojekt 2: Struktur-Härtung (Claude)
+
+Ein gehender Roboter erlebt ZYKLISCHE Lasten — vier existierende Validatoren
+(fatigue/Goodman, notch_fatigue, buckling, resonance) feuern jetzt über reines
+Measurand-Tagging auf BEIDE Humanoiden (kein neuer Validator, kein neuer
+Recipe-Eintrag): Oberschenkel wechselnd gebogen (R=-1, Mittelspannung 0 als
+DECISION), Hüftlager-Loch als Kirsch-Kerbe (Peterson a=6 mm DECISION,
+konservativ gegenüber der Literatur-Lesart „additiv ≈ kerbunempfindlich"),
+Unterschenkel als Euler-Druckstab (I=b·h³/12, A=b·h DERIVED; E-Modul GROUNDED:
+CF-Nylon 6000 MPa unteres Ende von 6000–8000, CF-Laminat 20000 MPa unteres Ende
+von 20–60 GPa), erste Biegemode des Oberschenkels als Kragbalken-Schranke
+(f1=(1.875²/2π)·√(E·I/(ρ·A·L⁴))) gegen die 2. Gang-Harmonische (2·q_step_f).
+Dauerfestigkeit EHRLICH: kein Datenblatt ⇒ deklarierte Ableitung 0.30·UTS
+(DECISION, konservativer als Metall-übliche 0.4–0.5). Margen real: printed
+Goodman 2.09 / Kerbe 1.04 / Knick 18.1 / Resonanz-Ratio 134; flagship 3.32 /
+1.66 / 22.4 / 356. Negativ-Tests beweisen Schärfe (dünner Oberschenkel, langer
+dünner Unterschenkel via neue Config-Shank-Felder, Schrittfrequenz auf der
+Eigenmode). Benchmark: Flagship-Dauerläufer-Anspruch = Goodman-SF ≥ 1.5 +
+infinite_life. Repro-verifiziert: KEINE neuen Domains (4) / Pflicht-Seam-Paare
+(2) / Gaps (0); Checks 11 → 15 je Humanoid.
+
+**4 Linsen:**
+- **L1 (Wahrheit):** Jede neue Zahl grounded (E-Modul-Claims c_e_modulus je
+  Material, Spec-Anker CF-Nylon 6000-8000) oder DECISION mit Rationale an der
+  Quantity (0.30·UTS, Peterson a, Mittelspannung 0, Fließgrenze=UTS für den
+  ohnehin nicht governenden Stauch-Ast). Formeln gegen unabhängige
+  SI-Handrechnung im Test (I/A/f1, rel_tol 1e-9).
+- **L2 (Drift):** Kein Validator-/Recipe-/Seam-Code angefasst; Diff auf
+  competitive_humanoid.py + Tests begrenzt (plus 5 ruff-Altlasten separat).
+  Baseline vor dem Umbau reproduziert (11 Checks/4 Domains/2 Paare/0 Gaps) und
+  als Test festgeschrieben.
+- **L3 (Vollständigkeit/Naht):** Alle 4 Spec-Checks in physics_checks BEIDER
+  Humanoiden, je Check ein Negativtest; select_physics_checks gap-frei; keine
+  neuen Pflicht-Seam-Paare (Repro-Test). Abgrenzung dokumentiert:
+  swing_resonance (Pendel-Kadenz) unberührt, das hier ist die Steifigkeits-Mode.
+- **L4 (Realisierbarkeit):** Nur geschlossene Formen, offline, deterministisch;
+  Kerb-Marge 1.04 (printed) ist eine EHRLICHE dünne Reserve, kein Poliergriff —
+  wird GROUNDED/neu bewertet, sobald Wöhler-/Kerbdaten vorliegen (Follow-up wie
+  in der Spec: Miner/Basquin bleibt YAGNI-Nicht-Ziel).
+
+Volle Suite: 1743 passed / 0 failed / 61 skipped; ruff clean.
+Spec: docs/superpowers/specs/2026-07-04-humanoid-structure-hardening-design.md

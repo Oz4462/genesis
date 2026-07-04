@@ -24,7 +24,6 @@ from gen.competitive_humanoid import (  # noqa: E402
     ALL_COMPETITIVE_HUMANOIDS,
     FLAGSHIP,
     PRINTED,
-    build_humanoid,
     flagship_humanoid_spec,
 )
 from gen.costing import bom_cost  # noqa: E402
@@ -95,10 +94,18 @@ def test_flagship_beats_the_2026_benchmark():
     a = assess_specification(spec)
     assert a.overall == "physics_verified"
     # 2026-Energie-Anker: Flagship muss >= 180 min Dauerbetrieb nachweisen
-    endurance = next(r for c, r in zip(a.physics_checks, run_physics_checks(a.physics_checks))
+    results = run_physics_checks(a.physics_checks)
+    endurance = next(r for c, r in zip(a.physics_checks, results)
                      if c.name == "robot battery endurance")
     assert endurance["result"]["endurance_min"] >= 180.0
     assert endurance["ok"]
+    # TP2-Struktur-Anker: Dauerläufer-Anspruch — der wechselnd gebogene Oberschenkel liegt mit
+    # Reserve UNTER der (konservativ 0.30*UTS angesetzten) Dauerfestigkeit: Goodman-Safety >= 1.5
+    # und infinite_life, sonst ist "Dauerbetrieb" nur ein Laufzeit-, kein Struktur-Versprechen.
+    fatigue = next(r for c, r in zip(a.physics_checks, results)
+                   if c.name == "fatigue (Goodman)")
+    assert fatigue["result"]["safety_factor"] >= 1.5
+    assert fatigue["result"]["infinite_life"] is True
 
 
 def test_bundle_renders_the_assembled_robot_not_only_the_parts_tray():
