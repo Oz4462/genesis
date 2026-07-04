@@ -66,3 +66,41 @@ def test_bad_xml_raises():
     be = ArxivBackend(_http(body="<not-xml"))
     with pytest.raises(SearchBackendError):
         asyncio.run(be.search("x", limit=5))
+
+
+# --- D10: XXE / billion-laughs hardening ---------------------------------------
+# A compromised or spoofed feed must not reach the XML parser with a DTD: entity
+# expansion (billion laughs) or external entities (XXE) are refused up front with
+# an honest SearchBackendError — no hang, no silent empty list.
+
+_BILLION_LAUGHS = """<?xml version="1.0"?>
+<!DOCTYPE lolz [
+  <!ENTITY lol "lol">
+  <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
+  <!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">
+]>
+<feed xmlns="http://www.w3.org/2005/Atom"><entry><id>&lol3;</id></entry></feed>"""
+
+_XXE = """<?xml version="1.0"?>
+<!DOCTYPE feed [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+<feed xmlns="http://www.w3.org/2005/Atom"><entry><id>&xxe;</id></entry></feed>"""
+
+
+@pytest.mark.parametrize("payload", [_BILLION_LAUGHS, _XXE], ids=["billion-laughs", "xxe"])
+def test_dtd_payload_is_refused_loudly(payload):
+    be = ArxivBackend(_http(body=payload))
+    with pytest.raises(SearchBackendError, match="DTD|ENTITY"):
+        asyncio.run(be.search("x", limit=5))
+
+
+def test_lowercase_doctype_is_also_refused():
+    be = ArxivBackend(_http(body='<?xml version="1.0"?><!doctype feed><feed/>'))
+    with pytest.raises(SearchBackendError):
+        asyncio.run(be.search("x", limit=5))
+
+
+def test_undeclared_entity_reference_is_loud_not_silent():
+    body = '<feed xmlns="http://www.w3.org/2005/Atom"><entry><id>&boom;</id></entry></feed>'
+    be = ArxivBackend(_http(body=body))
+    with pytest.raises(SearchBackendError):  # ET raises "undefined entity" -> wrapped
+        asyncio.run(be.search("x", limit=5))

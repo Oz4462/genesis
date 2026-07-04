@@ -16,7 +16,7 @@ from urllib.parse import urlsplit
 
 from ..core.errors import FetchFailedError
 from ..core.state import SourceRef, SourceSupport
-from .http import HttpGet, content_hash
+from .http import HttpGet, content_hash, ssrf_host_block_reason
 
 # The fetch target is attacker-influenced (it comes from a search-API response or
 # an injected SERP parser), and a real transport (urllib) will happily open
@@ -61,6 +61,12 @@ class FetchResult:
 
     `content`/`content_hash` are populated ONLY when ``ok is True``. When the
     fetch failed, both are None and `reason` explains why.
+
+    `url` is the URL the content ACTUALLY came from: if the transport followed
+    redirects, this is the final URL (WORK_QUEUE D9) — so ledger records and
+    SourceRefs cite the real provenance, not a stale request URL. When redirects
+    moved the fetch, `requested_url` preserves the originally asked-for URL for
+    the audit trail; it stays None when no redirect happened.
     """
 
     url: str
@@ -69,6 +75,7 @@ class FetchResult:
     content_hash: str | None
     reason: str | None = None
     status: int | None = None
+    requested_url: str | None = None
 
     def to_source_ref(
         self, *, support: SourceSupport = SourceSupport.SUPPORTS, span: str | None = None
@@ -131,6 +138,16 @@ class WebFetchTool:
                 reason=f"unsupported URL scheme: {scheme or '(none)'}",
                 status=None,
             )
+        # SSRF guard (D8), syntactic layer: a literal loopback/private/link-local/
+        # metadata host is refused here, before ANY transport — this holds for
+        # every injected http_get, not just the default one. DNS-based checks
+        # (all resolved addresses must be public + per-redirect-hop revalidation)
+        # live in the default transport (`http._resolved_ssrf_block_reason`).
+        block = ssrf_host_block_reason(url)
+        if block:
+            return await self._finish(
+                url, ok=False, content=None, reason=f"blocked non-public host: {block}", status=None
+            )
         try:
             resp = await self._http_get(url)
         except Exception as exc:  # noqa: BLE001 - any transport failure => not ok
@@ -140,14 +157,51 @@ class WebFetchTool:
             return await self._finish(
                 url, ok=False, content=None, reason=f"HTTP {resp.status}", status=resp.status
             )
+
+        # final_url provenance (D9): if the transport followed redirects, the
+        # content came from `final_url`, and that is what ledger + SourceRef must
+        # cite. The final URL is re-validated (defence in depth for injected
+        # transports that do not run the default per-hop redirect guard).
+        final_url = resp.final_url or url
+        requested_url: str | None = None
+        if final_url != url:
+            final_scheme = urlsplit(final_url).scheme.lower()
+            if final_scheme not in _ALLOWED_SCHEMES:
+                return await self._finish(
+                    url,
+                    ok=False,
+                    content=None,
+                    reason=(
+                        f"redirect ended at URL with unsupported scheme: "
+                        f"{final_scheme or '(none)'} ({final_url})"
+                    ),
+                    status=resp.status,
+                )
+            block = ssrf_host_block_reason(final_url)
+            if block:
+                return await self._finish(
+                    url,
+                    ok=False,
+                    content=None,
+                    reason=f"redirect ended at blocked non-public host: {block} ({final_url})",
+                    status=resp.status,
+                )
+            requested_url = url
+
         if not resp.body.strip():
             return await self._finish(
-                url, ok=False, content=None, reason="empty body", status=resp.status
+                final_url, ok=False, content=None, reason="empty body", status=resp.status
             )
 
         h = content_hash(resp.body)
         return await self._finish(
-            url, ok=True, content=resp.body, reason=None, status=resp.status, h=h
+            final_url,
+            ok=True,
+            content=resp.body,
+            reason=None,
+            status=resp.status,
+            h=h,
+            requested_url=requested_url,
         )
 
     async def _finish(
@@ -159,9 +213,16 @@ class WebFetchTool:
         reason: str | None,
         status: int | None,
         h: str | None = None,
+        requested_url: str | None = None,
     ) -> FetchResult:
         if self._ledger is not None and self._run_id is not None:
             await self._ledger.record_fetch(self._run_id, url, ok, h)
         return FetchResult(
-            url=url, ok=ok, content=content, content_hash=h, reason=reason, status=status
+            url=url,
+            ok=ok,
+            content=content,
+            content_hash=h,
+            reason=reason,
+            status=status,
+            requested_url=requested_url,
         )

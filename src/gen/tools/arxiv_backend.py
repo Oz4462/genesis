@@ -49,6 +49,21 @@ class ArxivBackend:
             raise SearchBackendError(self.name, str(exc)) from exc
         if not (200 <= resp.status < 300):
             raise SearchBackendError(self.name, f"HTTP {resp.status}")
+        # XXE / billion-laughs hardening (WORK_QUEUE D10): a legitimate arXiv Atom
+        # feed never carries a DTD, so ANY DOCTYPE/ENTITY declaration marks a
+        # compromised or spoofed response. Refusing it up front (defusedxml
+        # pattern, without the dependency) means expat never sees an entity
+        # definition — no exponential expansion, no external-entity fetch, no
+        # hang. The body size is already capped by the transport (``max_bytes``
+        # in ``default_http_get``), and an undeclared entity reference still
+        # fails loudly below as an ET.ParseError ("undefined entity").
+        lowered = resp.body.lower()
+        if "<!doctype" in lowered or "<!entity" in lowered:
+            raise SearchBackendError(
+                self.name,
+                "refused XML containing a DTD/ENTITY declaration "
+                "(XXE/billion-laughs guard; arXiv Atom never uses a DTD)",
+            )
         try:
             root = ET.fromstring(resp.body)
         except ET.ParseError as exc:

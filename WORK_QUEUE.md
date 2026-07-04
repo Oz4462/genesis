@@ -179,11 +179,29 @@ Deferred Findings-Backlog (owner-/Architektur-Ebene, aus core/state.py-Review, C
 - D8: tools/ SSRF-Tiefe (Grok #1-IP/#2, deferred — Scheme-Allowlist bereits gefixt): IP-Pinning gegen loopback/RFC1918/
   link-local (169.254.169.254) + per-Redirect-Hop-Revalidierung via custom urllib-Opener. Bewusst NICHT halb gebaut
   (DNS-Auflösung/IPv6/DNS-Rebinding brauchen Design + evtl. config-Allow/Deny; halbe SSRF-Defense = falsche Sicherheit).
+  **→ ERLEDIGT 2026-07-04:** zwei Schichten in `tools/http.py`+`tools/fetch.py`: (1) syntaktischer Guard
+  `ssrf_host_block_reason` (kein DNS; Literal-IPs loopback/RFC1918/link-local inkl. 169.254.169.254/0.0.0.0/::1/
+  ULA fc00::/7/multicast/reserved + `localhost`, IPv4-mapped IPv6 entpackt) im WebFetchTool VOR jedem Transport →
+  ehrliches `ok=False` mit Grund, ledger-sichtbar; (2) im Default-Transport `_resolved_ssrf_block_reason`
+  (getaddrinfo: ALLE aufgelösten Adressen müssen public sein, eine private blockt) + `_redirect_handler`
+  (custom `HTTPRedirectHandler`: JEDER Hop Scheme-Allowlist + resolved-Check). Operator-Opt-in
+  `allow_private_hosts=True` nur am Transport (Research-Pfad setzt es nie); Ollama-LLM/Embedder-Pfad
+  (eigene Transporte, operator-config base_url) bewusst UNVERÄNDERT. Restrisiko: TOCTOU-DNS-Rebinding
+  (Check-Resolve ≠ Connect-Resolve) bleibt — echter Fix wäre Connect-per-IP-Pinning, notiert.
 - D9: tools/fetch.py final_url-Provenienz (Grok #7): bei Redirect kommt der content von resp.final_url, aber FetchResult.url
   + Ledger führen die Original-Kandidaten-URL → Audit/Repro-Drift. Fix berührt FetchResult-Shape + Ledger + SourceRef.
+  **→ ERLEDIGT 2026-07-04:** `FetchResult.url` = echte finale URL (`resp.final_url`); Ledger-`record_fetch` und
+  `to_source_ref` zitieren damit die reale Provenienz; neues Feld `requested_url` bewahrt bei Redirect die
+  ursprünglich angefragte URL für den Audit-Trail (None ohne Redirect → kein Shape-Rauschen). Finale URL wird
+  zusätzlich revalidiert (Scheme + SSRF-Guard, Defense-in-depth für injizierte Transporte ohne Hop-Guard).
 - D10: tools/arxiv_backend.py XXE/billion-laughs (Grok #9, low): ET.fromstring nicht gehärtet. Risiko niedrig (trusted Host
   export.arxiv.org + https); defusedxml widerspricht minimal-deps-Philosophie. Revisit, falls untrusted-XML-Quelle dazukommt.
   Auch low: limit-clamp (≤25) an Backend-Eingang; Content-Type text/* erzwingen statt lossy errors="replace"-Hash auf Binär.
+  **→ ERLEDIGT 2026-07-04 (XXE-Teil):** DTD-Vorab-Check ohne neue Dependency (defusedxml-Muster): jedes
+  `<!DOCTYPE`/`<!ENTITY` im Body → lauter `SearchBackendError` BEVOR expat parst (kein Expansion-Hang, kein
+  External-Entity-Fetch; legitimes arXiv-Atom trägt nie eine DTD); Größen-Cap existiert via Transport
+  `max_bytes=5MB`; undeklarierte Entity-Referenz bleibt lauter ParseError. Tests: billion-laughs + XXE +
+  lowercase-doctype. Die zwei „auch low"-Punkte (limit-clamp ≤25, Content-Type text/*) bleiben OFFEN.
 
 ## Next
 - **TEIL 2 läuft: CAD-Fertigungs-Stubs real bauen** (Drift-Rec #5, `docs/DOC_CODE_DRIFT.md` §6/§8):

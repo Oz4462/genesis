@@ -253,20 +253,202 @@ class _FakeUrlopen:
         return False
 
 
-def test_default_http_get_refuses_oversize_body(monkeypatch):
-    import urllib.request
-    # 11 bytes available, cap at 10 -> read(11) sees > cap -> raise (never truncate).
+def _fake_dns(monkeypatch, *addrs: str) -> None:
+    """Make DNS resolution deterministic and offline for transport tests."""
+    import socket
+
+    infos = [
+        (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", (a, 80)) for a in addrs
+    ]
+
+    def _getaddrinfo(host, port, *args, **kwargs):
+        return infos
+
+    monkeypatch.setattr(socket, "getaddrinfo", _getaddrinfo)
+
+
+def _fake_transport(monkeypatch, payload: bytes) -> None:
+    import gen.tools.http as http_mod
+
     monkeypatch.setattr(
-        urllib.request, "urlopen", lambda req, timeout=None: _FakeUrlopen(b"x" * 11)
+        http_mod,
+        "_guarded_urlopen",
+        lambda req, *, timeout, allow_private_hosts=False: _FakeUrlopen(payload),
     )
+
+
+def test_default_http_get_refuses_oversize_body(monkeypatch):
+    # 11 bytes available, cap at 10 -> read(11) sees > cap -> raise (never truncate).
+    _fake_dns(monkeypatch, "93.184.216.34")
+    _fake_transport(monkeypatch, b"x" * 11)
     with pytest.raises(ValueError):
         run(default_http_get("https://huge.example", max_bytes=10))
 
 
 def test_default_http_get_accepts_body_at_or_under_cap(monkeypatch):
-    import urllib.request
-    monkeypatch.setattr(
-        urllib.request, "urlopen", lambda req, timeout=None: _FakeUrlopen(b"hello")
-    )
+    _fake_dns(monkeypatch, "93.184.216.34")
+    _fake_transport(monkeypatch, b"hello")
     res = run(default_http_get("https://ok.example", max_bytes=1000))
     assert res.status == 200 and res.body == "hello"
+
+
+# --- D8: SSRF depth — the production transport refuses non-public targets ------
+# The fetch target is attacker-influenced (search results / SERP parsers); a
+# compromised source must not be able to steer GENESIS into loopback, RFC1918,
+# link-local (cloud metadata 169.254.169.254) or ULA ranges.
+
+
+def test_default_http_get_blocks_url_resolving_to_private(monkeypatch):
+    _fake_dns(monkeypatch, "10.0.0.5")
+    _fake_transport(monkeypatch, b"must never be reached")
+    with pytest.raises(ValueError, match="non-public"):
+        run(default_http_get("https://internal.example/"))
+
+
+def test_default_http_get_blocks_if_any_resolved_address_is_private(monkeypatch):
+    # DNS rebinding-ish setups return a public decoy plus the real private target:
+    # ALL addresses must be public, one bad address blocks the fetch.
+    _fake_dns(monkeypatch, "93.184.216.34", "192.168.1.7")
+    _fake_transport(monkeypatch, b"must never be reached")
+    with pytest.raises(ValueError, match="non-public"):
+        run(default_http_get("https://rebind.example/"))
+
+
+@pytest.mark.parametrize(
+    "bad_url",
+    [
+        "http://127.0.0.1/steal",
+        "http://10.1.2.3/",
+        "http://172.16.0.9/",
+        "http://192.168.0.1/router",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://0.0.0.0/",
+        "http://[::1]/",
+        "http://[fc00::1]/",
+        "http://localhost/admin",
+    ],
+)
+def test_default_http_get_blocks_ip_literals_without_dns(monkeypatch, bad_url):
+    import socket
+
+    def _no_dns(*args, **kwargs):  # literal guard must fire BEFORE any DNS lookup
+        raise AssertionError("getaddrinfo must not be called for a blocked literal")
+
+    monkeypatch.setattr(socket, "getaddrinfo", _no_dns)
+    _fake_transport(monkeypatch, b"must never be reached")
+    with pytest.raises(ValueError):
+        run(default_http_get(bad_url))
+
+
+def test_default_http_get_allow_private_hosts_is_an_explicit_operator_opt_in(monkeypatch):
+    # The override exists for operator-configured local services only; the
+    # research path never sets it.
+    _fake_transport(monkeypatch, b"local ok")
+    res = run(default_http_get("http://127.0.0.1:8080/health", allow_private_hosts=True))
+    assert res.status == 200 and res.body == "local ok"
+
+
+def test_redirect_handler_blocks_private_and_non_http_targets(monkeypatch):
+    import urllib.request
+
+    import gen.tools.http as http_mod
+
+    handler = http_mod._redirect_handler(allow_private_hosts=False)
+    req = urllib.request.Request("https://start.example/")
+    with pytest.raises(ValueError, match="redirect"):
+        handler.redirect_request(req, None, 302, "Found", {}, "http://169.254.169.254/creds")
+    with pytest.raises(ValueError, match="redirect"):
+        handler.redirect_request(req, None, 302, "Found", {}, "file:///etc/passwd")
+    # a public redirect target passes through to the stdlib handler
+    _fake_dns(monkeypatch, "93.184.216.34")
+    new_req = handler.redirect_request(req, None, 302, "Found", {}, "https://public.example/")
+    assert new_req is not None and new_req.full_url == "https://public.example/"
+
+
+# --- D8: WebFetchTool refuses non-public literal hosts before ANY transport ----
+
+
+@pytest.mark.parametrize(
+    "bad_url",
+    [
+        "http://127.0.0.1/steal",
+        "http://192.168.1.1/router",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://0.0.0.0/",
+        "http://[::1]/",
+        "http://[fc00::1]/",
+        "http://localhost/admin",
+    ],
+)
+def test_fetch_blocks_non_public_host_literals(bad_url):
+    get, calls = http_spy()
+    res = run(WebFetchTool(get)(url=bad_url))
+    assert res.ok is False
+    assert res.content is None
+    assert "non-public" in res.reason or "loopback" in res.reason
+    assert calls == []  # blocked before the transport was touched
+    assert res.to_source_ref().retrieved is False  # honest, ledger-visible failure
+
+
+def test_fetch_block_is_recorded_in_ledger():
+    ledger = InMemoryLedgerStore()
+    get, _ = http_spy()
+    tool = WebFetchTool(get, ledger=ledger, run_id="r1")
+    run(tool(url="http://169.254.169.254/latest/meta-data/"))
+    rec = run(ledger.get_fetch("r1", "http://169.254.169.254/latest/meta-data/"))
+    assert rec is not None and rec.ok is False and rec.content_hash is None
+
+
+def test_fetch_allows_public_ip_literal():
+    res = run(WebFetchTool(http_returning(200, "body"))(url="http://93.184.216.34/"))
+    assert res.ok is True and res.content == "body"
+
+
+# --- D9: final_url provenance — the result carries the REAL retrieved URL ------
+
+
+def http_redirecting_to(final_url: str, body: str = "redirected body"):
+    async def _get(url: str) -> HttpResponse:
+        return HttpResponse(status=200, body=body, final_url=final_url)
+
+    return _get
+
+
+def test_fetch_result_carries_final_url_after_redirect():
+    ledger = InMemoryLedgerStore()
+    tool = WebFetchTool(
+        http_redirecting_to("https://final.example/doc"), ledger=ledger, run_id="r1"
+    )
+    res = run(tool(url="https://start.example/moved"))
+    assert res.ok is True
+    assert res.url == "https://final.example/doc"  # provenance = where content came from
+    assert res.requested_url == "https://start.example/moved"  # audit trail keeps the ask
+    assert res.to_source_ref().url_or_id == "https://final.example/doc"
+    # the ledger records the fetch under the real final URL
+    rec = run(ledger.get_fetch("r1", "https://final.example/doc"))
+    assert rec is not None and rec.ok is True and rec.content_hash == res.content_hash
+
+
+def test_fetch_without_redirect_has_no_requested_url_noise():
+    res = run(WebFetchTool(http_returning(200, "body"))(url="https://ok.example"))
+    assert res.ok is True
+    assert res.url == "https://ok.example"
+    assert res.requested_url is None
+
+
+def test_fetch_redirect_to_private_final_url_is_blocked():
+    # the injected transport followed a redirect into a private range: the tool
+    # must still refuse the content (defence in depth for non-default transports).
+    tool = WebFetchTool(http_redirecting_to("http://169.254.169.254/creds"))
+    res = run(tool(url="https://start.example/moved"))
+    assert res.ok is False
+    assert res.content is None
+    assert "169.254.169.254" in res.reason
+
+
+def test_fetch_redirect_to_non_http_final_url_is_blocked():
+    tool = WebFetchTool(http_redirecting_to("file:///etc/passwd"))
+    res = run(tool(url="https://start.example/moved"))
+    assert res.ok is False
+    assert res.content is None
+    assert "scheme" in res.reason
