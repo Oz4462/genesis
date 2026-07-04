@@ -27,6 +27,7 @@ Deterministic, offline. No trading/ASYA/MT5. German prose; English ids/units/mea
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from dataclasses import replace as _dc_replace
 
@@ -101,6 +102,10 @@ class HumanoidConfig:
     required_endurance_min: float      # geforderte Dauerbetriebszeit
     locomotion_duty: float             # RMS-Duty der Antriebe über den Gangzyklus
     n_drive_motors: float              # gleichzeitig arbeitende Antriebsmotoren
+    # --- Struktur-Härtung (Teilprojekt 2): zyklische Lasten des Gangs ---
+    e_modulus_mpa: float               # GROUNDED je Material (Knick-/Eigenmoden-Steifigkeit)
+    peterson_constant_mm: float        # DECISION: Kerbempfindlichkeits-Konstante a (Peterson)
+    endurance_limit_basis: float       # DECISION: Dauerfestigkeit = Basis * UTS (0.30, additiv)
     # --- Werkstoff-Servicegrenze (Teilprojekt 3b, MECH-THERM-Seam) ---
     # No default: every humanoid class must declare its own printed/structural material's
     # service temperature (must precede the defaulted fields below for dataclass field order).
@@ -111,6 +116,12 @@ class HumanoidConfig:
     motor_housing_length_m: float = 0.0           # Pfadlänge, m
     motor_max_winding_temp_k: float = 0.0         # Isolationsklasse (F = 428 K)
     ambient_temp_k: float = 0.0                   # Auslegungs-Umgebung
+    # Unterschenkel-Maße (Druckstab des TP2-Knick-Checks). Defaults = die bisher geteilten
+    # Geometrie-Decisions beider Klassen; als Config-Felder überschreibbar, damit der
+    # Negativtest (langer dünner Unterschenkel) den Euler-Check per Config-Override schärft.
+    shank_len_mm: float = 180.0                   # Knie–Fuß (Knicklänge, pinned-pinned)
+    shank_width_mm: float = 35.0                  # Breite b des Rechteckquerschnitts
+    shank_thick_mm: float = 12.0                  # Dicke h (schwache Biegeachse)
     #: grounded unit prices [EUR] for the buy-list (and EUR/g for filament) so the bundle costs out
     #: completely — printed parts via filament, purchased parts via these.
     prices: dict = field(default_factory=dict)
@@ -168,6 +179,18 @@ def build_humanoid(cfg: HumanoidConfig) -> Specification:
     b, h, arm = cfg.thigh_width_mm, cfg.thigh_thick_mm, 70.0
     sigma_nom = 6.0 * force_n * arm / (b * h * h)
     limb_inertia = rod_inertia_about_end(2.0, 0.18)  # leg swing pendulum about the hip (canonical)
+    # --- Struktur-Härtung (Teilprojekt 2): zyklische Lasten des Gangs ---
+    density = 0.00124                                # g/mm^3 (== q_density, single local source)
+    thigh_len = 180.0                                # mm (== q_thigh_x)
+    endurance_mpa = cfg.endurance_limit_basis * cfg.material_strength_mpa
+    shank_i = cfg.shank_width_mm * cfg.shank_thick_mm ** 3 / 12.0       # mm^4, I = b*h^3/12
+    shank_area = cfg.shank_width_mm * cfg.shank_thick_mm                # mm^2, A = b*h
+    thigh_i = b * h ** 3 / 12.0                                         # mm^4
+    thigh_area = b * h                                                  # mm^2
+    # Erste Biegemode des Oberschenkels als Kragbalken: f1 = (1.875^2/2pi)*sqrt(E*I/(rho*A*L^4)).
+    # In MPa/mm^4/(g/mm^3)/mm^2/mm gerechnet ist sqrt(E*I/(rho*A*L^4)) in 10^3/s => *1000 fuer Hz.
+    f1_hz = (1.875 ** 2 / (2.0 * math.pi)) * math.sqrt(
+        cfg.e_modulus_mpa * thigh_i / (density * thigh_area * thigh_len ** 4)) * 1000.0
 
     quantities = [
         # --- structural load path on the thigh (the σ-checked bending member) ---
@@ -176,16 +199,18 @@ def build_humanoid(cfg: HumanoidConfig) -> Specification:
         _der("q_design", "Auslegungslast", cfg.leg_load_kg * sf, "kg", "q_load * q_sf",
              ("q_load", "q_sf")),
         _g("q_g", "Normfallbeschleunigung", g, "m/s^2", ["c_gravity"]),
-        _der("q_force", "Auslegungskraft am Hüft-Pivot", force_n, "N",
-             weight_formula("q_design", "q_g"), ("q_design", "q_g")),
-        _g("q_strength", f"{cfg.material_name}-Zugfestigkeit in der Druckebene",
-           cfg.material_strength_mpa, "MPa", ["c_material"]),
-        _d("q_density", "Materialdichte", 0.00124, "g/mm^3", "Druckmaterial ~1.24 g/cm³"),
-        _g("q_kt", "Spannungskonzentrationsfaktor (kreisrundes Loch, Kirsch)",
-           STRESS_CONCENTRATION_CIRCULAR_HOLE, "1", ["c_kirsch"]),
+        # column.axial_load: dieselbe Auslegungskraft läuft im Einbein-Stand als Druck
+        # durch den Unterschenkel — sie feuert den Euler-Knick-Check (TP2).
+        _derm("q_force", "Auslegungskraft am Hüft-Pivot", force_n, "N",
+              weight_formula("q_design", "q_g"), ("q_design", "q_g"), "column.axial_load"),
+        _gm("q_strength", f"{cfg.material_name}-Zugfestigkeit in der Druckebene",
+            cfg.material_strength_mpa, "MPa", ["c_material"], "material.uts"),
+        _d("q_density", "Materialdichte", density, "g/mm^3", "Druckmaterial ~1.24 g/cm³"),
+        _gm("q_kt", "Spannungskonzentrationsfaktor (kreisrundes Loch, Kirsch)",
+            STRESS_CONCENTRATION_CIRCULAR_HOLE, "1", ["c_kirsch"], "notch.kt"),
         _d("q_zero", "Null-Versatz", 0.0, "mm", "y/z-Versatz der Bohrungen (mittig)"),
         # shared bore radii
-        _d("q_r_hip", "Hüft-Lochradius", 6.0, "mm", "Lagersitz Hüfte"),
+        _dm("q_r_hip", "Hüft-Lochradius", 6.0, "mm", "Lagersitz Hüfte", "notch.radius"),
         _d("q_r_knee", "Knie-Lochradius", 5.0, "mm", "Lagersitz Knie"),
         _d("q_r_ankle", "Knöchel-Lochradius", 4.0, "mm", "Knöchel"),
         _d("q_r_shoulder", "Schulter-Lochradius", 5.0, "mm", "Schulter"),
@@ -214,15 +239,17 @@ def build_humanoid(cfg: HumanoidConfig) -> Specification:
         _d("q_head_off", "Kopf-Bohrung +", 30.0, "mm", "+x"),
         _d("q_head_neg", "Kopf-Bohrung -", -30.0, "mm", "-x"),
         # thigh (σ-checked, cfg-sized)
-        _d("q_thigh_x", "Oberschenkel / size_x", 180.0, "mm", "Hüfte–Knie"),
+        _d("q_thigh_x", "Oberschenkel / size_x", thigh_len, "mm", "Hüfte–Knie"),
         _d("q_thigh_y", "Oberschenkel / size_y", b, "mm", "Breite b"),
         _d("q_thigh_z", "Oberschenkel / size_z", h, "mm", "Höhe h (lastabhängig)"),
         _d("q_thigh_arm", "Biege-Hebelarm Oberschenkel", arm, "mm", "Pivot-Abstand"),
         _d("q_thigh_off", "Oberschenkel-Bohrung +", 70.0, "mm", "+x Knie"),
         _d("q_thigh_neg", "Oberschenkel-Bohrung -", -70.0, "mm", "-x Hüfte"),
-        _der("q_sigma_nom", "nominale Biegespannung Oberschenkel", sigma_nom, "MPa",
-             cantilever_bending_stress_formula("q_force", "q_thigh_arm", "q_thigh_y", "q_thigh_z"),
-             ("q_force", "q_thigh_arm", "q_thigh_y", "q_thigh_z")),
+        # fatigue.stress_amplitude: der Gang biegt den Oberschenkel wechselnd (R = -1),
+        # die volle Auslegungsamplitude (inkl. Sicherheitsfaktor) ist die Wechselamplitude.
+        _derm("q_sigma_nom", "nominale Biegespannung Oberschenkel", sigma_nom, "MPa",
+              cantilever_bending_stress_formula("q_force", "q_thigh_arm", "q_thigh_y", "q_thigh_z"),
+              ("q_force", "q_thigh_arm", "q_thigh_y", "q_thigh_z"), "fatigue.stress_amplitude"),
         _der("q_sigma_peak", "Spitzenspannung am Hüft-Loch",
              STRESS_CONCENTRATION_CIRCULAR_HOLE * sigma_nom, "MPa",
              peak_stress_formula("q_sigma_nom", "q_kt"), ("q_kt", "q_sigma_nom")),
@@ -243,10 +270,11 @@ def build_humanoid(cfg: HumanoidConfig) -> Specification:
              (cfg.available_torque_nm / 0.035) / 8.0, "N",
              per_fastener_shear_formula("q_mount_reaction", "q_n_bolts"),
              ("q_mount_reaction", "q_n_bolts")),
-        # shank
-        _d("q_shank_x", "Unterschenkel / size_x", 180.0, "mm", "Knie–Fuß"),
-        _d("q_shank_y", "Unterschenkel / size_y", 35.0, "mm", "Breite"),
-        _d("q_shank_z", "Unterschenkel / size_z", 12.0, "mm", "Dicke"),
+        # shank (TP2: der Druckstab des Euler-Knick-Checks; Maße aus cfg, Defaults geteilt)
+        _dm("q_shank_x", "Unterschenkel / size_x", cfg.shank_len_mm, "mm", "Knie–Fuß",
+            "column.length"),
+        _d("q_shank_y", "Unterschenkel / size_y", cfg.shank_width_mm, "mm", "Breite"),
+        _d("q_shank_z", "Unterschenkel / size_z", cfg.shank_thick_mm, "mm", "Dicke"),
         _d("q_shank_off", "Unterschenkel-Bohrung +", 70.0, "mm", "+x"),
         _d("q_shank_neg", "Unterschenkel-Bohrung -", -70.0, "mm", "-x"),
         # upper arm
@@ -388,6 +416,65 @@ def build_humanoid(cfg: HumanoidConfig) -> Specification:
              "W", "q_n_drive * q_p_motor_loss", ("q_n_drive", "q_p_motor_loss")),
         _gm("q_mat_service_temp", "Servicegrenze Druckmaterial", cfg.material_service_temp_k,
             "K", ["c_material_service"], "material.service_temp"),
+        # --- Struktur-Härtung (Teilprojekt 2): der Gang ist eine ZYKLISCHE Last. Vier
+        # existierende Validatoren feuern über Measurand-Tagging (kein neuer Validator,
+        # kein neuer Recipe-Eintrag): Goodman-Ermüdung des wechselnd gebogenen
+        # Oberschenkels, Kerb-Ermüdung am Hüftlager-Loch (Kirsch-Kerbe), Euler-Knickung
+        # des Unterschenkels als Druckstab, Struktur-Resonanz der ersten Biegemode
+        # gegen die 2. Gang-Harmonische. ---
+        _dm("q_mean_stress", "Mittelspannung im Gangzyklus", 0.0, "MPa",
+            "Gang = wechselnde Biegung des Oberschenkels (Standbein-/Schwungphase), "
+            "R ≈ -1 ⇒ Mittelspannung ≈ 0 — konservativ, weil die volle "
+            "Auslegungsamplitude (inkl. Sicherheitsfaktor 2) als Wechselamplitude "
+            "angesetzt ist", "fatigue.mean_stress"),
+        _d("q_endurance_basis", "Dauerfestigkeits-Basis (Anteil der UTS)",
+           cfg.endurance_limit_basis, "1",
+           "DECISION, ehrlich: kein Wöhler-Datenblatt für den Druckwerkstoff vorhanden "
+           "— deklarierte Ableitung Dauerfestigkeit = 0.30·UTS für additiv gefertigte "
+           "Polymere/Laminate (Schichthaftung, Poren), konservativer als die "
+           "Metall-üblichen 0.4–0.5; wird GROUNDED, sobald ein Datenblatt vorliegt"),
+        _derm("q_endurance_limit", f"{cfg.material_name}-Dauerfestigkeit (deklarierte Ableitung)",
+              endurance_mpa, "MPa", "q_strength * q_endurance_basis",
+              ("q_strength", "q_endurance_basis"), "material.endurance_limit"),
+        _derm("q_sigma_alt", "nominale Wechselspannungsamplitude am Hüftloch (Kerb-Eingang)",
+              sigma_nom, "MPa", "q_sigma_nom", ("q_sigma_nom",),
+              "notch.nominal_alternating_stress"),
+        _dm("q_peterson", "Peterson-Konstante a des Druckwerkstoffs", cfg.peterson_constant_mm,
+            "mm",
+            "DECISION, ehrlich: kein Kerbversuchs-Datenblatt — additiv gefertigte "
+            "Polymere/Laminate sind in der Fatigue-Literatur nahezu kerbunempfindlich "
+            "(kritische Distanzen im mm-Bereich; intrinsische Defekte wie Poren und "
+            "Schichtgrenzen dominieren, analog Gusseisen mit q → 0). a = 6 mm ⇒ q = 0.5 "
+            "am 6-mm-Hüftloch: bewusst die HALBE volle Kerbwirkung statt der "
+            "Literatur-Lesart q ≈ 0; wird GROUNDED, sobald ein Kerbversuch vorliegt",
+            "material.peterson_constant"),
+        _gm("q_e_modulus", f"{cfg.material_name}-E-Modul", cfg.e_modulus_mpa, "MPa",
+            ["c_e_modulus"], "material.elastic_modulus"),
+        _dm("q_yield", "Fließ-/Quetschgrenze für den Stauch-Ast des Knick-Checks",
+            cfg.material_strength_mpa, "MPa",
+            "Polymer/Laminat ohne ausgeprägte Streckgrenze: konservativ gleich der "
+            "Zugfestigkeit in der Druckebene gesetzt; der Euler-Ast governt ohnehin "
+            "(P_euler << sigma_y·A)", "material.yield_strength"),
+        _derm("q_I_shank", "Flächenträgheitsmoment Unterschenkel (schwache Achse)",
+              shank_i, "mm^4", "q_shank_y * q_shank_z * q_shank_z * q_shank_z / 12",
+              ("q_shank_y", "q_shank_z"), "column.second_moment_area"),
+        _derm("q_A_shank", "Querschnittsfläche Unterschenkel", shank_area, "mm^2",
+              "q_shank_y * q_shank_z", ("q_shank_y", "q_shank_z"),
+              "column.cross_section_area"),
+        _der("q_I_thigh", "Flächenträgheitsmoment Oberschenkel (Biegeachse des Gangs)",
+             thigh_i, "mm^4", "q_thigh_y * q_thigh_z * q_thigh_z * q_thigh_z / 12",
+             ("q_thigh_y", "q_thigh_z")),
+        _der("q_A_thigh", "Querschnittsfläche Oberschenkel", thigh_area, "mm^2",
+             "q_thigh_y * q_thigh_z", ("q_thigh_y", "q_thigh_z")),
+        _derm("q_f1", "erste Biegeeigenfrequenz Oberschenkel (Kragbalken, konservative "
+              "Schranke statt FEM-Moden)", f1_hz, "Hz",
+              "1.875*1.875/(2*pi) * sqrt(q_e_modulus * q_I_thigh / (q_density * q_A_thigh "
+              "* q_thigh_x*q_thigh_x*q_thigh_x*q_thigh_x)) * 1000  [MPa·mm·g ⇒ Hz]",
+              ("q_e_modulus", "q_I_thigh", "q_density", "q_A_thigh", "q_thigh_x"),
+              "vibration.first_natural_frequency"),
+        _derm("q_excitation", "Struktur-Anregungsfrequenz (2. Gang-Harmonische, konservativ)",
+              2.0 * cfg.step_frequency_hz, "Hz", "2 * q_step_f", ("q_step_f",),
+              "vibration.excitation_frequency"),
     ]
 
     components = [
@@ -682,6 +769,10 @@ PRINTED = HumanoidConfig(
     # ~256 min at 2100 Wh (0.8 usable), margin ~2.1x over the 120 min requirement.
     battery_capacity_wh=2100.0, required_endurance_min=120.0, locomotion_duty=0.20,
     n_drive_motors=8.0,
+    # TP2 Struktur-Härtung: E-Modul GROUNDED (CF-Nylon ~6000-8000 MPa in der Druckebene,
+    # konservativ das untere Ende); Peterson-a und 0.30·UTS sind DECISIONs (Rationale an
+    # den Quantities q_peterson / q_endurance_basis in build_humanoid).
+    e_modulus_mpa=6000.0, peterson_constant_mm=6.0, endurance_limit_basis=0.30,
     # Fix D (review): 330 K/57 °C was a PLA-class softening figure reused unchanged even
     # though this config's material is CF-Nylon (see material_name above), not PLA/PETG.
     # Real HDT for chopped-carbon-fiber-reinforced PA (CF-Nylon) is ~145-155 °C (418-428 K)
@@ -699,6 +790,8 @@ PRINTED = HumanoidConfig(
         _claim("c_motor", "Ein QDD-BLDC mit 3.0 N*m Stall und 80:1-Harmonic-Drive liefert am Gelenk ~180 "
                "N*m Spitzenmoment — mehr als typische gedruckte Hobby-Servos (<100 N*m)."),
         _claim("c_battery", "Ein 2.1-kWh-Li-Ion-Pack speist Antrieb und Recheneinheit."),
+        _claim("c_e_modulus", "FDM-gedrucktes CF-Nylon hat in der Druckebene einen Zug-E-Modul "
+               "von etwa 6000-8000 MPa."),
     ],
 )
 
@@ -736,6 +829,11 @@ FLAGSHIP = HumanoidConfig(
     # boundary, not a fudged number (see task-1-report.md Fix-3 for the full calculation).
     battery_capacity_wh=2600.0, required_endurance_min=180.0, locomotion_duty=0.10,
     n_drive_motors=8.0,
+    # TP2 Struktur-Härtung: E-Modul GROUNDED am unteren Ende der Klasse kontinuierlich
+    # faserverstärkter Laminate (~20-60 GPa je Lagenaufbau); Peterson-a und 0.30·UTS sind
+    # DECISIONs (0.30 ist für CFK-Laminate DEUTLICH konservativ — deren Dauerfestigkeit
+    # liegt real eher bei 0.6-0.9·UTS; Rationale an den Quantities in build_humanoid).
+    e_modulus_mpa=20000.0, peterson_constant_mm=6.0, endurance_limit_basis=0.30,
     # Fix D (review): this config's material is CF-Primärstruktur — a continuous-carbon-
     # fiber laminate with a high-temperature epoxy matrix, not CF-Nylon. Real HDT for such
     # laminates is ~160-200 °C (433-473 K); 420 K (147 °C) keeps a conservative margin below
@@ -754,6 +852,9 @@ FLAGSHIP = HumanoidConfig(
         _claim("c_motor", "Ein High-End-QDD mit 6.0 N*m Stall und 90:1-Harmonic-Drive (η=0.92) liefert am "
                "Gelenk ~420 N*m Spitzenmoment — über Unitree H2 (360 N*m)."),
         _claim("c_battery", "Ein 2.6-kWh-Pack bei ~285 Wh/kg trägt den Antrieb bei 45 kg Dauerlast."),
+        _claim("c_e_modulus", "Kontinuierlich kohlefaserverstärkte Laminate (CFR-Druck/Prepreg, "
+               "quasi-isotroper Lagenaufbau) erreichen Zug-E-Moduln von etwa 20000-60000 MPa; "
+               "für die Auslegung ist konservativ das untere Ende angesetzt."),
     ],
 )
 
