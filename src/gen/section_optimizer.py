@@ -8,9 +8,11 @@ the optimiser suggests geometry, the deterministic gate disposes; a proposal it 
 never a certified part until the gate re-checks it.
 
 Scope is honest: this sizes a rectangular cantilever section (GENESIS's demo printed part) by
-deterministic search over the depth ``h`` — the dominant lever (``σ = 6·F·L/(b·h²) ∝ 1/h²``). Full
-density-based topology optimisation (SIMP) over an FEA mesh is the richer next step and needs an
-FEA-in-the-gate path; it is deliberately NOT claimed here. Deterministic, offline.
+deterministic search over the depth ``h`` — the dominant lever (``σ = 6·F·L/(b·h²) ∝ 1/h²``). The
+richer step — density-based topology optimisation (SIMP) over the fem3d mesh — now exists in
+``topology_optimizer.py``, under the same proposer/gate split: it returns an UNVERIFIED density
+field (``verdict="vorschlag_unverifiziert"``) whose δ path (threshold re-solve + printability
+gates) is named, never a certified part. Deterministic, offline.
 """
 
 from __future__ import annotations
