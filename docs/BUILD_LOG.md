@@ -8018,3 +8018,61 @@ GP-Funde neben dem Graph). L4 (Realisierbarkeit): offline, numpy-only im neuen M
 GENESIS_PLATFORM_PLAN: Grenzverschiebungs-Modul im Discovery-Arm, kein Framework-Lock-in.
 Grok-Drift-Check: NACHZUHOLEN (CLI-Outage, Präzedenz 6.6–6.8; Claims-Summary in STATUS.md
 fixiert).
+
+## 2026-07-05 — Audit Prio-2 #8: SIMP-Topologie-Optimierung auf dem fem3d-Mesh (`topology_optimizer.py`)
+
+Der in `section_optimizer.py` (Z.12) deklarierte „richer next step" ist gebaut — als
+PROPOSER hinter dem Gate, nie als Zertifizierer. **Gap-Analyse zuerst (CLAUDE.md-Lektion):**
+grep über src/tests/docs fand keinerlei existierendes SIMP/Topologie-Modul; die fem3d-
+Privat-Helfer (`_elasticity_matrix`, `_tet_b_and_volume`, `_check_material_and_bcs`,
+`_check_solution_finite`) werden bereits von `modal.py`/`fem3d_quadratic.py` importiert —
+diesem Präzedenzfall folgend bleibt `fem3d.py` UNANGETASTET (Schritt-7d-isfinite-Härtung
+geerbt, nicht umgangen).
+
+**Gebaut (`src/gen/topology_optimizer.py`, 14 neue Tests):** klassisches SIMP nach
+Bendsøe/Sigmund auf `structured_box_mesh` — eine Dichte-Variable je Hex-Zelle (6 Tets),
+modified-SIMP-Interpolation `E(ρ)=E_min+ρ^p·(E0−E_min)` mit benannten Konstanten
+(`SIMP_PENALTY=3.0` Bendsøe/Sigmund 2003; `E_MIN_RATIO=1e-9`, `OC_MOVE_LIMIT=0.2`,
+`OC_DAMPING=0.5`, Filter-Radius 1.5 Zellen = kleinster Radius, der Flächen-Nachbarn
+koppelt und die Checkerboard-Mode bricht — alle top88-Referenzwerte, Andreassen 2011),
+Compliance-Ziel, Volumen-Constraint via OC-Bisektion (hard-check `VOLUME_CONSTRAINT_TOL`
+nach JEDEM Update, Audit-Trail `volume_history`), Sigmund-Sensitivitäts-Filter.
+Deterministisch (keine Zufälle, bitweise-Gleichheit getestet), fail-loud (NaN-Last →
+ValueError aus dem geerbten fem3d-Guard; nicht-finite Compliance/Sensitivitäten/Dichten →
+GeometryError; inhomogene Dirichlet-Werte → ValueError, weil sie das Compliance-Ziel
+stillschweigend umdeuten würden).
+
+**Ehrlichkeit:** Rückgabe `TopologyProposal` mit `verdict="vorschlag_unverifiziert"`
+(bzw. `"nicht_optimiert"` bei Budget 0 — Faktor dann exakt 1.0) und benanntem
+`delta_path` (threshold-re-solve → printability/mesh_integrity). ZWEI unabhängige,
+GEMESSENE Beweise am Kragarm-Klassiker (24×8×1, vf=0.4, Last unten am freien Ende):
+(1) im SIMP-Modell Start→final Faktor **2.89** (Test-Floor 2.0); (2) `threshold_resolve` —
+binäres Design gleichen Volumens (Quantil-Schwellwert, stabiles Ranking) frisch gelöst,
+schlägt die Uniform-Baseline selbst unter deren günstigster **Voigt-Bewertung ρ·E0**:
+Faktor **1.11** (Floor 1.05). Die Voigt-Baseline ist bewusst konservativ — eine
+penalisierte Baseline (ρ³·E0) hätte den Faktor ~6× geschmeichelt. Lastpfad-Muster
+quantitativ: Außenfaser-Dichte 0.95 vs. Mittelebene 0.19 nahe der Einspannung
+(Flansch/Steg). Filter-Negativtest: Checkerboard-Index 0.150 mit vs. 0.316 ohne Filter.
+Beim Bau ehrlich beobachtet und dokumentiert: bei vf<0.4 ist das Grobmesh-Feld zu grau —
+Schwellwertung trennt Streben (Binär-Faktor 0.24 bei vf=0.3); der Akzeptanzfall nutzt
+deshalb vf=0.4, die Grenze steht im Bericht statt im Teppich.
+
+**Nähte:** `section_optimizer.py`-Docstring nachgeführt (Claim „deliberately NOT claimed
+here" → Verweis auf das neue Modul, Overclaim-frei); `docs/CAPABILITIES.md` §5 ergänzt.
+**Naht-Lücke (deklariert):** keine CLI-/RECIPES-Verdrahtung — kein bestehender Modus passt
+natürlich (`--mode section` ist ein anderes Interface; ein measurand-getriggertes Rezept
+bräuchte erst die Geometrie-Extraktion aus dem Dichtefeld); ehrlich offen gelassen statt
+erzwungen. Suite: **2099 passed / 0 failed / 43 skipped** (251 s; Basis vor diesem
+Schritt 2085, +14 neue); `ruff check src tests` clean; neue Tests 5.4 s.
+
+**4 Linsen:** L1 (Wahrheit): jede Zahl aus eigenem Messlauf (Scratchpad-Prototyp +
+Testlog); Faktoren sind Messwerte mit Floors darunter, kein „optimiert=besser" ohne die
+zwei Beweise; SIMP-Grau-Feld verliert ehrlich gegen Voigt (0.79) — genau deshalb
+vergleicht `improvement_factor` Gleiches mit Gleichem und der Binär-Beweis läuft separat.
+L2 (Drift): `fem3d.py`/`fem.py`/`section_optimizer.py`-Verhalten unverändert (nur
+Docstring); volle Suite grün. L3 (Vollständigkeit/Naht): Nähte zu fem3d (Mesh+Guards),
+section_optimizer (Proposer/Gate-Muster), Docs/BUILD_LOG nachgeführt; CLI-Lücke + Grau-
+Grenze + „kein printability-Ersatz" explizit deklariert. L4 (Realisierbarkeit): numpy-only,
+offline, deterministisch, Testbudget 5.4 s; Abgleich GENESIS_PLATFORM_PLAN: CAD/CAE-als-
+Kern-Baustein (Generative-Design-Achse) im Proposer/Gate-Schnitt, kein Framework-Lock-in.
+Grok-Drift-Check: NACHZUHOLEN (CLI-Outage-Präzedenz 6.6–6.8; Claims hier fixiert).
