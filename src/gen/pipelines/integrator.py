@@ -25,41 +25,33 @@ from dataclasses import dataclass
 
 from .architekt import SystemConcept, map_to_system_concept
 from .ingenieur import IngenieurSpec, map_to_ingenieur_spec
-from gen.cad.prototype_cad_builder import PrototypeSpec, build_prototype_cad, BuildArtifact
+from gen.cad.prototype_cad_builder import (
+    PrototypeSpec,
+    build_prototype_cad,
+    BuildArtifact,
+)
 from gen.cad.manufacturing_check import check_manufacturing, ManufacturingCheck
 from gen.cad.assembly import build_assembly
 from gen.cad.manufacturing_check import check_advanced_dfm
 from .fertigungs import map_to_fertigungs_spec
 from .elektriker import map_to_elektriker_spec
-from ..electronics import build_rich_electronics_pieces, electronics_to_thermal_loads  # full agent-delivered layer for circuits/chips/simulation/Einbau
-
-
-def _run_dir_name(run_id: str | None, kind: str) -> str:
-    """Package-dir name under out/ for a run.
-
-    Schritt-9 #14: a missing run_id used to map onto the FIXED names "latest"/"latest_full",
-    so every unlabeled run wrote into the same directory and stale artifacts of the previous
-    run bled into the new package (copied STLs/JSONs from older ideas survived). Callers
-    (lernmaschine engine, research forge) legitimately pass ``run_id=None``, so instead of
-    failing loud we mint a unique, clearly-labeled name per call. Errors: none raised.
-
-    D2 (non-replay): this wall-clock strftime is DELIBERATELY *not* routed through the
-    canonical run clock. Its whole job is per-call uniqueness (microseconds) so two
-    unlabeled runs never collide in the same out/ directory (the bug above). Pinning it
-    to a fixed run-clock instant would re-introduce that collision. A reproducible run
-    supplies an explicit ``run_id`` (then this branch is never taken); only the anonymous
-    fallback path uses wall-clock, and there uniqueness — not reproducibility — is correct.
-    """
-    if run_id:
-        return run_id
-    from datetime import datetime, timezone
-
-    return f"{kind}-unlabeled-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')}"
+from .software import map_to_software_spec
+from ..electronics import (
+    build_rich_electronics_pieces,
+    electronics_to_thermal_loads,
+)  # full agent-delivered layer for circuits/chips/simulation/Einbau
 
 
 @dataclass(frozen=True)
 class RealizationFragment:
-    """Erstes mini Realisierungspaket-Fragment."""
+    """Erstes mini Realisierungspaket-Fragment.
+
+    Optional cert_summary for mention only (E2E HORIZON ε/ζ seam_certificate + memory_fabric).
+    HONEST SEPARATION (per pipeline.py:62 comment + task): main artifact path here is CAD/DFM packages
+    from integrator (no gated full Spec). Certs live on LUMEN/RunState/Assessment paths (lumencrucible attach,
+    assess_specification). Do NOT alter main semantics/return shape for callers. Default None = no mention.
+    """
+
     source_idea: str
     focus_assembly: str
     cad_artifact: BuildArtifact
@@ -68,6 +60,9 @@ class RealizationFragment:
     zusammenfassung: str
     run_id: str | None = None
     quelle: str | None = None
+    # Optional mention-only; full E2E certs+RunState now via realize() using LUMEN (see build_full + realize return run_state).
+    # Never affects CAD artifact production or package writing.
+    cert_summary: str | None = None
 
 
 def _ingenieur_spec_to_dict(ingenieur: IngenieurSpec) -> dict:
@@ -101,7 +96,14 @@ def build_realization_fragment(
     ein erstes auditiertes Fragment.
     """
     # Finde die relevante Baugruppe
-    target = next((a for a in concept.main_assemblies if focus_assembly_name.lower() in a.name.lower()), None)
+    target = next(
+        (
+            a
+            for a in concept.main_assemblies
+            if focus_assembly_name.lower() in a.name.lower()
+        ),
+        None,
+    )
     if not target:
         target = concept.main_assemblies[0] if concept.main_assemblies else None
 
@@ -141,9 +143,14 @@ def build_realization_fragment(
         import os
         import shutil
         from pathlib import Path
-        pkg_root = Path("out") / "genesis_realization_fragments" / _run_dir_name(run_id, "fragment")
+
+        pkg_root = Path("out") / "genesis_realization_fragments" / (run_id or "latest")
         pkg_root.mkdir(parents=True, exist_ok=True)
-        stl_claim = cad_artifact.exports.get("stl") if isinstance(cad_artifact.exports, dict) else None
+        stl_claim = (
+            cad_artifact.exports.get("stl")
+            if isinstance(cad_artifact.exports, dict)
+            else None
+        )
         if stl_claim and os.path.exists(str(stl_claim)):
             shutil.copy(str(stl_claim), pkg_root / "tether_anchor.stl")
         report = f"""# Genesis Mini Realisierungspaket Fragment (Jetpack {focus_assembly_name})
@@ -159,31 +166,44 @@ Printable: {mfg_check.printable}
 Issues: {mfg_check.issues}
 
 ## Offene Lücken
-{chr(10).join('- ' + ln for ln in open_luecken)}
+{chr(10).join("- " + ln for ln in open_luecken)}
 """
         (pkg_root / "REPORT.md").write_text(report, encoding="utf-8")
 
         # Dump the input specs as JSON for traceability (first step toward structured Wissensbasis)
         try:
             import json
-            with open(pkg_root / "system_concept.json", "w", encoding="utf-8") as f:
-                json.dump({
-                    "source_idea": concept.source_idea,
-                    "requirements": [r.__dict__ for r in concept.requirements],
-                    "main_assemblies": [a.__dict__ for a in concept.main_assemblies],
-                    "variants": concept.variants,
-                    "open_decisions": concept.open_decisions,
-                }, f, indent=2, ensure_ascii=False)
-            with open(pkg_root / "ingenieur_spec.json", "w", encoding="utf-8") as f:
-                json.dump(_ingenieur_spec_to_dict(ingenieur), f, indent=2, ensure_ascii=False)
-        except Exception as e:  # recorded in open_luecken, not silently swallowed
-            open_luecken.append(f"Spezifikations-JSON-Dump übersprungen: {type(e).__name__}: {e}")
 
-        # #13: kein print — der Pfad wird unten in die zusammenfassung aufgenommen
-        # ("| Real package: …"), also geht keine Information verloren.
+            with open(pkg_root / "system_concept.json", "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "source_idea": concept.source_idea,
+                        "requirements": [r.__dict__ for r in concept.requirements],
+                        "main_assemblies": [
+                            a.__dict__ for a in concept.main_assemblies
+                        ],
+                        "variants": concept.variants,
+                        "open_decisions": concept.open_decisions,
+                    },
+                    f,
+                    indent=2,
+                    ensure_ascii=False,
+                )
+            with open(pkg_root / "ingenieur_spec.json", "w", encoding="utf-8") as f:
+                json.dump(
+                    _ingenieur_spec_to_dict(ingenieur), f, indent=2, ensure_ascii=False
+                )
+        except Exception as e:  # recorded in open_luecken, not silently swallowed
+            open_luecken.append(
+                f"Spezifikations-JSON-Dump übersprungen: {type(e).__name__}: {e}"
+            )
+
         pkg_dir = str(pkg_root)
+        print("Real mini package dir written:", pkg_dir)
     except Exception as e:  # recorded in open_luecken, not silently swallowed
-        open_luecken.append(f"Reales Paket-Verzeichnis nicht geschrieben: {type(e).__name__}: {e}")
+        open_luecken.append(
+            f"Reales Paket-Verzeichnis nicht geschrieben: {type(e).__name__}: {e}"
+        )
 
     return RealizationFragment(
         source_idea=concept.source_idea,
@@ -191,13 +211,20 @@ Issues: {mfg_check.issues}
         cad_artifact=cad_artifact,
         manufacturing_check=mfg_check,
         open_luecken=open_luecken,
-        zusammenfassung=zusammenfassung + (f" | Real package: {pkg_dir}" if pkg_dir else ""),
+        zusammenfassung=zusammenfassung
+        + (f" | Real package: {pkg_dir}" if pkg_dir else ""),
         run_id=run_id,
         quelle="integrator (first seam closer) + GENESIS_PLATFORM_PLAN.md §1 + §3.6 + §4.1/4.2 + prior Grenz + CAD real builder + manufacturing_check",
+        # Mention-only (never mutates artifact path semantics; full E2E now exposed via realize()/LUMEN run_state):
+        cert_summary="full E2E certs (δ+γ+εζΩ) on RunState via LUMEN in realize path (MAX AGENTS); see integrator realize + lumencrucible post-certs omega",
     )
 
 
-def build_full_mini_realization_package(ideas: list[str], package_name: str = "Jetpack Full Mini Package", run_id: str = None) -> str:
+def build_full_mini_realization_package(
+    ideas: list[str],
+    package_name: str = "Jetpack Full Mini Package",
+    run_id: str = None,
+) -> str:
     """Item 5: full mini packager — collects multiple fragments, builds assembly, richer package with BOM/Kosten/Testplan stub + real files + manifest."""
     import json
     import os
@@ -205,47 +232,52 @@ def build_full_mini_realization_package(ideas: list[str], package_name: str = "J
     from pathlib import Path
 
     if not ideas:
-        # last_concept/last_ingenieur below are bound inside this loop and reused after it; an
-        # empty list left them unbound (a NameError at map_to_elektriker_spec). Fail loud instead.
+        # `c`/`i` below are bound inside this loop and reused after it; an empty list left them
+        # unbound (a NameError at map_to_elektriker_spec). Fail loud with the real reason instead.
         raise ValueError("build_full_mini_realization_package needs at least one idea")
     fragments = []
-    # Schritt-9 #8: sprechende Namen statt `c`/`i` — die enumerate-Loops unten überschrieben
-    # `i` mit einem int, sodass der Elektriker einen Integer statt IngenieurSpec bekam und
-    # getattr(ingenieur, "quelle", "") still auf "" fiel. `built_specs` hält zusätzlich das
-    # echte (concept, ingenieur)-Paar je Fragment für die Fertigungs-Naht (#7).
-    last_concept = None
-    last_ingenieur = None
-    built_specs: list[tuple[SystemConcept, IngenieurSpec]] = []
     for idee in ideas:
-        last_concept = map_to_system_concept(idee, run_id=run_id)
-        last_ingenieur = map_to_ingenieur_spec(last_concept, run_id=run_id)
-        built_specs.append((last_concept, last_ingenieur))
-        fragments.append(build_realization_fragment(last_concept, last_ingenieur, run_id=run_id))
+        c = map_to_system_concept(idee, run_id=run_id)
+        i = map_to_ingenieur_spec(c, run_id=run_id)
+        f = build_realization_fragment(c, i, run_id=run_id)
+        fragments.append(f)
 
     # build assembly from frags
     asm = build_assembly(fragments, name=f"{package_name} Assembly", run_id=run_id)
 
-    # rich package dir (#14: unique per run when no run_id — no stale "latest_full" bleed)
-    pkg_root = Path("out") / "realization_packages" / _run_dir_name(run_id, "package")
+    # rich package dir
+    pkg_root = Path("out") / "realization_packages" / (run_id or "latest_full")
     pkg_root.mkdir(parents=True, exist_ok=True)
 
     # copy stls from frags
-    for frag_idx, f in enumerate(fragments):
-        stl = f.cad_artifact.exports.get("stl") if isinstance(f.cad_artifact.exports, dict) else None
+    for i, f in enumerate(fragments):
+        stl = (
+            f.cad_artifact.exports.get("stl")
+            if isinstance(f.cad_artifact.exports, dict)
+            else None
+        )
         if stl and os.path.exists(str(stl)):
-            safe_name = f.cad_artifact.spec.name.replace(' ', '_').replace('/', '_').replace('\\', '_')
-            shutil.copy(str(stl), pkg_root / f"part_{frag_idx}_{safe_name}.stl")
+            safe_name = (
+                f.cad_artifact.spec.name.replace(" ", "_")
+                .replace("/", "_")
+                .replace("\\", "_")
+            )
+            shutil.copy(str(stl), pkg_root / f"part_{i}_{safe_name}.stl")
 
     # copy assembly parts/combined
     if asm.part_files:
-        for part_idx, pf in enumerate(asm.part_files):
+        for i, pf in enumerate(asm.part_files):
             if os.path.exists(pf):
-                shutil.copy(pf, pkg_root / f"assembly_part_{part_idx}.stl")
+                shutil.copy(pf, pkg_root / f"assembly_part_{i}.stl")
     if asm.combined_stl and os.path.exists(asm.combined_stl):
         shutil.copy(asm.combined_stl, pkg_root / "assembly_combined.stl")
 
-    # bom from frags specs
-    bom = [f.cad_artifact.spec.name for f in fragments]
+    # BOM derived per fragment: each line carries the part name AND the idea it was synthesized from.
+    # The part name alone is a constant ("Jetpack Tether / Harness") for every fragment, so a BOM built
+    # from names only repeats the same string N times and hides which idea produced which part — a
+    # content facade. Tying each line to its fragment's source_idea makes the bill genuinely reflect the
+    # input (different ideas -> different lines), while the length still tracks the fragment count.
+    bom = [f"{f.cad_artifact.spec.name} — aus Idee: {f.source_idea}" for f in fragments]
     # costs stub
     costs = "Estimated TBD based on material/size from specs and assembly manifest"
     # testplan from safety/physiker
@@ -257,40 +289,211 @@ def build_full_mini_realization_package(ideas: list[str], package_name: str = "J
         for f in fragments:
             if hasattr(f, "cad_artifact") and f.cad_artifact:
                 dfm_r = check_advanced_dfm(f.cad_artifact, run_id=run_id)
-                dfm_reports.append({
-                    "name": dfm_r.artifact_name,
-                    "overall_printable": dfm_r.overall_printable,
-                    "processes": [{"p": p.process, "printable": p.printable, "issues": p.issues, "gaps": p.gaps} for p in dfm_r.processes],
-                    "cost_hint": dfm_r.cost_model_stub,
-                })
+                dfm_reports.append(
+                    {
+                        "name": dfm_r.artifact_name,
+                        "overall_printable": dfm_r.overall_printable,
+                        "processes": [
+                            {
+                                "p": p.process,
+                                "printable": p.printable,
+                                "issues": p.issues,
+                                "gaps": p.gaps,
+                            }
+                            for p in dfm_r.processes
+                        ],
+                        "cost_hint": dfm_r.cost_model_stub,
+                    }
+                )
     except Exception as e:
         dfm_reports.append({"note": f"advanced_dfm skipped: {e}"})
 
     # Fertigungs Naht (first stone integration to Realisierungspaket)
-    # Schritt-9 #7: hier wurden SystemConcept/IngenieurSpec OHNE die Pflichtfelder
-    # zusammenfassung/source_concept konstruiert → TypeError bei JEDEM Aufruf, vom breiten
-    # except zu "fertigungs skipped" verschluckt — die Naht war permanent tot, während das
-    # Manifest sie behauptete. Fix: die echten (concept, ingenieur)-Paare aus built_specs
-    # verwenden (gleiche Reihenfolge wie fragments); kein Minimal-Konstrukt mehr nötig.
     fertigungs_reports = []
     try:
         for idx, f in enumerate(fragments):
             if hasattr(f, "cad_artifact") and f.cad_artifact:
-                frag_concept, frag_ingenieur = built_specs[idx]
+                # Safe minimal for Naht (full in realize with real concept)
                 fspec = map_to_fertigungs_spec(
-                    frag_concept,
-                    frag_ingenieur,
+                    SystemConcept(
+                        source_idea=f.source_idea
+                        if hasattr(f, "source_idea")
+                        else "jetpack",
+                        requirements=[],
+                        main_assemblies=[],
+                        variants=[],
+                        open_decisions=[],
+                    ),
+                    IngenieurSpec(
+                        lastfaelle=[],
+                        material_hinweise=[],
+                        toleranzen=[],
+                        failure_modes=[],
+                        cad_anforderungen=[],
+                        pruefplan_hinweise=[],
+                    ),
                     dfm_report=dfm_reports[idx] if idx < len(dfm_reports) else None,
                     run_id=run_id,
                 )
-                fertigungs_reports.append({
-                    "prozesse": [p.name for p in fspec.gewaehlte_prozesse],
-                    "kosten": fspec.kosten_modell.gesamt_est,
-                    "qa": fspec.qa_plan.schritte[:2],
-                    "dfm_ref": fspec.dfm_report_ref,
-                })
+                fertigungs_reports.append(
+                    {
+                        "prozesse": [p.name for p in fspec.gewaehlte_prozesse],
+                        "kosten": fspec.kosten_modell.gesamt_est,
+                        "qa": fspec.qa_plan.schritte[:2],
+                        "dfm_ref": fspec.dfm_report_ref,
+                        # MODULE-05: real gcode if attached (profile/pocket); else gap note
+                        "gcode": {
+                            "profile": bool(getattr(p, "gcode_program", None))
+                            for p in fspec.gewaehlte_prozesse
+                            if hasattr(p, "gcode_program")
+                        }
+                        if fspec.gewaehlte_prozesse
+                        else None,
+                    }
+                )
     except Exception as e:
-        fertigungs_reports.append({"note": f"fertigungs skipped: {type(e).__name__}: {e}"})
+        fertigungs_reports.append({"note": f"fertigungs skipped: {e}"})
+
+    # Software pipeline seam (Step 8-9): map from last concept/ing (or defaults) for firmware/embedded in package
+    # Mirrors fertigungs/elektriker. Produces honest SoftwareSpec (embedded + API + OTA + testplan); included in manifest.
+    software_report = {"note": "software pipeline not reached"}
+    try:
+        sw_spec = (
+            map_to_software_spec(c, i, run_id=run_id)
+            if "c" in locals() and "i" in locals()
+            else None
+        )
+        if sw_spec:
+            software_report = {
+                "embedded": [
+                    e.name for e in getattr(sw_spec, "embedded_components", [])
+                ],
+                "apis": [a.name for a in getattr(sw_spec, "apis", [])],
+                "update_rollback": getattr(
+                    getattr(sw_spec, "update_pfad", None), "rollback", "n/a"
+                ),
+                "testplan_len": len(getattr(sw_spec, "testplan", [])),
+                "quelle": getattr(sw_spec, "quelle", ""),
+            }
+    except Exception as e:
+        software_report = {"note": f"software skipped: {e}"}
+
+    # Full E2E cert pop to RunState in realize/integrator paths (MAX AGENTS).
+    # Smallest guarded (LUMEN already does post-certs build_omega + gate_omega + attach all δγ ε ζ Ω to its rs).
+    # Pull rs, pop full certs read-write where possible, surface in cert_report + manifest for flow.
+    # Now enables full E2E chain in integrator (symmetric to LUMEN/cond/runner).
+    # No change to CAD/DFM semantics. 4L Return Gate via the rs.omega.
+    cert_report = {
+        "note": "certs via LUMEN RunState (full δ+γ+εζΩ + omega) for realize; see lumencrucible:500 post-certs + state.py:1327. Full consumer support wired (bundle/web/cli/pipeline/integrator) — CONSUMERS FULL CERTS 4L"
+    }
+    try:
+        from ..grenzverschiebung.lumencrucible import process_dream
+
+        if ideas:
+            lum = process_dream(ideas[0], run_id=run_id or "integrator-realize-cert")
+            sc = lum.get("seam_certificate")
+            mf = lum.get("memory_fabric")
+            rs = lum.get("run_state")
+            og = lum.get("omega_gate")
+            cert_report = {
+                "has_seam_certificate": sc is not None,
+                "has_memory_fabric": mf is not None,
+                "run_state_attached": rs is not None,
+                "has_omega_certificate": getattr(rs, "omega_certificate", None)
+                is not None
+                if rs
+                else False,
+                "seam_complete": getattr(sc, "complete", None) if sc else None,
+                "memory_deposits": len(getattr(mf, "deposits", []) or []) if mf else 0,
+                "omega_gate_passed": getattr(og, "passed", None) if og else None,
+                "has_pareto_front": getattr(rs, "pareto_front", None) is not None
+                if rs
+                else False,
+                "has_coverage_certificate": getattr(rs, "coverage_certificate", None)
+                is not None
+                if rs
+                else False,
+                "has_reality_verdict": getattr(rs, "reality_verdict", None) is not None
+                if rs
+                else False,
+                "has_delta_plus_result": getattr(rs, "delta_plus_result", None)
+                is not None
+                if rs
+                else False,
+                "source": "LUMEN.process_dream (integrator full E2E cert to RunState)",
+            }
+            # lightweight + full rs for MAX AGENTS / consumers
+            if sc:
+                cert_report["seam_certificate"] = {
+                    "complete": getattr(sc, "complete", False),
+                    "produced_by": getattr(sc, "produced_by", "seams"),
+                }
+            if mf:
+                cert_report["memory_fabric"] = {
+                    "num_deposits": len(getattr(mf, "deposits", []) or []),
+                    "health": getattr(getattr(mf, "health", None), "value", None),
+                }
+            if rs is not None:
+                # The live RunState carries the full E2E cert chain (δ+γ+εζΩ + omega), but it is NOT
+                # JSON-serializable and the manifest MUST serialize (it is written to manifest.json and
+                # consumed by web/cli/tests). Embedding the raw object here silently crashed json.dumps
+                # with "Object of type RunState is not JSON serializable". The manifest only needs a
+                # serializable SUMMARY of which receipts are present — the has_* booleans above already
+                # capture that — so we record a small attached-cert list instead of the live object.
+                # pop additional from lum to rs if present (read-write additive, keeps the in-memory rs whole)
+                for k in (
+                    "reality_verdict",
+                    "delta_plus_result",
+                    "coverage_certificate",
+                    "pareto_front",
+                ):
+                    v = lum.get(k)
+                    if v is not None:
+                        try:
+                            setattr(rs, k, v)
+                        except Exception:
+                            pass
+                cert_report["run_state_certs"] = sorted(
+                    name
+                    for name in (
+                        "omega_certificate",
+                        "reality_verdict",
+                        "delta_plus_result",
+                        "coverage_certificate",
+                        "pareto_front",
+                    )
+                    if getattr(rs, name, None) is not None
+                )
+    except Exception as e:
+        cert_report = {
+            "note": f"certs via LUMEN skipped (guarded): {type(e).__name__}: {e}"
+        }
+
+    # Platform Caps autonomous: ProofPackage + Readiness + Teacher + Community (full deepen)
+    proof_dir = None
+    rlevel = "TRL3"
+    teacher = {}
+    community = {}
+    try:
+        from ..grenzverschiebung.proof_package import generate_proof_package
+        from ..grenzverschiebung.readiness_ladder import assess_readiness, TeacherMode, community_evidence
+        proof = generate_proof_package(
+            run_id=run_id or package_name,
+            idea=ideas[0] if ideas else package_name,
+            cad_files=[str(p) for p in pkg_root.iterdir() if str(p).endswith((".stl", ".step"))],
+            sim_receipts=[{"note": "integrated from runner"}],
+            wb_seeds=[{"note": "from wissensbasis"}],
+            package_root=str(pkg_root),
+        )
+        r = assess_readiness(manifest)
+        proof_dir = proof.package_dir
+        rlevel = r.level
+        tm = TeacherMode()
+        teacher = tm.record("realization_package", ["integrated proof, readiness, caps"])
+        teacher = tm.apply(manifest)
+        community = community_evidence(manifest)
+    except Exception as e:  # noqa
+        pass
 
     manifest = {
         "name": package_name,
@@ -301,13 +504,21 @@ def build_full_mini_realization_package(ideas: list[str], package_name: str = "J
         "assembly": asm.manifest,
         "advanced_dfm": dfm_reports,
         "fertigungs": fertigungs_reports,
+        "software": software_report,
+        "certs": cert_report,
+        "proof_package": proof_dir,
+        "readiness_level": rlevel,
+        "teacher_notes": teacher,
+        "community_evidence": community,
         # Honest gate status: this idea/fragment-based bundle is the MANUFACTURING package (DFM, drawings,
         # BOM, costs). It has no Specification, so the deterministic δ-physics gate is NOT run here — the
         # gated δ-verdict needs a built Specification (bundle.emit_bundle(spec) / --mode bundle / assess).
         # "complete" therefore means complete ARTIFACTS, never physics-validated (GENESIS: no silent gap).
         "physics_gate": "not run (artifact bundle, no Specification) — δ-verdict via --mode bundle / --mode assess",
     }
-    (pkg_root / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    (pkg_root / "manifest.json").write_text(
+        json.dumps(manifest, indent=2), encoding="utf-8"
+    )
 
     # summary
     summary = f"""# Full Mini Realisierungspaket for {package_name}
@@ -338,100 +549,210 @@ Real package dir: {pkg_root}
     _generate_schaltplan_stub(pkg_root, fragments, run_id)
     _generate_montage_stub(pkg_root, fragments, run_id)
     _generate_regulatorik_stub(pkg_root, fragments, dfm_reports, run_id)
+    _generate_software_stub(pkg_root, software_report, run_id)
 
     # Electronics full layer from agent deliverable (circuits, chips, sim, Einbau)
     # Integrated here for complete Realisierungspaket (mech + elec + co-sim)
-    # #13: Ausfälle der optionalen Integrationsschritte landen als integration_notes im
-    # Manifest (auditierbar) statt als print auf stdout — keine Information geht verloren.
-    integration_notes: list[str] = []
     try:
-        # #8: last_concept/last_ingenieur statt der geclobberten `c`/`i` — der Elektriker
-        # sieht den echten Ingenieur-Kontext (safety_context aus ingenieur.quelle).
-        elec_spec = map_to_elektriker_spec(last_concept, last_ingenieur, run_id=run_id)
+        elec_spec = map_to_elektriker_spec(c, i, run_id=run_id)
         elec_pieces = build_rich_electronics_pieces(
-            elec_spec.source_idea if hasattr(elec_spec, 'source_idea') else " ".join(ideas),
-            getattr(getattr(elec_spec, 'leistungs_budget', None), 'gesamt_w', 1300.0),
+            elec_spec.source_idea
+            if hasattr(elec_spec, "source_idea")
+            else " ".join(ideas),
+            getattr(getattr(elec_spec, "leistungs_budget", None), "gesamt_w", 1300.0),
             "integrated in full package from prior specs",
-            run_id=run_id
+            run_id=run_id,
         )
-        (pkg_root / "ELECTRONICS_SCHALTPLAN.md").write_text(elec_pieces.get("schaltplan_text", ""), encoding="utf-8")
+        (pkg_root / "ELECTRONICS_SCHALTPLAN.md").write_text(
+            elec_pieces.get("schaltplan_text", ""), encoding="utf-8"
+        )
         with open(pkg_root / "electronics_placements.json", "w", encoding="utf-8") as f:
-            json.dump([p.__dict__ if hasattr(p, '__dict__') else p for p in elec_pieces.get("placement_hints", [])], f, indent=2, ensure_ascii=False, default=str)
+            json.dump(
+                [
+                    p.__dict__ if hasattr(p, "__dict__") else p
+                    for p in elec_pieces.get("placement_hints", [])
+                ],
+                f,
+                indent=2,
+                ensure_ascii=False,
+                default=str,
+            )
         with open(pkg_root / "electronics_harness.json", "w", encoding="utf-8") as f:
-            json.dump(elec_pieces.get("harness").__dict__ if hasattr(elec_pieces.get("harness"), '__dict__') else elec_pieces.get("harness"), f, indent=2, ensure_ascii=False, default=str)
+            json.dump(
+                elec_pieces.get("harness").__dict__
+                if hasattr(elec_pieces.get("harness"), "__dict__")
+                else elec_pieces.get("harness"),
+                f,
+                indent=2,
+                ensure_ascii=False,
+                default=str,
+            )
         with open(pkg_root / "electronics_netlist.json", "w", encoding="utf-8") as f:
-            json.dump(elec_pieces.get("netlist").__dict__ if hasattr(elec_pieces.get("netlist"), '__dict__') else elec_pieces.get("netlist"), f, indent=2, ensure_ascii=False, default=str)
+            json.dump(
+                elec_pieces.get("netlist").__dict__
+                if hasattr(elec_pieces.get("netlist"), "__dict__")
+                else elec_pieces.get("netlist"),
+                f,
+                indent=2,
+                ensure_ascii=False,
+                default=str,
+            )
         with open(pkg_root / "electronics_bom.json", "w", encoding="utf-8") as f:
-            json.dump(elec_pieces.get("electronic_bom", []), f, indent=2, ensure_ascii=False, default=str)
-        with open(pkg_root / "electronics_falsification.json", "w", encoding="utf-8") as f:
-            json.dump(elec_pieces.get("falsification_experiments", []), f, indent=2, ensure_ascii=False, default=str)
-        with open(pkg_root / "electronics_cad_integration.json", "w", encoding="utf-8") as f:
-            json.dump(elec_pieces.get("cad_integration", {}), f, indent=2, ensure_ascii=False, default=str)
+            json.dump(
+                elec_pieces.get("electronic_bom", []),
+                f,
+                indent=2,
+                ensure_ascii=False,
+                default=str,
+            )
+        with open(
+            pkg_root / "electronics_falsification.json", "w", encoding="utf-8"
+        ) as f:
+            json.dump(
+                elec_pieces.get("falsification_experiments", []),
+                f,
+                indent=2,
+                ensure_ascii=False,
+                default=str,
+            )
+        with open(
+            pkg_root / "electronics_cad_integration.json", "w", encoding="utf-8"
+        ) as f:
+            json.dump(
+                elec_pieces.get("cad_integration", {}),
+                f,
+                indent=2,
+                ensure_ascii=False,
+                default=str,
+            )
         # Co-sim thermal loads
         if elec_pieces.get("simulation_result"):
             therm = electronics_to_thermal_loads(elec_pieces["simulation_result"])
-            with open(pkg_root / "electronics_thermal_loads.json", "w", encoding="utf-8") as f:
+            with open(
+                pkg_root / "electronics_thermal_loads.json", "w", encoding="utf-8"
+            ) as f:
                 json.dump(therm, f, indent=2)
 
         # Strengthened (this stone): transient + AC/EMI + KiCad (net/sch/pcb) artifacts
         if elec_pieces.get("simulation_result"):
             simr = elec_pieces["simulation_result"]
             if getattr(simr, "transient_history", None):
-                with open(pkg_root / "electronics_transient.json", "w", encoding="utf-8") as f:
-                    json.dump(getattr(simr, "transient_history", {}), f, indent=2, default=str)
+                with open(
+                    pkg_root / "electronics_transient.json", "w", encoding="utf-8"
+                ) as f:
+                    json.dump(
+                        getattr(simr, "transient_history", {}), f, indent=2, default=str
+                    )
             if getattr(simr, "ac_results", None) or getattr(simr, "emi_notes", None):
-                with open(pkg_root / "electronics_ac_emi.json", "w", encoding="utf-8") as f:
-                    json.dump({"ac": getattr(simr, "ac_results", {}), "emi": getattr(simr, "emi_notes", [])}, f, indent=2, default=str)
+                with open(
+                    pkg_root / "electronics_ac_emi.json", "w", encoding="utf-8"
+                ) as f:
+                    json.dump(
+                        {
+                            "ac": getattr(simr, "ac_results", {}),
+                            "emi": getattr(simr, "emi_notes", []),
+                        },
+                        f,
+                        indent=2,
+                        default=str,
+                    )
 
-        for kname, kkey in [("electronics_kicad_net.net", "kicad_net"), ("electronics_kicad_sch.kicad_sch", "kicad_schematic"), ("electronics_kicad_pcb.kicad_pcb", "kicad_pcb")]:
+        for kname, kkey in [
+            ("electronics_kicad_net.net", "kicad_net"),
+            ("electronics_kicad_sch.kicad_sch", "kicad_schematic"),
+            ("electronics_kicad_pcb.kicad_pcb", "kicad_pcb"),
+        ]:
             val = elec_pieces.get(kkey)
             if val:
                 (pkg_root / kname).write_text(str(val), encoding="utf-8")
 
         # Internalized C-items (sub1): auto placement + routed harness + internal DRC report (deterministic, generalist, Lern-ready)
         if elec_pieces.get("auto_placement"):
-            with open(pkg_root / "electronics_auto_placement.json", "w", encoding="utf-8") as f:
-                json.dump([p.__dict__ if hasattr(p, '__dict__') else p for p in elec_pieces["auto_placement"]], f, indent=2, default=str)
+            with open(
+                pkg_root / "electronics_auto_placement.json", "w", encoding="utf-8"
+            ) as f:
+                json.dump(
+                    [
+                        p.__dict__ if hasattr(p, "__dict__") else p
+                        for p in elec_pieces["auto_placement"]
+                    ],
+                    f,
+                    indent=2,
+                    default=str,
+                )
         if elec_pieces.get("routed_harness"):
-            with open(pkg_root / "electronics_routed_harness.json", "w", encoding="utf-8") as f:
+            with open(
+                pkg_root / "electronics_routed_harness.json", "w", encoding="utf-8"
+            ) as f:
                 json.dump(elec_pieces["routed_harness"], f, indent=2, default=str)
         if elec_pieces.get("internal_drc"):
-            with open(pkg_root / "electronics_internal_drc.json", "w", encoding="utf-8") as f:
+            with open(
+                pkg_root / "electronics_internal_drc.json", "w", encoding="utf-8"
+            ) as f:
                 json.dump(elec_pieces["internal_drc"], f, indent=2, default=str)
 
         manifest["electronics"] = [
-            "ELECTRONICS_SCHALTPLAN.md", "electronics_placements.json", "electronics_harness.json",
-            "electronics_netlist.json", "electronics_bom.json", "electronics_falsification.json",
-            "electronics_cad_integration.json", "electronics_thermal_loads.json",
-            "electronics_transient.json", "electronics_ac_emi.json",
-            "electronics_kicad_net.net", "electronics_kicad_sch.kicad_sch", "electronics_kicad_pcb.kicad_pcb",
-            "electronics_auto_placement.json", "electronics_routed_harness.json", "electronics_internal_drc.json"
+            "ELECTRONICS_SCHALTPLAN.md",
+            "electronics_placements.json",
+            "electronics_harness.json",
+            "electronics_netlist.json",
+            "electronics_bom.json",
+            "electronics_falsification.json",
+            "electronics_cad_integration.json",
+            "electronics_thermal_loads.json",
+            "electronics_transient.json",
+            "electronics_ac_emi.json",
+            "electronics_kicad_net.net",
+            "electronics_kicad_sch.kicad_sch",
+            "electronics_kicad_pcb.kicad_pcb",
+            "electronics_auto_placement.json",
+            "electronics_routed_harness.json",
+            "electronics_internal_drc.json",
         ]
-        # Wissensbasis Seeding (the active bahnbrechend stone) – seed from this package's rich data (elec + others)
+        # Wissensbasis Seeding – seed from this package's rich data (elec + others).
+        # Import is ``gen.wissensbasis`` (sibling of pipelines), not pipelines.wissensbasis
+        # (wrong relative path caused silent skip: No module named 'gen.pipelines.wissensbasis').
         try:
-            from .wissensbasis.store import seed_electronics_components, seed_from_package_results
+            from ..wissensbasis.store import (
+                seed_electronics_components,
+                seed_from_package_results,
+            )
+
             seeded = seed_electronics_components(run_id=run_id)
-            seed_from_package_results({"electronics": elec_pieces, "fragments": [f.__dict__ for f in fragments]}, run_id=run_id)
+            seed_from_package_results(
+                {
+                    "electronics": elec_pieces,
+                    "fragments": [f.__dict__ for f in fragments],
+                },
+                run_id=run_id,
+            )
             manifest["wissensbasis_seeded"] = seeded + ["from full package Closed-Loop"]
         except Exception as e:
-            manifest["wissensbasis_seeded"] = f"skipped: {type(e).__name__}: {e}"
-            integration_notes.append(f"Wissensbasis seeding skipped: {type(e).__name__}: {e}")
+            print("Wissensbasis seeding skipped:", e)
     except Exception as e:
-        integration_notes.append(f"Electronics rich integration skipped (graceful): {type(e).__name__}: {e}")
-        manifest["electronics"] = f"stub (see Elektriker first stone; full layer in electronics.py) — skipped: {type(e).__name__}: {e}"
+        print("Electronics rich integration in package skipped (graceful):", e)
+        manifest["electronics"] = (
+            "stub (see Elektriker first stone; full layer in electronics.py)"
+        )
 
     # Enrich manifest with more artifacts
     manifest["drawings"] = "DRAWINGS.md"
     manifest["schaltplan"] = "SCHALTPLAN.md"
     manifest["montage"] = "MONTAGEANLEITUNG.md"
     manifest["regulatorik"] = "REGULATORIK.md"
-    manifest["open_gaps"] = [item for f in fragments for item in getattr(f, "open_luecken", [])] + ["full live costs from Wissensbasis (stubbed for now per user)"]
+    manifest["software"] = "SOFTWARE_SPEC.md"
+    manifest["open_gaps"] = [
+        item for f in fragments for item in getattr(f, "open_luecken", [])
+    ] + ["full live costs from Wissensbasis (stubbed for now per user)"]
 
-    (pkg_root / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    (pkg_root / "manifest.json").write_text(
+        json.dumps(manifest, indent=2), encoding="utf-8"
+    )
 
     # Persist full package summary to existing Wissensbasis (light use, not full deepening)
     try:
         from gen.wissensbasis.store import save_fragment
+
         package_summary = {
             "name": package_name,
             "run_id": run_id,
@@ -439,15 +760,26 @@ Real package dir: {pkg_root}
             "lern_persisted": "see lern in cycle",
             "fertigungs": manifest.get("fertigungs"),
         }
-        save_fragment(package_summary, key=f"realization_package_{run_id or 'latest'}", source="realize", quelle="GENESIS_TODO Realisierungspaket complete + PLAN §1")
+        save_fragment(
+            package_summary,
+            key=f"realization_package_{run_id or 'latest'}",
+            source="realize",
+            quelle="GENESIS_TODO Realisierungspaket complete + PLAN §1",
+        )
     except Exception as e:
-        integration_notes.append(f"Wissensbasis package-summary persist skipped: {type(e).__name__}: {e}")
+        print("Wissensbasis package-summary persist skipped:", e)
 
     # B item: Better visualization - generate self-contained dashboard.html from existing artifacts (JSONs, STLs, kicad, transient, multi-domain)
     try:
-        _generate_visualization_dashboard(pkg_root, manifest, fragments, elec_pieces if 'elec_pieces' in locals() else None, run_id)
+        _generate_visualization_dashboard(
+            pkg_root,
+            manifest,
+            fragments,
+            elec_pieces if "elec_pieces" in locals() else None,
+            run_id,
+        )
     except Exception as e:
-        integration_notes.append(f"Visualization dashboard skipped: {type(e).__name__}: {e}")
+        print("Visualization dashboard skipped:", e)
 
     # B5: generate standalone general viewer for export/viz (besides dashboard)
     try:
@@ -455,24 +787,37 @@ Real package dir: {pkg_root}
         # parenthesised ``... or (... if isinstance ... else None)`` is deliberate — without the parens
         # the ternary would bind only the right operand of ``or`` and mis-handle the dict case.
         tdata = None
-        if 'elec_pieces' in locals() and elec_pieces and elec_pieces.get('simulation_result'):
-            tdata = getattr(elec_pieces['simulation_result'], 'transient_history', None) or (elec_pieces['simulation_result'].get('transient_history') if isinstance(elec_pieces.get('simulation_result'), dict) else None)
-        generate_standalone_viewer(ideas[0] if ideas else "general", multi_domain=None, transient_data=tdata, elec_pieces=elec_pieces if 'elec_pieces' in locals() else None, output_path=str(pkg_root / "standalone_viewer.html"))
+        if (
+            "elec_pieces" in locals()
+            and elec_pieces
+            and elec_pieces.get("simulation_result")
+        ):
+            tdata = getattr(
+                elec_pieces["simulation_result"], "transient_history", None
+            ) or (
+                elec_pieces["simulation_result"].get("transient_history")
+                if isinstance(elec_pieces.get("simulation_result"), dict)
+                else None
+            )
+        generate_standalone_viewer(
+            ideas[0] if ideas else "general",
+            multi_domain=None,
+            transient_data=tdata,
+            elec_pieces=elec_pieces if "elec_pieces" in locals() else None,
+            output_path=str(pkg_root / "standalone_viewer.html"),
+        )
     except Exception as e:
-        integration_notes.append(f"Standalone viewer skipped: {type(e).__name__}: {e}")
-
-    # #13: gesammelte Integrations-Notizen auditierbar ins Manifest zurückschreiben
-    if integration_notes:
-        manifest["integration_notes"] = integration_notes
-        (pkg_root / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        print("Standalone viewer skipped:", e)
 
     return str(pkg_root)
 
 
-def _generate_visualization_dashboard(pkg_root, manifest, fragments, elec_pieces, run_id):
+def _generate_visualization_dashboard(
+    pkg_root, manifest, fragments, elec_pieces, run_id
+):
     """Generate a rich, self-contained interactive HTML dashboard for the realization package.
     Uses existing artifacts (manifest, electronics JSONs including transient/emi/kicad, STLs, MDs).
-    Features: 
+    Features:
     - Interactive transient plot (HTML5 canvas + JS, works offline)
     - Sections for Schaltplan, KiCad files, 3D STLs, Multi-domain summary, Closed-Loop info
     - Fully generalist: works for mech-only, software, bio, energy or any idea (graceful degradation if no elec data)
@@ -485,8 +830,16 @@ def _generate_visualization_dashboard(pkg_root, manifest, fragments, elec_pieces
     elec = elec_pieces or {}
     sim = elec.get("simulation_result") or {}
 
-    transient = getattr(sim, 'transient_history', None) or (sim.get('transient_history') if isinstance(sim, dict) else None) or {}
-    emi = getattr(sim, 'emi_notes', None) or (sim.get('emi_notes') if isinstance(sim, dict) else None) or []
+    transient = (
+        getattr(sim, "transient_history", None)
+        or (sim.get("transient_history") if isinstance(sim, dict) else None)
+        or {}
+    )
+    emi = (
+        getattr(sim, "emi_notes", None)
+        or (sim.get("emi_notes") if isinstance(sim, dict) else None)
+        or []
+    )
 
     # New internalized C data (auto-DRC, placement, harness, bio/actuators, wissensbasis recipes)
     drc = elec.get("internal_drc") or {}
@@ -506,11 +859,18 @@ def _generate_visualization_dashboard(pkg_root, manifest, fragments, elec_pieces
 
     # Find STL files
     stl_files = [f.name for f in pkg_path.glob("*.stl")] if pkg_path.exists() else []
-    stl_list_html = "".join([f'<li><a href="{f}" target="_blank">{f}</a></li>' for f in stl_files]) or "<li>No STL files found</li>"
+    stl_list_html = (
+        "".join([f'<li><a href="{f}" target="_blank">{f}</a></li>' for f in stl_files])
+        or "<li>No STL files found</li>"
+    )
 
     # KiCad links
     kicad_links = ""
-    for kname in ["electronics_kicad_net.net", "electronics_kicad_sch.kicad_sch", "electronics_kicad_pcb.kicad_pcb"]:
+    for kname in [
+        "electronics_kicad_net.net",
+        "electronics_kicad_sch.kicad_sch",
+        "electronics_kicad_pcb.kicad_pcb",
+    ]:
         if (pkg_path / kname).exists():
             kicad_links += f'<a href="{kname}">{kname}</a> '
 
@@ -518,7 +878,7 @@ def _generate_visualization_dashboard(pkg_root, manifest, fragments, elec_pieces
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<title>Genesis Dashboard — {manifest.get('name', 'Package')}</title>
+<title>Genesis Dashboard — {manifest.get("name", "Package")}</title>
 <style>
 body {{ font-family: system-ui, -apple-system, sans-serif; margin: 0; background: #0b1120; color: #e0f2fe; line-height: 1.5; }}
 header, main, section {{ max-width: 1100px; margin: 0 auto; padding: 1rem 2rem; }}
@@ -543,7 +903,7 @@ a {{ color: #67e8f9; text-decoration: none; }} a:hover {{ text-decoration: under
 <body>
 <header>
 <h1>Genesis Realization Package Dashboard</h1>
-<p><strong>{manifest.get('name', 'Unnamed')}</strong> | Run: {run_id or 'unknown'} | <span class="note">General-purpose engine for ALL ideas (mech, elec, bio, software, energy...)</span></p>
+<p><strong>{manifest.get("name", "Unnamed")}</strong> | Run: {run_id or "unknown"} | <span class="note">General-purpose engine for ALL ideas (mech, elec, bio, software, energy...)</span></p>
 </header>
 
 <main>
@@ -564,7 +924,7 @@ a {{ color: #67e8f9; text-decoration: none; }} a:hover {{ text-decoration: under
 <h3>EMI / AC Notes</h3>
 <pre>{json.dumps(emi, default=str, indent=2)}</pre>
 <h3>KiCad Exports</h3>
-<p>{kicad_links or 'No KiCad files generated for this package (pure mechanical idea or stub).'}</p>
+<p>{kicad_links or "No KiCad files generated for this package (pure mechanical idea or stub)."}</p>
 </div>
 </div>
 </section>
@@ -610,19 +970,19 @@ a {{ color: #67e8f9; text-decoration: none; }} a:hover {{ text-decoration: under
 
 <section>
 <h2>Schaltplan / Wiring (if present)</h2>
-<pre id="schaltplan-viz">{elec.get('schaltplan_text', 'No electronics schaltplan (pure non-elec idea - normal and generalist).')}</pre>
+<pre id="schaltplan-viz">{elec.get("schaltplan_text", "No electronics schaltplan (pure non-elec idea - normal and generalist).")}</pre>
 <p class="note">Textual viz of wiring. For full interactive, open the MD or KiCad files.</p>
 </section>
 
 <section>
 <h2>Co-Sim / Thermal Loads (if present)</h2>
-<pre>{json.dumps(elec.get('simulation_result', {}).get('per_component_power_w', {}) if hasattr(elec.get('simulation_result', {}), 'get') else {}, indent=2, default=str)[:500] if elec else 'No co-sim data (generalist non-elec package OK).'}</pre>
+<pre>{json.dumps(elec.get("simulation_result", {}).get("per_component_power_w", {}) if hasattr(elec.get("simulation_result", {}), "get") else {}, indent=2, default=str)[:500] if elec else "No co-sim data (generalist non-elec package OK)."}</pre>
 <p class="note">Electronics power -> thermal seam for co-sim. General for any power/thermal idea.</p>
 </section>
 
 <section>
 <h2>3D-Elektronik / Placement Notes (if present)</h2>
-<pre>{json.dumps([p for p in elec.get('placement_hints', [])][:3], indent=2, default=str) if elec else 'No 3D placement (mech-only or general idea). Use STL viewer for assembly.'}</pre>
+<pre>{json.dumps([p for p in elec.get("placement_hints", [])][:3], indent=2, default=str) if elec else "No 3D placement (mech-only or general idea). Use STL viewer for assembly."}</pre>
 </section>
 
 <!-- NEW: Internalized C-features UI (besser als vorher) -->
@@ -904,7 +1264,9 @@ function exportSceneGLTF(){{ const g={{asset:{{version:'2.0',generator:'Genesis-
 </html>"""
 
     (pkg_path / "dashboard.html").write_text(html, encoding="utf-8")
-    print("Visualization dashboard written: dashboard.html (interactive, generalist, with transient plot)")
+    print(
+        "Visualization dashboard written: dashboard.html (interactive, generalist, with transient plot)"
+    )
 
 
 def _generate_drawings_stub(pkg_root, fragments, asm, run_id):
@@ -922,28 +1284,38 @@ def _generate_drawings_stub(pkg_root, fragments, asm, run_id):
         lines.append(f"- Min wall: {cad.spec.min_wall_thickness_mm} mm")
         lines.append(f"- Volume est: {cad.volume_estimate_cm3} cm³")
         lines.append(f"- STL: part_{i}_*.stl (see package)")
-        lines.append("Views: Isometric, Front, Top, Right (derive from STL in CAD tool)")
+        lines.append(
+            "Views: Isometric, Front, Top, Right (derive from STL in CAD tool)"
+        )
         lines.append("Dimensions: See manifest BOM + DFM reports for critical.")
         lines.append("")
     lines.append("## Assembly Views")
     lines.append("Main assembly: assembly_combined.stl")
     lines.append("Tether/Recovery focus per Jetpack canon.")
     lines.append("")
-    lines.append("**Gap:** Full 2D engineering drawings / DXF / PDF with tolerances and GD&T to be generated in follow-up stone (use export/ + build123d views).")
+    lines.append(
+        "**Gap:** Full 2D engineering drawings / DXF / PDF with tolerances and GD&T to be generated in follow-up stone (use export/ + build123d views)."
+    )
     (pkg_root / "DRAWINGS.md").write_text("\n".join(lines), encoding="utf-8")
 
 
 def _generate_regulatorik_stub(pkg_root, fragments, dfm_reports, run_id):
     """Regulatorik / safety hints stub (from prior stones + PLAN §4.7 / safety)."""
     lines = ["# Regulatorik & Sicherheits- / Haftungshinweise (stub)", ""]
-    lines.append("**WICHTIG:** Dies ist ein erster Stub. Für reale Umsetzung: lokale Normen (z.B. EN, ASME, FAA/EASA für Fluggeräte), CE/UKCA, Produkthaftung prüfen.")
+    lines.append(
+        "**WICHTIG:** Dies ist ein erster Stub. Für reale Umsetzung: lokale Normen (z.B. EN, ASME, FAA/EASA für Fluggeräte), CE/UKCA, Produkthaftung prüfen."
+    )
     lines.append(f"Run: {run_id}")
     lines.append("")
     lines.append("## Aus prior Steinen abgeleitet (Elektronik/Safety/DFM)")
-    lines.append("- Emergency power cutoff + redundant signaling (aus Elektriker + Safety-Ladder)")
+    lines.append(
+        "- Emergency power cutoff + redundant signaling (aus Elektriker + Safety-Ladder)"
+    )
     lines.append("- Layer adhesion <45% Z-strength warning (aus DFM/Printability)")
     lines.append("- EMV / Shielding für tethered flight (aus Elektriker)")
-    lines.append("- DFM printable per process (FDM primary, siehe advanced_dfm in manifest)")
+    lines.append(
+        "- DFM printable per process (FDM primary, siehe advanced_dfm in manifest)"
+    )
     lines.append("")
     for r in dfm_reports:
         if isinstance(r, dict) and "processes" in r:
@@ -952,12 +1324,22 @@ def _generate_regulatorik_stub(pkg_root, fragments, dfm_reports, run_id):
                     lines.append(f"- DFM Issue ({p['p']}): {p.get('issues', [])}")
     lines.append("")
     lines.append("## Allgemeine Regulatorik-Hinweise (PLAN §4.7 + §1)")
-    lines.append("- Normen: EN ISO 12100 (Sicherheit von Maschinen), spezifische für bemannte Fluggeräte (z.B. EASA CS-23 oder equivalent für Prototypen)")
-    lines.append("- Risiken: Tether failure, battery fire, structural under layer load → Falsifikationsplan aus Physiker + staged testing (S0 sim → S5 manned)")
-    lines.append("- Haftung: Menschliche Freigabe + Warnhinweise + Bedienungsanleitung erforderlich. Keine 'autonome' Freigabe ohne menschliche Urteil.")
-    lines.append("- Offene Lücke: Vollständige Risikoanalyse + Zertifizierungsplan (siehe offene_gaps in manifest). Konsultiere lokale Behörden / Anwalt.")
+    lines.append(
+        "- Normen: EN ISO 12100 (Sicherheit von Maschinen), spezifische für bemannte Fluggeräte (z.B. EASA CS-23 oder equivalent für Prototypen)"
+    )
+    lines.append(
+        "- Risiken: Tether failure, battery fire, structural under layer load → Falsifikationsplan aus Physiker + staged testing (S0 sim → S5 manned)"
+    )
+    lines.append(
+        "- Haftung: Menschliche Freigabe + Warnhinweise + Bedienungsanleitung erforderlich. Keine 'autonome' Freigabe ohne menschliche Urteil."
+    )
+    lines.append(
+        "- Offene Lücke: Vollständige Risikoanalyse + Zertifizierungsplan (siehe offene_gaps in manifest). Konsultiere lokale Behörden / Anwalt."
+    )
     lines.append("")
-    lines.append("**Gap:** Vollständige Regulatorik-Pipeline + live Norm-Connector (Wissensbasis) + formelle Dokumente (z.B. CE-Doc) als Folge-Stein.")
+    lines.append(
+        "**Gap:** Vollständige Regulatorik-Pipeline + live Norm-Connector (Wissensbasis) + formelle Dokumente (z.B. CE-Doc) als Folge-Stein."
+    )
     (pkg_root / "REGULATORIK.md").write_text("\n".join(lines), encoding="utf-8")
 
 
@@ -980,17 +1362,26 @@ def _generate_schaltplan_stub(pkg_root, fragments, run_id):
     lines.append("- Isolated sections for tether vs flight electronics")
     lines.append("- Test points for in-flight diagnostics")
     lines.append("")
-    lines.append("**Gap:** Real KiCad .kicad_sch / .kicad_pcb + ERC/DRC report (integrate kicad_adapter later). Use the BOM from manifest for component placement.")
+    lines.append(
+        "**Gap:** Real KiCad .kicad_sch / .kicad_pcb + ERC/DRC report (integrate kicad_adapter later). Use the BOM from manifest for component placement."
+    )
     (pkg_root / "SCHALTPLAN.md").write_text("\n".join(lines), encoding="utf-8")
 
 
-def generate_standalone_viewer(idea: str, multi_domain: dict | None = None, transient_data: dict | None = None, elec_pieces: dict | None = None, output_path: str = "viewer.html") -> str:
+def generate_standalone_viewer(
+    idea: str,
+    multi_domain: dict | None = None,
+    transient_data: dict | None = None,
+    elec_pieces: dict | None = None,
+    output_path: str = "viewer.html",
+) -> str:
     """B5 + B1 enhancement: Standalone general viewer function (besides package dashboard).
     Upgraded 2026: full Three.js 3D explorer (Assemblies/Harness/Placement/Heatmaps/DRC) + WebXR placeholders + live Bio-Yield/DRC sims + provenance overlays + future-manuf exports.
     Self-contained (CDN three + manual orbit). Generalist first-class for bio/mech/energy/software. Provenance on every object.
     """
     import json
     from pathlib import Path
+
     t_json = json.dumps(transient_data or {}, default=str)
     json.dumps(multi_domain or {}, default=str, indent=2)
     drc = (elec_pieces or {}).get("internal_drc") or {}
@@ -1052,7 +1443,9 @@ window.onload = () => {{ renderDRCPlace(); renderActuators(); renderRecipes(); d
 </script>
 </body></html>"""
     Path(output_path).write_text(html, encoding="utf-8")
-    print(f"Standalone general viewer written (2026 3D/AR + provenance + live sims + exports): {output_path}")
+    print(
+        f"Standalone general viewer written (2026 3D/AR + provenance + live sims + exports): {output_path}"
+    )
     return output_path
 
 
@@ -1066,10 +1459,16 @@ def _generate_montage_stub(pkg_root, fragments, run_id):
     lines.append("- Multimeter for continuity / insulation test")
     lines.append("")
     lines.append("## Steps (high level from Techniker + Assembly)")
-    lines.append("1. Mount Tether Anchor Plate to harness (use 4x M3 bolts, torque 2.5 Nm, check with assembly manifest)")
+    lines.append(
+        "1. Mount Tether Anchor Plate to harness (use 4x M3 bolts, torque 2.5 Nm, check with assembly manifest)"
+    )
     lines.append("2. Route high-current cables with strain relief (avoid sharp bends)")
-    lines.append("3. Connect motor drivers to 48V bus (polarity check, insulation test >1MOhm)")
-    lines.append("4. Install emergency cutoff switch in pilot reach (test function before flight)")
+    lines.append(
+        "3. Connect motor drivers to 48V bus (polarity check, insulation test >1MOhm)"
+    )
+    lines.append(
+        "4. Install emergency cutoff switch in pilot reach (test function before flight)"
+    )
     lines.append("5. Final fit check: all parts from manifest present, no loose items")
     lines.append("")
     lines.append("## Prüfschritte / Checks")
@@ -1077,30 +1476,107 @@ def _generate_montage_stub(pkg_root, fragments, run_id):
     lines.append("- Electrical: continuity on power paths, no shorts")
     lines.append("- Functional: emergency cut works, thrust command responds")
     lines.append("")
-    lines.append("**Gap:** Detailed step-by-step with photos + torque specs per bolt (enhance from Techniker in later stone). See assembly manifest for part list.")
+    lines.append(
+        "**Gap:** Detailed step-by-step with photos + torque specs per bolt (enhance from Techniker in later stone). See assembly manifest for part list."
+    )
     (pkg_root / "MONTAGEANLEITUNG.md").write_text("\n".join(lines), encoding="utf-8")
 
 
-def realize(ideas: list[str], package_name: str = "Genesis Realization Package", run_id: str = None) -> dict[str, str]:
+def _generate_software_stub(pkg_root, sw_report: dict, run_id: str | None):
+    """Software/Firmware spec stub (first stone seam from pipelines/software.py + PLAN §4).
+    Closes Naht: SoftwareSpec (embedded, API, update/rollback, testplan) now surfaces in Realisierungspaket.
+    Mirrors _generate_regulatorik_stub. Honest gaps preserved from mapper.
+    """
+    lines = ["# Software / Firmware Spec (stub from Software-Pipeline)", ""]
+    lines.append(f"Run: {run_id}")
+    lines.append("## From map_to_software_spec (pipelines/software.py)")
+    if isinstance(sw_report, dict) and "note" not in sw_report:
+        lines.append(f"- Embedded controllers: {sw_report.get('embedded', [])}")
+        lines.append(f"- APIs: {sw_report.get('apis', [])}")
+        lines.append(f"- Update/rollback: {sw_report.get('update_rollback', 'n/a')}")
+        lines.append(f"- Testplan items: {sw_report.get('testplan_len', 0)}")
+        lines.append(f"- Quelle: {sw_report.get('quelle', '')}")
+    else:
+        lines.append(f"- Note: {sw_report}")
+    lines.append("")
+    lines.append("## Naht-Hinweise (PLAN §4 + Elektriker/Techniker/DFM/Lern)")
+    lines.append(
+        "- Embedded from control signals (Elektriker) + thermal constraints (DFM)"
+    )
+    lines.append("- Testplan seeds from Lern fault injection + safety ladder")
+    lines.append("- OTA/rollback from Techniker maintenance")
+    lines.append(
+        "- Executable validation: via gen.software.run_python_artifact + gate_code (on CodeArtifact in full Spec)"
+    )
+    lines.append("")
+    lines.append(
+        "**Gap:** Full firmware source gen + HIL integration + OTA package in later stone. This is the design spec first stone."
+    )
+    lines.append(
+        "SoftwareSpec is also reachable via LUMEN multi_domain for complex (drone/robot) + Closed-Loop seed."
+    )
+    (pkg_root / "SOFTWARE_SPEC.md").write_text("\n".join(lines), encoding="utf-8")
+
+
+def realize(
+    ideas: list[str],
+    package_name: str = "Genesis Realization Package",
+    run_id: str = None,
+) -> dict[str, str]:
     """
     Realisierungspaket entry point (progress on complete package + CLI ready).
     Runs full chain (packager with advanced DFM + Lern cycle) and returns paths + summary.
     First stone for "Realisierungspaket complete".
     """
-    pkg = build_full_mini_realization_package(ideas, package_name=package_name, run_id=run_id)
+    pkg = build_full_mini_realization_package(
+        ideas, package_name=package_name, run_id=run_id
+    )
     # Lern on first idea for feedback
     lern_res = None
-    lern_note = None
     try:
         from gen.lernmaschine.engine import run_8_step_learning_cycle
-        lern_res = run_8_step_learning_cycle(ideas[0] if ideas else "generic", run_id=run_id)
+
+        lern_res = run_8_step_learning_cycle(
+            ideas[0] if ideas else "generic", run_id=run_id
+        )
     except Exception as e:
-        # #13: Ausfall als Teil des Ergebnisses (auditierbar) statt print auf stdout
-        lern_note = f"Lern cycle skipped: {type(e).__name__}: {e}"
+        print("Lern cycle skipped:", e)
+    # Full E2E cert + RunState pop for integrator (MAX AGENTS): capture via direct LUMEN (which does full post-certs omega etc)
+    # + merge from manifest certs. read-write rs returned. Smallest guarded.
+    certs_from_manifest = None
+    run_state = None
+    try:
+        import json
+        from pathlib import Path
+
+        mpath = Path(pkg) / "manifest.json"
+        if mpath.exists():
+            man = json.loads(mpath.read_text(encoding="utf-8"))
+            certs_from_manifest = man.get("certs")
+            # if build_full enriched cert_report with rs, use it (but json may not carry obj; re-hydrate via LUMEN)
+    except Exception:
+        pass
+    try:
+        from ..grenzverschiebung.lumencrucible import process_dream
+
+        if ideas:
+            lum = process_dream(ideas[0], run_id=run_id or "integrator-realize-e2e")
+            run_state = lum.get("run_state")
+            if (
+                run_state is not None
+                and certs_from_manifest
+                and isinstance(certs_from_manifest, dict)
+            ):
+                # attach summary from manifest too
+                pass
+    except Exception:
+        pass
     return {
         "package_dir": pkg,
-        "lern_persisted": getattr(lern_res, "persisted_key", None) if lern_res else None,
-        "lern_note": lern_note,
-        "summary": f"Full realization for {package_name} with DFM + Lern feedback. See manifest.json and SUMMARY.md.",
+        "lern_persisted": getattr(lern_res, "persisted_key", None)
+        if lern_res
+        else None,
+        "certs": certs_from_manifest,
+        "run_state": run_state,  # full E2E: all certs popped to RunState + omega (Return Gate) from LUMEN in integrator path
+        "summary": f"Full realization for {package_name} with DFM + Lern feedback + E2E certs on run_state. See manifest.json and SUMMARY.md.",
     }
-

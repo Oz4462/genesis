@@ -20,7 +20,7 @@ Determinism matters: these functions feed claim confidence, and reproducibility
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import math
 from dataclasses import dataclass, field
 
 from ..core.errors import ModelConflictError
@@ -30,8 +30,16 @@ from ..core.state import ClaimStatus, SourceRef
 # --- Model-family identification (enables the cross-model audit, A6) ----------
 
 # Ordered keyword -> family map. First match wins. Lowercased substring test.
+#
+# `codex` MUST be tested before `openai`: an id like ``gpt-5.5-codex`` carries
+# both the ``gpt`` and ``codex`` substrings, and the Codex family is the more
+# specific (correct) answer. First-match-wins ordering therefore requires the
+# narrower `codex` rule to precede the broader `gpt`->openai rule, otherwise the
+# Codex variant would be silently mis-attributed to the OpenAI base family and
+# defeat the cross-model audit. Plain ``gpt-4o`` (no ``codex``) still -> openai.
 _FAMILY_KEYWORDS: list[tuple[tuple[str, ...], str]] = [
     (("claude", "anthropic"), "claude"),
+    (("codex",), "codex"),
     (("gpt", "openai", "davinci", "o1-", "o3-", "o4-"), "openai"),
     (("gemini", "palm", "bison", "gemma"), "google"),
     (("llama", "codellama"), "llama"),
@@ -87,24 +95,6 @@ def assert_different_families(generator_model: str, verifier_model: str) -> None
         raise ModelConflictError(generator_model, verifier_model)
 
 
-def assert_pairwise_different_families(models: Sequence[str]) -> None:
-    """Guarantee every pair of panel members is a different family, or raise.
-
-    The panel math (weighted mean, noisy-OR corroboration) treats judges as
-    INDEPENDENT opinions; two judges from one family share blind spots and
-    would silently inflate corroboration. A same-family panel is therefore a
-    configuration error — the inter-judge form of the cross-model rule
-    (verifier != second != extra), mirroring the generator/verifier check.
-
-    Raises:
-        ModelConflictError: two ids resolve to the same family.
-        ValueError: a model id is empty.
-    """
-    for i, a in enumerate(models):
-        for b in models[i + 1 :]:
-            assert_different_families(a, b)
-
-
 # --- A single model's verdict on one claim -----------------------------------
 
 @dataclass(frozen=True)
@@ -158,7 +148,18 @@ def corroborated_confidence(c1: float, c2: float) -> float:
 
 
 def _clamp01(x: float) -> float:
-    return 0.0 if x < 0 else 1.0 if x > 1 else x
+    """Map a score into [0, 1]. Non-finite values (NaN/Inf) become 0.0.
+
+    Critical: ``NaN < 0`` and ``NaN > 1`` are both False in IEEE floats, so a
+    naive clamp would *return* NaN and silently poison every downstream
+    confidence threshold (``NaN < τ`` is always False → false VERIFIED pass).
+    """
+    try:
+        if not math.isfinite(float(x)):
+            return 0.0
+    except (TypeError, ValueError):
+        return 0.0
+    return 0.0 if x < 0 else 1.0 if x > 1 else float(x)
 
 
 def _conservative_status(a: ClaimStatus, b: ClaimStatus) -> ClaimStatus:

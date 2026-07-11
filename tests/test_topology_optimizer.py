@@ -21,12 +21,16 @@ from gen.fem3d import structured_box_mesh
 from gen.topology_optimizer import (
     DEFAULT_FILTER_RADIUS_CELLS,
     VOLUME_CONSTRAINT_TOL,
+    ThresholdCheck,
     TopologyProposal,
     cantilever_tip_load_bcs,
     checkerboard_index,
     simp_optimize,
     threshold_resolve,
 )
+
+# bridge wiring under test (section_optimizer re-exports the integration convenience)
+from gen.section_optimizer import propose_topology_cantilever
 
 # the canonical cantilever benchmark: coarse (fast) but fine enough for the pattern
 LX, LY, LZ = 60.0, 20.0, 2.5
@@ -212,4 +216,76 @@ def test_threshold_resolve_rejects_bad_inputs(proposal):
         threshold_resolve(
             densities=proposal.densities, lx=LX, ly=LY, lz=LZ, e_modulus=E, nu=NU,
             volume_fraction=float("nan"), fixed_dofs=fixed, loads=loads,
+        )
+
+
+# --- bridge + integration wiring (unit for bridge, integration with gate path, never-certified) ---
+
+def test_bridge_unit_propose_topology_cantilever_is_unverified_proposal():
+    """Unit test for the bridge (propose_topology_cantilever in section_optimizer).
+    Exercises the wiring to simp_optimize; result is always proposal, never certified.
+    Covers fem3d path via structured_box + shared guards."""
+    p = propose_topology_cantilever(max_iterations=8, nx=12, ny=6, nz=1)
+    assert isinstance(p, TopologyProposal)
+    assert p.verdict == "vorschlag_unverifiziert"   # CRITICAL: never "certified"
+    assert not p.converged or p.iterations > 0
+    assert "threshold_resolve" in p.delta_path and "printability" in p.delta_path
+    assert "mesh_integrity" in p.delta_path or "Gates" in p.delta_path  # per contract
+    # full determinism still holds through bridge
+    p2 = propose_topology_cantilever(max_iterations=8, nx=12, ny=6, nz=1)
+    assert np.array_equal(p.densities, p2.densities)
+    assert p.compliance == p2.compliance
+
+
+def test_integration_path_proposal_to_threshold_to_gate_discipline(proposal):
+    """Integration test: proposal (from optimizer) -> threshold_resolve (fem3d re-solve)
+    remains un-certified; gate (printability/mesh_integrity/δ-physics) must always re-verify.
+    No fabrication: real calls only. The threshold 'passed' does not short-circuit outer gate."""
+    fixed, loads = _bcs()
+    check = threshold_resolve(
+        densities=proposal.densities, lx=LX, ly=LY, lz=LZ, e_modulus=E, nu=NU,
+        volume_fraction=VF, fixed_dofs=fixed, loads=loads,
+    )
+    # threshold gives independent proof within fem, but explicitly does not certify
+    assert isinstance(check, ThresholdCheck)
+    assert "NICHT die printability/mesh_integrity-Gates" in check.note
+    # proposal itself is never treated as certified even if check.passed
+    assert proposal.verdict == "vorschlag_unverifiziert"
+    # simulate gate separation: even a good check does not produce a passing delta-physics
+    # without declaring/running actual checks (vacuous or explicit)
+    from gen.physics_validation import gate_delta_physics, PhysicsCheck
+    # a topology-derived design would still declare its physics checks and re-run the gate
+    vacuous = gate_delta_physics([])
+    assert vacuous.passed  # vacuous only
+    # real gate on unrelated check does not inherit from proposal (use failing to force evidence)
+    bad = PhysicsCheck("bad-shaft", "torsion", {"torque": 100000.0, "diameter": 1.0, "length": 1.0, "shear_modulus_g": 1.0, "shear_strength": 100.0})
+    g = gate_delta_physics([bad])
+    assert not g.passed and len(g.failures) > 0
+    # point is: gate failure is independent of SIMP proposal state (no auto-cert from optimizer)
+    assert proposal.verdict == "vorschlag_unverifiziert"
+
+
+def test_negative_invalid_mesh_for_bridge_and_optimizer():
+    """Negative tests for invalid mesh at the integration wiring (bridge + optimizer + fem3d).
+    Bad mesh params, bad densities must fail loud (no silent bad proposal)."""
+    # invalid mesh dimensions flow through bridge to structured_box / checks
+    with pytest.raises(ValueError):
+        propose_topology_cantilever(nx=0, ny=4, nz=1)
+    with pytest.raises(ValueError):
+        propose_topology_cantilever(nx=4, ny=0, nz=1)
+    # volume_fraction invalid hits fem3d guard via optimizer
+    nodes, _ = structured_box_mesh(LX, LY, LZ, 4, 2, 1)
+    fixed, loads = cantilever_tip_load_bcs(nodes, LX, F)
+    with pytest.raises(ValueError):
+        simp_optimize(
+            lx=LX, ly=LY, lz=LZ, nx=4, ny=2, nz=1, e_modulus=E, nu=NU,
+            volume_fraction=0.0, fixed_dofs=fixed, loads=loads,
+        )
+    # bad density to threshold (invalid 'mesh' field) - exercised already but via bridge context
+    bad_dens = np.full((4, 2, 1), 0.5)
+    bad_dens[0, 0, 0] = float("nan")
+    with pytest.raises(ValueError):
+        threshold_resolve(
+            densities=bad_dens, lx=LX, ly=LY, lz=LZ, e_modulus=E, nu=NU,
+            volume_fraction=0.5, fixed_dofs=fixed, loads=loads,
         )

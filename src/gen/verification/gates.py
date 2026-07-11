@@ -15,6 +15,7 @@ the gate catches it rather than trusting upstream.
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Sequence
 
@@ -110,17 +111,38 @@ def claim_soundness_failures(
         )
 
     # Verified claims must meet the confidence threshold.
-    if claim.status is ClaimStatus.VERIFIED and claim.confidence < confidence_threshold:
-        out.append(
-            GateFailure(
-                code="LOW_CONFIDENCE",
-                detail=(
-                    f"Verified claim below τ={confidence_threshold}: "
-                    f"{claim.confidence:.2f} — {claim.text!r}"
-                ),
-                claim_id=claim.id,
+    # Non-finite confidence is a separate poison class: ``NaN < τ`` is always
+    # False in IEEE floats, so a naive comparison would *pass* VERIFIED+NaN.
+    # Post-construction mutation can still inject NaN (Claim is not frozen);
+    # the gate is the last structural backstop (REWORK 2026-07-11).
+    if claim.status is ClaimStatus.VERIFIED:
+        conf = claim.confidence
+        if (
+            isinstance(conf, bool)
+            or not isinstance(conf, (int, float))
+            or not math.isfinite(conf)
+        ):
+            out.append(
+                GateFailure(
+                    code="NONFINITE_CONFIDENCE",
+                    detail=(
+                        f"Verified claim has non-finite confidence {conf!r}: "
+                        f"{claim.text!r}"
+                    ),
+                    claim_id=claim.id,
+                )
             )
-        )
+        elif conf < confidence_threshold:
+            out.append(
+                GateFailure(
+                    code="LOW_CONFIDENCE",
+                    detail=(
+                        f"Verified claim below τ={confidence_threshold}: "
+                        f"{conf:.2f} — {claim.text!r}"
+                    ),
+                    claim_id=claim.id,
+                )
+            )
 
     # Every cited source must have been retrieved (no dead citation).
     for ref in (*claim.sources, *claim.verification):
@@ -1999,3 +2021,68 @@ def geometry_envelope(state: RunState) -> dict[str, tuple[float, float, float]]:
         if not box.empty:
             out[comp.id] = box.extent
     return out
+
+
+def dream_to_hammer_gate(hammer: Any) -> GateResult:
+    """GATE dream-to-hammer — LUMENCRUCIBLE Ω v1 (HORIZON entry for dreams).
+
+    A raw dream is turned into a minimal actionable first "hammer"
+    (smallest falsifiable teststand/experiment step with CAD + gate target).
+
+    This gate is the deterministic backstop (LLM-free) that the produced
+    LumenHammer is well-formed before being treated as a HORIZON ignition.
+
+    P-1 HAMMER_MISSING_FIELD    — required provenance + action fields present and non-empty
+    P-2 UNKNOWN_HAMMER_GATE     — gate_to_pass must name a known HORIZON gate
+    P-3 VAGUE_HAMMER            — experiment_name too short/empty
+
+    A hammer that passes is ready for OmegaCertificate, Claim, and WORK_QUEUE self-ascent.
+    Pure, deterministic, unit-testable. Mirrors the spirit of gate_phi / gate_chi.
+    """
+    from typing import Any as _Any  # local to avoid top-level issues
+
+    failures: list[GateFailure] = []
+
+    # Robust access (dataclass or dict)
+    if isinstance(hammer, dict):
+        h = hammer
+    else:
+        h = getattr(hammer, "__dict__", {}) or {}
+        # fallback to attributes
+        if not h:
+            h = {k: getattr(hammer, k, None) for k in ("experiment_name", "description", "next_step", "gate_to_pass", "quelle", "frontier_snapshot")}
+
+    def _get(k: str):
+        return h.get(k) if isinstance(h, dict) else getattr(hammer, k, None)
+
+    # P-1 + P-3 core fields
+    for k in ("experiment_name", "description", "next_step", "gate_to_pass", "quelle"):
+        v = _get(k)
+        if not v or (isinstance(v, str) and len(v.strip()) < 3):
+            failures.append(
+                GateFailure(code="HAMMER_MISSING_FIELD", detail=f"hammer missing/empty {k}")
+            )
+
+    gtp = _get("gate_to_pass")
+    known_gates = {
+        "gate_delta_plus", "gate_delta_plus_coverage",
+        "gate_omega", "gate_epsilon", "gate_zeta", "gate_gamma_plus",
+        "gate_phi", "gate_chi", "gate_alpha", "gate_beta", "gate_delta",
+        "lumencrucible_pre_gate"
+    }
+    if gtp and isinstance(gtp, str) and gtp not in known_gates:
+        failures.append(
+            GateFailure(code="UNKNOWN_HAMMER_GATE", detail=f"gate_to_pass {gtp!r} not recognized HORIZON gate")
+        )
+
+    # frontier optional but should be present
+    fs = _get("frontier_snapshot")
+    if fs is None:
+        # not fatal for early dreams
+        pass
+
+    return GateResult(
+        gate="dream-to-hammer",
+        passed=not failures,
+        failures=failures,
+    )

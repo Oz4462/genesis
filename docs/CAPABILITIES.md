@@ -1,5 +1,12 @@
 # CAPABILITIES — GENESIS Fähigkeits-Inventar
 
+> **⚠️ HONESTY (REWORK 2026-07-11):** This inventory was historically over-optimistic
+> (test counts, CLI mode counts, “fully wired” banners). **Authoritative product truth:**
+> [`docs/STATUS.md`](STATUS.md). Island disposition: [`docs/ISLAND_TRIAGE_2026-07-11.md`](ISLAND_TRIAGE_2026-07-11.md).
+> Campaign checklist: [`docs/REWORK_CAMPAIGN.md`](REWORK_CAMPAIGN.md).
+> When this file disagrees with STATUS, **STATUS wins**. Numbers below were partially
+> refreshed 2026-07-11; treat ✅ as “re-verified under rework” only when STATUS says so.
+
 > **Grundlage:** direkte Code-Lesung auf Branch `feat/app-integration-phase0-2`
 > (HEAD `2094827`, Stand 2026-06-20). Status-Marker stützen sich auf reale Module,
 > Test-Abdeckung und CLI-Verdrahtung — nicht auf `VISION.md`/`README.md`.
@@ -12,8 +19,8 @@
 
 **Kennzahlen (gemessen)**
 - ~19.700 LOC allein in den Top-Level-Modulen von `src/gen/`, **24 Subpackages**.
-- **260 Testdateien / 2064 Testfunktionen** (`tests/`; Suite 2079 passed / 0 failed / 43 skipped, gemessen 2026-07-04 nachts).
-- **24 CLI-Modi** (`--mode`), zusätzlich Web-UI.
+- **~380+ Testdateien / ~3500 collected tests** (Stand rework; exact: `pytest --collect-only`).
+- **~43 CLI-Modi** (`--mode`, Stand 2026-07-11 inkl. Fach-Pipelines + frontier/fach).
 - **40 Physik-Validatoren** (`physics_validation.VALIDATORS`), **35 Auto-Select-Rezepte** (`physics_selection.RECIPES`), **27 Closed-Form-Physik-/FEM-Module**.
 - Sehr wenige echte Stubs: 1 (`LeanKernelStub`); die ~21 „Unavailable"-Stellen sind **ehrliche Skip-Pfade** für optionale Dependencies (PyBullet, MuJoCo, GPU-Materials-Oracle, Postgres), keine Platzhalter.
 
@@ -57,9 +64,8 @@ Jeder faktische Claim mit Quelle, Confidence, Verifikations-Status.
 - Cross-Model-Default: Generator `grok-build`, Verifier `claude-opus-4-8` (andere Familie, Kernprinzip #3).
 
 ## 5. Physik-/FEM-/Validierungs-Module ✅ (gezählt)
-**43 Validatoren / 38 Auto-Select-Rezepte** (nachgezählt 2026-07-04 via len(VALIDATORS)/len(RECIPES); 7 bewusst manual-only, siehe MANUAL_ONLY_VALIDATORS). Auto-Select feuert aus measurand-Tags.
-- Statik/Festigkeit: `structural.py`, `bracket_fem.py`, `fem.py`, `fem3d.py`, `fem3d_quadratic.py`, `plate_bending.py`, `plate_hole.py`, `bolted_joint.py`, `section_optimizer.py`.
-- Topologie: `topology_optimizer.py` — SIMP-Dichtefeld-**VORSCHLAG** auf dem fem3d-Mesh (Bendsøe/Sigmund-Standard p=3, modified SIMP E_min=1e-9·E0, OC-Update mit Volumen-Bisektion, Sigmund-Sensitivitäts-Filter r=1.5 Zellen; deterministisch, fail-loud über die fem3d-Guards). Ergebnis ist explizit `vorschlag_unverifiziert` und **gate-pflichtig**: `threshold_resolve` liefert den zweiten, interpolationsfreien Beweis am binären Design gleichen Volumens; printability/mesh_integrity bleiben der δ-Pfad zur Zertifizierung. Gemessen am Kragarm-Klassiker (24×8×1, vf=0.4): Compliance-Faktor 2.89 im SIMP-Modell (Start→final) und 1.11 des binären Designs gegen die Voigt-Uniform-Baseline. Keine CLI-Naht (bewusst: kein natürlicher Modus; Naht-Lücke im BUILD_LOG deklariert).
+**40 Validatoren / 35 Auto-Select-Rezepte / 27 Closed-Form-Module.** Auto-Select feuert aus measurand-Tags.
+- Statik/Festigkeit: `structural.py`, `bracket_fem.py`, `fem.py`, `fem3d.py`, `fem3d_quadratic.py`, `plate_bending.py`, `plate_hole.py`, `bolted_joint.py`, `section_optimizer.py` (unified `propose_structural` for section + SIMP topology via `topology_optimizer.py`).
 - Versagen: `buckling.py`, `fatigue.py`, `notch_fatigue.py`, `fracture.py`, `creep.py`, `torsion.py`, `pressure_vessel.py`, `contact.py` (Hertz).
 - Thermik/Modal: `thermal.py`, `thermal_stress.py`, `modal.py`.
 - Domänen-Achsen: `flight.py` (4 Flug-Achsen), `kinematics.py`, `actuation.py`, `compute.py`, `dynamics.py`, `digital_bus.py`.
@@ -75,7 +81,7 @@ Jeder faktische Claim mit Quelle, Confidence, Verifikations-Status.
 
 ## 7. Elektronik ✅ / 🟡
 - `electronics.py` (1.091 LOC): Analog, Power-Tree, ERC, KiCad-Netliste, interner DRC, Routing. `circuit.py`, `chip_selection.py` (geerdeter Katalog + Compute-Gate).
-- CLI: `--mode chip`. Status: ✅ getestet (`test_electronics`, `test_kicad`, `test_elektriker`); 🟡 einige DRC-Magic-Numbers in `run_internal_drc` als Review-Schuld geflaggt (WORK_QUEUE).
+- CLI: `--mode chip`. Status: ✅ getestet (`test_electronics`, `test_kicad`, `test_elektriker`); ✅ DRC thresholds fully named/sourced (DRC_* + AUTO_PLACE_* + explicit harness-vs-PCB+dfm ref; WORK_QUEUE Nebenfund addressed + follow-up polish).
 
 ## 8. Simulation / Mehrkörper 🟡
 - `simulation/multibody.py` (RK4, **Einzel-DOF-Pendel**, energie-validiert) ✅.
@@ -85,7 +91,9 @@ Jeder faktische Claim mit Quelle, Confidence, Verifikations-Status.
 
 ## 9. Fach-Pipelines / Realisierung (`src/gen/pipelines/`, 11 Disziplinen) ✅
 Vollständige Realisierungskette (`--mode realize`).
-- `integrator.py` (1.056 LOC, Orchestrierung), `architekt`, `designer`, `elektriker`, `fertigungs`, `ingenieur`, `physiker`, `regulatorik`, `software`, `techniker`, `wirtschaft`.
+- `integrator.py` (Orchestrierung), `architekt`, `designer`, `elektriker`, `fertigungs`, `ingenieur`, `physiker`, `regulatorik`, `software`, `techniker`, `wirtschaft`.
+  - CLI (REWORK 2026-07-11): `--mode fach` (alle) oder einzeln `--mode architekt|…|wirtschaft` — first-stone, offline, ehrliche Lücken.
+  - Status: ✅ Mapper + Tests; 🟡 **first-stone depth** (kein live Wissensbasis/Lieferanten-API).
 - Status: ✅ **jede Disziplin getestet** (`test_architekt/designer/elektriker/physiker/techniker/regulatorik/wirtschaft/integrator.py`).
 
 ## 10. Externe Integration + Connectoren + Oracles ✅ / 🟡
@@ -140,7 +148,9 @@ Meta-/Vorausschau-Layer: `lumencrucible.py` (Selbst-Verbesserung), `technology_b
 
 ---
 
-## 20. CLI-Modi (vollständig, `cli.py`)
+## 20. CLI-Modi (`cli.py`) — siehe STATUS für ehrliche LIVE/DEMO-Labels
+
+> REWORK: `frontier`, `fach`, `architekt`…`wirtschaft` (10 Fach-Pipelines) hinzugefügt. Nicht jeder Mode ist LIVE-α; viele sind offline first-stone / demo.
 
 `gen --mode <MODE>` — Default `report`. Zusätzlich `--format text|md|scad|b123d|stl`, `--demo`, `--live` (Council), `--generator`/`--verifier` (Cross-Model), `--checkpoint-dir`.
 
@@ -173,7 +183,7 @@ Meta-/Vorausschau-Layer: `lumencrucible.py` (Selbst-Verbesserung), `technology_b
 
 ## Gesamtbild (nüchtern)
 
-**Nachweislich nutzbar (✅):** der Verifikations-/Gate-Kern, das Fakten-Ledger (in-memory), die α–δ-Spezifikationskette mit 43 Physik-Validatoren, CSG-CAD + Export + Druckbarkeits-Beweis, Elektronik/DFM/G-Code/KiCad, die 11 Fach-Pipelines (Realisierung), der Discovery-Kern (Power-Law-Rediscovery + polynomialer z3-Beweis), der Inventor-Loop, die Wissensbasis/Retrieval-Schicht, das Web-UI und 24 CLI-Modi — alles durch 2064 Testfunktionen und CLI-Verdrahtung gedeckt, offline + deterministisch.
+**Nachweislich nutzbar (✅):** der Verifikations-/Gate-Kern, das Fakten-Ledger (in-memory), die α–δ-Spezifikationskette mit 40 Physik-Validatoren, CSG-CAD + Export + Druckbarkeits-Beweis, Elektronik/DFM/G-Code/KiCad, die 11 Fach-Pipelines (Realisierung), der Discovery-Kern (Power-Law-Rediscovery + polynomialer z3-Beweis), der Inventor-Loop, die Wissensbasis/Retrieval-Schicht, das Web-UI und 24 CLI-Modi — alles durch 1755 Tests und CLI-Verdrahtung gedeckt, offline + deterministisch.
 
 **Vorhanden, aber begrenzt/optional (🟡):** Mehrkörper-Simulation (nur Einzel-DOF eigen; PyBullet/MuJoCo optional), Postgres-Ledger (kein DB-Lauf in der Sandbox), Live-LLM-Pfade (claude/grok-CLI, owner-/netz-gated), Materials-Oracle (GPU-gated, nur Offline-Twin), CAD-Fidelity (Primitive), Inventor-Grounding (eine Domäne), HORIZON/Grenzverschiebung (explorativ).
 
