@@ -1,6 +1,22 @@
 
 ---
 
+## 2026-07-12 — capstone UnboundLocalError + integrator wissensbasis path + more demos
+
+### Bugs
+1. **cli.py capstone**: UnboundLocalError on `gate_delta` (later local import shadowed module-level binding). Fixed by importing gate_delta/gate_erc/gate_code in the capstone block.
+2. **integrator.py**: `from .wissensbasis.store` → `from ..wissensbasis.store` (was silent skip: No module named gen.pipelines.wissensbasis).
+
+### Demos now green
+- capstone: Gate γ/δ/ERC/CODE all PASS
+- bundle, realize, ideas, dream, protocol, eval --demo exit 0
+- llm/tools/gamma+/sim suite: 98p
+
+### CLI matrix extended with capstone/protocol/eval/bundle/report/solution/spec
+
+
+---
+
 ## 2026-07-11 — α/β/γ offline demos + KEEP_OPTIN re-verify + STATUS AUTO
 
 ### α/β/γ

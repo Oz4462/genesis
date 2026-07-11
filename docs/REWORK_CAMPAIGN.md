@@ -68,21 +68,21 @@
 
 ### `llm/` (9 modules)
 
-- [ ] **OPEN** `gen.llm._cli`
+- [x] **REWORKED** `gen.llm._cli` — suite green
 - [x] **REWORKED** `gen.llm.base` — re-verified
-- [ ] **OPEN** `gen.llm.claude_cli`
-- [ ] **OPEN** `gen.llm.codex_cli`
-- [ ] **OPEN** `gen.llm.factory`
-- [ ] **OPEN** `gen.llm.grok_cli`
+- [x] **REWORKED** `gen.llm.claude_cli` — suite green
+- [x] **REWORKED** `gen.llm.codex_cli` — suite green
+- [x] **REWORKED** `gen.llm.factory` — suite green
+- [x] **REWORKED** `gen.llm.grok_cli` — suite green
 - [x] **REWORKED** `gen.llm.ollama` — re-verified suite green
 - [x] **REWORKED** `gen.llm.parsing` — already rejects NaN JSON; re-verified
-- [ ] **OPEN** `gen.llm.schemas`
+- [x] **REWORKED** `gen.llm.schemas` — suite green
 
 ### `tools/` (12 modules)
 
-- [ ] **OPEN** `gen.tools.arxiv_backend`
-- [ ] **OPEN** `gen.tools.codata`
-- [ ] **OPEN** `gen.tools.dlmf`
+- [x] **REWORKED** `gen.tools.arxiv_backend` — suite green
+- [x] **REWORKED** `gen.tools.codata` — suite green
+- [x] **REWORKED** `gen.tools.dlmf` — suite green
 - [x] **REWORKED** `gen.tools.fetch` — scheme allowlist http/https; re-verified
 - [ ] **OPEN** `gen.tools.formula_backend`
 - [x] **REWORKED** `gen.tools.http` — re-verified via fetch suite path
@@ -121,10 +121,10 @@
 - [ ] **OPEN** `gen.simulation.backends`
 - [ ] **OPEN** `gen.simulation.calculix`
 - [ ] **OPEN** `gen.simulation.modelica`
-- [ ] **OPEN** `gen.simulation.multibody`
+- [x] **REWORKED** `gen.simulation.multibody` — suite green
 - [ ] **OPEN** `gen.simulation.pybullet_sim`
 - [ ] **OPEN** `gen.simulation.quantum_opt`
-- [ ] **OPEN** `gen.simulation.runner`
+- [x] **REWORKED** `gen.simulation.runner` — suite green
 - [ ] **OPEN** `gen.simulation.surrogate`
 
 ### `pipelines/` (11 modules)
@@ -351,7 +351,7 @@
 - [ ] **OPEN** `gen.costing`
 - [ ] **OPEN** `gen.coverage`
 - [ ] **OPEN** `gen.creep`
-- [ ] **OPEN** `gen.demo`
+- [x] **REWORKED** `gen.demo` — capstone/protocol fixtures via CLI demos
 - [x] **REWORKED** `gen.dfm` — suite green
 - [ ] **OPEN** `gen.digital_bus`
 - [x] **REWORKED** `gen.dimensional_guard` — re-verified scale invariance; suite green
@@ -453,3 +453,4 @@ _Inventory generated 2026-07-11 — 290 open modules._
 | 2026-07-11 | PRODUCT_WIRE frontier/designer/wirtschaft | REWORKED | CLI modes + tests; islands 67→64 |
 | 2026-07-11 | full fach family + research_promotion | REWORKED | 10 pipelines + ladder; CAPABILITIES honesty |
 | 2026-07-11 | alpha demos + KEEP_OPTIN + AUTO | REWORKED | report/solution/spec --demo; gen_status; ros2 skip |
+| 2026-07-12 | capstone UnboundLocal + integrator wb path | REWORKED | CLI demos green; 98p llm/gamma |

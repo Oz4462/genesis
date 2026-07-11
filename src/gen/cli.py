@@ -1257,8 +1257,11 @@ def main(argv: list[str] | None = None) -> int:
         # A complete, fully detailed γ-depth specification through all gates.
         # Demo-only: it is built from a scripted claim world (live α-research
         # supplies real data later, without code change).
+        # Import all gates used here: a later `from .verification.gates import
+        # gate_delta` inside main() makes gate_delta local to the whole function
+        # (UnboundLocalError if we only imported gate_gamma) — REWORK 2026-07-12.
         from .demo import capstone_spec, capstone_state
-        from .verification.gates import gate_gamma
+        from .verification.gates import gate_code, gate_delta, gate_erc, gate_gamma
 
         spec = capstone_spec()
         state = capstone_state()

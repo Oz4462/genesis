@@ -30,7 +30,7 @@
 > 3. Stubs stay honest stubs; no fabrication to look "complete".
 > 4. After each reworked module: update REWORK_CAMPAIGN.md + this file if product truth changed.
 
-**Rework progress:** `120 / 290` modules REWORKED · α/β/γ offline demos + KEEP_OPTIN + live AUTO (3553 tests)
+**Rework progress:** `120 / 290` modules REWORKED · capstone+realize fixed; remaining demos green
 
 **2026-07-11 session (cumulative):**
 - Collection: **3553 tests** collected (AUTO block); 0 collection errors after vendor/fem3d restore.
@@ -92,10 +92,10 @@ Historical labels (LIVE/DEMO/CANNED) are starting hypotheses only.
 | `invent` · `solve` | LIVE loop (canned council offline) | ✅ REWORKED — invent --demo green |
 | `council` · `feynman` · `campaign` | LIVE discovery sub-engines | 🟡 registered (help); deep live optional |
 | `section` · `training` · `chip` · `topology` · `structural` | deterministic sub-engines | ✅ REWORKED — demos green |
-| `bundle` | artifact emitter | 🟡 registered |
-| `capstone` · `protocol` · `assess` · `print` · `eval` | DEMO | ✅ REWORKED assess/print demos |
-| `ideas` · `dream` · `humanoid` · `aethon` | CANNED | 🟡 registered; aethon suite green |
-| `realize` | integrator stubs | 🟡 registered |
+| `bundle` | artifact emitter | ✅ REWORKED — `--demo` writes MANIFEST/MISSING honest |
+| `capstone` · `protocol` · `assess` · `print` · `eval` | DEMO | ✅ REWORKED — capstone UnboundLocal fixed; all demos green |
+| `ideas` · `dream` · `humanoid` · `aethon` | CANNED | ✅ REWORKED ideas/dream demos green; aethon suite |
+| `realize` | integrator stubs | ✅ REWORKED — wb seeding import fixed; package writes |
 | `breakthrough` | honest-when-absent CAD | ✅ REWORKED — CAD None, DFM False honest |
 | `goldset` | anti-hallucination eval | ✅ REWORKED — dry-perfect demo PASS |
 | `divergence` | Phase φ | ✅ REWORKED — honest empty abstention demo |

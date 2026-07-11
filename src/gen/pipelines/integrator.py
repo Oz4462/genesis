@@ -709,9 +709,11 @@ Real package dir: {pkg_root}
             "electronics_routed_harness.json",
             "electronics_internal_drc.json",
         ]
-        # Wissensbasis Seeding (the active bahnbrechend stone) – seed from this package's rich data (elec + others)
+        # Wissensbasis Seeding – seed from this package's rich data (elec + others).
+        # Import is ``gen.wissensbasis`` (sibling of pipelines), not pipelines.wissensbasis
+        # (wrong relative path caused silent skip: No module named 'gen.pipelines.wissensbasis').
         try:
-            from .wissensbasis.store import (
+            from ..wissensbasis.store import (
                 seed_electronics_components,
                 seed_from_package_results,
             )
