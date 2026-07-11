@@ -15,6 +15,7 @@ the gate catches it rather than trusting upstream.
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Sequence
 
@@ -110,17 +111,38 @@ def claim_soundness_failures(
         )
 
     # Verified claims must meet the confidence threshold.
-    if claim.status is ClaimStatus.VERIFIED and claim.confidence < confidence_threshold:
-        out.append(
-            GateFailure(
-                code="LOW_CONFIDENCE",
-                detail=(
-                    f"Verified claim below τ={confidence_threshold}: "
-                    f"{claim.confidence:.2f} — {claim.text!r}"
-                ),
-                claim_id=claim.id,
+    # Non-finite confidence is a separate poison class: ``NaN < τ`` is always
+    # False in IEEE floats, so a naive comparison would *pass* VERIFIED+NaN.
+    # Post-construction mutation can still inject NaN (Claim is not frozen);
+    # the gate is the last structural backstop (REWORK 2026-07-11).
+    if claim.status is ClaimStatus.VERIFIED:
+        conf = claim.confidence
+        if (
+            isinstance(conf, bool)
+            or not isinstance(conf, (int, float))
+            or not math.isfinite(conf)
+        ):
+            out.append(
+                GateFailure(
+                    code="NONFINITE_CONFIDENCE",
+                    detail=(
+                        f"Verified claim has non-finite confidence {conf!r}: "
+                        f"{claim.text!r}"
+                    ),
+                    claim_id=claim.id,
+                )
             )
-        )
+        elif conf < confidence_threshold:
+            out.append(
+                GateFailure(
+                    code="LOW_CONFIDENCE",
+                    detail=(
+                        f"Verified claim below τ={confidence_threshold}: "
+                        f"{conf:.2f} — {claim.text!r}"
+                    ),
+                    claim_id=claim.id,
+                )
+            )
 
     # Every cited source must have been retrieved (no dead citation).
     for ref in (*claim.sources, *claim.verification):

@@ -1,5 +1,42 @@
 # WORK QUEUE — GENESIS
 
+> **🔴 FULL REWORK CAMPAIGN OPEN — 2026-07-11**
+>
+> Everything previously marked DONE / FIXED / CLOSED / COMPLETE is **OPEN** again.
+> Campaign tracker: **`docs/REWORK_CAMPAIGN.md`** (290 modules). Product SSOT: **`docs/STATUS.md`**.
+> Local tree: `/home/genesis/genesis` · Remote: `https://github.com/Oz4462/genesis`
+>
+> **Active sequence:** core → verification → ledger/llm/tools → agents → runner/pipeline → physics/CAD →
+> pipelines/grenz/inventor/discovery → humanoids → docs honesty.
+>
+> Historical entries below the archive line are **archive only** (not trusted as done).
+
+## Active — FULL REWORK (2026-07-11)
+
+Status legend: `OPEN` | `IN_PROGRESS` | `REWORKED` | `VERIFIED`
+
+| Package | Status | Notes |
+|---|---|---|
+| `core/` (state, interfaces, errors) | ✅ REWORKED | Claim confidence/url/text; SourceRef SUPPORTS; 19 new + 191 green |
+| `verification/` | ✅ REWORKED | NaN clamp, NONFINITE_CONFIDENCE, within_tolerance |
+| `ledger/` + `llm/` + `tools/` | ✅ REWORKED (partial depth) | store integrity; parsing; fetch scheme |
+| `agents/` | ✅ REWORKED | re-verified; NaN clamp + shape guards |
+| `runner` + `pipeline` + quality | ✅ REWORKED | assess no silent except; pipeline/capstone 84p |
+| physics + CAD + simulation | ✅ REWORKED | non-finite SF, section, seams, CAD suite |
+| pipelines + grenz + inventor + discovery | ✅ REWORKED (partial depth) | discovery core green; lumen optional_skips |
+| humanoids + web/cli + islands | ✅ REWORKED | islands triaged; CLI matrix + humanoid suites |
+| Integrity watchlist §1 | ✅ REWORKED | all 4 rows re-proved 2026-07-11 |
+| HORIZON φ→Ω | ✅ REWORKED | ε/ζ/Ω/δ+ re-proved via phase tests |
+| CLI modes | ✅ REWORKED | 35 modes (+frontier/designer/wirtschaft) |
+
+---
+
+## Archive — prior campaigns (NOT trusted; historical)
+
+> Everything below was claimed DONE in prior sessions. Under the 2026-07-11 rework, those markers are void.
+> Original text preserved for forensics.
+
+
 > **User directive 2026-06-21:** Alle Daten/Stand/Memory aktualisiert + Loops auf 10min gekürzt. Scheduler: 10m recurring active.
 > Voller Kontext: `docs/integration/SESSION_HANDOFF.md`. Branch `feat/app-integration-phase0-2`
 > (76 ahead of main, lokal, KEIN Push). Suite: 1204 passed / 9 skipped. Ollama gestoppt.

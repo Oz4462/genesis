@@ -104,10 +104,34 @@ def test_non_robot_root_is_loud(tmp_path):
 # --- real-tool validation (ROS 2 present) ------------------------------------------
 
 _CHECK_URDF = shutil.which("check_urdf") or "/opt/ros/jazzy/bin/check_urdf"
-_HAVE_CHECK_URDF = Path(_CHECK_URDF).exists()
 
 
-@pytest.mark.skipif(not _HAVE_CHECK_URDF, reason="check_urdf (urdfdom / ROS 2) not available")
+def _have_working_check_urdf() -> bool:
+    """True only if check_urdf exists AND can load its shared libraries.
+
+    On some hosts ``/opt/ros/jazzy/bin/check_urdf`` is present but
+    ``liburdfdom_model.so`` is missing → exit 127. That is an environment gap,
+    not a GENESIS defect — skip rather than fail the suite (REWORK 2026-07-11).
+    """
+    if not Path(_CHECK_URDF).exists():
+        return False
+    try:
+        # No args: should print usage (0/1) or fail loudly with missing .so (127).
+        proc = subprocess.run(
+            [_CHECK_URDF], capture_output=True, text=True, timeout=20
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    combined = (proc.stderr or "") + (proc.stdout or "")
+    if "error while loading shared libraries" in combined or proc.returncode == 127:
+        return False
+    return True
+
+
+_HAVE_CHECK_URDF = _have_working_check_urdf()
+
+
+@pytest.mark.skipif(not _HAVE_CHECK_URDF, reason="check_urdf (urdfdom / ROS 2) not available or missing shared libs")
 def test_check_urdf_accepts_emitted_urdf(tmp_path):
     """urdfdom's check_urdf parses the emitted URDF as a valid robot tree (the real
     ROS 2 URDF parser, not GENESIS' own)."""
@@ -116,7 +140,6 @@ def test_check_urdf_accepts_emitted_urdf(tmp_path):
     assert proc.returncode == 0, proc.stderr
     assert "Successfully Parsed XML" in proc.stdout
     assert "robot name is: genesis_humanoid" in proc.stdout
-
 
 def _have_catkin_pkg() -> bool:
     try:

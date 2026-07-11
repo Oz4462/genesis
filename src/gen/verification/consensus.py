@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from ..core.state import ClaimStatus
 from .cross_model import (
     Judgment,
+    _clamp01,
     assert_different_families,
     corroborated_confidence,
 )
@@ -59,10 +60,6 @@ def _support_score(j: Judgment) -> float:
     each dissenter pulls the weighted mean down — the PoV-3 leak-reduction effect.
     """
     return _clamp01(j.confidence) if j.status is ClaimStatus.VERIFIED else 0.0
-
-
-def _clamp01(x: float) -> float:
-    return 0.0 if x < 0 else 1.0 if x > 1 else x
 
 
 def consensus_verdict(

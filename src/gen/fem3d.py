@@ -41,6 +41,43 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from .core.errors import GeometryError
+
+
+def _check_material_and_bcs(
+    e_modulus: float, nu: float, fixed_dofs: dict[int, float], loads: dict[int, float]
+) -> None:
+    """Fail-loud input validation shared by the T4 and T10 solvers.
+
+    NaN/Inf in E, ν, a load or a prescribed displacement propagates silently through
+    the assembly to a NaN solution — and NaN passes every comparison guard as False,
+    so a later ``if peak > limit`` would mask it as OK. Invalid inputs are a caller
+    error → ValueError (consistent with buckling.py's load guard).
+    """
+    if not np.isfinite(e_modulus) or e_modulus <= 0.0:
+        raise ValueError(f"e_modulus must be finite and positive, got {e_modulus!r}")
+    if not np.isfinite(nu) or not (-1.0 < nu < 0.5):
+        raise ValueError(
+            f"Poisson ratio must be finite and in (-1, 0.5), got {nu!r} "
+            "(nu=0.5 makes the isotropic elasticity matrix singular)"
+        )
+    for name, mapping in (("fixed_dofs", fixed_dofs), ("loads", loads)):
+        for dof, val in mapping.items():
+            if not np.isfinite(val):
+                raise ValueError(f"{name}[{dof}] must be finite, got {val!r}")
+
+
+def _check_solution_finite(u: np.ndarray) -> None:
+    """A non-finite displacement solution means a degenerate/singular structure
+    (e.g. a zero-volume element or unconstrained mechanism that slipped past the
+    direct solve) → GeometryError. Never return NaN silently."""
+    if not np.all(np.isfinite(u)):
+        raise GeometryError(
+            "FEM solution is not finite (NaN/Inf displacements) — degenerate mesh "
+            "or ill-posed boundary conditions"
+        )
+
+
 # the 6-tetrahedron (Freudenthal) split of a hex with local corner order
 # 0:(0,0,0) 1:(1,0,0) 2:(1,1,0) 3:(0,1,0) 4:(0,0,1) 5:(1,0,1) 6:(1,1,1) 7:(0,1,1)
 _HEX_TETS = (
@@ -124,7 +161,12 @@ def solve_elasticity(
     `fixed_dofs` and `loads` are keyed by global DOF index (3·node + component,
     component 0/1/2 = x/y/z). Returns ``(displacements (Nx3), element_stresses
     (Mx6))`` in Voigt order. Deterministic.
+
+    Raises ValueError on non-finite/unphysical material parameters, loads or
+    prescribed displacements; raises GeometryError if the solve yields a
+    non-finite displacement field (degenerate mesh / ill-posed BCs).
     """
+    _check_material_and_bcs(e_modulus, nu, fixed_dofs, loads)
     n_dof = 3 * len(nodes)
     d = _elasticity_matrix(e_modulus, nu)
     k = np.zeros((n_dof, n_dof))
@@ -149,6 +191,7 @@ def solve_elasticity(
         list(fixed_dofs.values())
     ) if fixed_dofs else f[free]
     u[free] = np.linalg.solve(k[np.ix_(free, free)], f_red)
+    _check_solution_finite(u)
 
     stresses = np.zeros((len(tets), 6))
     for e, (b, dofs) in enumerate(b_cache):
@@ -226,7 +269,13 @@ def prismatic_bar_axial_response(
 
 
 def von_mises(stress6: np.ndarray) -> float:
-    """Von-Mises equivalent stress from a Voigt stress vector (xx,yy,zz,xy,yz,zx)."""
+    """Von-Mises equivalent stress from a Voigt stress vector (xx,yy,zz,xy,yz,zx).
+
+    Raises ValueError on a non-finite stress component — von_mises(NaN)=NaN would
+    pass every downstream limit comparison as False (silent OK).
+    """
+    if not np.all(np.isfinite(stress6)):
+        raise ValueError(f"stress vector must be finite, got {stress6!r}")
     sx, sy, sz, txy, tyz, tzx = stress6
     return float(
         np.sqrt(
@@ -241,9 +290,6 @@ def von_mises(stress6: np.ndarray) -> float:
 # These close the "next layer" the module docstring used to defer: a CONFORMING
 # unstructured mesh of a holed part, so the stress concentration is COMPUTED from the
 # field instead of bounded by a constant. gmsh/meshio are optional; both fail loud.
-
-from .core.errors import GeometryError  # noqa: E402  (kept local to the optional block)
-
 
 def _require_gmsh():
     """Lazy gmsh import, with the loud no-mesher message (CLAUDE.md: no silent default)."""

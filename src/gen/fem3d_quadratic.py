@@ -20,7 +20,9 @@ T10 element reaches the converged Kirsch/finite-width Kt on a far coarser mesh t
 the linear T4 element — the "faster convergence" this refinement is about.
 
 Honest boundary: linear isotropic elasticity, static; numerical integration (4-point
-Gauss, exact for these elements). The mesher needs the optional `gmsh` package.
+Gauss — exact for STRAIGHT-EDGED (affine) elements, where the Jacobian is constant
+and the integrand is degree ≤ 2; a curved-boundary T10 element has a varying Jacobian,
+so the rule is then an approximation). The mesher needs the optional `gmsh` package.
 """
 
 from __future__ import annotations
@@ -30,7 +32,7 @@ from math import factorial
 import numpy as np
 
 from .core.errors import GeometryError
-from .fem3d import _elasticity_matrix
+from .fem3d import _check_material_and_bcs, _check_solution_finite, _elasticity_matrix
 
 # T10 local node order: 4 corners (0-3), then 6 edge midpoints for edges
 # (0,1),(1,2),(2,0),(0,3),(1,3),(2,3).
@@ -94,7 +96,12 @@ def _b_matrix(coords: np.ndarray, gp: np.ndarray) -> tuple[np.ndarray, float]:
 
 
 def t10_stiffness(coords: np.ndarray, e_modulus: float, nu: float) -> np.ndarray:
-    """30×30 stiffness of one T10 element by 4-point Gauss integration."""
+    """30×30 stiffness of one T10 element by 4-point Gauss integration.
+
+    Exact for a straight-edged (affine) element: there the Jacobian is constant and
+    Bᵀ·D·B is degree ≤ 2, within the rule's degree-2 exactness. For a curved-boundary
+    element (varying Jacobian) the rule is an approximation — same honesty note as
+    ``t10_mass``."""
     d = _elasticity_matrix(e_modulus, nu)
     ke = np.zeros((30, 30))
     for gp in _GAUSS:
@@ -169,7 +176,12 @@ def box_mesh_t10(lx: float, ly: float, lz: float, size: float) -> tuple[np.ndarr
 def solve_elasticity_t10(nodes, tets, e_modulus, nu, fixed_dofs, loads):
     """Solve K·u = F for a T10 mesh. Same interface as fem3d.solve_elasticity but
     with 10-node elements. Returns ``(displacements (N×3), element_stresses (M×6))``
-    (stress evaluated at the element centroid)."""
+    (stress evaluated at the element centroid).
+
+    Raises ValueError on non-finite/unphysical material parameters, loads or
+    prescribed displacements; raises GeometryError on a non-finite solution
+    (degenerate mesh / ill-posed BCs) — same fail-loud contract as fem3d."""
+    _check_material_and_bcs(e_modulus, nu, fixed_dofs, loads)
     n_dof = 3 * len(nodes)
     d = _elasticity_matrix(e_modulus, nu)
     k = np.zeros((n_dof, n_dof))
@@ -190,6 +202,7 @@ def solve_elasticity_t10(nodes, tets, e_modulus, nu, fixed_dofs, loads):
         list(fixed_dofs.values())
     ) if fixed_dofs else f[free]
     u[free] = np.linalg.solve(k[np.ix_(free, free)], f_red)
+    _check_solution_finite(u)
 
     centre = np.array([0.25, 0.25, 0.25])
     stresses = np.zeros((len(tets), 6))

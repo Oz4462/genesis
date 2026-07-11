@@ -182,6 +182,10 @@ class LumenCrucible:
         if run_id is None:
             run_id = f"lumen-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
 
+        # Optional enrichments that fail must not be silent (REWORK 2026-07-11).
+        # Each skipped optional path is recorded and returned as ``optional_skips``.
+        optional_skips: list[str] = []
+
         # 1. Einfache deterministische Gate-Prüfung (kein LLM)
         gate_result = self._internal_gate_check(raw_dream)
         if not gate_result.passed:
@@ -216,8 +220,10 @@ class LumenCrucible:
                     frontier_snapshot=hammer.frontier_snapshot,
                     quelle=hammer.quelle + " + dream_to_hammer_gate",
                 )
-        except Exception:
-            pass  # optional dep / forward compat
+        except Exception as exc:  # noqa: BLE001 — optional gate
+            optional_skips.append(
+                f"dream_to_hammer_gate ({type(exc).__name__}: {exc})"
+            )
 
         # 3b. Simulation predictions (Punkt 4 – hardened automatic coupling)
         sim_result = None
@@ -238,8 +244,10 @@ class LumenCrucible:
                         frontier_snapshot=hammer.frontier_snapshot,
                         quelle=hammer.quelle + " + simulation.runner",
                     )
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001 — optional sim
+                optional_skips.append(
+                    f"simulation.runner ({type(exc).__name__}: {exc})"
+                )
 
         # 3c. Full multi-domain for complex products (drone/robot etc.) – hardens all pipelines to max level like Electronics
         # Always synthesize rich data from Architekt + Ingenieur + Physiker + Techniker + Software + Electronics for Closed-Loop
@@ -838,6 +846,8 @@ class LumenCrucible:
             # Platform Caps deepen (TeacherMode + CommunityEvidence) for Platform-Demo-Path
             "teacher_notes": teacher if "teacher" in locals() else None,
             "community_evidence": community if "community" in locals() else None,
+            # Optional enrichment skips (never silent except Exception: pass)
+            "optional_skips": optional_skips,
             "quelle": (
                 "LUMENCRUCIBLE Ω v1 (grenzverschiebung) + HORIZON.md + "
                 "real map_development_front + omega.OmegaCertificate + Claim + simulation.runner (Punkt 4) + electronics layer (agent: circuits/chips/simulation/Einbau + co-sim) + "

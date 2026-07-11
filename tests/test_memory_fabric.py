@@ -102,14 +102,39 @@ def test_build_with_no_verified_claims_yields_empty_deposits():
     assert cert.deposits == []
 
 
-def test_build_deposit_preserves_only_nonblank_source_ids():
-    # A blank url_or_id carries no provenance and must not be deposited as a source.
+def test_blank_source_url_rejected_at_sourceref_construction():
+    # Core rework (2026-07-11): blank url_or_id is structurally impossible on SourceRef.
+    with pytest.raises(ValueError, match="url_or_id"):
+        _source("   ")
+
+
+def test_claim_sources_filter_drops_blank_ids_defense_in_depth():
+    # Fabric still filters blank ids for duck-typed claims that never hit SourceRef.
+    from gen.memory_fabric import _claim_sources
+
+    duck = SimpleNamespace(
+        sources=[
+            SimpleNamespace(url_or_id="https://example.org/keep"),
+            SimpleNamespace(url_or_id="   "),
+            SimpleNamespace(url_or_id=""),
+        ]
+    )
+    assert _claim_sources(duck) == ("https://example.org/keep",)
+
+
+def test_build_deposit_preserves_source_ids():
     claim = _claim(
         "c1",
-        sources=[_source("https://example.org/keep"), _source("   ", retrieved=True)],
+        sources=[
+            _source("https://example.org/keep"),
+            _source("https://example.org/other"),
+        ],
     )
     cert = build_memory_fabric_certificate(_state(claim))
-    assert cert.deposits[0].sources == ("https://example.org/keep",)
+    assert set(cert.deposits[0].sources) == {
+        "https://example.org/keep",
+        "https://example.org/other",
+    }
 
 
 def test_build_passes_through_calibration_and_health():

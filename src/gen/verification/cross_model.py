@@ -20,6 +20,7 @@ Determinism matters: these functions feed claim confidence, and reproducibility
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 from ..core.errors import ModelConflictError
@@ -147,7 +148,18 @@ def corroborated_confidence(c1: float, c2: float) -> float:
 
 
 def _clamp01(x: float) -> float:
-    return 0.0 if x < 0 else 1.0 if x > 1 else x
+    """Map a score into [0, 1]. Non-finite values (NaN/Inf) become 0.0.
+
+    Critical: ``NaN < 0`` and ``NaN > 1`` are both False in IEEE floats, so a
+    naive clamp would *return* NaN and silently poison every downstream
+    confidence threshold (``NaN < τ`` is always False → false VERIFIED pass).
+    """
+    try:
+        if not math.isfinite(float(x)):
+            return 0.0
+    except (TypeError, ValueError):
+        return 0.0
+    return 0.0 if x < 0 else 1.0 if x > 1 else float(x)
 
 
 def _conservative_status(a: ClaimStatus, b: ClaimStatus) -> ClaimStatus:

@@ -1,5 +1,8 @@
 # GENESIS — Vollständige Liste aller offenen Module / Tasks (2026-06-24)
 
+> **🔴 REWORK 2026-07-11:** All DONE/CLOSED/COMPLETE markers in this file are **void**. Active checklist: `docs/REWORK_CAMPAIGN.md`. SSOT: `docs/STATUS.md`.
+
+
 **Erstellt durch:** Grok Build (thorough research via reads/greps of all sources)
 **Quellen (evidence-based):**
 - `docs/DOC_CODE_DRIFT.md` (authoritative built vs planned)

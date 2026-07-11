@@ -1,3 +1,231 @@
+
+---
+
+## 2026-07-11 — α/β/γ offline demos + KEEP_OPTIN re-verify + STATUS AUTO
+
+### α/β/γ
+- `--mode report|solution|spec --demo` all exit 0 (scripted Dependencies, deterministic)
+- CLI matrix extended to include these demos
+
+### KEEP_OPTIN / integrations
+- materials_oracle, mcp, trustcore, calibration, urdf, webapp, materials, postgres characterization: green
+- drawing/cfd/qdrant/postgres integration: mostly green; ros2 check_urdf skip when liburdfdom missing (env gap)
+
+### STATUS AUTO
+- `scripts/gen_status.py --date 2026-07-11`: modules=323 WIRED=215 SCRIPT=11 ISLAND=63 INFRA=34; **3553 tests collected**
+
+### HORIZON table
+- φ/χ/δ+/ε/ζ/Ω marked REWORKED in STATUS §3 (γ⁺ still thin inputs)
+
+Progress: ~120/290 REWORKED
+
+
+---
+
+## 2026-07-11 — full Fach-Pipeline CLI family + research_promotion + CAPABILITIES honesty
+
+### Fach pipelines
+- `run_fach_pipeline` / `run_fach_family` for all 10: architekt, ingenieur, physiker, techniker, elektriker, fertigungs, regulatorik, software, designer, wirtschaft
+- CLI: `--mode fach` (summary of all) or single pipeline modes
+- Tests: parametrized over FACH_PIPELINE_NAMES (21p fach suite)
+
+### research_promotion
+- Wired into `--mode research` output as autonomous Ladder stage
+- ESTABLISHED only with human SignOff (test + live smoke HARDENED for sin²+cos²)
+
+### Docs honesty
+- CAPABILITIES.md: honesty banner, STATUS SSOT, stale CLI/test counts refreshed
+
+### Islands
+- 63 islands / 215 wired (was 67/210 at triage start)
+
+Progress: ~111/290 REWORKED
+
+
+---
+
+## 2026-07-11 — PRODUCT_WIRE: frontier + designer + wirtschaft CLI
+
+### What
+- New module `src/gen/fach_cli.py`: pure offline helpers for χ frontier map and Fach-Pipelines.
+- CLI modes:
+  - `--mode frontier` → `build_frontier_map` + `gate_chi` (demo RunState, GATE χ PASS)
+  - `--mode designer` → Architekt→Ingenieur→DesignerSpec (input-driven, DECISION markers)
+  - `--mode wirtschaft` → Architekt→Ingenieur→WirtschaftSpec (honest Lücke strings, no fake EUR)
+- Tests: `tests/test_fach_cli_rework.py` + CLI matrix extended (18p combined).
+
+### Islands
+- Before: ISLAND=67 WIRED=210
+- After:  ISLAND=64 WIRED=214 (designer/wirtschaft/frontier wired via cli)
+
+### Evidence
+- pytest test_fach_cli_rework + test_phase_chi: 14p
+- pytest matrix + fach: 18p
+- Manual smoke: frontier/designer/wirtschaft exit 0, honest output
+
+Progress: ~103/290 REWORKED
+
+
+---
+
+## 2026-07-11 — CLI mode matrix + island triage
+
+### Islands
+- Live: modules=322 WIRED=210 SCRIPT=11 ISLAND=67 INFRA=34
+- Disposition doc: `docs/ISLAND_TRIAGE_2026-07-11.md` (PRODUCT_WIRE / KEEP_OPTIN / ARCHIVE / TEST_ONLY / VENDOR)
+- No mass-move to `_experimental/` (re-export risk)
+- Island modules with tests re-verified (discovery facade, humanoid experiments, physics satellites)
+
+### CLI (32 modes)
+Offline demos exit 0: assess, print, section, training, chip, invent, goldset (dry-perfect), divergence (honest empty), research (x+1)², discover-ode (pendulum R²=1), topology (vorschlag_unverifiziert), horizon-full (6 ok), breakthrough (CAD None / DFM False honest)
+New regression: `tests/test_cli_mode_matrix_rework.py`
+
+### PRODUCT_WIRE backlog (not done)
+- Fach-Pipeline CLI family (designer/wirtschaft)
+- χ frontier CLI mode
+
+Progress: ~100/290 REWORKED
+
+
+---
+
+## 2026-07-11 — integrity #3–#4 + discovery + humanoids/CLI (autonomous)
+
+### Bug fix
+- **seams.detect_cross_domain_seams**: removed invalid MECH↔MECH DomainSeam (violated DomainSeam invariant; broke test_phase_epsilon). Topology stays intra-MECH via domains_present only.
+
+### Integrity watchlist §1 — all 4 REWORKED
+1. δ⁺ abstain (prior)
+2. breakthrough non-fabrication (prior)
+3. lumen Claim VERIFIED@confidence=1.0 deterministic provenance — `test_integrity_rework_horizon` + live smoke
+4. enforce_omega raises OmegaGateNotPassed — characterization + new integrity tests; subgates captured in return
+
+### Evidence
+- phase ε/ζ/Ω/lumen/fabric: 74p
+- discovery core (sindy/engine/controller/graph/surrogate/tournament/symbolic): 47p
+- humanoids + CLI modes: 47p
+- integrity rework tests: 19p (incl. characterization)
+
+Progress: ~85/290 REWORKED
+
+### Next
+- remaining discovery islands, humanoid islands triage, full CLI mode matrix, island archive discipline
+
+
+---
+
+## 2026-07-11 — lumen optional_skips + inventor re-verify
+
+- `process_dream` returns ``optional_skips`` for failed optional enrichments (no silent pass on hammer_gate/sim)
+- inventor loop/score/safety + integrator/architekt re-verified green
+- Remaining: more bare ``except: pass`` deeper in lumen cert blocks (backlog)
+
+Progress: ~65/290 REWORKED
+
+
+---
+
+## 2026-07-11 — physics + CAD + integrity rework (autonomous)
+
+### Bugs fixed
+1. **physics_validation**: non-finite `safety_factor`/`ratio` now `status=error` (not green pass); `_dimensional_ok` returns False on NaN SF
+2. **section_optimizer.propose_structural**: dead ternary always `vorschlag_unverifiziert` → gate_fail → `nicht_optimiert`
+3. **seams.domains_present**: NameError unbound `c` in topology text scan (broke phase_omega e2e)
+
+### Re-proved
+- dimensional gate wire, physics_validation, section/topology, CAD (dfm/print/kicad/cost/proto), fem3d, buckling, fatigue
+- Integrity #1 δ⁺ abstain, #2 breakthrough non-fabrication (tests green)
+
+### Evidence
+- physics rework invariants + related: 70p
+- CAD+physics batch: 79p
+- omega/lumen/breakthrough/delta+: 75p (was 1 fail, now green)
+
+### Progress ~59/290 REWORKED
+### Next
+- grenzverschiebung silent `except: pass` cleanup (lumen)
+- pipelines/ + inventor/
+- Integrity #3 #4 re-proof
+
+
+---
+
+## 2026-07-11 — autonomous rework continued (verification → agents → pipeline)
+
+### Highlights
+1. **verification/** critical NaN confidence poison fixed (clamp + GATE NONFINITE_CONFIDENCE)
+2. **ledger.store** layer-2 integrity after mutation
+3. **agents/** + **tools.fetch** re-verified green
+4. **pipeline** silent `except Exception: pass` → optional_notes in completeness_warnings
+
+### Evidence
+- verification slice 206p; agents/pipeline 57p; pipeline/capstone 84p; combined slices 140–176p
+- Collection: ~3498 tests
+
+### Progress
+- ~33/290 modules REWORKED
+- Next: physics_validation + CAD + simulation stack
+
+
+---
+
+## 2026-07-11 — verification/ + ledger rework (autonomous)
+
+### verification/
+- **Bug:** `_clamp01` returned NaN (IEEE: NaN comparisons always False) → poisoned cross-model/consensus confidence
+- **Bug:** GATE α `confidence < τ` passed VERIFIED claims with NaN confidence
+- **Fix:** NaN/Inf → 0.0 in `_clamp01`; `NONFINITE_CONFIDENCE` failure code in `claim_soundness_failures`
+- **Fix:** `within_tolerance` explicitly rejects non-finite stated/computed/tolerance
+- **Refactor:** consensus uses `cross_model._clamp01` (single clamp definition)
+- **Tests:** `tests/test_verification_rework_invariants.py`; full verification slice 206p + 109p broader
+
+### ledger.store
+- Layer-2 `_assert_claim_integrity`: non-empty sources/urls + finite confidence ∈ [0,1] on add/update
+- Evidence: test_ledger + related 140p green
+
+### Next
+- agents/ package rework
+- tools/ (fetch SSRF depth still deferred D8)
+
+
+---
+
+## 2026-07-11 — Collection repair + core/ rework
+
+### Collection errors (6 → 0)
+- Restored `src/gen/external/materials_oracle.py` from origin/main
+- Restored `src/gen/memory/_vendor/anamnesis_mem/*` (was empty dir + pycache only)
+- Restored full `fem3d.py` (PrismaticBarResponse, prismatic_bar_axial_response, stress_concentration_field) and re-merged fail-loud material/solution guards
+- Evidence: `pytest --collect-only` → **3477 collected**, 0 errors; 37 tests from the 5 non-gmsh fixed files green
+
+### core/ rework (state, interfaces, errors)
+- L1: Claim.confidence accepted NaN/out-of-range → silent gate poison risk → now finite ∈ [0,1]
+- L1: blank Claim.text / SourceRef.url_or_id rejected
+- L2: SourceRef.support default was `None` (type: ignore) → `SourceSupport.SUPPORTS`
+- Tests: `tests/test_core_state_invariants.py` (19); memory_fabric adjusted for structural blank-url ban
+- Evidence: 191 related tests green (gates α/β/γ, skeptic, consensus, fabric, ledger, oracle)
+
+### Next
+- verification/ package rework
+
+
+---
+
+## 2026-07-11 — FULL REWORK CAMPAIGN OPEN
+
+**Directive:** Continue GENESIS; set every previously-done item to OPEN; rework every module/detail/code.
+
+**Actions:**
+- Local tree already present at `/home/genesis/genesis`; `origin` → `https://github.com/Oz4462/genesis`
+- Branch: `rework/full-open-2026-07-11`
+- Created `docs/REWORK_CAMPAIGN.md` — **290 modules, all OPEN**
+- Reset `docs/STATUS.md` integrity/HORIZON/CLI/islands to 🔓 OPEN
+- Reset `WORK_QUEUE.md` active table to OPEN (archive preserved)
+- Bannered historical TODO lists (OPEN_MODULES, GENESIS_TODO, PLATFORM_BUILD_TODO)
+- Smoke: `gen.core` imports OK; pytest collect: 6 ERROR files (listed in STATUS)
+
+**Next:** Start package rework at `core/` (state → interfaces → errors), then verification/.
+
 # BUILD_LOG
 
 ## 2026-06-23 — Tool-Integration: neu-installierte externe Tools real verdrahtet (PG/pgvector, CadQuery, KiCad, OpenFOAM, OpenMDAO)
@@ -886,3 +1114,76 @@ Autonomous loop continues: next would target Wissensbasis stubs, simulation gate
 **Memory:** OPEN + BUILD + WQ updated. This closes the immediate test-coverage part of gap #4. Full consumers later.
 
 All per Finish-or-Fail + 4L ritual.
+
+## 2026-07-07 — Integration: SIMP Topology Optimization (topology_optimizer) wired as richer generative step
+
+**Verdict: INTEGRATED.** The SIMP density-field proposer (from GitHub uploads) is now first-class in the structural/generative flow.
+
+- Copied topology_optimizer.py + fem3d* sync + test from GitHub state.
+- Extended section_optimizer.py: updated docstring to reflect SIMP as implemented richer step; added propose_topology_cantilever wrapper + re-exports (TopologyProposal, threshold etc.) for discoverability.
+- Added --mode topology to cli.py (demo of proposal with honest verdict + delta_path; improvement factors shown).
+- Library: from gen.section_optimizer import propose_topology_cantilever works; produces vorschlag_unverifiziert as designed.
+- Keeps honesty: proposal only, delta_path explicit (threshold_resolve + gates).
+- Verified: direct call + CLI mode run successfully (e.g. 6x+ improvement on sample, correct verdict).
+- No changes to pipeline.py (Claude humanoid note respected).
+- Ties to Elon vision: enables topology-optimized lightweight structures (e.g. for ISRU components, habitats) with full gate discipline.
+
+Tests: module test copied; integration exercised. Full relevant green in manual runs.
+
+4 Linsen applied (L1 sources in constants, L2 re-use fem3d, L3 seams to MECH/print, L4 deterministic numpy + tests).
+
+
+## 2026-07-07 — Integration: SIMP Topology (from GitHub uploads)
+**Verdict: DONE.** topology_optimizer.py (SIMP on fem3d as density Vorschlag) integriert.
+- Kopiert + fem3d synced.
+- section_optimizer.py: Doc + propose_topology_cantilever Wrapper (richer step).
+- cli.py: --mode topology (demo, honest proposal + delta).
+- Tests: 14 passed (topology) + 19 (section+visionary).
+- Lib + CLI verified (faktor >4, verdict korrekt).
+- Keine Pipeline-Touches.
+- Für komplett Genesis + Elon: TopOpt für leichte Strukturen (ISRU, Habitats).
+- L DR: siehe oben, 4 Linsen (honest proposal, reuse fem3d, tests, lean).
+
+## 2026-07-07 — SIMP Topology full integration (per Architect Council plan)
+- Unified `StructuralProposal` + `propose_structural(design_type=...)` facade inside section_optimizer.py (lean, no new files).
+- CLI: "topology" + "structural" in choices; modes use unified.
+- seams.py: topology hints → MECH + explicit "mech_topology_simp" seam.
+- Proposal contract preserved ("vorschlag_unverifiziert" + delta_path).
+- Tests: topology 14p, related green.
+- 4 Linsen + explicit seams + no bloat.
+- Ties to complete Genesis (generative lightweight structures for Elon space vision).
+
+## 2026-07-07 — SIMP Topology Integration Complete (Council Plan Followed)
+**Verdict: INTEGRATED, TESTS GREEN, HONEST.**
+
+- Per Architect subagent plan (unified facade, CLI, seams, lean, preserve "vorschlag_unverifiziert" + delta_path).
+- Unified `StructuralProposal` + `propose_structural(design_type=...)` in section_optimizer.py.
+- CLI: --mode topology + --mode structural (unified, "structural" added to choices).
+- Seams: topology hints force MECH + explicit mech_topology_simp seam.
+- Smoke confirmed: unified API returns correct StructuralProposal / TopologyProposal with verdict="vorschlag_unverifiziert".
+- Tests: topology_optimizer 14 passed; section+visionary related 19 passed (no breakage).
+- Docs: CAPABILITIES.md updated; BUILD_LOG L DR.
+- No pipeline changes (Claude note).
+- Fits komplett Genesis (not only multi-physics): generative structural design for lightweight space structures (MECH opt on fem3d, combinable with ISRU/LIFE seams for Elon multi-planetary: habitats, ISRU plants, reusable parts).
+- 4 Linsen: L1 (sourced constants, fem3d reuse), L2 (no drift on legacy), L3 (explicit seams + proposal contract), L4 (deterministic, testable, realizable via gates).
+
+Next (per plan): use in visionary/space spec (e.g. topology-optimized Mars structure), or wire full delta_path as ready-to-use.
+
+## 2026-07-07 — Council Verification Complete: SIMP Topology Integration (Proposal Honesty + Test Coverage)
+**Verdict: GUARDED + COVERED.**
+
+Per Verification Specialist subagent memo (99 tool calls, full review + targeted edits):
+- Existing tests in test_topology_optimizer.py reviewed (14 tests pinning "vorschlag_unverifiziert" + delta_path with threshold + gates; fem3d guards exercised; determinism; no fab).
+- Gaps closed: +3 tests in test_topology_optimizer.py (bridge unit unverified, integration proposal→threshold→gate_discipline independent, negative invalid mesh).
+- +2 tests in test_section_optimizer.py (bridge returns unverified, never skips outer gate).
+- All new tests green (19 passed targeted; full relevant 30+ in broader runs).
+- Contract enforced: proposal *never* certified; gates *always* re-verify (explicit asserts + comments).
+- Coverage: bridge, integration seams (optimizer↔fem3d↔section↔gate_delta), negatives, fem3d via density paths.
+- No fabrication, full real execution, 4 Linsen applied.
+- Evidence: pytest runs, Python smoke, greps, file reads (absolute paths in memo).
+
+This completes the assigned verification task. Proposal status + test coverage now solid.
+
+Combined with Architect plan: integration done (unified facade, CLI, seams, docs). All per rigorous (Council both sides, TDD-style, explicit, lean).
+
+Next minimal: wire usage example (e.g. in visionary for space part) or full delta helper.

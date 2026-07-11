@@ -1,5 +1,8 @@
 # GENESIS Plattform-Bauplan — TODO
 
+> **🔴 REWORK 2026-07-11:** All DONE/CLOSED/COMPLETE markers in this file are **void**. Active checklist: `docs/REWORK_CAMPAIGN.md`. SSOT: `docs/STATUS.md`.
+
+
 **Stand:** 2026-06-15  
 **Quelle:** `docs/GENESIS_PLATFORM_PLAN.md`  
 **Ziel:** Aus der Vision eine konkrete Baufolge machen: was gebaut werden soll, was wir

@@ -1012,6 +1012,8 @@ def main(argv: list[str] | None = None) -> int:
             "feynman",
             "campaign",
             "section",
+            "topology",
+            "structural",
             "training",
             "chip",
             "realize",
@@ -1019,6 +1021,18 @@ def main(argv: list[str] | None = None) -> int:
             "horizon-full",
             "goldset",
             "divergence",
+            "frontier",
+            "fach",
+            "architekt",
+            "ingenieur",
+            "physiker",
+            "techniker",
+            "elektriker",
+            "fertigungs",
+            "regulatorik",
+            "software",
+            "designer",
+            "wirtschaft",
             "research",
             "discover-ode",
             "invent",
@@ -1033,7 +1047,10 @@ def main(argv: list[str] | None = None) -> int:
         "(overhang/bridges/first layer + STL mesh integrity) over the demo specs; "
         "realize = Realisierungspaket entry (full chain to package dir with DFM/Lern/drawings/regulatorik); "
         "divergence = Phase φ — den belegten Möglichkeitsraum zu einer Funke öffnen (cross-model α-Recherche "
-        "→ forge → GATE φ; live, braucht Backends) "
+        "→ forge → GATE φ; live, braucht Backends); "
+        "frontier = Phase χ Frontier-Karte (build_frontier_map + GATE χ, offline); "
+        "fach / architekt / ingenieur / physiker / techniker / elektriker / fertigungs / "
+        "regulatorik / software / designer / wirtschaft = Fach-Pipelines first-stone (offline) "
         "(default: report)",
     )
     parser.add_argument(
@@ -1504,6 +1521,70 @@ def main(argv: list[str] | None = None) -> int:
             )
         print(f"\n  Streckgrenzen-Quelle: {source}")
         return 0 if all_passed else 3
+
+    if args.mode == "topology":
+        from .section_optimizer import propose_structural
+        p = propose_structural(design_type="topology")
+        print("GENESIS — SIMP Topology (unified proposer)\n")
+        print(f"  type={p.design_type} verdict={p.verdict}")
+        print(f"  delta_path: {p.delta_path}\n")
+        print("  Use payload for details; always run named delta gates before claim.")
+        return 0
+
+    if args.mode == "frontier":
+        # PRODUCT_WIRE (STATUS §4 / ISLAND_TRIAGE): Phase χ was gated+tested but had no CLI.
+        # Offline demo synthesizes a minimal RunState; optional question is unused for now
+        # (χ needs gated α/β/γ outputs — live wiring is a checkpoint load, not LLM invent).
+        from .fach_cli import format_frontier, run_frontier_cli
+
+        result = run_frontier_cli()
+        print(format_frontier(result))
+        return 0 if result.gate_passed else 3
+
+    if args.mode in (
+        "fach",
+        "architekt",
+        "ingenieur",
+        "physiker",
+        "techniker",
+        "elektriker",
+        "fertigungs",
+        "regulatorik",
+        "software",
+        "designer",
+        "wirtschaft",
+    ):
+        # PRODUCT_WIRE: full Fach-Pipeline family (was island / un-routed).
+        from .fach_cli import (
+            FACH_PIPELINE_NAMES,
+            format_fach_family,
+            format_pipeline_spec,
+            run_fach_family,
+            run_fach_pipeline,
+        )
+
+        idea = (args.question or "").strip() or (
+            "steel bracket for 100 N shelf load with install, power and production path"
+        )
+        try:
+            if args.mode == "fach":
+                results = run_fach_family(idea, run_id="cli-fach")
+                print(format_fach_family(results))
+            else:
+                spec = run_fach_pipeline(args.mode, idea, run_id=f"cli-{args.mode}")
+                print(format_pipeline_spec(args.mode, spec))
+        except ValueError as exc:
+            print(f"GENESIS {args.mode} aborted: {exc}", file=sys.stderr)
+            return 2
+        return 0
+
+    if args.mode == "structural":
+        from .section_optimizer import propose_structural
+        print("GENESIS — Unified structural proposer (section + topology)\n")
+        for dt in ("section", "topology"):
+            p = propose_structural(design_type=dt)
+            print(f"  {dt}: verdict={p.verdict}")
+        return 0
 
     if args.mode == "training":
         # Die ehrliche Grenze zu ML: GENESIS trainiert NICHT und sagt keine Genauigkeit voraus. Es
@@ -2236,6 +2317,10 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(f"  Status:    {art.status}")
         print(f"  Promotion: {art.promotion}")
+        # PRODUCT_WIRE: research_promotion autonomous ladder (ESTABLISHED only via human SignOff)
+        from .fach_cli import research_promotion_stage
+
+        print(f"  Ladder:    {research_promotion_stage(art)}")
         print(f"  Severity:  {art.severity:.3f}")
         if art.proof is not None:
             print(

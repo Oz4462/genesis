@@ -33,6 +33,7 @@ gate is the deterministic, LLM-free backstop that re-runs them. Offline, pure fu
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 from .dimensional_guard import scale_invariance_report
@@ -171,6 +172,10 @@ def _dimensional_ok(validator: str, inputs: dict, input_units: dict, result: dic
     sf = result.get("safety_factor")
     if not isinstance(sf, (int, float)) or isinstance(sf, bool):
         return None
+    # Non-finite dimensionless verdict is never scale-invariant "ok" — NaN would
+    # also poison IEEE comparisons downstream (REWORK 2026-07-11).
+    if not math.isfinite(sf):
+        return False
     units = {arg: u for arg, u in input_units.items() if arg in inputs}
     if not units:
         return None
@@ -183,8 +188,16 @@ def _dimensional_ok(validator: str, inputs: dict, input_units: dict, result: dic
 
     try:
         rep = scale_invariance_report(_fn, guard_inputs)
+    except (TypeError, ValueError, KeyError, ZeroDivisionError, ArithmeticError):
+        return None  # the guard could not run (opaque unit, bad args) — not a dimensional verdict
     except Exception:
-        return None  # the guard could not run (opaque unit, etc.) — not a dimensional verdict
+        # Unexpected failure: still abstain (None), never invent invariant=True.
+        return None
+    # Re-check the measured report: non-finite base/rescaled is not a green pass.
+    if not math.isfinite(rep.get("base", float("nan"))) or not math.isfinite(
+        rep.get("rescaled", float("nan"))
+    ):
+        return False
     return bool(rep["invariant"])
 
 
@@ -234,6 +247,23 @@ def run_physics_checks(checks: list[PhysicsCheck]) -> list[dict]:
                 "name": check.name, "validator": check.validator, "status": "error",
                 "ok": False, "detail": f"{type(exc).__name__}: {exc}", "result": None,
                 "dimensional_ok": None,
+            })
+            continue
+        # Non-finite safety_factor / ratio with ok=True is poison: IEEE NaN never
+        # fails ``sf < limit`` comparisons. Fail loud as error, not a green pass
+        # (REWORK 2026-07-11).
+        sf = result.get("safety_factor", result.get("ratio"))
+        if (
+            isinstance(sf, (int, float))
+            and not isinstance(sf, bool)
+            and not math.isfinite(sf)
+        ):
+            out.append({
+                "name": check.name, "validator": check.validator, "status": "error",
+                "ok": False,
+                "detail": f"non-finite safety_factor/ratio {sf!r}",
+                "result": result,
+                "dimensional_ok": False,
             })
             continue
         out.append({

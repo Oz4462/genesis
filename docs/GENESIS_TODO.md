@@ -1,5 +1,8 @@
 # GENESIS_PLATFORM_PLAN — TODO / Arbeitspriorisierung
 
+> **🔴 REWORK 2026-07-11:** All DONE/CLOSED/COMPLETE markers in this file are **void**. Active checklist: `docs/REWORK_CAMPAIGN.md`. SSOT: `docs/STATUS.md`.
+
+
 **Stand:** 2026-06-15 (autonom via Ultra-Workflow + 4-Linsen-Rituale)
 **Prinzip:** Nacheinander (Finish-or-Fail: ein aktives Modul/Stein pro Durchgang). Nach jedem großen Stein: 4 Linsen + erweiterte Selbstkontrolle + BUILD_LOG + Memory-Update. Autonom weiter ohne Rückfrage (User: "nach dem bericht kannst du immer weiter autonom weiter bauen du brauchst kein ok von mir").
 

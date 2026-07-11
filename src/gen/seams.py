@@ -85,6 +85,21 @@ def domains_present(spec: Specification) -> set[SeamDomain]:
     present: set[SeamDomain] = set()
     if spec.components or any(item.domain is BomDomain.MECHANICAL for item in spec.bom):
         present.add(SeamDomain.MECHANICAL)
+    # topology / SIMP density field implies MECH structure (richer generative design).
+    # Scan quantity + component labels only (no str(spec) — avoids accidental matches
+    # on unrelated text). Fixed NameError from prior draft that referenced unbound `c`.
+    qty_text = " ".join(
+        f"{getattr(q, 'id', '') or ''} {getattr(q, 'name', '') or ''} "
+        f"{getattr(q, 'measurand', '') or ''}"
+        for q in (spec.quantities or [])
+    )
+    comp_text = " ".join(
+        f"{getattr(comp, 'name', '') or ''} {getattr(comp, 'role', '') or ''}"
+        for comp in (spec.components or [])
+    )
+    text_all = f"{qty_text} {comp_text}".lower()
+    if any(k in text_all for k in ("topology", "density", "simp", "vorschlag", "dichtefeld")):
+        present.add(SeamDomain.MECHANICAL)
     if any(_looks_thermal(q) for q in spec.quantities):
         present.add(SeamDomain.THERMAL)
     if spec.netlist is not None or any(
@@ -427,6 +442,11 @@ def detect_cross_domain_seams(spec: Specification) -> list[DomainSeam]:
                         )
                     )
                     break  # one sufficient
+    # NOTE: topology/SIMP density is an *intra*-MECHANICAL generative design step,
+    # not a cross-domain seam. DomainSeam requires two distinct domains
+    # (core/state.py). Topology keywords may still mark MECH present via
+    # domains_present(); they must never emit a MECH↔MECH DomainSeam
+    # (REWORK 2026-07-11: removed invalid same-domain seam that broke ε E2E).
 
     # 2. Cross-domain from constraints (explicit relations in γ spec; kind -> relation)
     # Enhanced expr support (Return Gate #4 + harness 5.5 Return Gate discipline):
@@ -524,6 +544,8 @@ def _guess_domain(q: Quantity | None) -> SeamDomain | None:
         return SeamDomain.FIRMWARE
     if "cost" in text or "bom" in text or "price" in text:
         return SeamDomain.COST
+    if any(k in text for k in ("topology", "density", "simp", "vorschlag", "dichtefeld")):
+        return SeamDomain.MECHANICAL
     return None
 
 

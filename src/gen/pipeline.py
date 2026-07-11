@@ -154,6 +154,10 @@ def assess_specification(
     coverage_certificate = None
     reality_verdict = None
     delta_plus_result = None
+    # Optional HORIZON/platform enrichments: never silent — surface skip reasons
+    # in completeness_warnings so assess cannot hide failed optional wiring
+    # (STATUS §5 bans bare ``except Exception: pass`` around verdict construction).
+    optional_notes: list[str] = []
     try:
         from .seams import build_seam_certificate, detect_cross_domain_seams
         from .memory_fabric import build_memory_fabric_certificate
@@ -169,9 +173,10 @@ def assess_specification(
                 claims = claims
                 question = _MinQ()
             memory_fabric = build_memory_fabric_certificate(_MinState())
-    except Exception:
-        # not all paths have full data yet; honest skip (LUMEN etc. do richer; architect also attaches full)
-        pass
+    except Exception as exc:  # noqa: BLE001 — optional path; recorded below
+        optional_notes.append(
+            f"optional_horizon_certs_skipped ({type(exc).__name__}: {exc})"
+        )
 
     if trace is not None:
         trace.record("clarify", "clarify", n_questions=len(questions))
@@ -200,8 +205,10 @@ def assess_specification(
         teacher_notes = tm.record('assess', ['physics', 'seams'])
         teacher_notes = tm.apply({'overall': overall})
         community_evidence = _ce({'claims': len(claims or [])})
-    except Exception:
-        pass  # honest, full in LUMEN paths
+    except Exception as exc:  # noqa: BLE001 — optional platform caps; recorded below
+        optional_notes.append(
+            f"optional_platform_caps_skipped ({type(exc).__name__}: {exc})"
+        )
 
     return Assessment(
         clarification_questions=questions,
@@ -210,7 +217,7 @@ def assess_specification(
         physics_gate=gate,
         constraint_contradictions=contradictions,
         corroboration=corroboration,
-        completeness_warnings=comp_warns,
+        completeness_warnings=[*comp_warns, *optional_notes],
         seam_certificate=seam_certificate,
         memory_fabric=memory_fabric,
         pareto_front=pareto_front,
@@ -300,8 +307,12 @@ def assess_printability(spec: Specification) -> PrintabilityAssessment:
             try:
                 from .geometry_verification import verify_geometry
                 geo_verification = verify_geometry(comp.geometry, quantities)
-            except Exception:
-                geo_verification = {"ok": False, "status": "unavailable"}
+            except Exception as exc:  # noqa: BLE001 — Tier-3 optional; never silent
+                geo_verification = {
+                    "ok": False,
+                    "status": "unavailable",
+                    "reason": f"{type(exc).__name__}: {exc}",
+                }
 
             components.append({
                 "component": comp.id,

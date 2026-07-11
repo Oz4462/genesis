@@ -8,9 +8,13 @@ the optimiser suggests geometry, the deterministic gate disposes; a proposal it 
 never a certified part until the gate re-checks it.
 
 Scope is honest: this sizes a rectangular cantilever section (GENESIS's demo printed part) by
-deterministic search over the depth ``h`` — the dominant lever (``σ = 6·F·L/(b·h²) ∝ 1/h²``). Full
-density-based topology optimisation (SIMP) over an FEA mesh is the richer next step and needs an
-FEA-in-the-gate path; it is deliberately NOT claimed here. Deterministic, offline.
+deterministic search over the depth ``h`` — the dominant lever (``σ = 6·F·L/(b·h²) ∝ 1/h²``). 
+
+Full density-based topology optimisation (SIMP) over an FEA mesh (fem3d structured hex) is now the
+richer next step, implemented in topology_optimizer.py as a DENSITY-FIELD PROPOSAL (verdict="vorschlag_unverifiziert").
+It re-uses the same trusted fem3d kernels and guards. Use threshold_resolve + printability/mesh gates for
+the δ path to certification. The simple rectangular case here remains the minimal tractable form.
+Deterministic, offline. See topology_optimizer for SIMP details, constants (with sources), and the delta_path.
 """
 
 from __future__ import annotations
@@ -158,3 +162,119 @@ def propose_and_verify(
         + ("; z3 proved" if machine_proved else ("; z3 unavailable" if not proof.available else "; z3 refuted"))
     )
     return VerifiedSection(material, sigma_allow, design, gate_passed, machine_proved, detail)
+
+
+# --- SIMP topology integration (richer generative step) ---------------------------------------------
+# The "full FEA-in-the-gate path" declared above is now wired via topology_optimizer.
+# Re-export for discoverability and provide a convenience for the classic cantilever benchmark.
+# The result is always an explicit PROPOSAL; the independent gate (threshold + fem3d re-solve + printability)
+# decides certification. This makes topology first-class in the structural design flow.
+
+from .topology_optimizer import (
+    simp_optimize,
+    TopologyProposal,
+    cantilever_tip_load_bcs,
+    threshold_resolve,
+    ThresholdCheck,
+)
+from .fem3d import structured_box_mesh
+
+
+@dataclass(frozen=True)
+class StructuralProposal:
+    """Unified honest proposal surface for structural generative design.
+
+    `design_type`: "section" (rectangular) or "topology" (SIMP density field).
+    `verdict`: always "vorschlag_unverifiziert" (or "nicht_optimiert") until independent gates.
+    `delta_path`: explicit next steps for certification.
+    `payload`: the raw proposal object (SectionDesign/VerifiedSection or TopologyProposal/ThresholdCheck).
+    Preserves the proposer/gate split. Immutable.
+    """
+    design_type: str
+    verdict: str
+    delta_path: str
+    payload: object
+
+
+def propose_structural(*, design_type: str = "section", **kwargs) -> StructuralProposal:
+    """Unified dispatcher for structural proposals.
+
+    Delegates to the appropriate optimizer. Result is always a proposal;
+    callers must run the named delta_path gates (cegis/smt + printability for section;
+    threshold_resolve + printability/mesh_integrity for topology) before any certified claim.
+    """
+    if design_type == "section":
+        # delegate to existing (use the grounded propose_and_verify when material provided)
+        if "material_name" in kwargs:
+            vs = propose_and_verify(**kwargs)
+            # Gate-passed means the proposer cleared its internal yield/proof
+            # checks — still a PROPOSAL until printability/mesh gates re-verify.
+            # Gate-failed is NOT a silent "unverified proposal": surface as
+            # nicht_optimiert so consumers cannot read success from the verdict.
+            return StructuralProposal(
+                design_type="section",
+                verdict=(
+                    "vorschlag_unverifiziert" if vs.gate_passed else "nicht_optimiert"
+                ),
+                delta_path="structural yield gate (cegis + smt) + printability/mesh_integrity",
+                payload=vs,
+            )
+        else:
+            design = optimize_cantilever_section(**kwargs)
+            return StructuralProposal(
+                design_type="section",
+                verdict="vorschlag_unverifiziert" if design.feasible else "nicht_optimiert",
+                delta_path="structural yield gate (cegis + smt) + printability",
+                payload=design,
+            )
+    elif design_type in ("topology", "simp"):
+        prop = propose_topology_cantilever(**kwargs)
+        return StructuralProposal(
+            design_type="topology",
+            verdict=prop.verdict,
+            delta_path=prop.delta_path,
+            payload=prop,
+        )
+    else:
+        raise ValueError(f"unknown design_type {design_type!r}; use 'section' or 'topology'")
+
+
+def propose_topology_cantilever(
+    *,
+    lx: float = 2.0,
+    ly: float = 1.0,
+    lz: float = 0.2,
+    nx: int = 20,
+    ny: int = 10,
+    nz: int = 2,
+    force: float = 1.0,
+    volume_fraction: float = 0.4,
+    e_modulus: float = 1.0,
+    nu: float = 0.3,
+    **opt_kwargs,
+) -> TopologyProposal:
+    """Convenience: run SIMP topology optimization on a 3D cantilever benchmark.
+
+    Returns a TopologyProposal (density field + measured compliance factors).
+    This is the richer next step beyond rectangular section optimization.
+    Always a proposal — call threshold_resolve on the densities for the interpolation-free proof,
+    then apply geometry gates before claiming a part.
+
+    All parameters and guards inherited from topology_optimizer.simp_optimize (fail-loud, deterministic).
+    """
+    nodes, _tets = structured_box_mesh(lx, ly, lz, nx, ny, nz)
+    fixed, loads = cantilever_tip_load_bcs(nodes, lx, force)
+    return simp_optimize(
+        lx=lx,
+        ly=ly,
+        lz=lz,
+        nx=nx,
+        ny=ny,
+        nz=nz,
+        e_modulus=e_modulus,
+        nu=nu,
+        volume_fraction=volume_fraction,
+        fixed_dofs=fixed,
+        loads=loads,
+        **opt_kwargs,
+    )

@@ -19,6 +19,7 @@ framework-free core (CLAUDE.md §6).
 from __future__ import annotations
 
 import copy
+import math
 from dataclasses import dataclass
 from typing import Sequence
 
@@ -95,8 +96,7 @@ class InMemoryLedgerStore:
                 creation; mutations go through :meth:`update_claim`.
         """
         for claim in claims:
-            if not claim.sources:
-                raise UnsourcedClaimError(claim.id, claim.text)
+            self._assert_claim_integrity(claim)
             if claim.id in self._claims:
                 raise ValueError(
                     f"Claim {claim.id!r} already in ledger; "
@@ -112,12 +112,40 @@ class InMemoryLedgerStore:
         Raises:
             UnknownClaimError: the claim was never added (loud, not silent).
             UnsourcedClaimError: the update would leave the claim sourceless.
+            ValueError: non-finite or out-of-range confidence after mutation.
         """
         if claim.id not in self._claims:
             raise UnknownClaimError(claim.id)
+        self._assert_claim_integrity(claim)
+        self._claims[claim.id] = claim
+
+    @staticmethod
+    def _assert_claim_integrity(claim: Claim) -> None:
+        """Layer-2 provenance + confidence backstop (mutable Claim fields).
+
+        Re-checks constructor invariants because ``sources`` is a mutable list
+        and ``confidence`` can be reassigned after construction (Claim is not
+        frozen). The gate is the third line of defense; the ledger refuses to
+        persist poison (REWORK 2026-07-11).
+        """
         if not claim.sources:
             raise UnsourcedClaimError(claim.id, claim.text)
-        self._claims[claim.id] = claim
+        for ref in claim.sources:
+            if not str(ref.url_or_id).strip():
+                raise ValueError(
+                    f"Claim {claim.id!r}: source url_or_id must be non-empty"
+                )
+        conf = claim.confidence
+        if (
+            isinstance(conf, bool)
+            or not isinstance(conf, (int, float))
+            or not math.isfinite(conf)
+            or not (0.0 <= float(conf) <= 1.0)
+        ):
+            raise ValueError(
+                f"Claim {claim.id!r}: confidence must be finite in [0, 1], "
+                f"got {conf!r}"
+            )
 
     async def get_claims(self, run_id: str) -> list[Claim]:
         """Return all claims for a run, in deterministic insertion order."""
