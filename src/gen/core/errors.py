@@ -12,6 +12,19 @@ class GenesisError(Exception):
     """Base for all GENESIS errors."""
 
 
+class OmegaGateNotPassed(GenesisError):
+    """Raised when the Ω completion gate fails AND enforcement was requested
+    (``process_dream(..., enforce_omega=True)``). "Completion cannot hide a failed
+    gate" (HORIZON Ω / OM-4) — so an enforced Ω failure BLOCKS, it does not just log
+    (STATUS.md §1 #4)."""
+
+    def __init__(self, run_id: str, failure_codes: list[str]) -> None:
+        super().__init__(
+            f"Ω gate not passed for run {run_id!r}: {failure_codes}. "
+            "Enforced completion cannot proceed over a failed gate."
+        )
+
+
 class UnsourcedClaimError(GenesisError):
     """Raised when a Claim is constructed without any source.
 

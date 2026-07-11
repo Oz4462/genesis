@@ -29,6 +29,8 @@ from .teststand_architect import (
     TestStandSpec,
     build_test_stand,
 )
+from .proof_package import ProofPackage, generate_proof_package
+from .readiness_ladder import ReadinessLevel, assess_readiness, teacher_notes, READINESS_LADDER, TeacherMode, community_evidence
 from .technology_roadmapper import (
     TechnologyGap,
     TechnologyRoadmap,
@@ -38,11 +40,6 @@ from .technology_builder import (
     TechnologyPrototypeSpec,
     TechnologyPrototypePlan,
     build_technology_prototype,
-)
-from .bench_test_runner import (
-    BenchTestResult,
-    BenchTestPlan,
-    run_bench_test,
 )
 from .breakthrough_watch import (
     FrontierItem,
@@ -72,6 +69,9 @@ from .lumencrucible import (
     process_dream,
     forge_research,          # ResearchForge / DiscoveryCrucible — hardened Forscher-Erfindungsprozess (fusion + multi-component sim → Studie → Arbei t + neues Rezept + Package mit Mehrwert)
 )
+
+# LUMENCRUCIBLE Ω v1 HORIZON entrypoint exposure (first-class dream → hammer gate)
+from ..verification.gates import dream_to_hammer_gate  # type: ignore[attr-defined]
 
 # Simulation layer (Punkt 4 – hardened automatic coupling)
 from ..simulation.runner import (
@@ -107,9 +107,6 @@ __all__ = [
     "TechnologyPrototypeSpec",
     "TechnologyPrototypePlan",
     "build_technology_prototype",
-    "BenchTestResult",
-    "BenchTestPlan",
-    "run_bench_test",
     "FrontierItem",
     "FrontierUpdate",
     "watch_frontier",
