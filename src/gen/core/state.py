@@ -8,96 +8,92 @@ without provenance.
 
 from __future__ import annotations
 
+import contextvars
 import enum
 import math
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Iterator
 
-# =============================================================================
-# Generalist Subsystem Abstraction (B item from gap analysis)
-# For clear interfaces across ANY idea domain (mech/elec/thermal/data/safety/software/bio/energy...).
-# Not electronics-specific. Used by LUMEN, integrator, wissensbasis for better modularity.
-# =============================================================================
+# --- D1 (2026-07-04): ModuleSpec / ColonyModule / NanoRecipe moved to
+# gen.subsystem_types — domain-extension types without core invariants do not
+# belong in the framework-free typed core. Lazy PEP-562 re-export keeps old
+# ``from gen.core.state import ModuleSpec`` imports working (no import cycle:
+# the import happens at attribute access, and subsystem_types is stdlib-only).
 
-@dataclass
-class ModuleSpec:
-    """A general, reusable description of a subsystem/module in a larger system.
-    Ports/budgets are domain-agnostic (power, thermal, data, mechanical interface, safety level, software API).
-    Enables Subsystem-Abstraktion, multi-board reasoning, and inverse design across all ideas.
+def __getattr__(name: str):
+    if name in ("ModuleSpec", "ColonyModule", "NanoRecipe"):
+        from gen import subsystem_types
+        return getattr(subsystem_types, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+# --- Canonical run clock (D2: reproducibility, Kernprinzip 5) ----------------
+#
+# Every ``created_at`` / provenance timestamp that lands in a persisted, replay-
+# relevant artifact (ledger claims, provenance records, run-id-derived package
+# directories) must be reproducible: two runs of the same problem with the same
+# injected run-start timestamp have to produce bit-identical artifacts. Wall-clock
+# ``datetime.now`` breaks that. We solve it with ONE canonical mechanism: a
+# context-local "run clock". When a run pins it (see :func:`run_clock` /
+# :func:`set_run_clock`), :func:`now_utc` returns that fixed instant, so all
+# timestamp fields within the run agree and replay is deterministic. Outside a run
+# (ad-hoc construction, telemetry, tests) it falls back to wall-clock UTC — that
+# fallback is only ever the non-replay path.
+
+_RUN_CLOCK: "contextvars.ContextVar[datetime | None]" = contextvars.ContextVar(
+    "genesis_run_clock", default=None
+)
+
+
+def now_utc() -> datetime:
+    """Canonical timestamp source for the whole system.
+
+    Returns the pinned run-clock instant if a run has set one (making every
+    ``created_at`` / provenance timestamp within that run identical → bit-identical
+    replay, Kernprinzip 5), otherwise wall-clock UTC. Callers that persist
+    replay-relevant timestamps MUST route through this (not ``datetime.now``) so a
+    run can make them deterministic by pinning the clock.
     """
-    name: str
-    kind: str  # e.g. "power_distribution", "sensor_array", "control_unit", "structure", "energy_storage", "biological_reactor"
-    interfaces: dict[str, Any] = field(default_factory=dict)  # e.g. {"mech": "mounting_points", "elec": "48V_rail", "data": "CAN", "thermal": "heatsink", "safety": "S3", "software": "firmware_v1"}
-    power_budget_w: float = 0.0
-    thermal_budget_w: float = 0.0
-    mass_kg: float = 0.0
-    volume_cm3: float = 0.0
-    safety_level: str = "S0"
-    open_issues: list[str] = field(default_factory=list)
-    quelle: str = "generalist subsystem abstraction"
+    fixed = _RUN_CLOCK.get()
+    return fixed if fixed is not None else datetime.now(timezone.utc)
 
 
-# =============================================================================
-# Nano + Space-Colony Extensions (2036 10y leap, Genesis 2026 core)
-# Bio full, local, 4 Linsen provenance. For planetary engineering, closed-loop
-# habitats, molecular machines / self-assembling structures.
-# =============================================================================
+def set_run_clock(ts: datetime) -> "contextvars.Token[datetime | None]":
+    """Pin the run clock to ``ts`` for the current context. Returns a token to pass
+    to :func:`reset_run_clock`. Prefer the :func:`run_clock` context manager."""
+    return _RUN_CLOCK.set(ts)
 
-@dataclass
-class ColonyModule:
-    """Colony / habitat subsystem for space-colony and planetary engineering sims.
-    Extends generalist ModuleSpec for ECLSS bio-loops, radiation shielding,
-    micro-g countermeasures, self-assembling nano-hab components.
-    All fields carry explicit quelle for L1. Sim-ready (local numpy dispatch).
+
+def reset_run_clock(token: "contextvars.Token[datetime | None]") -> None:
+    """Undo a :func:`set_run_clock`, restoring the previous clock state."""
+    _RUN_CLOCK.reset(token)
+
+
+@contextmanager
+def run_clock(ts: datetime) -> "Iterator[datetime]":
+    """Pin :func:`now_utc` to ``ts`` for the duration of the ``with`` block.
+
+    Used at run start so every timestamp emitted during the run is deterministic
+    and a replay with the same ``ts`` is bit-identical.
     """
-    name: str
-    kind: str  # e.g. "eclss_algae_loop", "radiation_shield_regolith_pe", "microg_centrifuge", "self_assemble_nano_hab", "life_support_compartment", "planetary_isru_nano"
-    interfaces: dict[str, Any] = field(default_factory=dict)
-    power_budget_w: float = 0.0
-    thermal_budget_w: float = 0.0
-    mass_kg: float = 0.0
-    volume_cm3: float = 0.0
-    safety_level: str = "S0"
-    # Space-colony specifics (grounded in real concepts: MELiSSA/ACLS, regolith+PE/water shielding, micro-g countermeasures)
-    bio_yield_g_per_day: float = 0.0          # algae/biomass output for closed O2/food loop
-    o2_gen_rate_g_per_h: float = 0.0          # net O2 from bio-loop under given light/CO2
-    co2_scrub_rate_g_per_h: float = 0.0
-    shield_thickness_mm: float = 0.0
-    shield_material: str = ""                 # "regolith", "polyethylene", "water_wall", "regolith_pe_composite"
-    radiation_dose_reduction: float = 1.0     # 1.0 = unshielded; factor <1 after shielding (primary GCR/SPE + secondaries)
-    microg_mitigation: str = ""               # "centrifuge_1g", "resistance_exercise", "pharma_loading", "none"
-    self_assemble_rate: float = 0.0           # proxy for nano self-assembly kinetics (steps/h or %/day)
-    open_issues: list[str] = field(default_factory=list)
-    quelle: str = "colony module 2036 leap (MELiSSA ESA + regolith/PE shielding NTRS + micro-g countermeasures + nano self-assemble)"
-    source: str = "Genesis Nano-Designer & Space-Colony Engineer integration"
-
-
-@dataclass(frozen=True)
-class NanoRecipe:
-    """Nano-scale design recipe for molecular machines and self-assembling structures.
-    Used in wissensbasis seeding, colony habitat assembly, planetary ISRU nano-factories.
-    Carries molecular_fidelity from bio_molecular MD/ODE dispatch (local numpy).
-    No facts without quelle (L1); assembly conditions are DECISION or GROUNDED.
-    """
-    id: str
-    name: str
-    kind: str  # "rotary_molecular_motor", "dna_origami_scaffold", "self_healing_nano_binder", "flagellar_pump_actuator", "quorum_nano_swarm", "isru_nano_factory"
-    specs: dict[str, Any]  # e.g. stall_torque_pN_nm, step_size, assembly_temp_C, yield_pct, binding_energy_kT
-    assembly_conditions: dict[str, Any] = field(default_factory=dict)  # pH, temp, ions, light, quorum signal
-    molecular_fidelity: Optional[dict[str, Any]] = None  # from bio_molecular.run_* (trajectory, period, force, 4_lenses)
-    footprint_nm: Optional[tuple[float, float, float]] = None
-    source: str = "representative_synthetic_bio_or_nano_2036_local"
-    quelle: str = "nano recipes 2036 leap (F1-ATPase/flagellar motors + DNA origami self-assembly literature + bio_molecular.numpy + 4_LINSEN)"
+    token = set_run_clock(ts)
+    try:
+        yield ts
+    finally:
+        reset_run_clock(token)
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    """Internal alias kept for the ``created_at`` default factories. Delegates to
+    the canonical, run-clock-aware :func:`now_utc`."""
+    return now_utc()
 
 
 # --- Verification status -----------------------------------------------------
 
-class ClaimStatus(str, enum.Enum):
+class ClaimStatus(enum.Enum):
     """Lifecycle of a factual claim.
 
     UNVERIFIED  Just extracted by `scholar`; not yet independently checked.
@@ -140,7 +136,6 @@ class SourceRef:
     def __post_init__(self) -> None:
         if not str(self.url_or_id).strip():
             raise ValueError("SourceRef.url_or_id must be non-empty")
-        # Frozen dataclass: allow None from legacy callers → SUPPORTS
         if self.support is None:  # type: ignore[comparison-overlap]
             object.__setattr__(self, "support", SourceSupport.SUPPORTS)
 
@@ -198,10 +193,8 @@ class Claim:
             raise UnsourcedClaimError(self.id, self.text)
         if not str(self.text).strip():
             raise ValueError(f"Claim {self.id!r}: text must be non-empty")
-        # Confidence is a probability-like score used by gates (threshold comparisons).
-        # NaN/Inf poison comparisons (NaN < τ is always False → silent VERIFIED pass);
-        # values outside [0, 1] are not a defined score. Agent-layer clamps remain;
-        # construction is the structural root (same class as OracleClaim.confidence).
+        # Confidence is a probability-like score used by gates. NaN/Inf poison
+        # comparisons (NaN < τ is always False → silent VERIFIED pass).
         if (
             isinstance(self.confidence, bool)
             or not isinstance(self.confidence, (int, float))
@@ -1052,6 +1045,11 @@ class Specification:
     #: assembled robot as a 3D image + an OpenSCAD assembly view. Empty = no assembled view.
     assembly: list[tuple[str, float, float, float, float, float, float]] = field(default_factory=list)
     model: str = ""
+    #: Optional Phase-ε output carried BY the spec (mirrors RunState.seam_certificate):
+    #: a spec whose domains require seam pairs (e.g. ELECTRICAL–FIRMWARE in the capstone)
+    #: can ship its own certified seams; pipeline.assess_specification falls back to this
+    #: when no certificate is passed explicitly. (Same design as the humanoid TP1 branch.)
+    seam_certificate: "SeamCertificate | None" = None
 
 
 # --- Phase gamma+: inverse design (HORIZON.md §2B) ---------------------------
@@ -1145,13 +1143,18 @@ class ParetoFront:
 # --- Phase epsilon: verified seams across domains (HORIZON.md §2B) -----------
 
 class SeamDomain(enum.Enum):
-    """Engineering domains that may be explicitly coupled by an epsilon seam."""
+    """Engineering domains that may be explicitly coupled by an epsilon seam.
+    Extended for space multi-physics (radiation for habitats, TPS, electronics derating in vacuum).
+    """
 
     MECHANICAL = "mechanical"
     THERMAL = "thermal"
     ELECTRICAL = "electrical"
     FIRMWARE = "firmware"
     COST = "cost"
+    RADIATION = "radiation"  # vacuum/radiation dominant for multi-planetary (Mars, deep space)
+    ISRU = "isru"  # In-Situ Resource Utilization: regolith processing, O2/CH4 propellant production on Mars (Elon/SpaceX vision)
+    LIFE_SUPPORT = "life_support"  # ECLSS: O2/CO2/H2O loops, crew consumables, closed-loop for habitats (multi-planetary)
 
 
 class SeamRelation(enum.Enum):
@@ -1336,7 +1339,7 @@ class RunState:
       skeptic    -> claims (updates status/confidence/verification)
       synthesizer-> approaches, solution_report (Phase β; references claim_ids only)
       architect  -> specification (Phase γ; references claim_ids/approach only)
-      conductor  -> sub_questions, report, round counters + δ+ (coverage_certificate, reality_verdict, delta_plus_result via _enrich)
+      conductor  -> sub_questions, report, round counters
     """
 
     question: Question
@@ -1353,10 +1356,5 @@ class RunState:
     pareto_front: "ParetoFront | None" = None  # Phase γ+ output; inverse design owns this
     seam_certificate: "SeamCertificate | None" = None  # Phase ε output; seams own this
     memory_fabric: "MemoryFabricCertificate | None" = None  # Phase ζ output
-    omega_certificate: "OmegaCertificate | None" = None  # Phase ω: full cross-phase aggregator (build_omega_certificate + gate_omega after δ/γ/ε/ζ certs; read-write for conductor/LUMEN/run paths)
-    # δ+ typed fields (MAX AGENTS / Return Gate): read-write for conductor/LUMEN/omega paths (was dynamic + #ignore)
-    coverage_certificate: "CoverageCertificate | None" = None  # Phase δ+ coverage proof (build_coverage_certificate + reviewed_failure_modes from skeptic/claims)
-    reality_verdict: "EmpiricalVerdict | None" = None  # Phase δ+ reality (evaluate_reality -> EmpiricalVerdict)
-    delta_plus_result: dict | None = None  # Phase δ+ : dict (status, within_tolerance, gate_passed etc from reality + gates)
     refine_round: int = 0
     log: list[str] = field(default_factory=list)

@@ -21,6 +21,7 @@ Determinism matters: these functions feed claim confidence, and reproducibility
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from ..core.errors import ModelConflictError
@@ -93,6 +94,24 @@ def assert_different_families(generator_model: str, verifier_model: str) -> None
     v = model_family(verifier_model)
     if g == v:
         raise ModelConflictError(generator_model, verifier_model)
+
+
+def assert_pairwise_different_families(models: Sequence[str]) -> None:
+    """Guarantee every pair of panel members is a different family, or raise.
+
+    The panel math (weighted mean, noisy-OR corroboration) treats judges as
+    INDEPENDENT opinions; two judges from one family share blind spots and
+    would silently inflate corroboration. A same-family panel is therefore a
+    configuration error — the inter-judge form of the cross-model rule
+    (verifier != second != extra), mirroring the generator/verifier check.
+
+    Raises:
+        ModelConflictError: two ids resolve to the same family.
+        ValueError: a model id is empty.
+    """
+    for i, a in enumerate(models):
+        for b in models[i + 1 :]:
+            assert_different_families(a, b)
 
 
 # --- A single model's verdict on one claim -----------------------------------
