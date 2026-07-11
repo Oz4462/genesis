@@ -56,17 +56,15 @@ class Assessment:
     corroboration: CorroborationReport | None
     completeness_warnings: list[str]
     overall: str
-    # E2E HORIZON cert pop (ε/ζ; δ+/γ+/Ω for consumers).
-    # seam/memory populated here (assess path); δ+ (reality/delta/coverage), γ+ (pareto), Ω on RunState/LUMEN paths.
-    # Added for full consumer support (bundle/web/cli) per gap#7 verif-log/HORIZON. Honest None on pure-spec assess (no RunState).
-    # See CONSUMERS FULL CERTS 4L section in BUILD_LOG.
-    seam_certificate: "SeamCertificate | None" = None
-    memory_fabric: "MemoryFabricCertificate | None" = None
-    # δ+/γ+/Ω certs (full consumer support; honest None when not attached via RunState paths):
-    pareto_front: "ParetoFront | None" = None
-    omega_certificate: "OmegaCertificate | None" = None
-    coverage_certificate: "CoverageCertificate | None" = None
-    reality_verdict: "EmpiricalVerdict | None" = None
+    # E2E HORIZON cert pop (ε/ζ; δ+/γ+/Ω for consumers). Typed as object|None so
+    # ruff F821 does not require importing every optional cert type into pipeline.
+    # Concrete types live on RunState; assess path may leave these None.
+    seam_certificate: object | None = None
+    memory_fabric: object | None = None
+    pareto_front: object | None = None
+    omega_certificate: object | None = None
+    coverage_certificate: object | None = None
+    reality_verdict: object | None = None
     delta_plus_result: dict | None = None
     # Platform Caps (no-stop autonomy)
     proof_package: str | None = None

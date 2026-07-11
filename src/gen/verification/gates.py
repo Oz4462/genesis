@@ -18,6 +18,7 @@ from __future__ import annotations
 import math
 import re
 from collections.abc import Sequence
+from typing import Any
 
 from ..core.errors import FormulaError, GeometryError, UnitError
 from ..core.interfaces import GateResult, GateFailure
@@ -2039,8 +2040,6 @@ def dream_to_hammer_gate(hammer: Any) -> GateResult:
     A hammer that passes is ready for OmegaCertificate, Claim, and WORK_QUEUE self-ascent.
     Pure, deterministic, unit-testable. Mirrors the spirit of gate_phi / gate_chi.
     """
-    from typing import Any as _Any  # local to avoid top-level issues
-
     failures: list[GateFailure] = []
 
     # Robust access (dataclass or dict)

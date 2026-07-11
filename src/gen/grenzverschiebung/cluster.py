@@ -84,8 +84,8 @@ def run_capability_cluster(idea: str, *, run_id: str | None = None) -> Capabilit
         return r, f"CapabilityGapReport (gaps={_n(r, 'gaps')})"
 
     def _ladder() -> tuple[Any, str]:
-        l = build_milestone_ladder(out["front_map"], out["gap_report"], run_id=run_id)
-        return l, f"MilestoneLadder (milestones={_n(l, 'milestones')})"
+        ladder = build_milestone_ladder(out["front_map"], out["gap_report"], run_id=run_id)
+        return ladder, f"MilestoneLadder (milestones={_n(ladder, 'milestones')})"
 
     def _stand() -> tuple[Any, str]:
         return build_test_stand(out["ladder"], run_id=run_id), "TestStandPlan"

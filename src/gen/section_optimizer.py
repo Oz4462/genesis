@@ -24,6 +24,8 @@ from dataclasses import dataclass
 from .materials import Material, get_material
 from .verification.cegis import cantilever_yield_check
 from .verification.smt import prove_cantilever_within_yield
+from .topology_optimizer import TopologyProposal, cantilever_tip_load_bcs, simp_optimize
+from .fem3d import structured_box_mesh
 
 
 @dataclass(frozen=True)
@@ -165,19 +167,7 @@ def propose_and_verify(
 
 
 # --- SIMP topology integration (richer generative step) ---------------------------------------------
-# The "full FEA-in-the-gate path" declared above is now wired via topology_optimizer.
-# Re-export for discoverability and provide a convenience for the classic cantilever benchmark.
-# The result is always an explicit PROPOSAL; the independent gate (threshold + fem3d re-solve + printability)
-# decides certification. This makes topology first-class in the structural design flow.
-
-from .topology_optimizer import (
-    simp_optimize,
-    TopologyProposal,
-    cantilever_tip_load_bcs,
-    threshold_resolve,
-    ThresholdCheck,
-)
-from .fem3d import structured_box_mesh
+# The full FEA-in-the-gate path is wired via topology_optimizer (imports at top).
 
 
 @dataclass(frozen=True)

@@ -485,13 +485,19 @@ def build_full_mini_realization_package(
             wb_seeds=[{"note": "from wissensbasis"}],
             package_root=str(pkg_root),
         )
-        r = assess_readiness(manifest)
+        # preliminary input only — full manifest is built below (avoid use-before-def)
+        readiness_input = {
+            "name": package_name,
+            "num_fragments": len(fragments),
+            "certs": cert_report,
+        }
+        r = assess_readiness(readiness_input)
         proof_dir = proof.package_dir
         rlevel = r.level
         tm = TeacherMode()
         teacher = tm.record("realization_package", ["integrated proof, readiness, caps"])
-        teacher = tm.apply(manifest)
-        community = community_evidence(manifest)
+        teacher = tm.apply(readiness_input)
+        community = community_evidence(readiness_input)
     except Exception as e:  # noqa
         pass
 

@@ -34,7 +34,6 @@ def test_enforce_omega_raises_when_omega_gate_fails(tmp_path, monkeypatch):
     failed = SimpleNamespace(passed=False, failures=[SimpleNamespace(code="OMEGA_FAKE_FAIL")])
 
     # Force the post-certs omega path to report a failed gate result.
-    import gen.grenzverschiebung.lumencrucible as lumen_mod
 
     real_process = lc.process_dream
 

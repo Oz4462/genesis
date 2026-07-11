@@ -125,6 +125,14 @@ __all__ = [
     "LumenHammer",
     "process_dream",
     "forge_research",        # Priority 0: the real researcher invention engine (user requirement)
+    "ProofPackage",
+    "generate_proof_package",
+    "ReadinessLevel",
+    "assess_readiness",
+    "teacher_notes",
+    "READINESS_LADDER",
+    "TeacherMode",
+    "community_evidence",
     "SimulationRunner",
     "SimulationCase",
     "SimulationResult",
@@ -132,4 +140,5 @@ __all__ = [
     "run_simulations_for_design",
     "run_simulations_for_hammer",
     "build_simulation_report",
+    "dream_to_hammer_gate",
 ]

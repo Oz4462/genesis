@@ -1559,7 +1559,6 @@ def main(argv: list[str] | None = None) -> int:
     ):
         # PRODUCT_WIRE: full Fach-Pipeline family (was island / un-routed).
         from .fach_cli import (
-            FACH_PIPELINE_NAMES,
             format_fach_family,
             format_pipeline_spec,
             run_fach_family,
@@ -1790,7 +1789,8 @@ def main(argv: list[str] | None = None) -> int:
                 if p.exists():
                     d = full_dir / p.name
                     if p.is_dir():
-                        if d.exists(): shutil.rmtree(str(d), ignore_errors=True)
+                        if d.exists():
+                            shutil.rmtree(str(d), ignore_errors=True)
                         shutil.copytree(p, d)
                     else:
                         shutil.copy2(p, d)
@@ -1866,7 +1866,8 @@ def main(argv: list[str] | None = None) -> int:
             (full_dir / "example_joint_bore_pocket.ngc").write_text(gtxt, encoding="utf-8")
             print(f"  AETHON-CAM: sample gcode pocket added (dims {w}x{h})")
             try:
-                import shutil, json
+                import shutil
+                import json
                 gcode_name = "example_joint_bore_pocket.ngc"
                 shutil.copy2(full_dir / gcode_name, out_dir / gcode_name)
                 # patch aethon bundle MANIFEST.json
@@ -1929,8 +1930,6 @@ def main(argv: list[str] | None = None) -> int:
         # Automatically triggers: mehr Evolution auf X + full pipeline with evolved spec.
         # Phase 5 autonomous via --autonomous on the module or HumanoidResearcher agent.
         from . import humanoid_research as hr_mod
-        from .agents.humanoid_researcher import HumanoidResearcher  # explicit wire for island triage
-        from .audit.run_audit import run_audit  # explicit wire for island triage
         from .visualization.robust_renderer import RobustVisualizer
         mod = hr_mod.create_module()
 
@@ -2053,7 +2052,8 @@ def main(argv: list[str] | None = None) -> int:
                     if src.exists():
                         dst = full_pl_dir / src.name
                         if src.is_dir():
-                            if dst.exists(): shutil.rmtree(dst, ignore_errors=True)
+                            if dst.exists():
+                                shutil.rmtree(dst, ignore_errors=True)
                             shutil.copytree(src, dst)
                         else:
                             shutil.copy2(src, dst)
@@ -2143,7 +2143,8 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  CAM: wrote sample gcode pocket for humanoid joint bore (dims {w}x{h})")
                 # copy also to main bundle dir for complete pipeline artifact
                 try:
-                    import shutil, json
+                    import shutil
+                    import json
                     gcode_name = "example_joint_bore_pocket.ngc"
                     shutil.copy2(full_pl_dir / gcode_name, out_dir / gcode_name)
                     # patch main bundle MANIFEST.json to list the CAM gcode as written
@@ -2180,7 +2181,7 @@ def main(argv: list[str] | None = None) -> int:
 
             # write pipeline manifest (enriched with sim gate + urdf/cad from real humanoid assets)
             sim_info = f"sim_gate: {gate}" if 'gate' in dir() else "sim_gate: (computed above)"
-            cam_line = f"cam_gcode_sample: example_joint_bore_pocket.ngc\n" if (full_pl_dir / "example_joint_bore_pocket.ngc").exists() else ""
+            cam_line = "cam_gcode_sample: example_joint_bore_pocket.ngc\n" if (full_pl_dir / "example_joint_bore_pocket.ngc").exists() else ""
             (full_pl_dir / "PIPELINE_MANIFEST.md").write_text(
                 f"# Full Genesis Pipeline for {spec.run_id}\n\n"
                 f"dream: {dream}\n\n"
