@@ -465,3 +465,4 @@ _Inventory generated 2026-07-11 — 290 open modules._
 | 2026-07-12 | root OPEN physics/quality batch | REWORKED | 172p+3s; humanoid_research shim; experimental KEEP_OPTIN |
 | 2026-07-12 | umbrella OPEN + kicad_cli validate | REWORKED | 126p phases/CAD; validate_pcb_with_kicad_cli; 0 OPEN modules |
 | 2026-07-12 | product_surface closeout | REWORKED | WIRED 218→256; ISLAND 63→26; montecarlo validator; residual KEEP_OPTIN |
+| 2026-07-12 | CLI report modes + discovery offline | REWORKED | aero/humanoid-report/surface; council/feynman/campaign smoke; WIRED 258 |

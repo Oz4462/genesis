@@ -1059,6 +1059,9 @@ def main(argv: list[str] | None = None) -> int:
             "discover-ode",
             "invent",
             "solve",
+            "aero-report",
+            "humanoid-report",
+            "surface",
         ),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
@@ -1514,6 +1517,48 @@ def main(argv: list[str] | None = None) -> int:
         )
         for cand in rep.archive.elites():
             print(f"    {cand.expression}  (R²={cand.r_squared:.5f})")
+        return 0
+
+    if args.mode == "aero-report":
+        # PRODUCT_WIRE: real-drone catalog + δ-flight calibration (was SCRIPT-only).
+        from .aero.report import main as aero_report_main
+
+        aero_report_main()
+        return 0
+
+    if args.mode == "humanoid-report":
+        # PRODUCT_WIRE: open humanoid catalog + validation (was SCRIPT-only).
+        from .humanoids.report import main as humanoid_report_main
+
+        humanoid_report_main()
+        return 0
+
+    if args.mode == "surface":
+        # Honesty: product-surface module list + live reachability totals.
+        from .product_surface import surface_modules
+
+        mods = surface_modules()
+        print("GENESIS — product surface (CLI-anchored modules)\n")
+        print(f"  anchored: {len(mods)}")
+        for m in mods:
+            print(f"    · {m}")
+        try:
+            import sys as _sys
+            from pathlib import Path as _Path
+
+            _scripts = _Path(__file__).resolve().parents[2] / "scripts"
+            if str(_scripts) not in _sys.path:
+                _sys.path.insert(0, str(_scripts))
+            import find_islands as _fi
+
+            totals = _fi.analyze()["totals"]
+            print(
+                f"\n  reachability: modules={totals.get('modules')} "
+                f"WIRED={totals.get('WIRED')} SCRIPT={totals.get('SCRIPT')} "
+                f"ISLAND={totals.get('ISLAND')} INFRA={totals.get('INFRA')}"
+            )
+        except Exception as exc:  # noqa: BLE001 — optional analysis script
+            print(f"\n  reachability: unavailable ({type(exc).__name__}: {exc})")
         return 0
 
     if args.mode == "section":

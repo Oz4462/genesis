@@ -1,27 +1,23 @@
-# Session Handoff — 2026-07-12 (product_surface closeout)
+# Session Handoff — 2026-07-12 (continue-4)
 
-> **Branch:** `rework/closeout-2026-07-12` → PR to main  
-> **Prior main:** `a38a796` (PR #5 horizon_full)
+> **Branch:** `rework/continue-4-2026-07-12`  
+> **Prior main:** `a18ee15`
 
-## Done this closeout
+## Done
 
-1. `gen.product_surface` — static product reachability anchors (29 modules)
-2. CLI imports product_surface (find_islands WIRED path)
-3. `montecarlo_uncertainty` validator + MANUAL_ONLY recipe note
-4. professional_package static drawing import
-5. Islands **63 → 26**; WIRED **218 → 256**
-6. Residual 26 dispositioned KEEP_OPTIN / experimental / external (ISLAND_TRIAGE)
+- CLI modes: `aero-report`, `humanoid-report`, `surface`
+- Offline discovery: council / feynman / campaign re-smoked green
+- WIRED **258** · SCRIPT **9** · ISLAND **26**
+- Integrity suites re-smoked (breakthrough, delta+, horizon, epsilon)
 
-## Residual (intentional, not bugs)
+## Residual intentional
 
-- Optional DB/MCP/GPU/oracle/solver backends
-- Humanoid SCRIPT/experimental feet/stands
-- Discovery RL/srbench harness
+KEEP_OPTIN islands (26) — optional deps / humanoid SCRIPT experimental.
 
 ## Verify
 
 ```bash
-.venv/bin/python -c "from gen import product_surface; print(len(product_surface.surface_modules()))"
-.venv/bin/python scripts/find_islands.py | head -8
-.venv/bin/python -m pytest tests/test_product_surface.py tests/test_physics_validation.py -q
+.venv/bin/python -m gen --mode surface
+.venv/bin/python -m gen --mode aero-report | head
+.venv/bin/python -m pytest tests/test_cli_report_modes.py -q
 ```
