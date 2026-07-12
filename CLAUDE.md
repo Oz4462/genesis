@@ -1,89 +1,155 @@
 # CLAUDE.md — GENESIS (operativ)
 
-> Die **einzige** operative Arbeitsanweisung für Claude Code in diesem Repo (konsolidiert
-> 2026-07-04, Audit: `docs/AUDIT_2026-07-04.md`). Vision/Architektur: `docs/VISION.md`.
-> Phasen-Historie: `docs/phases/` (α–δ) + `docs/HORIZON.md` (φ→Ω). Historische
-> Status-Snapshots: `docs/BUILD_HISTORY.md`. **Bei Konflikt gewinnen die Kernprinzipien.**
+> Die **einzige** operative Arbeitsanweisung für Claude Code / Coding-Agents in diesem Repo.
+> **Konsolidiert:** 2026-07-04 · **Zahlen + Fokus re-synchronisiert:** 2026-07-12.
+>
+> **SSOT Produkt-Wahrheit:** [`docs/STATUS.md`](docs/STATUS.md) — bei Konflikt mit CLAUDE.md
+> (Zahlen, Campaign-Stand, CLI-Tabelle) **gewinnt STATUS**. Campaign-Checklist:
+> [`docs/REWORK_CAMPAIGN.md`](docs/REWORK_CAMPAIGN.md). Island-Disposition:
+> [`docs/ISLAND_TRIAGE_2026-07-11.md`](docs/ISLAND_TRIAGE_2026-07-11.md).
+>
+> Vision/Architektur: `docs/VISION.md`. Phasen-Historie: `docs/phases/` (α–δ) +
+> `docs/HORIZON.md` (φ→Ω inkl. δ⁺/γ⁺/ε/ζ). Historische Snapshots: `docs/BUILD_HISTORY.md`,
+> `docs/AUDIT_2026-07-04.md`. **Bei Konflikt gewinnen die Kernprinzipien (§ unten).**
 
 ## Was GENESIS ist (in einem Satz)
-Ein Mensch liefert ein Problem oder eine Idee; GENESIS recherchiert, verifiziert, synthetisiert, detailliert, simuliert und liefert eine umsetzbare Spezifikation — **ohne Halluzination**.
+
+Ein Mensch liefert ein Problem oder eine Idee; GENESIS recherchiert, verifiziert, synthetisiert,
+detailliert, simuliert und liefert eine umsetzbare Spezifikation — **ohne Halluzination**.
 
 ## Kernprinzipien (überschreiben alles andere)
-1. **Kein faktischer Output ohne Quelle.** Jede Behauptung lebt im Fakten-Ledger mit Quelle, Confidence und Verifikations-Status. Code, der faktische Claims ohne Ledger-Eintrag erzeugt, ist ein Bug.
-2. **Verifikation ist ein Gate, kein Vorschlag.** Eine Phase darf erst enden, wenn ihr Gate bestanden ist. Gates sind im Code als harte Bedingungen implementiert.
-3. **Cross-Model.** Der Verifikator (`skeptic`) nutzt ein anderes Modell als der Generator. Single-Model-Self-Check zählt nicht als Verifikation.
+
+1. **Kein faktischer Output ohne Quelle.** Jede Behauptung lebt im Fakten-Ledger mit Quelle,
+   Confidence und Verifikations-Status. Code, der faktische Claims ohne Ledger-Eintrag erzeugt, ist ein Bug.
+2. **Verifikation ist ein Gate, kein Vorschlag.** Eine Phase darf erst enden, wenn ihr Gate bestanden ist.
+3. **Cross-Model.** Der Verifikator (`skeptic`) nutzt ein anderes Modell als der Generator.
 4. **"Ich weiß es nicht" ist ein gültiger, erwünschter Output.** Refusal/Abstention wird gemessen, nicht bestraft.
-5. **Determinismus & Reproduzierbarkeit.** Jeder Lauf hat eine `run_id`, ist gecheckpointet und aus Ledger + Config exakt reproduzierbar.
-6. **Stack-Agnostik.** Code gegen die Interfaces in `src/gen/core/interfaces.py`, nicht gegen ein konkretes Framework. Framework-spezifisches lebt hinter Adaptern.
+5. **Determinismus & Reproduzierbarkeit.** Jeder Lauf hat eine `run_id`, ist gecheckpointet und
+   aus Ledger + Config exakt reproduzierbar.
+6. **Stack-Agnostik.** Code gegen die Interfaces in `src/gen/core/interfaces.py`, nicht gegen ein
+   konkretes Framework. Framework-spezifisches lebt hinter Adaptern.
 
 ## Arbeitskonventionen
-- **Sprache:** Code/Kommentare/Identifier Englisch; Doku Deutsch ok. Nutzer-sichtbare Ergebnisse DEUTSCH (Owner-Direktive 2026-06-12; Zitate wortlautgetreu in Quellsprache, ids/units/Formeln/measurands/Gate-Diagnostik englisch).
-- **Jede neue Funktion braucht:** Typ-Annotationen, Docstring (was/warum), dokumentierte Fehlerfälle, mindestens einen Test (inkl. Negativtest).
-- **Jeder Agent** erfüllt das `Agent`-Protocol (`core/interfaces.py`): explizites Input-/Output-Schema, deklarierte Tools und Fehlerzustände.
-- **Keine stillen Defaults bei faktischen Dingen.** Lieber Exception als geratener Wert (Beispiel: `fracture.py` wirft bewusst `NotImplementedError` für Mixed-Mode).
+
+- **Sprache:** Code/Kommentare/Identifier Englisch; Doku Deutsch ok. Nutzer-sichtbare Ergebnisse
+  DEUTSCH (Owner-Direktive 2026-06-12; Zitate wortlautgetreu; ids/units/Formeln/Gate-Diagnostik englisch).
+- **Jede neue Funktion braucht:** Typ-Annotationen, Docstring (was/warum), dokumentierte Fehlerfälle,
+  mindestens einen Test (inkl. Negativtest).
+- **Jeder Agent** erfüllt das `Agent`-Protocol (`core/interfaces.py`).
+- **Keine stillen Defaults bei faktischen Dingen.** Lieber Exception als geratener Wert.
 - **Tests zuerst für Gates.** Ein Gate ohne Test existiert nicht.
-- **Vor neuem Modul erst `grep`/Read prüfen, ob es schon existiert** (Lektion 2026-06-19: Beinahe-Duplizierung von `training_plan.py`).
-- **4 Linsen nach jeder Arbeitseinheit** (`docs/4_LINSEN_PRINZIP.md`): L1 Wahrheit, L2 Drift, L3 Vollständigkeit/Naht, L4 Realisierbarkeit; Abgleich mit `docs/GENESIS_PLATFORM_PLAN.md`; Selbstkontrolle im BUILD_LOG dokumentieren.
-- **Zahlen-Claims in Doku sind Messwerte:** Testsummen/Validator-Zahlen nur mit frischem Messlauf ändern; historische Snapshots als solche labeln (Wurzel des Doku-Drifts, siehe Audit).
+- **Vor neuem Modul erst `grep`/Read** — keine Duplikate.
+- **4 Linsen** nach jeder Arbeitseinheit (`docs/4_LINSEN_PRINZIP.md`): L1 Wahrheit · L2 Drift ·
+  L3 Vollständigkeit/Naht · L4 Realisierbarkeit; Selbstkontrolle im `docs/BUILD_LOG.md`.
+- **Zahlen-Claims in Doku sind Messwerte:** nur mit frischem Messlauf ändern; historische Snapshots
+  **datieren und labeln** (Wurzel des Doku-Drifts, siehe Audit 2026-07-04).
 
 ## Definition of Done (pro Aufgabe)
+
 - [ ] Interface erfüllt, Typen geprüft
-- [ ] Tests grün (inkl. mindestens ein Negativtest: fehlende Quelle / Tool-Fehler / Widerspruch)
-- [ ] Ledger-Einträge korrekt erzeugt (falls faktisch)
+- [ ] Tests grün (inkl. mindestens ein Negativtest)
+- [ ] Ledger-Einträge korrekt (falls faktisch)
 - [ ] Gate-Bedingung im Code geprüft (falls Phasen-relevant)
 - [ ] Doku des Agenten/Moduls aktualisiert
 - [ ] 4 Linsen angewendet + dokumentiert (BUILD_LOG)
 
 ## Verzeichnis (Kurzkarte)
+
 ```
-docs/VISION.md              Warum · docs/ARCHITECTURE.md  Was · docs/PIPELINE.md  7 Phasen
-docs/DATA_MODEL.md          Ledger/Graph/DB exakt · sql/  Postgres/pgvector-Schema
-docs/phases/                α–δ Spezifikation + RESULT · docs/HORIZON.md  φ→Ω (alle ✓)
-docs/agents/*.md            Pro Agent: Prompt, I/O, Tools, Fehler, Tests
-docs/AUDIT_2026-07-04.md    Letztes Voll-Audit + priorisierter Verbesserungsplan
-WORK_QUEUE.md               Operativer Backlog (Deep-Review-Schritte, Deferred D1–D16)
-docs/BUILD_LOG.md           Arbeitsprotokoll · docs/BUILD_HISTORY.md  alte Status-Snapshots
-src/gen/core|agents|ledger|verification/   Kern (framework-frei)
-src/gen/discovery/          Universe-Explorer (39 Module) · src/gen/pipelines/  Fach-Pipelines
-src/gen/<physik>.py         δ-Achsen (structural…security) · tests/  247 Dateien
+docs/STATUS.md              SSOT Produkt-Wahrheit (curated + AUTO-Block)
+docs/REWORK_CAMPAIGN.md     Module-Checklist REWORK 2026-07-11/12
+docs/ISLAND_TRIAGE_*.md     Island-Disposition (KEEP_OPTIN / PRODUCT_WIRE / …)
+docs/CAPABILITIES.md        Fähigkeits-Inventar (untergeordnet STATUS)
+docs/VISION.md · ARCHITECTURE.md · PIPELINE.md · DATA_MODEL.md
+docs/phases/                α–δ Spezifikation + RESULT
+docs/HORIZON.md             φ, χ, δ⁺, γ⁺, ε, ζ, Ω (Phasen + ehrliche Gaps)
+docs/AUDIT_2026-07-04.md    Historisches Voll-Audit (Zahlen veraltet — nicht als Live-Stand zitieren)
+WORK_QUEUE.md               Historischer Deep-Review-Backlog (viele Checkboxen ungepflegt)
+docs/BUILD_LOG.md           Arbeitsprotokoll
+docs/SESSION_HANDOFF_*.md   Session-Handoffs
+src/gen/core|agents|ledger|verification/   Kern
+src/gen/discovery/          Universe-Explorer
+src/gen/pipelines/          Fach-Pipelines
+src/gen/product_surface.py  CLI-Reachability-Anker (find_islands)
+src/gen/<physik>.py         δ-Achsen · tests/
+scripts/find_islands.py · scripts/gen_status.py
 ```
 
-## Verifizierter Ist-Stand (gemessen 2026-07-04 abends, nicht fortschreiben ohne Messung)
-- **Testsuite (main, offline): 2079 passed / 0 failed / 43 skipped** (~5 min, `uv run pytest tests/ -q`,
-  frisch gemessen 2026-07-04 nach Tour 7 GP; davor 2059 nach Frontier 6.8 — Zuwachs = 20 GP-/Controller-Tests.
-  Ältere Zeile „1962/54 in ~29 s" stammte aus einem anderen Umgebungs-Snapshot; abends-Stand
-  war Deep-Review Schritt 7–9 KOMPLETT, D8–D13, P7, fertigungs-Naht).
-- **43 Validatoren** in `physics_validation.VALIDATORS`, **38 Recipes** in `physics_selection.RECIPES` (Auto-Select aus measurand-Tags → ehrliches Gate-Verdikt pass/fail/gap).
-- **Discovery: 39 Module**, 200 Discovery-Testfunktionen (`^def test_`-Zählung); `rediscovery_benchmark()` 100 %; Frontier 6.1–6.8 gebaut (6.8 = additive π-Argumente, `additive_argument.py`: `y = C·f(α·π1+β·π2)+D`; Arrhenius `2·exp(−θ/T − 0.5·P/p0)` und Chirp `3·sin(1.5x+0.8√x+0.4)` exakt rediscovered; kanonische Heimat des in 6.7 ausgeschlossenen `exp·exp`; Occam-Leiter mit VIER Rivalen inkl. 6.7-blind + OOS-Confirm; echte Komposition `f(g(·))` nach Analyse ABGELEHNT — datenabhängiger Parameter-Grat, Kollaps auf 6.3, keine allgemeine Kanonisierung, s. Modul-Docstring); **Tour 7 GP-Suche GEBAUT (2026-07-04):** `gp_search.py` = volle GP-Suche über offene Formräume, GENESIS-diszipliniert — π-Scaffold (Partikulärlösung `A·p=b` trägt die Ziel-Dimension, Nullraum-π-Basis → jedes GP-Genom per Konstruktion dimensionslos = dimensionale Typprüfung auf Baum-Ebene), Occam-Rivalen-Leiter (power_law ≻ power_of_pi ≻ multiterm+OOS ≻ 6.3 ≻ 6.6 ≻ 6.7 ≻ 6.8; Short-Circuit, `occam_winner`), GP bestätigt NIE selbst (gp_discover-Gates δ-Fit/Dummy/OOS; roher GP-Kern `symbolic_search.py` unverändert); Kepler+Pendel → Kollaps aufs gate-bestätigte Power-Law, Lorentz-Response `a·π/(1+π²)` als einzige Familie exakt (alle 6.x < 0.999), Rauschen nie bestätigt, Seed byte-identisch; `ExplorationController(open_form_fallback=True)` = Worst-Case-Budget-Gating, Funde in `open_form_outcomes`; Drift-Check NACHZUHOLEN (Grok-Outage wie 6.6–6.8). Offene Frontier: Kompositionen `f(g(·))` bleiben ABGELEHNT (Tour 7 ändert daran nichts); GP-Raum bewusst begrenzt auf gitter-darstellbare π-Gruppen in GPConfig-Tiefe (`docs/discovery/STATUS.md`).
-- **Alle Phasen gebaut und gegated:** α, β, γ, δ (docs/phases/) + φ, χ, δ⁺, γ⁺, ε, ζ, Ω (HORIZON, je `test_phase_*.py`).
-- Live-Default: Generator `qwen3.5:9b` + Verifier `gemma4:12b` (Fallback qwen2.5:14b/gemma4:latest).
-- Git: `main` lokal ist der Live-Stand (35 Commits vor `origin/main`); **Push nur auf Owner-Ansage.**
+## Verifizierter Ist-Stand (gemessen 2026-07-12 — nicht fortschreiben ohne Messung)
 
-## Aktueller Fokus (2026-07-04, nachgeführt)
-1. **Humanoid TP2 „Struktur-Härtung" GEBAUT** (Worktree-Branch `worktree-claude-orchestrator`,
-   Commits `b03b4be`/`0b0a0f9`/`f779ed9`): 4 Checks (Goodman-, Kerb-Fatigue, Euler-Knickung,
-   Resonanz) feuern via Measurand-Tagging auf beide Humanoiden, 0 neue Validatoren/Recipes;
-   Margen echt (printed Kerbe 1.04 dünn — hängt an DECISION a=6 mm, wartet auf Datenblatt).
-   Worktree-Suite 1743/0/61. **Offen: Grok-Cross-Review + Merge (owner-gated;** TP1+TP2 =
-   17 Commits unmerged, main 11 voraus; Achtung: runner.py-F821-Fix existiert in beiden Ästen).
-2. **Deep-Review-Kampagne KOMPLETT (Schritt 1–9, 2026-07-04)** — Schritt 7 (Physik/FEM/Geometrie),
-   Schritt 8 (export/costing/completeness/software), Schritt 9 (pipelines/grenzverschiebung/
-   integration/memory/web + capstone-Seam-Nachfix `76e5dfd`). Querschnitts-Erträge: NaN-Schranke
-   am δ-Gate, fabrizierte Provenienz paketweit entfernt, „flug"-Trigger-Klasse gebannt, tote
-   Fertigungs-Naht im Integrator repariert, Cost ehrlich zweistufig (`complete`/`fully_grounded`).
-   **Offen: Grok-Cross-Reviews für 7–9 nachholen** (CLI-Outage 2026-07-04).
-3. **Deferred-Backlog** (`WORK_QUEUE.md`): D8–D10 `c2f03cd` + D13(a–d) `393d7dc` + D15-geometry
-   `28e4ba1` ERLEDIGT; offen: D2 (`_now()`-Determinismus), D1, D4–D6, D11/D12, D14, D16,
-   Recipes für die 7 MANUAL_ONLY-Validatoren.
-4. **Doku-Hygiene:** Zähl-Drift in README/STATUS/HORIZON fixen (P2 im Audit-Plan).
-- **Owner-gated (kein Autonomie-Zugriff):** Push/Merge; Live-Ollama-Läufe + Extraction-Bottleneck;
-  measurand-Emission live-Architect; Refine-Loop live-Conductor.
+> Ältere Zeilen in AUDIT (2026-07-04: 1727p/61s) und CLAUDE-Stand 2026-07-04 (2079p/43s)
+> sind **historische Snapshots**, keine Live-Zahlen.
 
-## Memory-Konvention (ab 2026-07-04)
-- **Diese CLAUDE.md ist die einzige operative Quelle** für Auftrag, Stand und Fokus. Session-
-  übergreifendes Projektwissen wird HIER (Fokus/Ist-Stand) oder in `WORK_QUEUE.md` (Backlog)
-  festgehalten — nicht in parallelen TODO-Dateien.
-- `docs/GENESIS_TODO.md` + `docs/GENESIS_PLATFORM_BUILD_TODO.md` sind eingefroren (Checkboxen
-  ungepflegt, siehe Audit B1) — nur noch historische Referenz.
-- Jeder Arbeitsschritt: Commit mit sprechender Message + BUILD_LOG-Eintrag bei Arbeitseinheiten
-  mit Selbstkontrolle. `IMPLEMENTATION_PLAN.md` bleibt der separate Meta-Strang (Council-Loop).
+| Messgröße | Wert (2026-07-12) | Quelle |
+|-----------|-------------------|--------|
+| Tests collected | **2487** | `pytest --collect-only -q` |
+| Validatoren | **44** | `len(physics_validation.VALIDATORS)` |
+| Recipes | **38** | `len(physics_selection.RECIPES)` |
+| MANUAL_ONLY-Validatoren | **8** (u. a. `montecarlo_uncertainty`) | `physics_selection.MANUAL_ONLY_VALIDATORS` |
+| Discovery-Module (`.py` exkl. `__init__`) | **39** | `src/gen/discovery/` |
+| Reachability | modules **327** · WIRED **258** · SCRIPT **9** · ISLAND **26** · INFRA **34** | `scripts/find_islands.py` |
+| REWORK-Module OPEN | **0** (~303 REWORKED) | `docs/REWORK_CAMPAIGN.md` |
+| CLI-Modi | **~46** (inkl. Fach-Familie + `aero-report` / `humanoid-report` / `surface`) | `gen.cli` choices |
+
+**Phasen (gebaut + getestet, nicht „fertig im Sinne von allwissend“):**
+
+- Kernbogen α–δ: `docs/phases/` + Pipeline/Gates
+- HORIZON: φ (`divergence`), χ (`frontier`), δ⁺, γ⁺, ε, ζ, Ω — siehe `docs/HORIZON.md` und
+  `tests/test_phase_*.py`. Offline-CLI u. a.: `council`, `feynman`, `campaign`, `horizon-full`,
+  `goldset` (Demos grün; Live-LLM optional).
+
+**Discovery / Frontier (Kurz, ohne abgebrochene Formeln):** Module u. a. `additive_argument`,
+`gp_search`, `multiterm`, `transcendental`, `symbiosis`, `campaign` — Details und ehrliche Ablehnungen
+(z. B. allgemeine Komposition `f(g(·))`) stehen in den Modul-Docstrings und
+`docs/discovery/` falls vorhanden. **Keine unvollständigen Formeln in CLAUDE.md zitieren.**
+
+**Git (2026-07-12):**
+
+- Default-Branch **`main`** trackt **`origin/main`** (GitHub `Oz4462/genesis`).
+- REWORK-Kampagne + Continue über **PR #1–#9** auf `main` gemerged (CI 3.11+3.12).
+- **Nicht** behaupten „lokal 35 Commits vor origin/main“ — das war ein veralteter
+  Worktree-Stand und ist **nicht** der Live-Stand. Ungepushte/private Branches sind
+  **owner-gated**, nicht stillschweigend „main“.
+
+## Aktueller Fokus (2026-07-12)
+
+1. **FULL REWORK CAMPAIGN (2026-07-11):** Module-Inventory **REWORKED** (0 OPEN in
+   `REWORK_CAMPAIGN.md`). Prior-DONE war nicht vertrauenswürdig bis Suite+Wiring re-proven.
+2. **Product surface:** `gen.product_surface` + CLI; Katalog-Reports `aero-report` /
+   `humanoid-report`; `surface` zeigt Reachability.
+3. **Residual Islands (26):** absichtlich KEEP_OPTIN / experimental / SCRIPT-adjacent
+   (Postgres, MCP, GPU-oracle, Solver, Humanoid-SCRIPT, RL-Harness) — siehe ISLAND_TRIAGE.
+   **Nicht** massenhaft in den CLI-Import zwingen (bricht Startup ohne optionale Stacks).
+4. **Optional nächste Schicht:** unabhängiges **VERIFIED** (4 Linsen) auf High-Risk-Modulen;
+   optional `scripts/gen_status.py` AUTO-Block nach großen Merges erneuern.
+5. **Owner-gated:** Force-Push auf `main` verboten; Live-Ollama/Cloud-LLM; Asset-Downloads
+   für Humanoid-Meshes.
+
+## Memory-Konvention
+
+| Datei | Rolle |
+|-------|--------|
+| **`CLAUDE.md`** (diese Datei) | Operative Agent-Anweisung + datierte Messwerte |
+| **`docs/STATUS.md`** | **SSOT** Produkt-Wahrheit (curated + AUTO) |
+| **`docs/REWORK_CAMPAIGN.md`** | Campaign-Checklist |
+| **`docs/ISLAND_TRIAGE_*.md`** | Island-Disposition |
+| **`docs/SESSION_HANDOFF_*.md`** | Session-Übergabe |
+| **`docs/BUILD_LOG.md`** | Arbeitseinheiten + 4 Linsen |
+| **`WORK_QUEUE.md`** | Historischer Deep-Review-Backlog — **nicht** Live-SSOT |
+| **`docs/GENESIS_TODO.md`**, **`docs/GENESIS_PLATFORM_BUILD_TODO.md`**, **`docs/OPEN_MODULES_FULL_LIST.md`** | **Eingefroren / historisch** (Checkboxen oft ungepflegt; Audit B1) — nur Referenz |
+| **`docs/AUDIT_2026-07-04.md`** | Historisches Audit — Zahlen **nicht** als Live-Stand zitieren |
+
+- Session-übergreifendes Wissen: **STATUS / REWORK / Handoff / diese CLAUDE.md** — keine parallelen
+  Schatten-TODOs anlegen.
+- Jeder Arbeitsschritt: Conventional Commit + Push auf Feature-Branch + PR; nach CI grün mergen.
+  Vor ~500k Context: Handoff aktualisieren.
+
+## Schnell-Verify
+
+```bash
+cd /home/genesis/genesis
+.venv/bin/python -c "from gen.physics_validation import VALIDATORS; from gen.physics_selection import RECIPES; print(len(VALIDATORS), len(RECIPES))"
+.venv/bin/python scripts/find_islands.py | head -8
+.venv/bin/python -m pytest --collect-only -q | tail -3
+.venv/bin/python -m gen --mode surface | tail -5
+```
