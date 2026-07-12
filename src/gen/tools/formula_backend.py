@@ -36,10 +36,25 @@ class FormulaBackend:
         self._http_get = http_get
 
     async def search(self, query: str, limit: int) -> list[SourceCandidate]:
-        q = query.lower()
+        if limit <= 0:
+            return []
+        q = (query or "").lower()
         candidates: list[SourceCandidate] = []
 
-        keywords = {"formula", "law", "constant", "bessel", "gamma", "erf", "airy", "codata", "nist", "physical constant", "special function", "equation"}
+        keywords = {
+            "formula",
+            "law",
+            "constant",
+            "bessel",
+            "gamma",
+            "erf",
+            "airy",
+            "codata",
+            "nist",
+            "physical constant",
+            "special function",
+            "equation",
+        }
 
         if any(k in q for k in keywords):
             for url, note in self.FORMULA_SOURCES:

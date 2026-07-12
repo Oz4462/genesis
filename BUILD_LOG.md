@@ -1,3 +1,13 @@
+## 2026-07-12 — REWORK tools + grenz batch + PR CI green
+
+- PR #1 (`rework/full-open-from-main`): CI green (ruff + pytest 3.11/3.12).
+- Port gaps closed earlier: seams/physics/integrator/lumen/goldset/ThermalDomain/ros2.
+- Tools OPEN closed: formula_backend, ollama_embedder, rag_backend, openalex, patents, wikidata.
+- Wikidata: SPARQL string-literal escape + Q-id validation (injection integrity).
+- Grenz re-verified: proof_package, readiness_ladder, cluster, bench_test_runner, development_front, boundary_reviser, capability_gap_analyzer, learning_integrator.
+- Discovery re-verify: active_search, archive, campaign, concept_utility.
+- Evidence: tests/test_wikidata.py (escape + qid), tools suite 20p; campaign docs updated.
+
 
 ---
 

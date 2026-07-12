@@ -84,14 +84,14 @@
 - [x] **REWORKED** `gen.tools.codata` — suite green
 - [x] **REWORKED** `gen.tools.dlmf` — suite green
 - [x] **REWORKED** `gen.tools.fetch` — scheme allowlist http/https; re-verified
-- [ ] **OPEN** `gen.tools.formula_backend`
+- [x] **REWORKED** `gen.tools.formula_backend` — static authoritative sources; limit≤0 empty; suite path green
 - [x] **REWORKED** `gen.tools.http` — re-verified via fetch suite path
-- [ ] **OPEN** `gen.tools.ollama_embedder`
-- [ ] **OPEN** `gen.tools.rag_backend`
+- [x] **REWORKED** `gen.tools.ollama_embedder` — fail-loud LLMTransportError; suite green
+- [x] **REWORKED** `gen.tools.rag_backend` — deterministic n-gram RAG; suite green
 - [x] **REWORKED** `gen.tools.search` — re-verified suite path
-- [ ] **OPEN** `gen.tools.sources.openalex`
-- [ ] **OPEN** `gen.tools.sources.patents`
-- [ ] **OPEN** `gen.tools.wikidata`
+- [x] **REWORKED** `gen.tools.sources.openalex` — no invent id; SearchBackendError loud; tools_sources suite
+- [x] **REWORKED** `gen.tools.sources.patents` — key boundary honest; tools_sources suite
+- [x] **REWORKED** `gen.tools.wikidata` — SPARQL string escape + Q-id guard; suite green
 
 ### `agents/` (8 modules)
 
@@ -144,14 +144,14 @@
 ### `discovery/` (35 modules)
 
 - [x] **REWORKED** `gen.discovery.active_resolution` — island re-verify suite green
-- [ ] **OPEN** `gen.discovery.active_search`
-- [ ] **OPEN** `gen.discovery.archive`
+- [x] **REWORKED** `gen.discovery.active_search` — suite green re-verify
+- [x] **REWORKED** `gen.discovery.archive` — suite green re-verify
 - [x] **REWORKED** `gen.discovery.assumption_annihilator` — island re-verify suite green
 - [x] **REWORKED** `gen.discovery.benchmark` — suite green
-- [ ] **OPEN** `gen.discovery.campaign`
+- [x] **REWORKED** `gen.discovery.campaign` — suite green re-verify
 - [ ] **OPEN** `gen.discovery.canonical`
 - [x] **REWORKED** `gen.discovery.composition` — suite green
-- [ ] **OPEN** `gen.discovery.concept_utility`
+- [x] **REWORKED** `gen.discovery.concept_utility` — suite green re-verify
 - [x] **REWORKED** `gen.discovery.controller` — suite green
 - [x] **REWORKED** `gen.discovery.cosmic_insight` — island re-verify suite green
 - [x] **REWORKED** `gen.discovery.engine` — suite green
@@ -181,18 +181,18 @@
 
 ### `grenzverschiebung/` (16 modules)
 
-- [ ] **OPEN** `gen.grenzverschiebung.bench_test_runner`
-- [ ] **OPEN** `gen.grenzverschiebung.boundary_reviser`
+- [x] **REWORKED** `gen.grenzverschiebung.bench_test_runner` — package export + suite path
+- [x] **REWORKED** `gen.grenzverschiebung.boundary_reviser` — suite green re-verify
 - [ ] **OPEN** `gen.grenzverschiebung.breakthrough_watch`
-- [ ] **OPEN** `gen.grenzverschiebung.capability_gap_analyzer`
-- [ ] **OPEN** `gen.grenzverschiebung.cluster`
-- [ ] **OPEN** `gen.grenzverschiebung.development_front`
+- [x] **REWORKED** `gen.grenzverschiebung.capability_gap_analyzer` — suite green re-verify
+- [x] **REWORKED** `gen.grenzverschiebung.cluster` — readiness ladder export path; CI port
+- [x] **REWORKED** `gen.grenzverschiebung.development_front` — suite green re-verify
 - [ ] **OPEN** `gen.grenzverschiebung.experiment_designer`
-- [ ] **OPEN** `gen.grenzverschiebung.learning_integrator`
-- [x] **REWORKED** `gen.grenzverschiebung.lumencrucible` — optional_skips surface; δ+ abstain re-proved; more silent-except backlog
+- [x] **REWORKED** `gen.grenzverschiebung.learning_integrator` — suite green re-verify
+- [x] **REWORKED** `gen.grenzverschiebung.lumencrucible` — optional_skips; claim VERIFIED@1.0; forge out_dir/seed_failed/PLANNED_NOT_EXECUTED
 - [ ] **OPEN** `gen.grenzverschiebung.milestone_builder`
-- [ ] **OPEN** `gen.grenzverschiebung.proof_package`
-- [ ] **OPEN** `gen.grenzverschiebung.readiness_ladder`
+- [x] **REWORKED** `gen.grenzverschiebung.proof_package` — F401 clean; lumen integrity path
+- [x] **REWORKED** `gen.grenzverschiebung.readiness_ladder` — integrator readiness_input; package exports
 - [ ] **OPEN** `gen.grenzverschiebung.safety_ladder`
 - [ ] **OPEN** `gen.grenzverschiebung.technology_builder`
 - [ ] **OPEN** `gen.grenzverschiebung.technology_roadmapper`
@@ -204,7 +204,7 @@
 - [ ] **OPEN** `gen.inventor.brief`
 - [ ] **OPEN** `gen.inventor.domains.base`
 - [ ] **OPEN** `gen.inventor.domains.mechatronics`
-- [ ] **OPEN** `gen.inventor.domains.thermal`
+- [x] **REWORKED** `gen.inventor.domains.thermal` — restored ThermalDomain; invent CLI thermal route
 - [ ] **OPEN** `gen.inventor.eval`
 - [ ] **OPEN** `gen.inventor.evolve_engine`
 - [ ] **OPEN** `gen.inventor.generate`
@@ -428,7 +428,7 @@ _Inventory generated 2026-07-11 — 290 open modules._
 - [x] **REWORKED** ε seams real + Ω enforce opt-in — seams MECH↔MECH removed; enforce_omega tests green
 - [x] **REWORKED** goldset CLI mode wired — characterization suite path
 - [x] **REWORKED** divergence CLI mode wired — test_cli_divergence_mode green
-- [ ] **OPEN** arXiv/OpenAlex/PatentsView build_live backends
+- [x] **REWORKED** arXiv/OpenAlex/PatentsView build_live backends — wired in build_live; patents key-gated
 - [x] **REWORKED** dimensional_guard in GATE δ-physics — + non-finite SF fail-loud
 - [ ] **OPEN** topology_optimizer / section_optimizer integration
 - [ ] **OPEN** AETHON humanoid assets + mechanics
@@ -454,3 +454,6 @@ _Inventory generated 2026-07-11 — 290 open modules._
 | 2026-07-11 | full fach family + research_promotion | REWORKED | 10 pipelines + ladder; CAPABILITIES honesty |
 | 2026-07-11 | alpha demos + KEEP_OPTIN + AUTO | REWORKED | report/solution/spec --demo; gen_status; ros2 skip |
 | 2026-07-12 | capstone UnboundLocal + integrator wb path | REWORKED | CLI demos green; 98p llm/gamma |
+| 2026-07-12 | PR CI green (port gaps) | REWORKED | ruff+full pytest 3.11/3.12 green on PR #1 |
+| 2026-07-12 | tools/* remaining + wikidata SPARQL | REWORKED | 6 tools OPEN→REWORKED; SPARQL escape + Q-id guard |
+| 2026-07-12 | grenz batch + discovery re-verify | REWORKED | proof/readiness/cluster/bench/dev_front; active_search/archive/campaign |

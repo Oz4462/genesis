@@ -38,6 +38,28 @@ class WikidataError(RuntimeError):
     pass
 
 
+def _sparql_string_literal(value: str) -> str:
+    """Escape a user string for use inside a SPARQL double-quoted literal.
+
+    Prevents injection via quotes / backslashes in search names (REWORK integrity).
+    """
+    return (
+        value.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
+    )
+
+
+def _assert_qid(entity_qid: str) -> str:
+    """Accept only Wikidata entity ids like Q456 — never raw SPARQL fragments."""
+    qid = (entity_qid or "").strip()
+    if not qid or qid[0] not in "Qq" or not qid[1:].isdigit():
+        raise WikidataError(f"invalid Wikidata entity id: {entity_qid!r}")
+    return "Q" + qid[1:]
+
+
 def sparql_query(query: str, timeout: float = 20.0) -> List[Dict[str, Any]]:
     """Execute a SPARQL query against Wikidata. Returns list of result bindings.
 
@@ -59,6 +81,8 @@ def sparql_query(query: str, timeout: float = 20.0) -> List[Dict[str, Any]]:
                 raise WikidataError(f"SPARQL HTTP {resp.status}")
             data = json.loads(resp.read().decode("utf-8"))
             return data.get("results", {}).get("bindings", [])
+    except WikidataError:
+        raise
     except Exception as exc:
         raise WikidataError(f"Wikidata SPARQL failed: {exc}") from exc
 
@@ -68,6 +92,12 @@ def search_physical_law(name: str, limit: int = 5) -> List[WikidataLawHit]:
 
     Uses label + description search. Returns lightweight hits.
     """
+    if not isinstance(name, str) or not name.strip():
+        raise WikidataError("search name must be a non-empty string")
+    lim = int(limit)
+    if lim < 1 or lim > 50:
+        raise WikidataError(f"limit out of range (1..50): {limit!r}")
+    safe = _sparql_string_literal(name.strip())
     # Very basic query; in real use one would refine with P279 subclass etc.
     q = f"""
     SELECT ?item ?itemLabel ?itemDescription ?formula WHERE {{
@@ -76,9 +106,9 @@ def search_physical_law(name: str, limit: int = 5) -> List[WikidataLawHit]:
       OPTIONAL {{ ?item wdt:P2535 ?formula . }}  # mathematical formula (P2535)
       FILTER (lang(?itemLabel) = "en")
       FILTER (lang(?itemDescription) = "en")
-      FILTER (CONTAINS(LCASE(?itemLabel), LCASE("{name}")) || CONTAINS(LCASE(?itemDescription), LCASE("{name}")))
+      FILTER (CONTAINS(LCASE(?itemLabel), LCASE("{safe}")) || CONTAINS(LCASE(?itemDescription), LCASE("{safe}")))
     }}
-    LIMIT {limit}
+    LIMIT {lim}
     """
     rows = sparql_query(q)
     hits: List[WikidataLawHit] = []
@@ -93,9 +123,10 @@ def search_physical_law(name: str, limit: int = 5) -> List[WikidataLawHit]:
 
 def get_formula_for(entity_qid: str) -> Optional[str]:
     """Return a formula string associated with a Wikidata entity if present."""
+    qid = _assert_qid(entity_qid)
     q = f"""
     SELECT ?formula WHERE {{
-      wd:{entity_qid} wdt:P2535 ?formula .
+      wd:{qid} wdt:P2535 ?formula .
     }} LIMIT 1
     """
     rows = sparql_query(q)
