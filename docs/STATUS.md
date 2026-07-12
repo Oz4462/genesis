@@ -123,7 +123,7 @@ Historical labels (LIVE/DEMO/CANNED) are starting hypotheses only.
 
 ## 4 · Island disposition — TRIAGED 2026-07-11 (see `docs/ISLAND_TRIAGE_2026-07-11.md`)
 
-> Live count 2026-07-11 (after full fach family): **modules=323 · WIRED=215 · SCRIPT=11 · ISLAND=63 · INFRA=34**.
+> Live count 2026-07-12 (AUTO block): **modules=325 · WIRED=201 · SCRIPT=11 · ISLAND=79 · INFRA=34** · **2478 tests collected**.
 > Full disposition table: [`docs/ISLAND_TRIAGE_2026-07-11.md`](ISLAND_TRIAGE_2026-07-11.md).
 > No mass-move to `_experimental/` this session (prior re-export build-break risk).
 
