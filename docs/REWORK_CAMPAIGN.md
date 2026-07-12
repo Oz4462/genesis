@@ -2,7 +2,8 @@
 
 > **Started:** 2026-07-11  
 > **Policy:** Everything previously marked DONE / FIXED / CLOSED / COMPLETE is **OPEN** again.  
-> **Goal:** Rework every module, every detail, every line — with 4 lenses, tests, wiring proof.  
+> **Goal:** Rework every module, every detail, every line — with 4 lenses, tests, wiring proof.
+> **Closeout 2026-07-12:** Module inventory 0 OPEN; product_surface anchors shipping surface (WIRED 256 / ISLAND 26 KEEP_OPTIN).  
 > **SSOT for this campaign:** this file. `docs/STATUS.md` remains product truth after re-verification.
 
 ## Status legend
@@ -463,3 +464,4 @@ _Inventory generated 2026-07-11 — 290 open modules._
 | 2026-07-12 | aero + drawing + professional package | REWORKED | MIN_THRUST_WEIGHT_BY_CLASS port; 48p aero/flight/drawing/package; ruff clean |
 | 2026-07-12 | root OPEN physics/quality batch | REWORKED | 172p+3s; humanoid_research shim; experimental KEEP_OPTIN |
 | 2026-07-12 | umbrella OPEN + kicad_cli validate | REWORKED | 126p phases/CAD; validate_pcb_with_kicad_cli; 0 OPEN modules |
+| 2026-07-12 | product_surface closeout | REWORKED | WIRED 218→256; ISLAND 63→26; montecarlo validator; residual KEEP_OPTIN |

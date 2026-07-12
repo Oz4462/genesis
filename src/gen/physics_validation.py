@@ -88,6 +88,42 @@ from .dynamics import (
     swing_resonance_check,
     zmp_dynamic_check,
 )
+from .montecarlo import montecarlo_uncertainty
+
+
+def montecarlo_uncertainty_check(
+    formula: str,
+    values: dict,
+    uncertainties: dict,
+    *,
+    n_samples: int = 200,
+    seed: int = 0,
+    coverage: float = 0.95,
+    max_rel_std: float | None = None,
+) -> dict:
+    """GATE-compatible Monte Carlo uncertainty screen (JCGM 101 style).
+
+    Wraps ``montecarlo.montecarlo_uncertainty`` and adds an ``ok`` verdict:
+    finite mean/std, and optionally relative std ≤ ``max_rel_std`` when set.
+    """
+    rep = montecarlo_uncertainty(
+        formula,
+        values,
+        uncertainties,
+        n_samples=n_samples,
+        seed=seed,
+        coverage=coverage,
+    )
+    mean = float(rep["mean"])
+    std = float(rep["std"])
+    ok = math.isfinite(mean) and math.isfinite(std) and std >= 0.0
+    if ok and max_rel_std is not None and mean != 0.0:
+        ok = (std / abs(mean)) <= float(max_rel_std)
+    out = dict(rep)
+    out["ok"] = ok
+    # Dimensionless relative uncertainty as a pseudo safety_factor when mean ≠ 0
+    out["safety_factor"] = (abs(mean) / std) if (ok and std > 0.0) else (1.0 if ok else 0.0)
+    return out
 
 
 def vacuum_radiation_balance_check(
@@ -243,6 +279,8 @@ VALIDATORS = {
     "swing_resonance": swing_resonance_check,
     "zmp_dynamic": zmp_dynamic_check,
     "joint_swing_torque": joint_swing_torque_check,
+    # uncertainty — Monte Carlo propagation (JCGM 101 style screen)
+    "montecarlo_uncertainty": montecarlo_uncertainty_check,
 }
 
 

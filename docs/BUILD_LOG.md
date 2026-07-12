@@ -711,3 +711,9 @@ Unified facade + CLI + seams complete. 30p verified. Honest proposal. For komple
 **Branch:** `rework/continue-2026-07-12`
 **Work:** Re-verified 19 root modules (172p+3s); restored `gen.humanoid_research` shim; KEEP_OPTIN experimental honesty; ported `validate_pcb_with_kicad_cli`; CAD TEIL2 + HORIZON phase suites **126 passed**; campaign OPEN module list → 0.
 **Status:** Ready for PR #2 CI gate + merge when green.
+
+## 2026-07-12 — product_surface closeout (islands 63→26)
+
+**Work:** `gen.product_surface` + CLI import; montecarlo GATE adapter; drawing static import in professional_package.
+**Evidence:** test_product_surface + physics_validation 27p; find_islands WIRED=256 ISLAND=26.
+**Residual:** 26 KEEP_OPTIN/experimental dispositioned (not open bugs).

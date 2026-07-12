@@ -29,6 +29,12 @@ try:
 except Exception:
     RobustVisualizer = None  # graceful if not present
 
+# Product surface: 2-D drawing export is part of the deliverable stack (optional runtime).
+try:
+    from ..export import drawing as _export_drawing  # noqa: F401
+except Exception:  # pragma: no cover - optional build123d venv
+    _export_drawing = None
+
 _MISSING = "_(not available in this result)_"
 
 
