@@ -54,6 +54,7 @@ git checkout main && git pull origin main
 
 ## Leave-off
 
-- On `main` @ `31b2c50`.
-- No uncommitted source (only local `__main__*_out/` junk + pycache).
-- Next action: open continue-branch and rework root modules batch with existing tests.
+- Branch: `rework/continue-2026-07-12` (from main `31b2c50`).
+- Root physics/export/integration batch REWORKED; docs updated; push this branch.
+- Next: aero/* + remaining OPEN (~30) + PR continue→main when green.
+- Optional: restore `gen.finalizer.professional_package` / `export.drawing_worker` from campaign if still needed.

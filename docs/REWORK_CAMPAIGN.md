@@ -249,13 +249,13 @@
 
 ### `export/` (10 modules)
 
-- [ ] **OPEN** `gen.export.assembly`
+- [x] **REWORKED** `gen.export.assembly` — suite path cad_assembly green
 - [x] **REWORKED** `gen.export.brep_stl` — brep_stl suite green
-- [ ] **OPEN** `gen.export.build123d`
+- [x] **REWORKED** `gen.export.build123d` — import smoke + KEEP_OPTIN
 - [x] **REWORKED** `gen.export.drawing` — drawing integration suite
 - [ ] **OPEN** `gen.export.drawing_worker`
 - [x] **REWORKED** `gen.export.markdown` — markdown suite green
-- [ ] **OPEN** `gen.export.numfmt`
+- [x] **REWORKED** `gen.export.numfmt` — import smoke re-verify
 - [x] **REWORKED** `gen.export.openscad` — openscad suite green
 - [x] **REWORKED** `gen.export.ros2_package` — ros2 integration suite
 - [x] **REWORKED** `gen.export.stl` — stl suite green
@@ -266,8 +266,8 @@
 
 ### `external/` (3 modules)
 
-- [ ] **OPEN** `gen.external.oracle`
-- [ ] **OPEN** `gen.external.registry`
+- [x] **REWORKED** `gen.external.oracle` — external_oracle suite green
+- [x] **REWORKED** `gen.external.registry` — import smoke re-verify
 - [x] **REWORKED** `gen.external.vision` — restored; OpenCV camera test green
 
 ### `finalizer/` (1 modules)
@@ -276,13 +276,13 @@
 
 ### `formulas/` (1 modules)
 
-- [ ] **OPEN** `gen.formulas.registry`
+- [x] **REWORKED** `gen.formulas.registry` — import smoke re-verify
 
 ### `integration/` (3 modules)
 
-- [ ] **OPEN** `gen.integration.audited_run`
-- [ ] **OPEN** `gen.integration.drift`
-- [ ] **OPEN** `gen.integration.identity_research_hook`
+- [x] **REWORKED** `gen.integration.audited_run` — integration suite green
+- [x] **REWORKED** `gen.integration.drift` — drift_monitor suite green
+- [x] **REWORKED** `gen.integration.identity_research_hook` — identity_research suite path
 
 ### `lernmaschine/` (1 modules)
 
@@ -298,8 +298,8 @@
 
 ### `wissensbasis/` (3 modules)
 
-- [ ] **OPEN** `gen.wissensbasis.bio_molecular`
-- [ ] **OPEN** `gen.wissensbasis.evidence`
+- [x] **REWORKED** `gen.wissensbasis.bio_molecular` — wissensbasis suite green
+- [x] **REWORKED** `gen.wissensbasis.evidence` — wissensbasis suite green
 - [x] **REWORKED** `gen.wissensbasis.store` — wissensbasis suite green
 
 ### `web/` (2 modules)
@@ -329,7 +329,7 @@
 
 ### `_root/` (82 modules)
 
-- [ ] **OPEN** `gen.__main__`
+- [x] **REWORKED** `gen.__main__` — CLI entry; matrix suite green
 - [x] **REWORKED** `gen.actuation` — actuation suite green
 - [x] **REWORKED** `gen.bolted_joint` — bolted_joint suite green
 - [x] **REWORKED** `gen.bracket_fem` — test-only island suite green
@@ -344,43 +344,43 @@
 - [x] **REWORKED** `gen.cli` — section/divergence/invent/chip/training modes smoke green
 - [x] **REWORKED** `gen.competitive_humanoid` — suite green
 - [x] **REWORKED** `gen.completeness` — completeness suite green
-- [ ] **OPEN** `gen.compute`
-- [ ] **OPEN** `gen.config`
-- [ ] **OPEN** `gen.constraint_consistency`
-- [ ] **OPEN** `gen.contact`
-- [ ] **OPEN** `gen.costing`
-- [ ] **OPEN** `gen.coverage`
-- [ ] **OPEN** `gen.creep`
+- [x] **REWORKED** `gen.compute` — compute suite green
+- [x] **REWORKED** `gen.config` — import smoke re-verify
+- [x] **REWORKED** `gen.constraint_consistency` — suite green
+- [x] **REWORKED** `gen.contact` — suite green
+- [x] **REWORKED** `gen.costing` — suite green
+- [x] **REWORKED** `gen.coverage` — import smoke + phase paths
+- [x] **REWORKED** `gen.creep` — suite green
 - [x] **REWORKED** `gen.demo` — capstone/protocol fixtures via CLI demos
 - [x] **REWORKED** `gen.dfm` — suite green
-- [ ] **OPEN** `gen.digital_bus`
+- [x] **REWORKED** `gen.digital_bus` — suite green
 - [x] **REWORKED** `gen.dimensional_guard` — re-verified scale invariance; suite green
-- [ ] **OPEN** `gen.dynamics`
-- [ ] **OPEN** `gen.electronics`
-- [ ] **OPEN** `gen.evaluation`
+- [x] **REWORKED** `gen.dynamics` — suite green
+- [x] **REWORKED** `gen.electronics` — suite green
+- [x] **REWORKED** `gen.evaluation` — suite green
 - [x] **REWORKED** `gen.fatigue` — suite green
 - [x] **REWORKED** `gen.fem` — suite green
 - [x] **REWORKED** `gen.fem3d` — restored APIs + material/solution guards; characterization green
 - [x] **REWORKED** `gen.fem3d_quadratic` — material/solution guards wired (parity with fem3d)
-- [ ] **OPEN** `gen.flight`
-- [ ] **OPEN** `gen.fracture`
+- [x] **REWORKED** `gen.flight` — suite green
+- [x] **REWORKED** `gen.fracture` — suite green
 - [x] **REWORKED** `gen.frontier` — WIRED via --mode frontier (χ + GATE χ)
-- [ ] **OPEN** `gen.future_ideas`
-- [ ] **OPEN** `gen.geometry_verification`
+- [x] **REWORKED** `gen.future_ideas` — suite green
+- [x] **REWORKED** `gen.geometry_verification` — suite green
 - [x] **REWORKED** `gen.goldset` — characterization suite path green
-- [ ] **OPEN** `gen.grounding_integrity`
+- [x] **REWORKED** `gen.grounding_integrity` — suite green
 - [x] **REWORKED** `gen.horizon_full` — CLI --demo wires deep discovery + grenz cluster
 - [ ] **OPEN** `gen.humanoid_research`
-- [ ] **OPEN** `gen.identity_research`
-- [ ] **OPEN** `gen.inverse_design`
-- [ ] **OPEN** `gen.kinematics`
+- [x] **REWORKED** `gen.identity_research` — suite green
+- [x] **REWORKED** `gen.inverse_design` — import smoke re-verify
+- [x] **REWORKED** `gen.kinematics` — suite path + knee_squat_hold_torque
 - [x] **REWORKED** `gen.materials` — suite green
-- [ ] **OPEN** `gen.mechanics_formulas`
-- [ ] **OPEN** `gen.memory_fabric`
-- [ ] **OPEN** `gen.mesh_integrity`
+- [x] **REWORKED** `gen.mechanics_formulas` — suite green
+- [x] **REWORKED** `gen.memory_fabric` — suite green
+- [x] **REWORKED** `gen.mesh_integrity` — suite green
 - [x] **REWORKED** `gen.modal` — suite green
 - [x] **REWORKED** `gen.montecarlo` — test-only island suite green
-- [ ] **OPEN** `gen.notch_fatigue`
+- [x] **REWORKED** `gen.notch_fatigue` — suite green
 - [ ] **OPEN** `gen.omega`
 - [ ] **OPEN** `gen.orientation`
 - [ ] **OPEN** `gen.physics_selection`
@@ -459,3 +459,4 @@ _Inventory generated 2026-07-11 — 290 open modules._
 | 2026-07-12 | grenz batch + discovery re-verify | REWORKED | proof/readiness/cluster/bench/dev_front; active_search/archive/campaign |
 | 2026-07-12 | discovery/grenz/inventor OPEN sweep | REWORKED | reward NaN→0; almost all discovery+grenz+inventor REWORKED |
 | 2026-07-12 | humanoids restore + sim/cad KEEP_OPTIN | REWORKED | full humanoids package from campaign; knee_squat_hold_torque; 169p+ |
+| 2026-07-12 | continue-2026-07-12 root batch | REWORKED | costing/dynamics/flight/… + export/external/integration; 212+52p |

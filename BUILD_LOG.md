@@ -1,3 +1,15 @@
+## 2026-07-12 — continue branch: root physics/export/integration batch
+
+- Branch `rework/continue-2026-07-12` from merged main `31b2c50`.
+- Handoff doc: `docs/SESSION_HANDOFF_2026-07-12.md` (resume after context limit).
+- REWORKED root modules with suites: costing, completeness, constraint_*, contact, creep,
+  compute, digital_bus, dynamics, electronics, evaluation, flight, fracture, geometry*,
+  grounding_integrity, memory_fabric, mesh_integrity, mechanics_formulas, notch_fatigue,
+  future_ideas, identity_research, export/external/integration/wissensbasis subset.
+- Evidence: 212 passed + 3 skipped (root batch); 52 passed + 2 skipped (second batch).
+- Still OPEN: aero/*, _experimental/*, visualization, web.__main__, drawing_worker,
+  professional_package (missing on main), humanoid_research top-level alias, etc.
+
 ## 2026-07-12 — humanoids package restore + sim/cad KEEP_OPTIN
 
 - Restored full `src/gen/humanoids/` + 19 test modules from campaign branch (was missing on PR-from-main).
