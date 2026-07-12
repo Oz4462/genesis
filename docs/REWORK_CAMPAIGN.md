@@ -149,35 +149,35 @@
 - [x] **REWORKED** `gen.discovery.assumption_annihilator` — island re-verify suite green
 - [x] **REWORKED** `gen.discovery.benchmark` — suite green
 - [x] **REWORKED** `gen.discovery.campaign` — suite green re-verify
-- [ ] **OPEN** `gen.discovery.canonical`
+- [x] **REWORKED** `gen.discovery.canonical` — suite green re-verify
 - [x] **REWORKED** `gen.discovery.composition` — suite green
 - [x] **REWORKED** `gen.discovery.concept_utility` — suite green re-verify
 - [x] **REWORKED** `gen.discovery.controller` — suite green
 - [x] **REWORKED** `gen.discovery.cosmic_insight` — island re-verify suite green
 - [x] **REWORKED** `gen.discovery.engine` — suite green
-- [ ] **OPEN** `gen.discovery.feynman`
+- [x] **REWORKED** `gen.discovery.feynman` — feynman_benchmark suite green
 - [x] **REWORKED** `gen.discovery.first_principles` — island re-verify suite green
 - [x] **REWORKED** `gen.discovery.graph` — suite green
-- [ ] **OPEN** `gen.discovery.knowledge_graph`
+- [x] **REWORKED** `gen.discovery.knowledge_graph` — suite green re-verify
 - [x] **REWORKED** `gen.discovery.multiterm` — suite green
 - [x] **REWORKED** `gen.discovery.proof_loop` — suite green
 - [x] **REWORKED** `gen.discovery.reality_fork` — island re-verify suite green
-- [ ] **OPEN** `gen.discovery.reward`
-- [ ] **OPEN** `gen.discovery.rl_env`
-- [ ] **OPEN** `gen.discovery.run`
-- [ ] **OPEN** `gen.discovery.separability`
+- [x] **REWORKED** `gen.discovery.reward` — NaN/Inf r² → 0.0; suite + non-finite tests
+- [x] **REWORKED** `gen.discovery.rl_env` — suite green re-verify
+- [x] **REWORKED** `gen.discovery.run` — public discover API; engine/controller suite path
+- [x] **REWORKED** `gen.discovery.separability` — suite green re-verify
 - [x] **REWORKED** `gen.discovery.simulated_data` — island re-verify suite green
 - [x] **REWORKED** `gen.discovery.sindy` — suite green
 - [x] **REWORKED** `gen.discovery.srbench_hygiene` — island re-verify suite green
 - [x] **REWORKED** `gen.discovery.surrogate` — suite green
-- [ ] **OPEN** `gen.discovery.symbiosis`
+- [x] **REWORKED** `gen.discovery.symbiosis` — suite green; unbuildable proposals abstain
 - [x] **REWORKED** `gen.discovery.symbolic_search` — suite green
 - [x] **REWORKED** `gen.discovery.tournament` — suite green
 - [x] **REWORKED** `gen.discovery.transcendental` — suite green
-- [ ] **OPEN** `gen.discovery.tree_search`
+- [x] **REWORKED** `gen.discovery.tree_search` — suite green re-verify
 - [x] **REWORKED** `gen.discovery.uncertainty` — island re-verify suite green
 - [x] **REWORKED** `gen.discovery.universe_bridge` — island re-verify suite green
-- [ ] **OPEN** `gen.discovery.validation`
+- [x] **REWORKED** `gen.discovery.validation` — suite green re-verify
 
 ### `grenzverschiebung/` (16 modules)
 
@@ -187,31 +187,31 @@
 - [x] **REWORKED** `gen.grenzverschiebung.capability_gap_analyzer` — suite green re-verify
 - [x] **REWORKED** `gen.grenzverschiebung.cluster` — readiness ladder export path; CI port
 - [x] **REWORKED** `gen.grenzverschiebung.development_front` — suite green re-verify
-- [ ] **OPEN** `gen.grenzverschiebung.experiment_designer`
+- [x] **REWORKED** `gen.grenzverschiebung.experiment_designer` — suite green re-verify
 - [x] **REWORKED** `gen.grenzverschiebung.learning_integrator` — suite green re-verify
 - [x] **REWORKED** `gen.grenzverschiebung.lumencrucible` — optional_skips; claim VERIFIED@1.0; forge out_dir/seed_failed/PLANNED_NOT_EXECUTED
-- [ ] **OPEN** `gen.grenzverschiebung.milestone_builder`
+- [x] **REWORKED** `gen.grenzverschiebung.milestone_builder` — suite green re-verify
 - [x] **REWORKED** `gen.grenzverschiebung.proof_package` — F401 clean; lumen integrity path
 - [x] **REWORKED** `gen.grenzverschiebung.readiness_ladder` — integrator readiness_input; package exports
-- [ ] **OPEN** `gen.grenzverschiebung.safety_ladder`
-- [ ] **OPEN** `gen.grenzverschiebung.technology_builder`
-- [ ] **OPEN** `gen.grenzverschiebung.technology_roadmapper`
-- [ ] **OPEN** `gen.grenzverschiebung.teststand_architect`
+- [x] **REWORKED** `gen.grenzverschiebung.safety_ladder` — suite green re-verify
+- [x] **REWORKED** `gen.grenzverschiebung.technology_builder` — suite green re-verify
+- [x] **REWORKED** `gen.grenzverschiebung.technology_roadmapper` — suite green re-verify
+- [x] **REWORKED** `gen.grenzverschiebung.teststand_architect` — suite green re-verify
 
 ### `inventor/` (14 modules)
 
 - [ ] **OPEN** `gen.inventor.archive`
-- [ ] **OPEN** `gen.inventor.brief`
-- [ ] **OPEN** `gen.inventor.domains.base`
-- [ ] **OPEN** `gen.inventor.domains.mechatronics`
+- [x] **REWORKED** `gen.inventor.brief` — InventionBrief fail-loud empty field; suite green
+- [x] **REWORKED** `gen.inventor.domains.base` — suite green re-verify (domains suite)
+- [x] **REWORKED** `gen.inventor.domains.mechatronics` — suite green re-verify
 - [x] **REWORKED** `gen.inventor.domains.thermal` — restored ThermalDomain; invent CLI thermal route
-- [ ] **OPEN** `gen.inventor.eval`
-- [ ] **OPEN** `gen.inventor.evolve_engine`
-- [ ] **OPEN** `gen.inventor.generate`
+- [x] **REWORKED** `gen.inventor.eval` — suite green re-verify
+- [x] **REWORKED** `gen.inventor.evolve_engine` — suite green re-verify
+- [x] **REWORKED** `gen.inventor.generate` — suite green re-verify
 - [x] **REWORKED** `gen.inventor.loop` — suite green re-verify
-- [ ] **OPEN** `gen.inventor.novelty`
+- [x] **REWORKED** `gen.inventor.novelty` — suite green re-verify
 - [ ] **OPEN** `gen.inventor.optimize`
-- [ ] **OPEN** `gen.inventor.refinement`
+- [x] **REWORKED** `gen.inventor.refinement` — suite green re-verify
 - [x] **REWORKED** `gen.inventor.safety` — suite green re-verify
 - [x] **REWORKED** `gen.inventor.score` — suite green re-verify
 
@@ -457,3 +457,4 @@ _Inventory generated 2026-07-11 — 290 open modules._
 | 2026-07-12 | PR CI green (port gaps) | REWORKED | ruff+full pytest 3.11/3.12 green on PR #1 |
 | 2026-07-12 | tools/* remaining + wikidata SPARQL | REWORKED | 6 tools OPEN→REWORKED; SPARQL escape + Q-id guard |
 | 2026-07-12 | grenz batch + discovery re-verify | REWORKED | proof/readiness/cluster/bench/dev_front; active_search/archive/campaign |
+| 2026-07-12 | discovery/grenz/inventor OPEN sweep | REWORKED | reward NaN→0; almost all discovery+grenz+inventor REWORKED |

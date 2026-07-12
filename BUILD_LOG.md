@@ -1,3 +1,13 @@
+## 2026-07-12 — discovery/grenz/inventor OPEN sweep + reward NaN integrity
+
+- Closed nearly all remaining `discovery/*` OPEN (canonical, feynman, knowledge_graph, reward,
+  rl_env, separability, symbiosis, tree_search, validation, …).
+- Closed remaining `grenzverschiebung/*` with suites (experiment_designer, milestone, safety_ladder,
+  technology_builder/roadmapper, teststand_architect).
+- Inventor: brief, domains, eval, evolve, generate, novelty, refinement, safety, score re-verified.
+- Integrity: `discovery.reward` non-finite R²/exponents → 0.0 (never green NaN); tests in test_reward.py.
+- Evidence: 106+ targeted tests green this session.
+
 ## 2026-07-12 — REWORK tools + grenz batch + PR CI green
 
 - PR #1 (`rework/full-open-from-main`): CI green (ruff + pytest 3.11/3.12).
