@@ -210,7 +210,7 @@
 - [x] **REWORKED** `gen.inventor.generate` — suite green re-verify
 - [x] **REWORKED** `gen.inventor.loop` — suite green re-verify
 - [x] **REWORKED** `gen.inventor.novelty` — suite green re-verify
-- [ ] **OPEN** `gen.inventor.optimize`
+- [x] **REWORKED** `gen.inventor.optimize` — suite green (inventor_seams Pareto/Pymoo)
 - [x] **REWORKED** `gen.inventor.refinement` — suite green re-verify
 - [x] **REWORKED** `gen.inventor.safety` — suite green re-verify
 - [x] **REWORKED** `gen.inventor.score` — suite green re-verify
