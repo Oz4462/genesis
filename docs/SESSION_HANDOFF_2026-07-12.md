@@ -1,23 +1,27 @@
-# Session Handoff — 2026-07-12 (continue-4)
+# Session Handoff — 2026-07-12 (continue-5)
 
-> **Branch:** `rework/continue-4-2026-07-12`  
-> **Prior main:** `a18ee15`
+> **main tip:** `f2aba81` (PR #8 CLI report modes)
 
-## Done
+## Done today (autonomous chain)
 
-- CLI modes: `aero-report`, `humanoid-report`, `surface`
-- Offline discovery: council / feynman / campaign re-smoked green
-- WIRED **258** · SCRIPT **9** · ISLAND **26**
-- Integrity suites re-smoked (breakthrough, delta+, horizon, epsilon)
+| PR | Content |
+|----|---------|
+| #6 | product_surface WIRED 256 |
+| #7 | visualizer CI fix |
+| #8 | aero/humanoid-report + surface; discovery offline |
+
+## Metrics
+
+- WIRED **258** · SCRIPT **9** · ISLAND **26** · modules **327**
+- REWORK OPEN modules: **0**
+- CLI modes ~46
 
 ## Residual intentional
 
-KEEP_OPTIN islands (26) — optional deps / humanoid SCRIPT experimental.
+26 KEEP_OPTIN islands (optional deps / humanoid SCRIPT experimental).
 
-## Verify
+## Next (optional product goals only)
 
-```bash
-.venv/bin/python -m gen --mode surface
-.venv/bin/python -m gen --mode aero-report | head
-.venv/bin/python -m pytest tests/test_cli_report_modes.py -q
-```
+- VERIFIED 4-lens deep pass on high-risk modules
+- Wire more SCRIPT humanoid tools only with assets
+- gen_status AUTO refresh after large merges
