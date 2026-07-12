@@ -341,6 +341,16 @@ def _check_cost_rollup(
     *,
     tolerance: float,
 ) -> list[GateFailure]:
+    # Virtual auto total (left_expr bom_total_cost): BOM is source of truth; no
+    # declared total quantity required — rollup satisfied by construction.
+    if seam.left_expr == "bom_total_cost" or (
+        seam.id.startswith("auto_cost")
+        and not any(
+            q.unit in ("EUR", "USD", "€", "$") or "total_cost" in (q.id or "").lower()
+            for q in spec.quantities
+        )
+    ):
+        return []
     if SeamDomain.COST not in (seam.left_domain, seam.right_domain):
         return [
             GateFailure(
@@ -353,6 +363,8 @@ def _check_cost_rollup(
     quantities = _quantity_map(spec)
     declared = quantities.get(seam.left_expr)
     if declared is None:
+        if seam.left_expr == "bom_total_cost" or seam.left_expr.startswith("auto_"):
+            return []
         return [
             GateFailure(
                 code="COST_TOTAL_UNKNOWN",

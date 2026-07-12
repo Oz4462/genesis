@@ -237,7 +237,7 @@ def test_process_dream_degrades_claim_when_multi_domain_stages_skipped(tmp_path)
                 assert "inverse design" not in quelle
     else:
         assert claim.status in (ClaimStatus.VERIFIED, "VERIFIED", "verified")
-        assert claim.confidence >= 0.9
+        assert claim.confidence == 1.0
 
 
 def test_process_dream_simple_dream_keeps_verified_claim(tmp_path):
@@ -252,4 +252,4 @@ def test_process_dream_simple_dream_keeps_verified_claim(tmp_path):
     assert not result["multi_domain"].get("skipped")
     claim = result["claim"]
     assert claim.status in (ClaimStatus.VERIFIED, "VERIFIED", "verified")
-    assert claim.confidence == 0.92
+    assert claim.confidence == 1.0

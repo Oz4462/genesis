@@ -477,14 +477,18 @@ class LumenCrucible:
                 "subsystem_modules",
             )
         )
-        if not is_complex or (not skipped and (ran_any_multi or not is_complex)):
-            claim_status, claim_confidence = ClaimStatus.VERIFIED, 0.92
+        # Provenance claim is deterministic execution (confidence 1.0) when no
+        # multi-domain stages were skipped — REWORK §1 #3, not fuzzy 0.92.
+        if not is_complex or (not skipped and ran_any_multi):
+            claim_status, claim_confidence = ClaimStatus.VERIFIED, 1.0
+        elif not is_complex and not skipped:
+            claim_status, claim_confidence = ClaimStatus.VERIFIED, 1.0
         elif skipped and ran_any_multi:
             claim_status, claim_confidence = ClaimStatus.UNVERIFIED, 0.7
         elif is_complex:
             claim_status, claim_confidence = ClaimStatus.UNVERIFIED, 0.5
         else:
-            claim_status, claim_confidence = ClaimStatus.VERIFIED, 0.92
+            claim_status, claim_confidence = ClaimStatus.VERIFIED, 1.0
 
         claim = Claim(
             id=f"lumen-{run_id}",
