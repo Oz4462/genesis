@@ -125,6 +125,7 @@ def assess_specification(
     *,
     claims: list[Claim] | None = None,
     trace: RunTrace | None = None,
+    seam_certificate: object | None = None,
 ) -> Assessment:
     """Compose the quality engine into one honest Assessment of `spec`.
 
@@ -133,6 +134,9 @@ def assess_specification(
     Records each step to `trace` if provided. The returned ``overall`` distinguishes a
     genuine verification from an incomplete (gap), failed, or vacuous (no-check) one — so
     a consumer cannot read a clean pass where there is an honest gap. Deterministic.
+
+    ``seam_certificate``: optional Phase-ε cert from the caller (e.g. bundle cost rollup).
+    Wins over ``spec.seam_certificate``; when neither is set, auto-detect builds one.
     """
     questions = clarifying_questions(spec)
     checks, gaps = select_physics_checks(spec)
@@ -145,7 +149,9 @@ def assess_specification(
     # Uses builders for provenance (VERIFIED claims for memory; spec for seam).
     # Guards for cases without full data (honest None). δ+ (reality etc), γ+ (pareto), Ω populated on RunState paths only.
     # Enables full consumers (bundle/web/cli Assessment). See CONSUMERS FULL CERTS 4L.
-    seam_certificate = None
+    # Explicit arg wins; then spec-carried cert; else auto-detect (bundle/capstone demos).
+    if seam_certificate is None:
+        seam_certificate = getattr(spec, "seam_certificate", None)
     memory_fabric = None
     pareto_front = None
     omega_certificate = None
@@ -161,8 +167,9 @@ def assess_specification(
         from .memory_fabric import build_memory_fabric_certificate
         # richer auto (was skeleton []); real DomainSeams from spec/constraints/bom (architect post-γ or here after spec).
         # See detect_cross_domain_seams + gap report. Memory from passed claims (richer deposits).
-        real_seams = detect_cross_domain_seams(spec)
-        seam_certificate = build_seam_certificate(spec, real_seams, complete=bool(real_seams))
+        if seam_certificate is None:
+            real_seams = detect_cross_domain_seams(spec)
+            seam_certificate = build_seam_certificate(spec, real_seams, complete=bool(real_seams))
         if claims:
             # minimal state-like (builder only needs claims + question.run_id)
             class _MinQ:

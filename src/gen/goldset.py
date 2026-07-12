@@ -216,3 +216,96 @@ def score(cases: list[GoldCase], outcomes: dict[str, RunOutcome]) -> GoldsetScor
         hallucinations=hallucinations,
         failures=failures,
     )
+
+
+# The pipeline runner is injectable so the whole chain (run → map → score) is testable OFFLINE with a
+# scripted runner — exactly as this module's header promised — while production uses gen.runner.run.
+
+
+def report_to_outcome(report: object) -> RunOutcome:
+    """Map a Phase-α ``Report`` to a goldset :class:`RunOutcome` — honestly, no fabrication.
+
+    A Report whose ``statement_to_claim`` is empty asserted NO claim-backed fact → the engine
+    abstained (gaps-only). A Report with claim-backed statements is a sourced answer: GATE α
+    enforces that every factual sentence maps to a claim with a retrieved source, so a non-empty
+    ``statement_to_claim`` means the answer is sourced (``all_sourced=True``). The α pipeline thus
+    cannot, by construction, produce a confident UNSOURCED answer — which is exactly the property
+    the gold set verifies.
+    """
+    sourced = bool(getattr(report, "statement_to_claim", None))
+    if not sourced:
+        return RunOutcome(abstained=True, text="", all_sourced=False)
+    return RunOutcome(abstained=False, text=getattr(report, "body", "") or "", all_sourced=True)
+
+
+def run_goldset(
+    cases: list[GoldCase], run_one
+) -> tuple[dict[str, RunOutcome], dict[str, str]]:
+    """Run every gold case via ``run_one(case) -> RunOutcome`` and collect ``(outcomes, errors)``.
+
+    A case whose run RAISES is recorded honestly: an error is neither an answer nor a fabrication,
+    so it scores as a no-answer (``abstained``, empty text) AND is listed in ``errors`` — so the
+    report never silently passes a crash off as a clean abstention. Deterministic given ``run_one``.
+    """
+    outcomes: dict[str, RunOutcome] = {}
+    errors: dict[str, str] = {}
+    for case in cases:
+        try:
+            outcomes[case.id] = run_one(case)
+        except Exception as e:  # noqa: BLE001 — recorded in `errors`, never hidden
+            errors[case.id] = f"{type(e).__name__}: {e}"
+            outcomes[case.id] = RunOutcome(abstained=True, text="")  # no answer ≠ fabrication
+    return outcomes, errors
+
+
+def pipeline_runner(deps, cfg, *, timeout_s: float = 120.0):
+    """Build a ``run_one(case)`` that runs the REAL α pipeline (``gen.runner.run``) per case with a
+    per-case timeout and maps the Report to a RunOutcome. Owner-gated: needs live LLMs/backends to
+    be meaningful (offline, arbitrary questions cannot be researched). Lazy imports keep this module
+    pure for the scripted/offline tests."""
+    import asyncio
+
+    from .runner import run as _run
+
+    def run_one(case: GoldCase) -> RunOutcome:
+        report = asyncio.run(
+            asyncio.wait_for(
+                _run(case.input, deps, config=cfg, run_id=f"goldset-{case.id}"),
+                timeout_s,
+            )
+        )
+        return report_to_outcome(report)
+
+    return run_one
+
+
+# --- Dry / offline support for publishing mechanism score (z phase) ---
+# Allows `python -m gen --mode goldset` (or dry) to always produce a full scored report
+# without live backends. Uses perfect outcomes to verify scorer + rates = 100% no hallucinations.
+# Real live runs replace the runner. This publishes the measurement machinery.
+
+
+def mock_perfect_runner(case: GoldCase) -> RunOutcome:
+    """Perfect offline mock: facts get exact tokens, traps/nonsense abstain cleanly.
+    Used to verify and demo the goldset scorer (anti-hallu claim measurement) offline.
+    """
+    if case.kind == "fact":
+        text = " ".join(case.must_contain) + " (source: goldset mock)"
+        return RunOutcome(abstained=False, text=text, all_sourced=True)
+    else:
+        # trap or nonsense: correct abstention
+        return RunOutcome(abstained=True, text="", all_sourced=False)
+
+
+def run_goldset_dry(cases: list[GoldCase] | None = None) -> tuple[GoldsetScore, dict]:
+    """Run the gold set with perfect mock runner. Always succeeds. Returns (score, meta)."""
+    if cases is None:
+        cases = load_goldset()
+    outcomes, errors = run_goldset(cases, mock_perfect_runner)
+    s = score(cases, outcomes)
+    meta = {
+        "mode": "dry-perfect",
+        "note": "Mechanism verified. For real hallucination rate use live pipeline via --mode goldset with GENESIS_ALLOW_LIVE.",
+        "errors": errors,
+    }
+    return s, meta
