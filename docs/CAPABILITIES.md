@@ -20,7 +20,7 @@
 **Kennzahlen (gemessen)**
 - ~19.700 LOC allein in den Top-Level-Modulen von `src/gen/`, **24 Subpackages**.
 - **~380+ Testdateien / ~3500 collected tests** (Stand rework; exact: `pytest --collect-only`).
-- **~43 CLI-Modi** (`--mode`, Stand 2026-07-11 inkl. Fach-Pipelines + frontier/fach).
+- **~46 CLI-Modi** (`--mode`, Stand 2026-07-12 inkl. Fach-Pipelines + aero/humanoid-report + surface).
 - **40 Physik-Validatoren** (`physics_validation.VALIDATORS`), **35 Auto-Select-Rezepte** (`physics_selection.RECIPES`), **27 Closed-Form-Physik-/FEM-Module**.
 - Sehr wenige echte Stubs: 1 (`LeanKernelStub`); die ~21 „Unavailable"-Stellen sind **ehrliche Skip-Pfade** für optionale Dependencies (PyBullet, MuJoCo, GPU-Materials-Oracle, Postgres), keine Platzhalter.
 
@@ -37,7 +37,7 @@ Idee → belegte, gegatete Bauspezifikation. Phasen α (Fakten) → β (Lösungs
 ### 1.2 Entdecken — Discovery (`src/gen/discovery/`, 35 Module) ✅ / 🟡
 Dimensionale symbolische Regression über **Power-Law/Π-Gruppen**; rediscovered bekannte Gesetze, gatet Red-Team-Fälle.
 - Module: `engine.py`, `benchmark.py`, `tournament.py`, `controller.py`, `symbiosis.py` (Grok-Proposer), `universe_bridge.py`.
-- CLI: `--mode research | discover-ode | feynman | campaign | council`.
+- CLI: `--mode research | discover-ode | feynman | campaign | council` ✅ offline; `aero-report | humanoid-report | surface` ✅ catalog/product surface.
 - Status: ✅ Kern getestet + live (Rediscovery 6/6); 🟡 **Breite template-gebunden** (Power-Law/Π, eine ODE) — offene symbolische Suche ist Lücke.
 
 ### 1.3 Erfinden — Inventor (`src/gen/inventor/`, 15 Module) ✅ / 🟡
