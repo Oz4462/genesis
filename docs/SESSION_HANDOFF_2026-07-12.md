@@ -1,16 +1,16 @@
-# Session Handoff — 2026-07-12 (doc L2 resync)
+# Session Handoff — 2026-07-12 (CLI matrix + AUDIT)
 
-> **main tip:** PR #10 CLAUDE.md · this branch: README/HORIZON/WORK_QUEUE honesty
+> **Branch:** `rework/cli-matrix-audit-2026-07-12` · PR #12
 
 ## Done
 
-- CLAUDE.md re-sync (PR #10)
-- README badges/counts → 2487 collected, 44 validators
-- WORK_QUEUE banner: historical (REWORK inventory closed)
-- HORIZON: measurement note + Gate+Tests legend (not overclaim "fertig")
-- DOC_CODE_DRIFT header → STATUS SSOT
-- STATUS AUTO regenerated
+- CLI mode matrix parses choices from `cli.py` (L2 lockstep)
+- Offline demos: surface, aero/humanoid-report, council, feynman, campaign
+- AUDIT_2026-07-04 historical banner + live SSOT
+- CAPABILITIES: 47 modes, 44 validators, 2487 collected
 
-## Metrics (2026-07-12)
+## Verify
 
-2487 collected · 44 validators · 38 recipes · WIRED 258 · ISLAND 26
+```bash
+.venv/bin/python -m pytest tests/test_cli_mode_matrix_rework.py -q
+```

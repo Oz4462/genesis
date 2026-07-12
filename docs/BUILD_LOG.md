@@ -733,3 +733,9 @@ HORIZON "✓ bewiesen" without honesty legend; DOC_CODE_DRIFT pointed only at st
 **Fix:** Dated 2487 collected / 44 validators; WORK_QUEUE historical banner; HORIZON Gate+Tests legend;
 SSOT pointers STATUS/CLAUDE; STATUS AUTO refreshed via gen_status.
 **Evidence:** pytest --collect-only 2487; find_islands WIRED=258; gen_status.py.
+
+## 2026-07-12 — CLI mode matrix auto-sync + AUDIT historical
+
+**Work:** test_cli_mode_matrix_rework reads cli.py choices; covers report/surface/discovery offline modes.
+AUDIT historical; CAPABILITIES metrics re-synced (47 modes, 44 validators, 2487 collected).
+**Evidence:** 29 passed matrix suite (~81s).
