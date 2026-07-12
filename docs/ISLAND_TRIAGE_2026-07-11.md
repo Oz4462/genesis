@@ -82,3 +82,11 @@ Closed PRODUCT_WIRE for designer/wirtschaft/frontier. Islands 67→64, WIRED 210
 ## Update 2026-07-11 — full Fach family
 
 All 10 pipelines CLI-routed via `fach_cli.run_fach_pipeline`. research_promotion via research mode ladder line. Islands 63, WIRED 215.
+
+## Update 2026-07-12 (post PR #2)
+
+- Restored on main: `gen.aero.*`, `export.drawing`/`drawing_worker`, `finalizer.professional_package`, `visualization.robust_renderer`.
+- PRODUCT_WIRE designer/wirtschaft/frontier remain wired (unchanged).
+- Aero still SCRIPT/ARCHIVE for catalog/parser; **calibration floors** live in `gen.flight` (product path).
+- REWORK campaign module OPEN count: **0** (see `docs/REWORK_CAMPAIGN.md`).
+- Island script path may be absent in this checkout; re-run when `scripts/find_islands.py` is available.
