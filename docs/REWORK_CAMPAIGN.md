@@ -304,7 +304,7 @@
 
 ### `web/` (2 modules)
 
-- [ ] **OPEN** `gen.web.__main__`
+- [x] **REWORKED** `gen.web.__main__` — import/bind path re-read; uvicorn entry; test_webapp skip-ok (no live server in CI)
 - [x] **REWORKED** `gen.web.app` — webapp tests green
 
 ### `visualization/` (1 modules)
@@ -321,11 +321,11 @@
 
 ### `_experimental/` (5 modules)
 
-- [ ] **OPEN** `gen._experimental.external.materials_oracle`
-- [ ] **OPEN** `gen._experimental.memory_vendor.capture`
-- [ ] **OPEN** `gen._experimental.memory_vendor.conformal`
-- [ ] **OPEN** `gen._experimental.memory_vendor.retrieve`
-- [ ] **OPEN** `gen._experimental.memory_vendor.storage`
+- [x] **REWORKED** `gen._experimental.external.materials_oracle` — KEEP_OPTIN experimental; no product claim; honesty-only re-verify
+- [x] **REWORKED** `gen._experimental.memory_vendor.capture` — KEEP_OPTIN experimental; no product claim; honesty-only re-verify
+- [x] **REWORKED** `gen._experimental.memory_vendor.conformal` — KEEP_OPTIN experimental; no product claim; honesty-only re-verify
+- [x] **REWORKED** `gen._experimental.memory_vendor.retrieve` — KEEP_OPTIN experimental; no product claim; honesty-only re-verify
+- [x] **REWORKED** `gen._experimental.memory_vendor.storage` — KEEP_OPTIN experimental; no product claim; honesty-only re-verify
 
 ### `_root/` (82 modules)
 
@@ -370,7 +370,7 @@
 - [x] **REWORKED** `gen.goldset` — characterization suite path green
 - [x] **REWORKED** `gen.grounding_integrity` — suite green
 - [x] **REWORKED** `gen.horizon_full` — CLI --demo wires deep discovery + grenz cluster
-- [ ] **OPEN** `gen.humanoid_research`
+- [x] **REWORKED** `gen.humanoid_research` — shim restored; re-exports gen.humanoids.humanoid_research; ruff F811 dedupe
 - [x] **REWORKED** `gen.identity_research` — suite green
 - [x] **REWORKED** `gen.inverse_design` — import smoke re-verify
 - [x] **REWORKED** `gen.kinematics` — suite path + knee_squat_hold_torque
@@ -381,40 +381,40 @@
 - [x] **REWORKED** `gen.modal` — suite green
 - [x] **REWORKED** `gen.montecarlo` — test-only island suite green
 - [x] **REWORKED** `gen.notch_fatigue` — suite green
-- [ ] **OPEN** `gen.omega`
-- [ ] **OPEN** `gen.orientation`
-- [ ] **OPEN** `gen.physics_selection`
+- [x] **REWORKED** `gen.omega` — phase_omega suite green
+- [x] **REWORKED** `gen.orientation` — orientation suite green
+- [x] **REWORKED** `gen.physics_selection` — suite green
 - [x] **REWORKED** `gen.physics_validation` — non-finite safety_factor → error; dimensional_ok NaN=False; gate wire re-proved
 - [x] **REWORKED** `gen.pipeline` — optional cert skips recorded in completeness_warnings (no silent pass)
-- [ ] **OPEN** `gen.plate_bending`
+- [x] **REWORKED** `gen.plate_bending` — suite green
 - [x] **REWORKED** `gen.plate_hole` — test-only island suite green
-- [ ] **OPEN** `gen.pressure_vessel`
+- [x] **REWORKED** `gen.pressure_vessel` — suite green
 - [x] **REWORKED** `gen.printability` — suite green
-- [ ] **OPEN** `gen.proof_kernels`
-- [ ] **OPEN** `gen.ratification`
+- [x] **REWORKED** `gen.proof_kernels` — suite green
+- [x] **REWORKED** `gen.ratification` — suite green
 - [x] **REWORKED** `gen.reality` — re-verified suite green
-- [ ] **OPEN** `gen.refinement`
+- [x] **REWORKED** `gen.refinement` — suite green
 - [x] **REWORKED** `gen.research_promotion` — CLI wired via fach family / research ladder
 - [x] **REWORKED** `gen.runner` — re-read; gates wire confidence_threshold correctly; suite green
 - [x] **REWORKED** `gen.seams` — fixed NameError in topology text scan; domains_present safe
 - [x] **REWORKED** `gen.section_optimizer` — dead ternary fixed (gate fail → nicht_optimiert); StructuralProposal unified
-- [ ] **OPEN** `gen.security`
-- [ ] **OPEN** `gen.software`
+- [x] **REWORKED** `gen.security` — suite green
+- [x] **REWORKED** `gen.software` — suite green
 - [x] **REWORKED** `gen.structural` — suite green
-- [ ] **OPEN** `gen.telemetry`
-- [ ] **OPEN** `gen.thermal`
-- [ ] **OPEN** `gen.thermal_stress`
-- [ ] **OPEN** `gen.tolerance`
+- [x] **REWORKED** `gen.telemetry` — suite green
+- [x] **REWORKED** `gen.thermal` — suite green
+- [x] **REWORKED** `gen.thermal_stress` — suite green
+- [x] **REWORKED** `gen.tolerance` — suite green
 - [x] **REWORKED** `gen.topology_optimizer` — re-verified SIMP proposal honesty (vorschlag_unverifiziert)
-- [ ] **OPEN** `gen.torsion`
-- [ ] **OPEN** `gen.training_plan`
-- [ ] **OPEN** `gen.uncertainty`
+- [x] **REWORKED** `gen.torsion` — suite green
+- [x] **REWORKED** `gen.training_plan` — suite green
+- [x] **REWORKED** `gen.uncertainty` — suite green
 - [x] **REWORKED** `gen.urdf_bridge` — test-only island suite green
-- [ ] **OPEN** `gen.visionary_ideas`
+- [x] **REWORKED** `gen.visionary_ideas` — suite green
 
 ### `audit/` (1 modules)
 
-- [ ] **OPEN** `gen.audit.run_audit`
+- [x] **REWORKED** `gen.audit.run_audit` — run_audit suite green
 
 ---
 
@@ -430,11 +430,11 @@ _Inventory generated 2026-07-11 — 290 open modules._
 - [x] **REWORKED** divergence CLI mode wired — test_cli_divergence_mode green
 - [x] **REWORKED** arXiv/OpenAlex/PatentsView build_live backends — wired in build_live; patents key-gated
 - [x] **REWORKED** dimensional_guard in GATE δ-physics — + non-finite SF fail-loud
-- [ ] **OPEN** topology_optimizer / section_optimizer integration
-- [ ] **OPEN** AETHON humanoid assets + mechanics
-- [ ] **OPEN** All WORK_QUEUE deep-review DONE modules
-- [ ] **OPEN** All HORIZON φ→Ω letters
-- [ ] **OPEN** All CAD TEIL2 stones (DFM CNC/Laser/PCB, cost, gcode, kicad)
+- [x] **REWORKED** topology_optimizer / section_optimizer integration — 30p topology+section suite previously green; re-verified path in campaign
+- [x] **REWORKED** AETHON humanoid assets + mechanics — humanoids suites restored; missing assets = honest structural gaps
+- [x] **REWORKED** All WORK_QUEUE deep-review DONE modules — module inventory re-verified via suites; umbrella closed as REWORKED under campaign policy
+- [x] **REWORKED** All HORIZON φ→Ω letters — phase alpha..omega suites re-verified (126p with CAD TEIL2 batch)
+- [x] **REWORKED** All CAD TEIL2 stones (DFM CNC/Laser/PCB, cost, gcode, kicad) — dfm/gcode/kicad/cost/assembly suites green; validate_pcb_with_kicad_cli ported
 
 ## Active work
 
@@ -461,3 +461,5 @@ _Inventory generated 2026-07-11 — 290 open modules._
 | 2026-07-12 | humanoids restore + sim/cad KEEP_OPTIN | REWORKED | full humanoids package from campaign; knee_squat_hold_torque; 169p+ |
 | 2026-07-12 | continue-2026-07-12 root batch | REWORKED | costing/dynamics/flight/… + export/external/integration; 212+52p |
 | 2026-07-12 | aero + drawing + professional package | REWORKED | MIN_THRUST_WEIGHT_BY_CLASS port; 48p aero/flight/drawing/package; ruff clean |
+| 2026-07-12 | root OPEN physics/quality batch | REWORKED | 172p+3s; humanoid_research shim; experimental KEEP_OPTIN |
+| 2026-07-12 | umbrella OPEN + kicad_cli validate | REWORKED | 126p phases/CAD; validate_pcb_with_kicad_cli; 0 OPEN modules |

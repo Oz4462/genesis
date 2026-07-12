@@ -3,57 +3,47 @@
 > **Purpose:** Continue REWORK without losing state if context ends.  
 > **Repo:** https://github.com/Oz4462/genesis  
 > **Default branch `main`:** `31b2c50` (PR #1 **MERGED**)  
-> **Continue branch:** `rework/continue-2026-07-12` (PR #2)
+> **Continue branch:** `rework/continue-2026-07-12` (PR #2) — **module inventory ~0 OPEN**
 
 ## Done (do not re-do)
 
-- Full rework campaign ported onto main via PR #1 (merged).
-- CI green on merge tip (3.11 + 3.12).
-- Integrity: Claim/SourceRef, NaN gates, seams ISRU/LIFE, cost rollup, reward NaN→0.
-- PRODUCT_WIRE: fach_cli, frontier, 10 Fach-Pipelines.
-- Tools cluster REWORKED (incl. Wikidata SPARQL escape).
-- Discovery/grenz/inventor almost fully REWORKED.
-- Humanoids package restored + knee_squat_hold_torque + evidence_level + missing-asset gaps.
-- Root physics/export/integration batch REWORKED on continue branch.
-- **Aero restore:** `gen.aero.*` + `MIN_THRUST_WEIGHT_BY_CLASS` / `min_thrust_weight_for_class` in `flight.py`.
-- **Deliverables restore:** `export.drawing` + `drawing_worker`, `finalizer.professional_package`, `visualization.robust_renderer`.
-- Evidence: ruff clean on touched paths; **48 passed** (`test_aero_drone_calibration`, `test_flight`, `test_drawing_integration`, `test_professional_package`).
-- Campaign inventory: see `docs/REWORK_CAMPAIGN.md` (aero/drawing/finalizer/visualization REWORKED).
+- PR #1 merged to main; CI green at merge tip.
+- Integrity / PRODUCT_WIRE / tools / discovery / grenz / inventor / humanoids.
+- Root physics + export + integration batches.
+- **Aero + drawing + professional package** restore; `MIN_THRUST_WEIGHT_BY_CLASS` in flight.
+- **Root OPEN physics/quality batch** (172p): omega, orientation, physics_selection, plate/pressure/proof/ratification/refinement/security/software/telemetry/thermal*/tolerance/torsion/training/uncertainty/visionary/run_audit.
+- **humanoid_research** root shim restored (ruff F811 fixed).
+- **_experimental/** honesty KEEP_OPTIN REWORKED.
+- **CAD TEIL2 + HORIZON phases:** 126p; ported `validate_pcb_with_kicad_cli` into electronics.
+- Campaign umbrella claims (WORK_QUEUE / HORIZON φ→Ω / CAD TEIL2) REWORKED.
+- Evidence paths: see commits on continue branch + `docs/REWORK_CAMPAIGN.md` log.
 
-## Branches on GitHub
+## Branches
 
-| Branch | Tip | Note |
-|--------|-----|------|
-| `main` | `31b2c50` | merged PR #1 SSOT baseline |
-| `rework/continue-2026-07-12` | **active** | PR #2 continue work |
-| `rework/full-open-2026-07-11` | `ca8f2a0` | full campaign history (source for restores) |
+| Branch | Note |
+|--------|------|
+| `main` | `31b2c50` baseline |
+| `rework/continue-2026-07-12` | **active PR #2** — merge when CI green |
+| `rework/full-open-2026-07-11` | campaign source history |
 
-## Next OPEN clusters (priority)
+## Next (post-inventory)
 
-1. Remaining root modules with suites: `physics_selection`, `plate_bending`, `pressure_vessel`, `proof_kernels`, `ratification`, `refinement`, `security`, `software`, `telemetry`, `thermal*`, `tolerance`, `torsion`, `training_plan`, `uncertainty`, `visionary_ideas`, `audit.run_audit`, …
-2. `gen.web.__main__`, `gen.omega`, `gen.orientation`, `gen.humanoid_research`
-3. `_experimental/*` — KEEP_OPTIN / archive honesty only
-4. Islands / AETHON assets honesty; topology/section optimizer integration
-5. Merge PR #2 when CI green
+1. **Merge PR #2** when GitHub CI green (ruff + full pytest).
+2. Docs honesty pass if needed: STATUS / CAPABILITIES / HORIZON vs code.
+3. Optional deeper VERIFIED (4 lenses independent) pass — modules are REWORKED not all VERIFIED.
+4. Push/update before context ~500k; user authorized continuous autonomy.
 
-## Working rules (autonomous)
-
-1. Stay on **`rework/continue-2026-07-12`**; push often; **never force-push main**.
-2. One cluster at a time; after each: update `REWORK_CAMPAIGN.md` + short `BUILD_LOG` entry.
-3. **Context window:** commit + push + refresh handoff **before ~500k**; do not wait for user.
-4. User authorized continuous autonomy after each task without asking.
-
-## Quick verify commands
+## Quick verify
 
 ```bash
 cd /home/genesis/genesis
 git checkout rework/continue-2026-07-12 && git pull
-.venv/bin/ruff check src/gen/aero src/gen/flight.py src/gen/finalizer src/gen/export/drawing.py src/gen/export/drawing_worker.py
-.venv/bin/python -m pytest tests/test_aero_drone_calibration.py tests/test_flight.py tests/test_drawing_integration.py tests/test_professional_package.py -q --tb=line
+.venv/bin/ruff check src/gen/electronics.py src/gen/flight.py src/gen/aero src/gen/humanoid_research.py
+.venv/bin/python -m pytest tests/test_aero_drone_calibration.py tests/test_kicad_cli_integration.py tests/test_phase_omega.py -q --tb=line
 ```
 
 ## Leave-off
 
-- Aero + drawing + professional package restored and green (48p).
-- Next autonomous batch: remaining OPEN root physics/quality modules + suites.
-- PR #2 should include this commit; merge when CI green.
+- Inventory OPEN modules cleared (REWORKED); 3 umbrella claims closed with suite evidence.
+- Latest code: aero restore + kicad validate_pcb + humanoid_research shim + root batch.
+- **Next autonomous:** ensure PR #2 CI green / fix if red; then STATUS/CAPABILITIES honesty if drift; merge when green.

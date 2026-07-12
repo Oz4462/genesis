@@ -705,3 +705,9 @@ Unified facade + CLI + seams complete. 30p verified. Honest proposal. For komple
 **Evidence:** ruff All checks passed; pytest aero/flight/drawing/professional_package **48 passed** (~34s).
 **Campaign:** aero (5), drawing_worker, professional_package, robust_renderer → REWORKED.
 **Status:** Green cluster; next OPEN root physics/quality modules.
+
+## 2026-07-12 — Root OPEN batch + CAD TEIL2 kicad validate + inventory clear
+
+**Branch:** `rework/continue-2026-07-12`
+**Work:** Re-verified 19 root modules (172p+3s); restored `gen.humanoid_research` shim; KEEP_OPTIN experimental honesty; ported `validate_pcb_with_kicad_cli`; CAD TEIL2 + HORIZON phase suites **126 passed**; campaign OPEN module list → 0.
+**Status:** Ready for PR #2 CI gate + merge when green.
