@@ -11,9 +11,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
-from ..core.state import RunState, Claim
+from ..core.state import RunState
 # LearningCycleResult may be in lumencrucible return style; use dict for compatibility
 LearningCycleResult = dict  # fallback for type hint compatibility in autonomy build
 
