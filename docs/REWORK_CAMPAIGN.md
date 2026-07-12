@@ -253,7 +253,7 @@
 - [x] **REWORKED** `gen.export.brep_stl` — brep_stl suite green
 - [x] **REWORKED** `gen.export.build123d` — import smoke + KEEP_OPTIN
 - [x] **REWORKED** `gen.export.drawing` — drawing integration suite
-- [ ] **OPEN** `gen.export.drawing_worker`
+- [x] **REWORKED** `gen.export.drawing_worker` — worker path exercised via drawing integration
 - [x] **REWORKED** `gen.export.markdown` — markdown suite green
 - [x] **REWORKED** `gen.export.numfmt` — import smoke re-verify
 - [x] **REWORKED** `gen.export.openscad` — openscad suite green
@@ -272,7 +272,7 @@
 
 ### `finalizer/` (1 modules)
 
-- [ ] **OPEN** `gen.finalizer.professional_package`
+- [x] **REWORKED** `gen.finalizer.professional_package` — ruff clean; package suite green
 
 ### `formulas/` (1 modules)
 
@@ -309,15 +309,15 @@
 
 ### `visualization/` (1 modules)
 
-- [ ] **OPEN** `gen.visualization.robust_renderer`
+- [x] **REWORKED** `gen.visualization.robust_renderer` — visual pack path; package suite green
 
 ### `aero/` (5 modules)
 
-- [ ] **OPEN** `gen.aero.calibration`
-- [ ] **OPEN** `gen.aero.drone_catalog`
-- [ ] **OPEN** `gen.aero.model_parser`
-- [ ] **OPEN** `gen.aero.report`
-- [ ] **OPEN** `gen.aero.scaling_laws`
+- [x] **REWORKED** `gen.aero.calibration` — class-aware T/W floors via flight.min_thrust_weight_for_class
+- [x] **REWORKED** `gen.aero.drone_catalog` — fleet catalog + calibration suite
+- [x] **REWORKED** `gen.aero.model_parser` — re-verified with aero suite
+- [x] **REWORKED** `gen.aero.report` — re-verified with aero suite
+- [x] **REWORKED** `gen.aero.scaling_laws` — re-verified with aero suite
 
 ### `_experimental/` (5 modules)
 
@@ -460,3 +460,4 @@ _Inventory generated 2026-07-11 — 290 open modules._
 | 2026-07-12 | discovery/grenz/inventor OPEN sweep | REWORKED | reward NaN→0; almost all discovery+grenz+inventor REWORKED |
 | 2026-07-12 | humanoids restore + sim/cad KEEP_OPTIN | REWORKED | full humanoids package from campaign; knee_squat_hold_torque; 169p+ |
 | 2026-07-12 | continue-2026-07-12 root batch | REWORKED | costing/dynamics/flight/… + export/external/integration; 212+52p |
+| 2026-07-12 | aero + drawing + professional package | REWORKED | MIN_THRUST_WEIGHT_BY_CLASS port; 48p aero/flight/drawing/package; ruff clean |

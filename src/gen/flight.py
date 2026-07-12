@@ -57,8 +57,28 @@ STANDARD_GRAVITY = 9.80665
 #: ISA sea-level air density [kg/m³].
 AIR_DENSITY_SEA_LEVEL = 1.225
 
-#: Standard multirotor sizing rule: max thrust ≥ 2 × weight.
+#: Multirotor sizing rule: max thrust ≥ this × weight. 2.0 is the classic "hover at half throttle,
+#: control authority in gusts" default — but the real-fleet calibration (2026-06-24, gen.aero) showed
+#: a single universal 2.0 MIS-CLASSIFIES shipping drones at BOTH ends: it FALSE-FAILS the DJI Matrice
+#: 350 RTK (max-gross T/W = 9.2 kg MTOW / 6.47 kg loaded = 1.42×, a survey drone that flies daily), and
+#: is far too LAX for FPV/racing (real floor 8–14×). It is RETAINED as the unclassed default (a safe
+#: middle), with the per-mission-class floors below as the calibrated replacement. See
+#: ``min_thrust_weight_for_class`` and PHASE_DELTA / gen.aero.calibration.
 MIN_THRUST_WEIGHT_RATIO = 2.0
+
+#: CALIBRATED minimum thrust-to-weight floors per mission class, each grounded in the real-drone fleet
+#: (gen.aero.drone_catalog): heavy/survey/agri hover + gentle profiles clear ≥1.3 (M350 1.42×); stable
+#: consumer/cinematic photo/video ≥1.5 (hovers ~50–66 % throttle); small nano craft need ≥1.8 in gusts
+#: (Crazyflie 2.25×); fpv/freestyle/racing ≥4.0 (aggressive maneuver — 2.0 would wrongly pass a sluggish
+#: build). This replaces the single universal 2.0 the way the humanoid squat-hold fix replaced the
+#: whole-leg-horizontal knee sizing: a one-design-point screen made class-correct against ground truth.
+MIN_THRUST_WEIGHT_BY_CLASS: dict[str, float] = {
+    "heavy": 1.3,
+    "consumer": 1.5,
+    "cinematic": 1.5,
+    "nano": 1.8,
+    "fpv": 4.0,
+}
 
 #: Typical hover figure of merit (sourced range 0.5–0.7; mid default).
 DEFAULT_FIGURE_OF_MERIT = 0.6
@@ -121,6 +141,12 @@ def rotor_hover_check(
         raise ValueError("figure of merit must be in (0, 1]")
     if min_thrust_weight <= 0.0:
         raise ValueError("minimum thrust-to-weight must be positive")
+    # A negative max thrust is physically meaningless and would silently yield a
+    # negative thrust-to-weight ratio (and misleading safety_factor) instead of
+    # failing loud. 0.0 is allowed: a meaningful evaluable case (ratio 0, ok=False),
+    # matching induced_velocity's non-negative thrust convention.
+    if max_total_thrust < 0.0:
+        raise ValueError("max total thrust must be non-negative")
     weight = mass * STANDARD_GRAVITY
     ratio = max_total_thrust / weight
     per_rotor_hover_thrust = weight / n_rotors
@@ -136,6 +162,17 @@ def rotor_hover_check(
         "safety_factor": safety_factor,
         "ok": ratio >= min_thrust_weight,
     }
+
+
+def min_thrust_weight_for_class(klass: str) -> float:
+    """The CALIBRATED minimum thrust-to-weight floor for a mission class (the calibration fix).
+
+    Returns the real-fleet-grounded floor from ``MIN_THRUST_WEIGHT_BY_CLASS``, or the unclassed
+    ``MIN_THRUST_WEIGHT_RATIO`` (2.0) default for an unknown class. Pass the result as
+    ``rotor_hover_check(..., min_thrust_weight=...)`` to gate a real drone by its class rather than the
+    one-size constant that false-fails survey drones and rubber-stamps sluggish racers. This is the
+    single source of truth for the class→floor mapping, so the gate and any report agree."""
+    return MIN_THRUST_WEIGHT_BY_CLASS.get(klass, MIN_THRUST_WEIGHT_RATIO)
 
 
 def battery_endurance_check(
