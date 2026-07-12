@@ -39,7 +39,6 @@ from gen.aero.drone_catalog import (  # noqa: E402
     SPECS,
     drones,
     hover_thrust_demand_n,
-    model_native_drones,
     multirotors,
 )
 from gen.aero.model_parser import DRONE_URDF_DIR, SIM_GRAVITY, parse_drone_urdf, parse_known
