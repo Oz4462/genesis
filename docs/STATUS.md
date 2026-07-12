@@ -11,7 +11,7 @@
 > python scripts/find_islands.py      # the island report on its own
 > ```
 > Founded on the forensic audit `~/Schreibtisch/GENESIS_Resurrection_Report_2026-06-26.md`.
-> **Last curated review: 2026-07-12 — REWORK module inventory cleared (REWORKED); PR #2 pending CI.**
+> **Last curated review: 2026-07-12 — PR #2 merged to main (`e588810`); inventory REWORKED.**
 
 ---
 
@@ -23,7 +23,7 @@
 > **Campaign tracker:** [`docs/REWORK_CAMPAIGN.md`](REWORK_CAMPAIGN.md) — **~303 REWORKED / 0 OPEN modules**
 > (suite re-verify + wiring notes). Deeper independent **VERIFIED** (4 lenses) remains optional next layer.
 > **Local path:** `/home/genesis/genesis` · **Remote:** `https://github.com/Oz4462/genesis`
-> **Branches:** `main` @ PR #1 merge · continue `rework/continue-2026-07-12` (PR #2).
+> **Branches:** `main` @ `e588810` (PR #1 + PR #2 merged) · polish `rework/post-merge-2026-07-12`.
 >
 > **Policy (still applies):**
 > 1. No prior DONE claim counts without tests + wiring proof.
@@ -72,7 +72,7 @@ Do not mark REWORKED until the code abstains honestly **and** a regression test 
 |---|---|
 | `goldset` → `genesis --mode goldset` | ✅ REWORKED |
 | φ `run_divergence` → `genesis --mode divergence` | ✅ REWORKED |
-| arXiv + OpenAlex (+ keyed PatentsView) → `build_live` | 🔓 OPEN |
+| arXiv + OpenAlex (+ keyed PatentsView) → `build_live` | ✅ REWORKED — tools_sources + build_live path |
 | `dimensional_guard` → GATE δ-physics | ✅ REWORKED — + non-finite SF fail-loud |
 | topology / section optimizer integration | ✅ REWORKED — verdict honesty + seams fix |
 
