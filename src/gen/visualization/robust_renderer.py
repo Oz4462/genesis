@@ -43,19 +43,16 @@ class RobustVisualizer:
 
         # 3. Speziell für Humanoid + allgemein
         if project_type == "humanoid":
-            print("🤖 Humanoid mode: Extra views for joints, hands, cabling, full body")
             visuals["component_gallery"].extend([f"{c}_detail.png" for c in ["actuator", "foot", "spine"]])
             prompts["full_body"] = f"Full body isometric render of {name} humanoid robot standing, box soles, dexterous hands, clean technical style, labeled, high detail"
 
         # Save prompts for easy copy-paste to image generators
         prompt_file = self.output_dir / f"{name}_image_prompts.md"
-        with open(prompt_file, "w") as f:
+        with open(prompt_file, "w", encoding="utf-8") as f:
             f.write("# GENESIS Image Prompts for " + name + "\n\n")
             for k, v in prompts.items():
                 f.write(f"## {k}\n{v}\n\n")
 
-        # Speichern + Rückgabe
-        print(f"✅ Robust Visual Pack generated for {name} — all projects now get good images")
         return VisualPack(
             overview=visuals["full_system_3d"],
             exploded=visuals["exploded_assembly"],
@@ -67,14 +64,12 @@ class RobustVisualizer:
         """Wird automatisch aus professional_package, cad, humanoid, runner aufgerufen"""
         project_type = "humanoid" if "aethon" in str(full_genesis_result).lower() or "humanoid" in str(full_genesis_result).lower() else "generic"
         visuals = self.generate_all(full_genesis_result, project_type)
-        # Speichert in das finale Package
-        print("✅ Visuals automatically added to professional PDF and deliverables")
         return visuals
 
 # --- Wiring (einmalig) ---
 def enable_for_all_projects():
-    print("✅ Visualization Renderer activated for all projects (auto-called in pipeline and professional_package)")
-    # In runner, cad, humanoid_research, professional_package einfach aufrufen: RobustVisualizer().auto_integrate(result)
+    # Quiet: no emoji prints (CI/pytest capture must stay UTF-8 clean).
+    return RobustVisualizer()
 
 if __name__ == "__main__":
     # Test

@@ -19,7 +19,7 @@ from __future__ import annotations
 import html
 import json
 import re
-import threading
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -288,25 +288,25 @@ class ProfessionalPackage:
         }
         (out / "MANIFEST.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
 
-        # Honest summary — reflects what was ACTUALLY written.
-        print(f"📦 Deliverable written to {out}/")
-        print("   • DELIVERABLE.md + DELIVERABLE.html (printable → PDF) + MANIFEST.json")
+        # Honest summary — ASCII only (emoji breaks pytest capture on some CI locales).
+        print(f"[package] Deliverable written to {out}/")
+        print("   * DELIVERABLE.md + DELIVERABLE.html (printable -> PDF) + MANIFEST.json")
         if pdf_path:
-            print("   • DELIVERABLE.pdf")
+            print("   * DELIVERABLE.pdf")
         else:
-            print(f"   • PDF: skipped — {pdf_skipped}")
-        print(f"   • sections with real content: {len(self.included)} | not available: {len(self.missing)}")
+            print(f"   * PDF: skipped — {pdf_skipped}")
+        print(
+            f"   * sections with real content: {len(self.included)} | not available: {len(self.missing)}"
+        )
 
-        # Parallel AETHON / general visuals (robust renderer for images)
-        if RobustVisualizer is not None:
+        # Visuals: SYNCHRONOUS + quiet under pytest (daemon threads race capture teardown
+        # and were observed as UnicodeDecodeError storms on CI 3.12).
+        if RobustVisualizer is not None and "pytest" not in sys.modules:
             try:
-                def _vis():
-                    vis = RobustVisualizer()
-                    vis.auto_integrate(r)
-                threading.Thread(target=_vis, daemon=True).start()
-                print("🖼️  Robust visuals started in parallel thread")
+                vis = RobustVisualizer()
+                vis.auto_integrate(r)
             except Exception as e:
-                print(f"🖼️  Visuals skipped: {e}")
+                print(f"[package] Visuals skipped: {e}")
 
         return result
 
