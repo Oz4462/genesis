@@ -107,3 +107,10 @@ Notes:
 - Island count **higher** than 2026-07-11 triage (67) after aero/drawing/humanoids restores — more modules exist; many are facade/test-only/KEEP_OPTIN (expected).
 - Do not mass-move islands; disposition policy unchanged.
 - `scripts/gen_status.py` restored for AUTO STATUS refresh (run when convenient; may rewrite AUTO block).
+
+## Update 2026-07-12 (continue-3) — horizon_full restore
+
+- Restored missing `gen.horizon_full` (CLI `--mode horizon-full` was ImportError-risk).
+- Static import of `grenzverschiebung.cluster` for reachability graph.
+- Re-measure: **WIRED 218 · ISLAND 63 · modules 326** (was 201/79 after scripts-only restore).
+- Smoke: DEFAULT_IDEA 6 ok / 0 error / 1 skipped; tests/test_horizon_full.py green.

@@ -1,35 +1,37 @@
-# Session Handoff — 2026-07-12 (PR #2 + #3 merged)
+# Session Handoff — 2026-07-12 (end of autonomous stretch)
 
-> **main tip:** `5a5143a` (PR #3 merge) · prior PR #2 `e588810`  
-> **Repo:** https://github.com/Oz4462/genesis  
-> **Active branch for next work:** `rework/continue-2-2026-07-12`
+> **main tip:** `dfcd7e2` (PR #4 merge)  
+> **Repo:** https://github.com/Oz4462/genesis
 
-## Merged today
+## Merged today (autonomous)
 
-| PR | Content |
-|----|---------|
-| #1 | Full rework campaign (integrity, PRODUCT_WIRE, humanoids) |
-| #2 | Aero + T/W class floors, inventory clear, kicad validate_pcb, shim |
-| #3 | STATUS/CAPABILITIES honesty, island triage, handoff |
+| PR | Merge | Content |
+|----|-------|---------|
+| #1 | earlier | Full rework campaign |
+| #2 | `e588810` | Aero + T/W floors, inventory 0 OPEN, kicad validate, shim |
+| #3 | `5a5143a` | STATUS honesty + island triage notes |
+| #4 | `dfcd7e2` | Restore find_islands/gen_status; AUTO STATUS refresh |
 
-## Campaign state
+## Measured product truth (2026-07-12 AUTO)
 
-- `docs/REWORK_CAMPAIGN.md`: **0 OPEN modules**, ~303 REWORKED
-- Main CI green after PR #2 and PR #3
-- User authorized continuous autonomy; update before ~500k context
+- modules **325** · WIRED **201** · SCRIPT **11** · ISLAND **79** · INFRA **34**
+- tests collected **2478** (honest re-collect; older 3553 figure retired)
+- REWORK_CAMPAIGN module OPEN: **0**
 
-## Next work queue
+## Next continue branch
 
-1. Deeper VERIFIED pass (4 lenses) on integrity-critical modules if time
-2. Honesty on humanoid `NotImplementedError` controllers (document/gap vs implement)
-3. Restore/run `scripts/gen_status.py` + `find_islands.py` if present on campaign branch
-4. Any remaining CAPABILITIES number drift vs collect-only
+`rework/continue-3-2026-07-12` from main.
 
-## Quick verify
+1. Optional: wire high-value islands that have tests into CLI/pipeline (not mass-move)
+2. Optional VERIFIED 4-lens on integrity modules
+3. Orphan: `gen.grenzverschiebung.cluster` — disposition or wire
+4. Keep push before ~500k context; continuous autonomy authorized
+
+## Verify
 
 ```bash
-cd /home/genesis/genesis
 git checkout main && git pull
 .venv/bin/ruff check .
+.venv/bin/python scripts/find_islands.py | head -20
 .venv/bin/python -m pytest -q --tb=line
 ```
