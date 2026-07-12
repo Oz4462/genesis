@@ -31,7 +31,7 @@
 > 3. Optional assets (`humanoid_assets/`) may be missing — honest structural gaps, not silent success.
 > 4. After merges: regenerate AUTO block with `scripts/gen_status.py` when convenient.
 
-**Rework progress:** module inventory **0 OPEN** · WIRED **258** / SCRIPT 9 / ISLAND **26** · CLI aero/humanoid-report + surface
+**Rework progress:** module inventory **0 OPEN** · WIRED **258** / SCRIPT 9 / ISLAND **26** · CLI **47** modes (matrix auto-sync from cli.py)
 
 **2026-07-12 continue session:**
 - PR #1 merged to `main` (integrity, PRODUCT_WIRE, humanoids restore, CI green).
