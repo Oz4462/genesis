@@ -31,7 +31,7 @@
 > 3. Optional assets (`humanoid_assets/`) may be missing — honest structural gaps, not silent success.
 > 4. After merges: regenerate AUTO block with `scripts/gen_status.py` when convenient.
 
-**Rework progress:** module inventory **0 OPEN** · product_surface closeout **WIRED 256 / ISLAND 26** (KEEP_OPTIN residual)
+**Rework progress:** module inventory **0 OPEN** · WIRED **258** / SCRIPT 9 / ISLAND **26** · CLI aero/humanoid-report + surface
 
 **2026-07-12 continue session:**
 - PR #1 merged to `main` (integrity, PRODUCT_WIRE, humanoids restore, CI green).
@@ -89,7 +89,8 @@ What each `genesis --mode X` is *claimed* to do. Rows re-smoked under the 2026-0
 | `research` | LIVE identity_research | ✅ REWORKED — smoke (x+1)² |
 | `discover-ode` | LIVE SINDy | ✅ REWORKED — pendulum demo R²=1 |
 | `invent` · `solve` | LIVE loop (canned council offline) | ✅ REWORKED — invent --demo green |
-| `council` · `feynman` · `campaign` | LIVE discovery sub-engines | 🟡 registered (help); deep live optional |
+| `council` · `feynman` · `campaign` | LIVE discovery sub-engines | ✅ REWORKED — offline demos green (council gate + Feynman 5/5+3/3 + campaign); `--live` optional |
+| `aero-report` · `humanoid-report` · `surface` | catalog reports + product surface | ✅ REWORKED 2026-07-12 — CLI PRODUCT_WIRE (was SCRIPT-only) |
 | `section` · `training` · `chip` · `topology` · `structural` | deterministic sub-engines | ✅ REWORKED — demos green |
 | `bundle` | artifact emitter | ✅ REWORKED — `--demo` writes MANIFEST/MISSING honest |
 | `capstone` · `protocol` · `assess` · `print` · `eval` | DEMO | ✅ REWORKED — capstone UnboundLocal fixed; all demos green |
@@ -123,7 +124,7 @@ What each `genesis --mode X` is *claimed* to do. Rows re-smoked under the 2026-0
 
 ## 4 · Island disposition — TRIAGED 2026-07-11 (see `docs/ISLAND_TRIAGE_2026-07-11.md`)
 
-> Live count 2026-07-12 (product_surface closeout): **modules=327 · WIRED=256 · SCRIPT=11 · ISLAND=26 · INFRA=34**.
+> Live count 2026-07-12 (continue-4): **modules=327 · WIRED=258 · SCRIPT=9 · ISLAND=26 · INFRA=34**.
 > Full disposition table: [`docs/ISLAND_TRIAGE_2026-07-11.md`](ISLAND_TRIAGE_2026-07-11.md).
 > No mass-move to `_experimental/` this session (prior re-export build-break risk).
 

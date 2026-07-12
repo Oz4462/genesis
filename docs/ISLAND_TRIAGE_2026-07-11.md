@@ -143,3 +143,10 @@ Notes:
 - `rl_env`, `simulated_data`, `srbench_hygiene`, transitive `reward`/`validation`
 
 **Policy:** do not mass-import KEEP_OPTIN into product_surface (breaks CLI without optional stacks). Residual islands are **closed as dispositioned**, not abandoned bugs.
+
+
+## Update 2026-07-12 continue-4 — report CLI modes
+
+- `genesis --mode aero-report` / `humanoid-report` / `surface` PRODUCT_WIRE.
+- SCRIPT 11→9 (aero.report + humanoids.report now WIRED via CLI).
+- Offline re-smoke: council, feynman, campaign exit 0.
