@@ -1,3 +1,13 @@
+## 2026-07-12 — humanoids package restore + sim/cad KEEP_OPTIN
+
+- Restored full `src/gen/humanoids/` + 19 test modules from campaign branch (was missing on PR-from-main).
+- Ported `kinematics.knee_squat_hold_torque` required by AETHON mechanics/validation.
+- Restored `external.vision`, simulation calculix/modelica, cad cadquery_bridge/worker/kicad_cli.
+- Restored modern `breakthrough_watch` (gap-tied frontier items).
+- Fixed genesis_humanoid `_P = Path` (F821).
+- ruff.toml: humanoids style per-file-ignores (E70x/E741/F811/F841).
+- Evidence: humanoids suite 169 passed / 5 skipped / 1 fixed; breakthrough 11p; ruff clean.
+
 ## 2026-07-12 — discovery/grenz/inventor OPEN sweep + reward NaN integrity
 
 - Closed nearly all remaining `discovery/*` OPEN (canonical, feynman, knowledge_graph, reward,

@@ -5,3 +5,6 @@
 # `I` is the second moment of area — standard engineering notation in the beam
 # tests; renaming it would hurt the physics readability, not improve it.
 "tests/test_fem.py" = ["E741"]
+# Restored humanoid package + tests: style debt, pybullet `p` rebind, optional research locals.
+"src/gen/humanoids/*.py" = ["E701", "E702", "E741", "E402", "F811", "F841"]
+"tests/test_humanoids_*.py" = ["F401", "E402", "F841"]

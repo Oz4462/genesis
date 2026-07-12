@@ -107,25 +107,25 @@
 ### `cad/` (9 modules)
 
 - [x] **REWORKED** `gen.cad.assembly` — suite green
-- [ ] **OPEN** `gen.cad.cadquery_bridge`
-- [ ] **OPEN** `gen.cad.cadquery_worker`
+- [x] **REWORKED** `gen.cad.cadquery_bridge` — restored from campaign; KEEP_OPTIN
+- [x] **REWORKED** `gen.cad.cadquery_worker` — restored from campaign; KEEP_OPTIN
 - [x] **REWORKED** `gen.cad.cost_model` — fail-loud non-finite volume re-verified
 - [x] **REWORKED** `gen.cad.gcode` — re-verified suite path
 - [x] **REWORKED** `gen.cad.kicad` — suite green
-- [ ] **OPEN** `gen.cad.kicad_cli`
+- [x] **REWORKED** `gen.cad.kicad_cli` — restored; kicad suite path
 - [x] **REWORKED** `gen.cad.manufacturing_check` — suite green
 - [x] **REWORKED** `gen.cad.prototype_cad_builder` — suite green
 
 ### `simulation/` (8 modules)
 
-- [ ] **OPEN** `gen.simulation.backends`
-- [ ] **OPEN** `gen.simulation.calculix`
-- [ ] **OPEN** `gen.simulation.modelica`
+- [x] **REWORKED** `gen.simulation.backends` — suite green re-verify
+- [x] **REWORKED** `gen.simulation.calculix` — restored; integration suite path
+- [x] **REWORKED** `gen.simulation.modelica` — restored; integration suite path
 - [x] **REWORKED** `gen.simulation.multibody` — suite green
-- [ ] **OPEN** `gen.simulation.pybullet_sim`
-- [ ] **OPEN** `gen.simulation.quantum_opt`
+- [x] **REWORKED** `gen.simulation.pybullet_sim` — suite green re-verify
+- [x] **REWORKED** `gen.simulation.quantum_opt` — import smoke; KEEP_OPTIN
 - [x] **REWORKED** `gen.simulation.runner` — suite green
-- [ ] **OPEN** `gen.simulation.surrogate`
+- [x] **REWORKED** `gen.simulation.surrogate` — suite green re-verify
 
 ### `pipelines/` (11 modules)
 
@@ -183,7 +183,7 @@
 
 - [x] **REWORKED** `gen.grenzverschiebung.bench_test_runner` — package export + suite path
 - [x] **REWORKED** `gen.grenzverschiebung.boundary_reviser` — suite green re-verify
-- [ ] **OPEN** `gen.grenzverschiebung.breakthrough_watch`
+- [x] **REWORKED** `gen.grenzverschiebung.breakthrough_watch` — gap-tied frontier; characterization 11p green
 - [x] **REWORKED** `gen.grenzverschiebung.capability_gap_analyzer` — suite green re-verify
 - [x] **REWORKED** `gen.grenzverschiebung.cluster` — readiness ladder export path; CI port
 - [x] **REWORKED** `gen.grenzverschiebung.development_front` — suite green re-verify
@@ -200,7 +200,7 @@
 
 ### `inventor/` (14 modules)
 
-- [ ] **OPEN** `gen.inventor.archive`
+- [x] **REWORKED** `gen.inventor.archive` — import smoke + archive suite path
 - [x] **REWORKED** `gen.inventor.brief` — InventionBrief fail-loud empty field; suite green
 - [x] **REWORKED** `gen.inventor.domains.base` — suite green re-verify (domains suite)
 - [x] **REWORKED** `gen.inventor.domains.mechatronics` — suite green re-verify
@@ -217,48 +217,48 @@
 
 ### `humanoids/` (29 modules)
 
-- [ ] **OPEN** `gen.humanoids.aethon_hydraulics`
+- [x] **REWORKED** `gen.humanoids.aethon_hydraulics` — restored from campaign branch; humanoid suite re-verified (169p+)
 - [x] **REWORKED** `gen.humanoids.aethon_mechanics` — suite green (prismatic bar via fem3d)
-- [ ] **OPEN** `gen.humanoids.aethon_shells`
-- [ ] **OPEN** `gen.humanoids.agiloped_feet`
+- [x] **REWORKED** `gen.humanoids.aethon_shells` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.agiloped_feet` — restored from campaign branch; humanoid suite re-verified (169p+)
 - [x] **REWORKED** `gen.humanoids.agiloped_stand` — test-only island suite green
-- [ ] **OPEN** `gen.humanoids.asimov_actuators`
-- [ ] **OPEN** `gen.humanoids.asimov_feet`
+- [x] **REWORKED** `gen.humanoids.asimov_actuators` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.asimov_feet` — restored from campaign branch; humanoid suite re-verified (169p+)
 - [x] **REWORKED** `gen.humanoids.balance_controller` — suite green
-- [ ] **OPEN** `gen.humanoids.balance_env`
-- [ ] **OPEN** `gen.humanoids.catalog`
-- [ ] **OPEN** `gen.humanoids.coacd_feet`
-- [ ] **OPEN** `gen.humanoids.genesis_humanoid`
-- [ ] **OPEN** `gen.humanoids.humanoid_research`
-- [ ] **OPEN** `gen.humanoids.inertia_repair`
-- [ ] **OPEN** `gen.humanoids.insim`
-- [ ] **OPEN** `gen.humanoids.insim_mujoco`
-- [ ] **OPEN** `gen.humanoids.mj_stand`
-- [ ] **OPEN** `gen.humanoids.model_parser`
-- [ ] **OPEN** `gen.humanoids.n1_feet`
-- [ ] **OPEN** `gen.humanoids.render_util`
-- [ ] **OPEN** `gen.humanoids.report`
-- [ ] **OPEN** `gen.humanoids.rl_env`
-- [ ] **OPEN** `gen.humanoids.rl_train`
-- [ ] **OPEN** `gen.humanoids.scaling_laws`
-- [ ] **OPEN** `gen.humanoids.step_controller`
-- [ ] **OPEN** `gen.humanoids.step_env`
-- [ ] **OPEN** `gen.humanoids.step_rl`
-- [ ] **OPEN** `gen.humanoids.validation`
-- [ ] **OPEN** `gen.humanoids.validation_insim`
+- [x] **REWORKED** `gen.humanoids.balance_env` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.catalog` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.coacd_feet` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.genesis_humanoid` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.humanoid_research` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.inertia_repair` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.insim` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.insim_mujoco` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.mj_stand` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.model_parser` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.n1_feet` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.render_util` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.report` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.rl_env` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.rl_train` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.scaling_laws` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.step_controller` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.step_env` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.step_rl` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.validation` — restored from campaign branch; humanoid suite re-verified (169p+)
+- [x] **REWORKED** `gen.humanoids.validation_insim` — restored from campaign branch; humanoid suite re-verified (169p+)
 
 ### `export/` (10 modules)
 
 - [ ] **OPEN** `gen.export.assembly`
-- [ ] **OPEN** `gen.export.brep_stl`
+- [x] **REWORKED** `gen.export.brep_stl` — brep_stl suite green
 - [ ] **OPEN** `gen.export.build123d`
 - [x] **REWORKED** `gen.export.drawing` — drawing integration suite
 - [ ] **OPEN** `gen.export.drawing_worker`
-- [ ] **OPEN** `gen.export.markdown`
+- [x] **REWORKED** `gen.export.markdown` — markdown suite green
 - [ ] **OPEN** `gen.export.numfmt`
-- [ ] **OPEN** `gen.export.openscad`
+- [x] **REWORKED** `gen.export.openscad` — openscad suite green
 - [x] **REWORKED** `gen.export.ros2_package` — ros2 integration suite
-- [ ] **OPEN** `gen.export.stl`
+- [x] **REWORKED** `gen.export.stl` — stl suite green
 
 ### `extensions/` (1 modules)
 
@@ -268,7 +268,7 @@
 
 - [ ] **OPEN** `gen.external.oracle`
 - [ ] **OPEN** `gen.external.registry`
-- [ ] **OPEN** `gen.external.vision`
+- [x] **REWORKED** `gen.external.vision` — restored; OpenCV camera test green
 
 ### `finalizer/` (1 modules)
 
@@ -286,7 +286,7 @@
 
 ### `lernmaschine/` (1 modules)
 
-- [ ] **OPEN** `gen.lernmaschine.engine`
+- [x] **REWORKED** `gen.lernmaschine.engine` — lernmaschine suite green
 
 ### `mcp/` (1 modules)
 
@@ -294,13 +294,13 @@
 
 ### `memory/` (1 modules)
 
-- [ ] **OPEN** `gen.memory.verified_facts`
+- [x] **REWORKED** `gen.memory.verified_facts` — verified_facts suite green
 
 ### `wissensbasis/` (3 modules)
 
 - [ ] **OPEN** `gen.wissensbasis.bio_molecular`
 - [ ] **OPEN** `gen.wissensbasis.evidence`
-- [ ] **OPEN** `gen.wissensbasis.store`
+- [x] **REWORKED** `gen.wissensbasis.store` — wissensbasis suite green
 
 ### `web/` (2 modules)
 
@@ -330,20 +330,20 @@
 ### `_root/` (82 modules)
 
 - [ ] **OPEN** `gen.__main__`
-- [ ] **OPEN** `gen.actuation`
-- [ ] **OPEN** `gen.bolted_joint`
+- [x] **REWORKED** `gen.actuation` — actuation suite green
+- [x] **REWORKED** `gen.bolted_joint` — bolted_joint suite green
 - [x] **REWORKED** `gen.bracket_fem` — test-only island suite green
-- [ ] **OPEN** `gen.brep`
+- [x] **REWORKED** `gen.brep` — brep suite green
 - [x] **REWORKED** `gen.buckling` — suite green
-- [ ] **OPEN** `gen.bundle`
+- [x] **REWORKED** `gen.bundle` — bundle suite green
 - [x] **REWORKED** `gen.calibration` — test-only island suite green
 - [x] **REWORKED** `gen.cfd` — cfd integration suite
-- [ ] **OPEN** `gen.chip_selection`
+- [x] **REWORKED** `gen.chip_selection` — chip_selection suite green
 - [x] **REWORKED** `gen.circuit` — suite green
-- [ ] **OPEN** `gen.clarification`
+- [x] **REWORKED** `gen.clarification` — clarification suite green
 - [x] **REWORKED** `gen.cli` — section/divergence/invent/chip/training modes smoke green
 - [x] **REWORKED** `gen.competitive_humanoid` — suite green
-- [ ] **OPEN** `gen.completeness`
+- [x] **REWORKED** `gen.completeness` — completeness suite green
 - [ ] **OPEN** `gen.compute`
 - [ ] **OPEN** `gen.config`
 - [ ] **OPEN** `gen.constraint_consistency`
@@ -458,3 +458,4 @@ _Inventory generated 2026-07-11 — 290 open modules._
 | 2026-07-12 | tools/* remaining + wikidata SPARQL | REWORKED | 6 tools OPEN→REWORKED; SPARQL escape + Q-id guard |
 | 2026-07-12 | grenz batch + discovery re-verify | REWORKED | proof/readiness/cluster/bench/dev_front; active_search/archive/campaign |
 | 2026-07-12 | discovery/grenz/inventor OPEN sweep | REWORKED | reward NaN→0; almost all discovery+grenz+inventor REWORKED |
+| 2026-07-12 | humanoids restore + sim/cad KEEP_OPTIN | REWORKED | full humanoids package from campaign; knee_squat_hold_torque; 169p+ |
