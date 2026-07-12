@@ -1,37 +1,34 @@
-# Session Handoff — 2026-07-12 (end of autonomous stretch)
+# Session Handoff — 2026-07-12 (PR #5 merged)
 
-> **main tip:** `dfcd7e2` (PR #4 merge)  
+> **main tip:** PR #5 merge (horizon_full) on top of `dfcd7e2`  
 > **Repo:** https://github.com/Oz4462/genesis
 
-## Merged today (autonomous)
+## Merged today
 
-| PR | Merge | Content |
-|----|-------|---------|
-| #1 | earlier | Full rework campaign |
-| #2 | `e588810` | Aero + T/W floors, inventory 0 OPEN, kicad validate, shim |
-| #3 | `5a5143a` | STATUS honesty + island triage notes |
-| #4 | `dfcd7e2` | Restore find_islands/gen_status; AUTO STATUS refresh |
+| PR | Content |
+|----|---------|
+| #2 | Aero, inventory clear, kicad validate |
+| #3 | STATUS honesty |
+| #4 | find_islands/gen_status restore |
+| #5 | **horizon_full restore** + cluster wire · WIRED 218 · ISLAND 63 |
 
-## Measured product truth (2026-07-12 AUTO)
+## Measured after #5
 
-- modules **325** · WIRED **201** · SCRIPT **11** · ISLAND **79** · INFRA **34**
-- tests collected **2478** (honest re-collect; older 3553 figure retired)
-- REWORK_CAMPAIGN module OPEN: **0**
+- modules 326 · WIRED **218** · SCRIPT 11 · ISLAND **63** · INFRA 34
+- tests collected ~2478–2480
+- REWORK module OPEN: **0**
 
-## Next continue branch
+## Next (continue autonomously)
 
-`rework/continue-3-2026-07-12` from main.
-
-1. Optional: wire high-value islands that have tests into CLI/pipeline (not mass-move)
-2. Optional VERIFIED 4-lens on integrity modules
-3. Orphan: `gen.grenzverschiebung.cluster` — disposition or wire
-4. Keep push before ~500k context; continuous autonomy authorized
+1. Branch from latest main after #5 merge
+2. Wire more high-value test-only modules only when product entry is real
+3. Orphan/facade disposition honesty; optional VERIFIED layer
+4. Push before ~500k context
 
 ## Verify
 
 ```bash
 git checkout main && git pull
-.venv/bin/ruff check .
-.venv/bin/python scripts/find_islands.py | head -20
-.venv/bin/python -m pytest -q --tb=line
+.venv/bin/python -c "from gen.horizon_full import run_full_horizon, DEFAULT_IDEA; print(run_full_horizon(DEFAULT_IDEA).ok)"
+.venv/bin/python scripts/find_islands.py | head -8
 ```
