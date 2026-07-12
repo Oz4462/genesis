@@ -90,3 +90,20 @@ All 10 pipelines CLI-routed via `fach_cli.run_fach_pipeline`. research_promotion
 - Aero still SCRIPT/ARCHIVE for catalog/parser; **calibration floors** live in `gen.flight` (product path).
 - REWORK campaign module OPEN count: **0** (see `docs/REWORK_CAMPAIGN.md`).
 - Island script path may be absent in this checkout; re-run when `scripts/find_islands.py` is available.
+
+## Update 2026-07-12 (continue-2) — re-measured islands
+
+Re-ran restored `scripts/find_islands.py` on post-merge tip:
+
+| Metric | Value |
+|--------|-------|
+| modules | 325 |
+| WIRED | 201 |
+| SCRIPT | 11 |
+| ISLAND | 79 |
+| INFRA | 34 |
+
+Notes:
+- Island count **higher** than 2026-07-11 triage (67) after aero/drawing/humanoids restores — more modules exist; many are facade/test-only/KEEP_OPTIN (expected).
+- Do not mass-move islands; disposition policy unchanged.
+- `scripts/gen_status.py` restored for AUTO STATUS refresh (run when convenient; may rewrite AUTO block).
