@@ -54,10 +54,10 @@ blended ≈ **open**. Historical estimate (~50%) is archival only.
 
 ---
 
-## 1 · 🔴 INTEGRITY WATCHLIST (re-verify — all OPEN)
+## 1 · 🟢 INTEGRITY WATCHLIST (rows REWORKED 2026-07-11/12)
 
-These are the lies an *anti-hallucination* engine must not ship. **All rows re-opened 2026-07-11.**
-Do not mark REWORKED until the code abstains honestly **and** a regression test is re-run and cited.
+These are the lies an *anti-hallucination* engine must not ship. Rows were re-opened 2026-07-11 and
+**re-proven** with suite evidence (see table). Keep regression tests green on every merge.
 
 | # | Where | What it fakes / risk | Status |
 |---|---|---|---|
