@@ -201,5 +201,17 @@ def topological_values(
 
 
 def within_tolerance(stated: float, computed: float, *, tolerance: float) -> bool:
-    """Relative comparison used by C-6 (recompute) and eq-constraints (C-13)."""
+    """Relative comparison used by C-6 (recompute) and eq-constraints (C-13).
+
+    Non-finite stated/computed/tolerance never "match" — ``abs(nan - x) <= …``
+    is False already, but Inf/NaN tolerance would make the band meaningless or
+    always-true; reject all non-finite inputs explicitly.
+    """
+    if (
+        not math.isfinite(stated)
+        or not math.isfinite(computed)
+        or not math.isfinite(tolerance)
+        or tolerance < 0.0
+    ):
+        return False
     return abs(computed - stated) <= tolerance * max(1.0, abs(stated))

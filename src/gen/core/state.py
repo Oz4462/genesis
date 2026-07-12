@@ -93,13 +93,16 @@ def _now() -> datetime:
 
 # --- Verification status -----------------------------------------------------
 
-class ClaimStatus(enum.Enum):
+class ClaimStatus(str, enum.Enum):
     """Lifecycle of a factual claim.
 
     UNVERIFIED  Just extracted by `scholar`; not yet independently checked.
     VERIFIED    `skeptic` found independent support meeting the threshold.
     REFUTED     A credible source contradicts it.
     UNSUPPORTED `skeptic` found no independent support; remains an unbacked claim.
+
+    str Enum so ``status in ("verified",)`` and ``status == "verified"`` work
+    for consumers/tests that compare against the wire value, not the member name.
     """
 
     UNVERIFIED = "unverified"
@@ -110,6 +113,11 @@ class ClaimStatus(enum.Enum):
 
 # --- Provenance --------------------------------------------------------------
 
+class SourceSupport(enum.Enum):
+    SUPPORTS = "supports"
+    CONTRADICTS = "contradicts"
+
+
 @dataclass(frozen=True)
 class SourceRef:
     """A reference to a retrievable source backing (or contradicting) a claim.
@@ -119,18 +127,20 @@ class SourceRef:
     `content_hash`  hash of fetched content, for reproducibility.
     `span`          optional location within the source (offsets/section).
     `support`       whether this source SUPPORTS or CONTRADICTS the claim.
+                    Defaults to SUPPORTS (a bare citation is an affirmative reference).
     """
 
     url_or_id: str
     retrieved: bool
     content_hash: str | None = None
     span: str | None = None
-    support: "SourceSupport" = None  # type: ignore[assignment]
+    support: SourceSupport = SourceSupport.SUPPORTS
 
-
-class SourceSupport(enum.Enum):
-    SUPPORTS = "supports"
-    CONTRADICTS = "contradicts"
+    def __post_init__(self) -> None:
+        if not str(self.url_or_id).strip():
+            raise ValueError("SourceRef.url_or_id must be non-empty")
+        if self.support is None:  # type: ignore[comparison-overlap]
+            object.__setattr__(self, "support", SourceSupport.SUPPORTS)
 
 
 @dataclass(frozen=True)
@@ -184,6 +194,25 @@ class Claim:
         if not self.sources:
             from .errors import UnsourcedClaimError
             raise UnsourcedClaimError(self.id, self.text)
+        if not str(self.text).strip():
+            raise ValueError(f"Claim {self.id!r}: text must be non-empty")
+        # Confidence is a probability-like score used by gates. NaN/Inf poison
+        # comparisons (NaN < τ is always False → silent VERIFIED pass).
+        if (
+            isinstance(self.confidence, bool)
+            or not isinstance(self.confidence, (int, float))
+            or not math.isfinite(self.confidence)
+            or not (0.0 <= float(self.confidence) <= 1.0)
+        ):
+            raise ValueError(
+                f"Claim {self.id!r}: confidence must be a finite number in [0, 1], "
+                f"got {self.confidence!r}"
+            )
+        for ref in self.sources:
+            if not str(ref.url_or_id).strip():
+                raise ValueError(
+                    f"Claim {self.id!r}: source url_or_id must be non-empty"
+                )
 
 
 # --- The Approach (heart of Phase β) -----------------------------------------

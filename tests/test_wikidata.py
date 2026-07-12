@@ -34,6 +34,39 @@ def test_search_physical_law_monkey(monkeypatch):
     assert "Euler" in hits[0].label
 
 
+def test_search_physical_law_escapes_sparql_injection(monkeypatch):
+    """User names with quotes must not break out of the SPARQL string literal."""
+    captured: list[str] = []
+
+    def fake_query(q: str):
+        captured.append(q)
+        return []
+
+    monkeypatch.setattr("gen.tools.wikidata.sparql_query", fake_query)
+    from gen.tools.wikidata import WikidataError, search_physical_law
+
+    search_physical_law('Euler " OR "x')
+    assert captured and '\\"' in captured[0]
+    assert 'OR "x' not in captured[0] or '\\"' in captured[0]
+
+    try:
+        search_physical_law("")
+        raise AssertionError("empty name must raise")
+    except WikidataError:
+        pass
+
+
+def test_get_formula_for_rejects_non_qid(monkeypatch):
+    from gen.tools.wikidata import WikidataError, get_formula_for
+
+    monkeypatch.setattr("gen.tools.wikidata.sparql_query", lambda q: [])
+    try:
+        get_formula_for("Q1} UNION {?x ?y ?z")
+        raise AssertionError("malicious qid must raise")
+    except WikidataError:
+        pass
+
+
 def test_wikidata_to_formula_record():
     reg = FormulaRegistry()
     hit = WikidataLawHit("Q456", "Euler critical load", formula="P_cr = (pi^2 E I)/L^2")

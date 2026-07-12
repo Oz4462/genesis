@@ -27,14 +27,23 @@ from .core.state import (
     Specification,
 )
 from .costing import bom_cost
-from .verification.derivation import DEFAULT_TOLERANCE, evaluate_formula, referenced_names
-from .verification.units import DIMENSIONLESS, Dimension, formula_dimension, parse_unit, unit_scale
+from .verification.derivation import (
+    DEFAULT_TOLERANCE,
+    evaluate_formula,
+    referenced_names,
+)
+from .verification.units import (
+    DIMENSIONLESS,
+    Dimension,
+    formula_dimension,
+    parse_unit,
+    unit_scale,
+)
 
 
 _CHAIN: tuple[SeamDomain, ...] = (
     SeamDomain.MECHANICAL,
     SeamDomain.THERMAL,
-    SeamDomain.RADIATION,  # space: vacuum radiation couples to thermal (dominant in space, no convection)
     SeamDomain.ELECTRICAL,
     SeamDomain.FIRMWARE,
 )
@@ -57,11 +66,7 @@ def _quantity_map(spec: Specification) -> dict[str, Quantity]:
 
 
 def _looks_thermal(q: Quantity) -> bool:
-    """Detect THERMAL domain via unit or markers in id/name/measurand (prefix-aware for robustness)."""
     text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
-    m = q.measurand or ""
-    if m.startswith(("thermal.", "temperature.", "heat.")):
-        return True
     markers = (
         "thermal",
         "temperature",
@@ -76,7 +81,7 @@ def _looks_thermal(q: Quantity) -> bool:
 
 
 def _looks_radiation(q: Quantity) -> bool:
-    """Detect RADIATION domain via unit or markers (hardened with measurand prefix awareness)."""
+    """Detect RADIATION domain via unit or markers (hardened with measurand prefix)."""
     text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
     m = (q.measurand or "").lower()
     if m.startswith("radiation.") or m.startswith("rad."):
@@ -93,40 +98,60 @@ def _looks_radiation(q: Quantity) -> bool:
 
 
 def _looks_isru(q: Quantity) -> bool:
-    """Detect ISRU domain via measurand prefix or markers. For Mars in-situ: regolith yield, O2/CH4 production, propellant.
-    (Elon vision: local resources to reduce Earth launch mass.)
-    Hardened against substring FP (e.g. "isrundes" in German specs).
+    """Detect ISRU domain via measurand prefix or markers (Mars in-situ resources).
+
+    Hardened against substring false positives (e.g. German "isrundes").
     """
     m = (q.measurand or "").lower()
     if m.startswith(("isru.", "isru_", "regolith.", "propellant.")):
         return True
     text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
-    padded = " " + text.replace("_", " ").replace("-", " ").replace(".", " ").replace("(", " ").replace(")", " ") + " "
-    markers = ("isru", "regolith", "insitu", "propellant_yield", "o2_yield", "ch4", "sabati", "electrolysis_mars")
+    padded = (
+        " "
+        + text.replace("_", " ").replace("-", " ").replace(".", " ")
+        .replace("(", " ").replace(")", " ")
+        + " "
+    )
+    markers = (
+        "isru",
+        "regolith",
+        "insitu",
+        "propellant_yield",
+        "o2_yield",
+        "ch4",
+        "sabati",
+        "electrolysis_mars",
+    )
     return any(" " + marker + " " in padded for marker in markers)
 
 
 def _looks_life_support(q: Quantity) -> bool:
-    """Detect LIFE_SUPPORT (ECLSS) domain via measurand prefix or markers. Crew O2 consumption, CO2 scrubbing, water loop closure, habitat atmosphere.
-    Critical for multi-planetary habitats (vacuum + radiation context).
-    Hardened against substring FP.
-    """
+    """Detect LIFE_SUPPORT (ECLSS) domain via measurand prefix or markers."""
     m = (q.measurand or "").lower()
     if m.startswith(("life_support.", "eclss.", "crew.", "habitat_atm.")):
         return True
     text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
-    padded = " " + text.replace("_", " ").replace("-", " ").replace(".", " ").replace("(", " ").replace(")", " ") + " "
-    markers = ("life_support", "eclss", "o2_closure", "co2_scrub", "crew_consum", "water_loop", "atmosphere_balance", "habitat_o2")
+    padded = (
+        " "
+        + text.replace("_", " ").replace("-", " ").replace(".", " ")
+        .replace("(", " ").replace(")", " ")
+        + " "
+    )
+    markers = (
+        "life_support",
+        "eclss",
+        "o2_closure",
+        "co2_scrub",
+        "crew_consum",
+        "water_loop",
+        "atmosphere_balance",
+        "habitat_o2",
+    )
     return any(" " + marker + " " in padded for marker in markers)
 
 
 def _looks_electrical(q: Quantity) -> bool:
-    """Detect ELECTRICAL domain via unit or markers in id/name/measurand (prefix-aware).
-
-    Ensures T+E specs (even without netlist or ELECTRONIC BomItem) trigger THERMAL-ELECTRICAL
-    seam requirement in required_seam_pairs, so assess_specification always runs gate_epsilon
-    for power->heat couplings (closes Befund 1 hole).
-    """
+    """Detect ELECTRICAL via unit/markers so T+E quantity-only specs still trigger seams."""
     text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
     m = q.measurand or ""
     if m.startswith(("electronics.", "elec.", "electrical.", "bus.", "compute.")):
@@ -138,23 +163,31 @@ def _looks_electrical(q: Quantity) -> bool:
         "voltage",
         "bus",
         "inference",
-        "power_budget",
+        "dissipated_power",
+        "ampere",
     )
-    unit_e = q.unit in {"A", "V"}
-    # W only if explicit elec context (thermal power W must not falsely force ELEC alone; dissipat removed per Befund 7)
-    power_elec = q.unit == "W" and ("elec" in text or "electronics" in text)
-    return unit_e or any(marker in text for marker in markers) or power_elec
+    return q.unit in {"A", "V", "Ohm", "Ω"} or any(marker in text for marker in markers)
 
 
 def domains_present(spec: Specification) -> set[SeamDomain]:
-    """Detect which domains are present enough for epsilon seam coverage.
-
-    Uses quantity heuristics (measurand-prefix + markers) for THERMAL/RADIATION/ELECTRICAL
-    in addition to structural (components/bom/netlist) so pure quantity-driven T+E specs
-    always produce required THERM-ELEC pair and trigger needs_seams/gate in assess.
-    """
+    """Detect which domains are present enough for epsilon seam coverage."""
     present: set[SeamDomain] = set()
     if spec.components or any(item.domain is BomDomain.MECHANICAL for item in spec.bom):
+        present.add(SeamDomain.MECHANICAL)
+    # topology / SIMP density field implies MECH structure (richer generative design).
+    # Scan quantity + component labels only (no str(spec) — avoids accidental matches
+    # on unrelated text). Fixed NameError from prior draft that referenced unbound `c`.
+    qty_text = " ".join(
+        f"{getattr(q, 'id', '') or ''} {getattr(q, 'name', '') or ''} "
+        f"{getattr(q, 'measurand', '') or ''}"
+        for q in (spec.quantities or [])
+    )
+    comp_text = " ".join(
+        f"{getattr(comp, 'name', '') or ''} {getattr(comp, 'role', '') or ''}"
+        for comp in (spec.components or [])
+    )
+    text_all = f"{qty_text} {comp_text}".lower()
+    if any(k in text_all for k in ("topology", "density", "simp", "vorschlag", "dichtefeld")):
         present.add(SeamDomain.MECHANICAL)
     if any(_looks_thermal(q) for q in spec.quantities):
         present.add(SeamDomain.THERMAL)
@@ -178,63 +211,25 @@ def domains_present(spec: Specification) -> set[SeamDomain]:
 
 
 def required_seam_pairs(spec: Specification) -> list[tuple[SeamDomain, SeamDomain]]:
-    """Required adjacent seam pairs for domains that are both present.
+    """Required adjacent pairs for domains that are both present.
 
-    Core Earth couplings are preserved independently of optional space domains.
-    RADIATION couplings are additive when the domain is present (primarily THERM-RAD
-    for vacuum radiation balance).
-
-    Explicit list (instead of linear chain projection) ensures no regression on
-    fundamental pairs like THERMAL-ELECTRICAL when RADIATION is absent, and avoids
-    unintended bridging when domains are skipped.
+    Explicit adjacency list (not pure chain projection) so THERM-ELEC stays required
+    when RADIATION is absent, and space/ISRU/LIFE pairs attach only when present.
     """
     present = domains_present(spec)
-    # Explicit core + space attachments. Core pairs (THERM-ELEC etc.) are required
-    # whenever their domains are present, regardless of RADIATION.
-    # See L DR 2026-07-04 (council perspectives: explicit preferred for correctness,
-    # simplicity, evolvability for space).
-    _REQUIRED_ADJACENCIES = [
+    adjacencies = [
         (SeamDomain.MECHANICAL, SeamDomain.THERMAL),
-        (SeamDomain.THERMAL, SeamDomain.ELECTRICAL),  # core power->heat, preserved
+        (SeamDomain.THERMAL, SeamDomain.ELECTRICAL),
         (SeamDomain.ELECTRICAL, SeamDomain.FIRMWARE),
-        (SeamDomain.THERMAL, SeamDomain.RADIATION),   # vacuum radiation primary
-        # RAD-ELEC or MECH-RAD added only if physics justification (dose effects)
-        # is documented and tested.
-        # --- Complete Genesis / Elon multi-planetary extensions (explicit, Council-synthesized) ---
-        (SeamDomain.THERMAL, SeamDomain.LIFE_SUPPORT),   # ECLSS hardware heat loads couple to thermal control in vacuum habitat
-        (SeamDomain.RADIATION, SeamDomain.LIFE_SUPPORT), # dose on crew/biology/scrubbers; shielding couples rad to life support budgets
-        (SeamDomain.MECHANICAL, SeamDomain.ISRU),        # regolith excavation/processing mechanics (crushers, rovers, reactors)
-        (SeamDomain.ELECTRICAL, SeamDomain.ISRU),        # high power draw for electrolysis/Sabatier ISRU plants on Mars
-        (SeamDomain.THERMAL, SeamDomain.ISRU),           # thermal balance of ISRU reactors (exothermic Sabatier, heating)
-        (SeamDomain.ISRU, SeamDomain.COST),              # ISRU yield directly reduces landed mass/cost (first-principles leverage)
+        (SeamDomain.THERMAL, SeamDomain.RADIATION),
+        (SeamDomain.THERMAL, SeamDomain.LIFE_SUPPORT),
+        (SeamDomain.RADIATION, SeamDomain.LIFE_SUPPORT),
+        (SeamDomain.MECHANICAL, SeamDomain.ISRU),
+        (SeamDomain.ELECTRICAL, SeamDomain.ISRU),
+        (SeamDomain.THERMAL, SeamDomain.ISRU),
+        (SeamDomain.ISRU, SeamDomain.COST),
     ]
-    required = [_pair(a, b) for a, b in _REQUIRED_ADJACENCIES if a in present and b in present]
-    return required
-
-
-# Example radiation-thermal seam for space (vacuum radiation balance)
-# Usage in spec (when RADIATION domain present via dose/solar_flux etc):
-# seam = DomainSeam(
-#     id="rad_thermal_vacuum",
-#     left_domain=SeamDomain.THERMAL,
-#     right_domain=SeamDomain.RADIATION,
-#     left_expr="q_net_heat_w",
-#     right_expr="q_absorbed_w - q_radiated_w",
-#     relation=SeamRelation.EQ,
-#     rationale="Vacuum radiation dominant; links to vacuum_radiation_balance_check"
-# )
-# Future radiation-electrical (dose on electronics):
-# seam = DomainSeam(
-#     id="rad_elec_tid",
-#     left_domain=SeamDomain.RADIATION,
-#     right_domain=SeamDomain.ELECTRICAL,
-#     left_expr="radiation.total_dose_sv",
-#     right_expr="electronics.tid_limit_sv",
-#     relation=SeamRelation.LE,
-#     rationale="TID budget for derating / SEE on electronics in space"
-# )
-# required_seam_pairs uses filtered linear chain so only present domains' consecutive
-# pairs are mandatory (RADIATION optional → no breakage for earth specs).
+    return [_pair(a, b) for a, b in adjacencies if a in present and b in present]
 
 
 def cost_rollup_required(spec: Specification) -> bool:
@@ -346,8 +341,15 @@ def _check_cost_rollup(
     *,
     tolerance: float,
 ) -> list[GateFailure]:
-    if seam.left_expr == "bom_total_cost" or (seam.id.startswith("auto_cost") and not any(q for q in spec.quantities if q.unit in ("EUR", "USD", "€", "$") or "total_cost" in (q.id or "").lower())):
-        # auto-generated virtual (no declared total quantity); satisfied by construction (BOM is source of truth)
+    # Virtual auto total (left_expr bom_total_cost): BOM is source of truth; no
+    # declared total quantity required — rollup satisfied by construction.
+    if seam.left_expr == "bom_total_cost" or (
+        seam.id.startswith("auto_cost")
+        and not any(
+            q.unit in ("EUR", "USD", "€", "$") or "total_cost" in (q.id or "").lower()
+            for q in spec.quantities
+        )
+    ):
         return []
     if SeamDomain.COST not in (seam.left_domain, seam.right_domain):
         return [
@@ -362,7 +364,6 @@ def _check_cost_rollup(
     declared = quantities.get(seam.left_expr)
     if declared is None:
         if seam.left_expr == "bom_total_cost" or seam.left_expr.startswith("auto_"):
-            # auto-generated (Befund 10 Option A): no declared total in spec; BOM is source of truth, rollup satisfied
             return []
         return [
             GateFailure(
@@ -376,9 +377,6 @@ def _check_cost_rollup(
         ]
 
     cost = bom_cost(spec)
-    # C-1: `complete` includes explicitly labelled filament ESTIMATES — this seam certifies the
-    # arithmetic roll-up coupling, not price grounding (that is Cost.fully_grounded, surfaced
-    # separately). An estimate-backed roll-up is still a deterministic, checkable sum.
     if not cost.complete:
         return [
             GateFailure(
@@ -432,43 +430,10 @@ def build_seam_certificate(
     *,
     complete: bool = True,
 ) -> SeamCertificate:
-    """Mechanical builder: attach supplied seams to a spec-run certificate.
-
-    Auto-generates COST_ROLLUP seam if cost_rollup_required(spec) and no cost seam
-    provided (Option A for Befund 10: honest and scalable for demos; cost from BOM).
-    """
-    seams = list(seams) if seams else []
-    if cost_rollup_required(spec) and bom_cost(spec).complete and not any(s.relation == SeamRelation.COST_ROLLUP for s in seams):
-        cost_qty_id = None
-        for q in spec.quantities:
-            if "total" in (q.id or "").lower() and q.unit in ("EUR", "USD", "€", "$"):
-                cost_qty_id = q.id
-                break
-        if cost_qty_id is None:
-            cost_qty_id = "bom_total_cost"  # virtual for auto
-        # choose right domain that is present and distinct from COST
-        present = domains_present(spec)
-        right_d = None
-        for d in (SeamDomain.ELECTRICAL, SeamDomain.MECHANICAL, SeamDomain.FIRMWARE, SeamDomain.THERMAL, SeamDomain.RADIATION):
-            if d in present and d != SeamDomain.COST:
-                right_d = d
-                break
-        if right_d is None:
-            right_d = SeamDomain.MECHANICAL if SeamDomain.MECHANICAL in present else SeamDomain.FIRMWARE
-        cost_seam = DomainSeam(
-            id="auto_cost_rollup",
-            left_domain=SeamDomain.COST,
-            right_domain=right_d,
-            relation=SeamRelation.COST_ROLLUP,
-            left_expr=cost_qty_id,
-            right_expr="EUR",
-            rationale="auto-generated cost rollup seam (BOM calculable) because cost_rollup_required and no COST seam provided",
-        )
-        seams.append(cost_seam)
-
+    """Mechanical builder: attach supplied seams to a spec-run certificate."""
     return SeamCertificate(
         spec_run_id=spec.run_id,
-        seams=seams,
+        seams=list(seams),
         complete=complete,
         produced_by="seam_builder",
     )
@@ -550,12 +515,8 @@ def gate_epsilon(
                 )
             )
 
-    # COST_ROLLUP is demanded only when the roll-up is PROVABLE: with unpriced
-    # positions the BOM total is honestly incomplete (surfaced by costing/
-    # completeness/MISSING.md), and a seam over an unprovable total could not be
-    # certified anyway — build_seam_certificate refuses to auto-generate it for
-    # exactly that reason. Requiring it here regardless would force every
-    # honest-incomplete spec with any other seam pair into a permanent fail.
+    # COST_ROLLUP only when the roll-up is PROVABLE (complete pricing). Incomplete BOM
+    # is already surfaced by costing/completeness — never force an unprovable seam.
     if cost_rollup_required(spec) and bom_cost(spec).complete and not has_cost_rollup:
         failures.append(
             GateFailure(
@@ -567,10 +528,155 @@ def gate_epsilon(
     return GateResult(gate="epsilon", passed=not failures, failures=failures)
 
 
+def detect_cross_domain_seams(spec: Specification) -> list[DomainSeam]:
+    """Auto-detect richer DomainSeams (cross-domain) from architect spec (post-γ) or assess (after spec).
+    Detects from: constraints (left/right as qty exprs + kind for relation) + bom/quantities for COST_ROLLUP.
+    Smallest correct: only emits when backing quantities exist in spec (no expression errors from phantom ids).
+    Uses existing detectors (domains_present, cost_rollup_required). May return [] for non-cross specs (honest).
+    Rationale: "auto from spec/constraints per gap report".
+    """
+    seams: list[DomainSeam] = []
+    if not spec:
+        return seams
+    qmap = _quantity_map(spec)
+    qids = set(qmap.keys())
+    present = domains_present(spec)
+
+    # 1. Cost rollup (from bom + existing total-like quantity; matches test _spec + s_cost pattern)
+    if cost_rollup_required(spec) and SeamDomain.COST in present:
+        for qid in sorted(qids):
+            if any(k in qid.lower() for k in ("total", "cost", "preis", "sum")):
+                q = qmap[qid]
+                if q.unit and q.unit.strip() in ("EUR", "USD", "€", "$", "currency"):
+                    # distinct right domain from present (non-COST)
+                    right = next(
+                        (d for d in present if d != SeamDomain.COST),
+                        SeamDomain.MECHANICAL,
+                    )
+                    seams.append(
+                        DomainSeam(
+                            id=f"auto_cost_{qid}",
+                            left_domain=SeamDomain.COST,
+                            right_domain=right,
+                            relation=SeamRelation.COST_ROLLUP,
+                            left_expr=qid,
+                            right_expr=q.unit.strip(),
+                            rationale="auto-detected COST_ROLLUP from bom-priced spec total vs bom_cost (from architect spec or assess)",
+                        )
+                    )
+                    break  # one sufficient
+    # NOTE: topology/SIMP density is an *intra*-MECHANICAL generative design step,
+    # not a cross-domain seam. DomainSeam requires two distinct domains
+    # (core/state.py). Topology keywords may still mark MECH present via
+    # domains_present(); they must never emit a MECH↔MECH DomainSeam
+    # (REWORK 2026-07-11: removed invalid same-domain seam that broke ε E2E).
+
+    # 2. Cross-domain from constraints (explicit relations in γ spec; kind -> relation)
+    # Enhanced expr support (Return Gate #4 + harness 5.5 Return Gate discipline):
+    # Use referenced_names (already imported) to resolve qids even if left/right are expressions
+    # (e.g. "F_max <= sigma_yield"). Falls back to direct match for simple ids. Keeps exprs as-is.
+    kind_to_rel = {
+        "le": SeamRelation.LE,
+        "le=": SeamRelation.LE,
+        "ge": SeamRelation.GE,
+        "ge=": SeamRelation.GE,
+        "eq": SeamRelation.EQ,
+        "=": SeamRelation.EQ,
+        "==": SeamRelation.EQ,
+    }
+    for con in spec.constraints or []:
+        left = (con.left or "").strip()
+        right = (con.right or "").strip()
+        if left and right:
+            lrefs = referenced_names(left) & qids
+            rrefs = referenced_names(right) & qids
+            lqid = (
+                left if left in qids else (next(iter(lrefs), None) if lrefs else None)
+            )
+            rqid = (
+                right if right in qids else (next(iter(rrefs), None) if rrefs else None)
+            )
+            if lqid and rqid and lqid in qids and rqid in qids:
+                # infer distinct domains (heuristic via names/measurand + _looks_thermal)
+                lq = qmap.get(lqid)
+                rq = qmap.get(rqid)
+                ld = _guess_domain(lq) or SeamDomain.MECHANICAL
+                rd = _guess_domain(rq) or SeamDomain.ELECTRICAL
+                if ld == rd:
+                    # force adjacent if possible
+                    rd = next((d for d in present if d != ld), SeamDomain.THERMAL)
+                rel = kind_to_rel.get((con.kind or "").strip().lower(), SeamRelation.EQ)
+                seams.append(
+                    DomainSeam(
+                        id=f"auto_con_{con.id or left}",
+                        left_domain=ld,
+                        right_domain=rd,
+                        relation=rel,
+                        left_expr=left,
+                        right_expr=right,
+                        rationale=f"auto cross-domain seam from spec constraint {con.id}: {con.reason or ''} (post-γ architect; expr support via referenced_names per Return Gate)",
+                    )
+                )
+
+    return seams
+
+
+def _guess_domain(q: Quantity | None) -> SeamDomain | None:
+    """Tiny internal helper (not exported)."""
+    if not q:
+        return None
+    text = " ".join(p for p in (q.id, q.name or "", q.measurand or "")).lower()
+    if (
+        _looks_thermal(q)
+        or "thermal" in text
+        or "temp" in text
+        or "heat" in text
+        or "expansion" in text
+    ):
+        return SeamDomain.THERMAL
+    if any(
+        m in text
+        for m in (
+            "elec",
+            "power",
+            "current",
+            "volt",
+            "dissip",
+            "electronics",
+            "bus",
+            "signal",
+        )
+    ):
+        return SeamDomain.ELECTRICAL
+    if any(
+        m in text
+        for m in (
+            "mech",
+            "clearance",
+            "stress",
+            "force",
+            "mechanical",
+            "dim",
+            "torque",
+            "pressure",
+            "load",
+        )
+    ):
+        return SeamDomain.MECHANICAL
+    if "fw" in text or "firmware" in text or "code" in text:
+        return SeamDomain.FIRMWARE
+    if "cost" in text or "bom" in text or "price" in text:
+        return SeamDomain.COST
+    if any(k in text for k in ("topology", "density", "simp", "vorschlag", "dichtefeld")):
+        return SeamDomain.MECHANICAL
+    return None
+
+
 __all__ = [
     "EvaluatedExpression",
     "build_seam_certificate",
     "cost_rollup_required",
+    "detect_cross_domain_seams",
     "domains_present",
     "evaluate_seam_expression",
     "gate_epsilon",

@@ -25,15 +25,20 @@ def dimensional_consistency(
 ) -> float:
     """How dimensionally consistent the power law ``∏ source^exp`` is with ``target_unit``: 1.0 when the
     produced dimension matches exactly, decaying as ``exp(−residual)`` with the L1 distance between the
-    produced and target base-exponent vectors. Deterministic; unknown sources contribute nothing."""
+    produced and target base-exponent vectors. Deterministic; unknown sources contribute nothing.
+
+    Non-finite exponents yield 0.0 (never a green reward on NaN/Inf — REWORK integrity).
+    """
     target = dict(parse_unit(target_unit).exponents)
     produced: dict[str, float] = {}
     for name, exp in exponents.items():
+        if not isinstance(exp, (int, float)) or isinstance(exp, bool) or not math.isfinite(float(exp)):
+            return 0.0
         unit = source_units.get(name)
         if unit is None:
             continue
         for base, base_exp in parse_unit(unit).exponents:
-            produced[base] = produced.get(base, 0.0) + exp * base_exp
+            produced[base] = produced.get(base, 0.0) + float(exp) * base_exp
     bases = set(target) | set(produced)
     residual = sum(abs(produced.get(b, 0.0) - float(target.get(b, 0))) for b in bases)
     return math.exp(-residual)
@@ -49,6 +54,13 @@ def discovery_reward(
     """Bounded training reward in [0, 1]: the clipped fit R² multiplicatively gated by dimensional
     consistency. A dimensionally-impossible proposal (consistency → 0) cannot score high even at R²=1 —
     rewarding the proposer for laws that are BOTH well-fitting AND dimensionally sound, which no public
-    SR trainer does."""
-    fit = max(0.0, min(1.0, r_squared))
+    SR trainer does.
+
+    Non-finite ``r_squared`` scores 0.0 (IEEE NaN must never pass as a high reward).
+    """
+    if not isinstance(r_squared, (int, float)) or isinstance(r_squared, bool) or not math.isfinite(
+        float(r_squared)
+    ):
+        return 0.0
+    fit = max(0.0, min(1.0, float(r_squared)))
     return fit * dimensional_consistency(target_unit, source_units, exponents)

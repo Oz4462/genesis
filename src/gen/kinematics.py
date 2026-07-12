@@ -155,6 +155,36 @@ def reach_check(l1: float, l2: float, x: float, y: float) -> dict:
             "safety_factor": safety_factor, "ok": ok}
 
 
+
+def knee_squat_hold_torque(
+    body_mass: float,
+    thigh_length: float,
+    thigh_angle_from_vertical: float,
+    supported_fraction: float = 0.80,
+    g: float = STANDARD_GRAVITY,
+) -> dict:
+    """Static gravity torque a humanoid KNEE must hold in a single-leg squat.
+
+    τ = m_supported · g · L_thigh · sin θ with m_supported = supported_fraction · body_mass.
+    θ=0 (standing) → 0 torque; θ=π/2 (thigh horizontal) → maximum. Planar gravity statics only.
+    """
+    if body_mass < 0.0 or thigh_length < 0.0:
+        raise ValueError("body mass and thigh length must be non-negative")
+    if not 0.0 < supported_fraction <= 1.0:
+        raise ValueError("supported_fraction must be in (0, 1]")
+    if not 0.0 <= thigh_angle_from_vertical <= math.pi / 2 + 1e-9:
+        raise ValueError("thigh_angle_from_vertical must be in [0, π/2] radians")
+    if g <= 0.0:
+        raise ValueError("g must be positive")
+    supported = supported_fraction * body_mass
+    lever = thigh_length * math.sin(thigh_angle_from_vertical)
+    return {
+        "knee_torque": supported * g * lever,
+        "lever_arm": lever,
+        "supported_mass": supported,
+    }
+
+
 def zmp_balance_check(
     com_x: float,
     com_z: float,

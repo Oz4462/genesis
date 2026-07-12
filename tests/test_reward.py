@@ -46,3 +46,20 @@ def test_reward_is_bounded_and_clips_negative_r2():
                             exponents={"a": 1.5, "mu": -0.5}) == 0.0
     assert 0.0 <= discovery_reward(r_squared=2.0, target_unit="s", source_units=_KEPLER_UNITS,
                                    exponents={"a": 1.5, "mu": -0.5}) <= 1.0
+
+
+def test_non_finite_r_squared_scores_zero_not_green():
+    """IEEE NaN/Inf must never produce a high reward (REWORK integrity)."""
+    for bad in (float("nan"), float("inf"), float("-inf")):
+        r = discovery_reward(
+            r_squared=bad,
+            target_unit="s",
+            source_units=_KEPLER_UNITS,
+            exponents={"a": 1.5, "mu": -0.5},
+        )
+        assert r == 0.0 and math.isfinite(r)
+
+
+def test_non_finite_exponents_yield_zero_consistency():
+    c = dimensional_consistency("s", _KEPLER_UNITS, {"a": float("nan"), "mu": -0.5})
+    assert c == 0.0
