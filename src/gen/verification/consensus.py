@@ -27,6 +27,7 @@ from .cross_model import (
     Judgment,
     _clamp01,
     assert_different_families,
+    assert_pairwise_different_families,
     corroborated_confidence,
 )
 
@@ -86,14 +87,17 @@ def consensus_verdict(
 
     Raises:
         ValueError: empty panel, or weights invalid.
-        ModelConflictError: a judge shares the generator's model family.
+        ModelConflictError: a judge shares the generator's model family, or two
+            judges share a family (an intra-panel duplicate is not an
+            independent second opinion — D12).
     """
-    # D12 note (low): family checks vs generator (and now inter-judge in skeptic caller).
-    # No intra dedup of duplicate judge models here (caller prevents); per_judge for audit.
     if not judgments:
         raise ValueError("consensus needs at least one judgment")
     for j in judgments:
         assert_different_families(generator_model, j.model)
+    # D12: the aggregate treats judges as independent; same-family judges are not.
+    # Reject loudly, never silent-dedup (would hide a configuration error).
+    assert_pairwise_different_families([j.model for j in judgments])
 
     w = [float((weights or {}).get(j.model, 1.0)) for j in judgments]
     if any(x < 0 for x in w):

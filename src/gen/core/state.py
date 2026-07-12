@@ -93,13 +93,16 @@ def _now() -> datetime:
 
 # --- Verification status -----------------------------------------------------
 
-class ClaimStatus(enum.Enum):
+class ClaimStatus(str, enum.Enum):
     """Lifecycle of a factual claim.
 
     UNVERIFIED  Just extracted by `scholar`; not yet independently checked.
     VERIFIED    `skeptic` found independent support meeting the threshold.
     REFUTED     A credible source contradicts it.
     UNSUPPORTED `skeptic` found no independent support; remains an unbacked claim.
+
+    str Enum so ``status in ("verified",)`` and ``status == "verified"`` work
+    for consumers/tests that compare against the wire value, not the member name.
     """
 
     UNVERIFIED = "unverified"

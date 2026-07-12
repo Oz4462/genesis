@@ -42,6 +42,21 @@ from ..electronics import (
 )  # full agent-delivered layer for circuits/chips/simulation/Einbau
 
 
+def _run_dir_name(run_id: str | None, kind: str) -> str:
+    """Package-dir name under out/ for a run.
+
+    A missing run_id used to map onto fixed names "latest"/"latest_full", so every
+    unlabeled run wrote into the same directory and stale artifacts bled across runs.
+    Mint a unique wall-clock name per call when run_id is absent. Deliberately not
+    routed through the run clock: uniqueness (not reproducibility) is the goal here.
+    """
+    if run_id:
+        return run_id
+    from datetime import datetime, timezone
+
+    return f"{kind}-unlabeled-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')}"
+
+
 @dataclass(frozen=True)
 class RealizationFragment:
     """Erstes mini Realisierungspaket-Fragment.
@@ -144,7 +159,9 @@ def build_realization_fragment(
         import shutil
         from pathlib import Path
 
-        pkg_root = Path("out") / "genesis_realization_fragments" / (run_id or "latest")
+        pkg_root = Path("out") / "genesis_realization_fragments" / _run_dir_name(
+            run_id, "fragment"
+        )
         pkg_root.mkdir(parents=True, exist_ok=True)
         stl_claim = (
             cad_artifact.exports.get("stl")
@@ -232,25 +249,33 @@ def build_full_mini_realization_package(
     from pathlib import Path
 
     if not ideas:
-        # `c`/`i` below are bound inside this loop and reused after it; an empty list left them
-        # unbound (a NameError at map_to_elektriker_spec). Fail loud with the real reason instead.
+        # last_concept/last_ingenieur below are bound inside this loop and reused after it;
+        # empty list left them unbound (NameError at map_to_elektriker_spec). Fail loud.
         raise ValueError("build_full_mini_realization_package needs at least one idea")
     fragments = []
+    # Schritt-9 #8: do not use loop var `i` — enumerate loops would overwrite it with int
+    # so Elektriker received an integer instead of IngenieurSpec. built_specs holds the
+    # real (concept, ingenieur) pair per fragment for the Fertigungs seam (#7).
+    last_concept = None
+    last_ingenieur = None
+    built_specs: list[tuple[SystemConcept, IngenieurSpec]] = []
     for idee in ideas:
-        c = map_to_system_concept(idee, run_id=run_id)
-        i = map_to_ingenieur_spec(c, run_id=run_id)
-        f = build_realization_fragment(c, i, run_id=run_id)
-        fragments.append(f)
+        last_concept = map_to_system_concept(idee, run_id=run_id)
+        last_ingenieur = map_to_ingenieur_spec(last_concept, run_id=run_id)
+        built_specs.append((last_concept, last_ingenieur))
+        fragments.append(
+            build_realization_fragment(last_concept, last_ingenieur, run_id=run_id)
+        )
 
     # build assembly from frags
     asm = build_assembly(fragments, name=f"{package_name} Assembly", run_id=run_id)
 
     # rich package dir
-    pkg_root = Path("out") / "realization_packages" / (run_id or "latest_full")
+    pkg_root = Path("out") / "realization_packages" / _run_dir_name(run_id, "full")
     pkg_root.mkdir(parents=True, exist_ok=True)
 
     # copy stls from frags
-    for i, f in enumerate(fragments):
+    for frag_idx, f in enumerate(fragments):
         stl = (
             f.cad_artifact.exports.get("stl")
             if isinstance(f.cad_artifact.exports, dict)
@@ -262,13 +287,13 @@ def build_full_mini_realization_package(
                 .replace("/", "_")
                 .replace("\\", "_")
             )
-            shutil.copy(str(stl), pkg_root / f"part_{i}_{safe_name}.stl")
+            shutil.copy(str(stl), pkg_root / f"part_{frag_idx}_{safe_name}.stl")
 
     # copy assembly parts/combined
     if asm.part_files:
-        for i, pf in enumerate(asm.part_files):
+        for part_idx, pf in enumerate(asm.part_files):
             if os.path.exists(pf):
-                shutil.copy(pf, pkg_root / f"assembly_part_{i}.stl")
+                shutil.copy(pf, pkg_root / f"assembly_part_{part_idx}.stl")
     if asm.combined_stl and os.path.exists(asm.combined_stl):
         shutil.copy(asm.combined_stl, pkg_root / "assembly_combined.stl")
 
@@ -308,30 +333,15 @@ def build_full_mini_realization_package(
     except Exception as e:
         dfm_reports.append({"note": f"advanced_dfm skipped: {e}"})
 
-    # Fertigungs Naht (first stone integration to Realisierungspaket)
+    # Fertigungs Naht — real (concept, ingenieur) pairs from built_specs (Schritt-9 #7).
     fertigungs_reports = []
     try:
         for idx, f in enumerate(fragments):
             if hasattr(f, "cad_artifact") and f.cad_artifact:
-                # Safe minimal for Naht (full in realize with real concept)
+                frag_concept, frag_ingenieur = built_specs[idx]
                 fspec = map_to_fertigungs_spec(
-                    SystemConcept(
-                        source_idea=f.source_idea
-                        if hasattr(f, "source_idea")
-                        else "jetpack",
-                        requirements=[],
-                        main_assemblies=[],
-                        variants=[],
-                        open_decisions=[],
-                    ),
-                    IngenieurSpec(
-                        lastfaelle=[],
-                        material_hinweise=[],
-                        toleranzen=[],
-                        failure_modes=[],
-                        cad_anforderungen=[],
-                        pruefplan_hinweise=[],
-                    ),
+                    frag_concept,
+                    frag_ingenieur,
                     dfm_report=dfm_reports[idx] if idx < len(dfm_reports) else None,
                     run_id=run_id,
                 )
@@ -352,15 +362,16 @@ def build_full_mini_realization_package(
                     }
                 )
     except Exception as e:
-        fertigungs_reports.append({"note": f"fertigungs skipped: {e}"})
+        fertigungs_reports.append(
+            {"note": f"fertigungs skipped: {type(e).__name__}: {e}"}
+        )
 
-    # Software pipeline seam (Step 8-9): map from last concept/ing (or defaults) for firmware/embedded in package
-    # Mirrors fertigungs/elektriker. Produces honest SoftwareSpec (embedded + API + OTA + testplan); included in manifest.
+    # Software pipeline seam (Step 8-9): last_concept / last_ingenieur (never loop int `i`).
     software_report = {"note": "software pipeline not reached"}
     try:
         sw_spec = (
-            map_to_software_spec(c, i, run_id=run_id)
-            if "c" in locals() and "i" in locals()
+            map_to_software_spec(last_concept, last_ingenieur, run_id=run_id)
+            if last_concept is not None and last_ingenieur is not None
             else None
         )
         if sw_spec:
@@ -560,7 +571,9 @@ Real package dir: {pkg_root}
     # Electronics full layer from agent deliverable (circuits, chips, sim, Einbau)
     # Integrated here for complete Realisierungspaket (mech + elec + co-sim)
     try:
-        elec_spec = map_to_elektriker_spec(c, i, run_id=run_id)
+        elec_spec = map_to_elektriker_spec(
+            last_concept, last_ingenieur, run_id=run_id
+        )
         elec_pieces = build_rich_electronics_pieces(
             elec_spec.source_idea
             if hasattr(elec_spec, "source_idea")

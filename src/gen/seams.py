@@ -80,6 +80,95 @@ def _looks_thermal(q: Quantity) -> bool:
     return q.unit in {"K", "deg"} or any(marker in text for marker in markers)
 
 
+def _looks_radiation(q: Quantity) -> bool:
+    """Detect RADIATION domain via unit or markers (hardened with measurand prefix)."""
+    text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
+    m = (q.measurand or "").lower()
+    if m.startswith("radiation.") or m.startswith("rad."):
+        return True
+    markers = (
+        "radiation",
+        "dose",
+        "gamma",
+        "solar_flux",
+        "albedo",
+        "eclipse",
+    )
+    return any(marker in text for marker in markers) or q.unit in {"Sv", "Gy"}
+
+
+def _looks_isru(q: Quantity) -> bool:
+    """Detect ISRU domain via measurand prefix or markers (Mars in-situ resources).
+
+    Hardened against substring false positives (e.g. German "isrundes").
+    """
+    m = (q.measurand or "").lower()
+    if m.startswith(("isru.", "isru_", "regolith.", "propellant.")):
+        return True
+    text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
+    padded = (
+        " "
+        + text.replace("_", " ").replace("-", " ").replace(".", " ")
+        .replace("(", " ").replace(")", " ")
+        + " "
+    )
+    markers = (
+        "isru",
+        "regolith",
+        "insitu",
+        "propellant_yield",
+        "o2_yield",
+        "ch4",
+        "sabati",
+        "electrolysis_mars",
+    )
+    return any(" " + marker + " " in padded for marker in markers)
+
+
+def _looks_life_support(q: Quantity) -> bool:
+    """Detect LIFE_SUPPORT (ECLSS) domain via measurand prefix or markers."""
+    m = (q.measurand or "").lower()
+    if m.startswith(("life_support.", "eclss.", "crew.", "habitat_atm.")):
+        return True
+    text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
+    padded = (
+        " "
+        + text.replace("_", " ").replace("-", " ").replace(".", " ")
+        .replace("(", " ").replace(")", " ")
+        + " "
+    )
+    markers = (
+        "life_support",
+        "eclss",
+        "o2_closure",
+        "co2_scrub",
+        "crew_consum",
+        "water_loop",
+        "atmosphere_balance",
+        "habitat_o2",
+    )
+    return any(" " + marker + " " in padded for marker in markers)
+
+
+def _looks_electrical(q: Quantity) -> bool:
+    """Detect ELECTRICAL via unit/markers so T+E quantity-only specs still trigger seams."""
+    text = " ".join(part for part in (q.id, q.name, q.measurand or "")).lower()
+    m = q.measurand or ""
+    if m.startswith(("electronics.", "elec.", "electrical.", "bus.", "compute.")):
+        return True
+    markers = (
+        "electronics",
+        "elec",
+        "current",
+        "voltage",
+        "bus",
+        "inference",
+        "dissipated_power",
+        "ampere",
+    )
+    return q.unit in {"A", "V", "Ohm", "Ω"} or any(marker in text for marker in markers)
+
+
 def domains_present(spec: Specification) -> set[SeamDomain]:
     """Detect which domains are present enough for epsilon seam coverage."""
     present: set[SeamDomain] = set()
@@ -102,25 +191,45 @@ def domains_present(spec: Specification) -> set[SeamDomain]:
         present.add(SeamDomain.MECHANICAL)
     if any(_looks_thermal(q) for q in spec.quantities):
         present.add(SeamDomain.THERMAL)
-    if spec.netlist is not None or any(
-        item.domain is BomDomain.ELECTRONIC for item in spec.bom
+    if (
+        spec.netlist is not None
+        or any(item.domain is BomDomain.ELECTRONIC for item in spec.bom)
+        or any(_looks_electrical(q) for q in spec.quantities)
     ):
         present.add(SeamDomain.ELECTRICAL)
     if spec.code_artifacts:
         present.add(SeamDomain.FIRMWARE)
     if any(item.role in (BomRole.PART, BomRole.MATERIAL) for item in spec.bom):
         present.add(SeamDomain.COST)
+    if any(_looks_radiation(q) for q in spec.quantities):
+        present.add(SeamDomain.RADIATION)
+    if any(_looks_isru(q) for q in spec.quantities):
+        present.add(SeamDomain.ISRU)
+    if any(_looks_life_support(q) for q in spec.quantities):
+        present.add(SeamDomain.LIFE_SUPPORT)
     return present
 
 
 def required_seam_pairs(spec: Specification) -> list[tuple[SeamDomain, SeamDomain]]:
-    """Adjacent chain pairs whose domains are both present and therefore need a seam."""
+    """Required adjacent pairs for domains that are both present.
+
+    Explicit adjacency list (not pure chain projection) so THERM-ELEC stays required
+    when RADIATION is absent, and space/ISRU/LIFE pairs attach only when present.
+    """
     present = domains_present(spec)
-    required: list[tuple[SeamDomain, SeamDomain]] = []
-    for left, right in zip(_CHAIN, _CHAIN[1:], strict=False):
-        if left in present and right in present:
-            required.append(_pair(left, right))
-    return required
+    adjacencies = [
+        (SeamDomain.MECHANICAL, SeamDomain.THERMAL),
+        (SeamDomain.THERMAL, SeamDomain.ELECTRICAL),
+        (SeamDomain.ELECTRICAL, SeamDomain.FIRMWARE),
+        (SeamDomain.THERMAL, SeamDomain.RADIATION),
+        (SeamDomain.THERMAL, SeamDomain.LIFE_SUPPORT),
+        (SeamDomain.RADIATION, SeamDomain.LIFE_SUPPORT),
+        (SeamDomain.MECHANICAL, SeamDomain.ISRU),
+        (SeamDomain.ELECTRICAL, SeamDomain.ISRU),
+        (SeamDomain.THERMAL, SeamDomain.ISRU),
+        (SeamDomain.ISRU, SeamDomain.COST),
+    ]
+    return [_pair(a, b) for a, b in adjacencies if a in present and b in present]
 
 
 def cost_rollup_required(spec: Specification) -> bool:
@@ -394,11 +503,13 @@ def gate_epsilon(
                 )
             )
 
-    if cost_rollup_required(spec) and not has_cost_rollup:
+    # COST_ROLLUP only when the roll-up is PROVABLE (complete pricing). Incomplete BOM
+    # is already surfaced by costing/completeness — never force an unprovable seam.
+    if cost_rollup_required(spec) and bom_cost(spec).complete and not has_cost_rollup:
         failures.append(
             GateFailure(
                 code="MISSING_COST_ROLLUP",
-                detail="spec has buyable BOM items but no COST_ROLLUP seam.",
+                detail="spec has a fully priced buyable BOM but no COST_ROLLUP seam.",
             )
         )
 

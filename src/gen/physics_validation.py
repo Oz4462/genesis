@@ -89,6 +89,106 @@ from .dynamics import (
     zmp_dynamic_check,
 )
 
+
+def vacuum_radiation_balance_check(
+    absorbed_solar_w: float,
+    epsilon: float,
+    area_m2: float,
+    t_k: float,
+    *,
+    tol: float = 0.1,
+    radiation_dose_sv: float = 0.0,
+    designed_as_sink_or_source: bool = False,
+    dose_limit_sv: float = 1e12,
+) -> dict:
+    """Minimal vacuum radiation balance (Stefan-Boltzmann, honest for space).
+
+    Net heat = absorbed - epsilon * sigma * A * T^4.
+    For space hardware (no convection). Conservative; real includes albedo, view factors, transients.
+
+    Supports designed sink/source: when designed_as_sink_or_source=True, imbalance is accepted.
+    radiation_dose_sv always participates: dose_ok = dose <= dose_limit_sv.
+    """
+    for v in (absorbed_solar_w, epsilon, area_m2, t_k, tol, radiation_dose_sv, dose_limit_sv):
+        if not math.isfinite(v):
+            return {"ok": False, "error": "non_finite_input"}
+    if absorbed_solar_w < 0 or epsilon <= 0 or epsilon > 1 or area_m2 <= 0 or t_k <= 0:
+        return {"ok": False, "error": "invalid_inputs"}
+    if radiation_dose_sv < 0 or dose_limit_sv < 0:
+        return {"ok": False, "error": "invalid_inputs"}
+    sigma = 5.670374419e-8  # W m^-2 K^-4 (exact CODATA)
+    radiated = epsilon * sigma * area_m2 * (t_k ** 4)
+    net = absorbed_solar_w - radiated
+    balanced = abs(net) <= tol * max(abs(absorbed_solar_w), 1.0)
+    designed_ok = bool(designed_as_sink_or_source)
+    dose_ok = radiation_dose_sv <= dose_limit_sv
+    ok = (balanced or designed_ok) and dose_ok
+    result = {
+        "ok": ok,
+        "net_heat_w": net,
+        "radiated_w": radiated,
+        "safety_factor": ((absorbed_solar_w / (radiated + 1e-9)) if absorbed_solar_w > 0 else None) if ok else 0.0,
+        "quelle": "Stefan-Boltzmann (vacuum, no convection) + user params",
+        "radiation_dose_sv": radiation_dose_sv,
+        "dose_ok": dose_ok,
+    }
+    if not dose_ok:
+        result["dose_note"] = f"dose {radiation_dose_sv} exceeds configured limit {dose_limit_sv}"
+    if designed_as_sink_or_source:
+        result["designed_note"] = "designed sink/source (imbalance accepted per spec)"
+    return result
+
+
+def isru_electrolysis_o2_check(
+    water_kg: float, efficiency: float = 0.80, *, o2_target_kg: float = 0.0
+) -> dict:
+    """Minimal closed-form ISRU O2 yield via water electrolysis stoichiometry.
+
+    2 H2O -> O2 + 2 H2. Molar proxy 36 g water -> 32 g O2. Efficiency accounts for real losses.
+    """
+    for v in (water_kg, efficiency, o2_target_kg):
+        if not math.isfinite(v):
+            return {"ok": False, "error": "non_finite_input"}
+    if water_kg <= 0 or not (0 < efficiency <= 1.0):
+        return {"ok": False, "error": "invalid_inputs"}
+    stoich_o2 = (32.0 / 36.0) * water_kg * efficiency
+    ok = (o2_target_kg <= 0.0) or (stoich_o2 >= o2_target_kg * 0.95)
+    return {
+        "ok": ok,
+        "o2_produced_kg": stoich_o2,
+        "water_consumed_kg": water_kg,
+        "efficiency": efficiency,
+        "quelle": "stoichiometry 2H2O -> O2 + 2H2 (molar 36->32 proxy) * efficiency",
+        "safety_factor": (stoich_o2 / max(o2_target_kg, 1e-9)) if o2_target_kg > 0 else None,
+    }
+
+
+def life_support_o2_balance_check(
+    crew: float,
+    o2_consumption_kg_per_day: float = 0.84,
+    closure_rate: float = 0.0,
+    *,
+    target_closure: float = 0.0,
+) -> dict:
+    """Minimal closed-form LIFE_SUPPORT O2 balance for habitats (ECLSS)."""
+    for v in (crew, o2_consumption_kg_per_day, closure_rate, target_closure):
+        if not math.isfinite(v):
+            return {"ok": False, "error": "non_finite_input"}
+    if crew <= 0 or not (0 <= closure_rate <= 1) or o2_consumption_kg_per_day <= 0:
+        return {"ok": False, "error": "invalid_inputs"}
+    consumed = crew * o2_consumption_kg_per_day
+    produced = consumed * closure_rate
+    ok = (target_closure <= 0) or (closure_rate >= target_closure * 0.95)
+    return {
+        "ok": ok,
+        "o2_consumed_kg_day": consumed,
+        "o2_produced_kg_day": produced,
+        "closure_rate": closure_rate,
+        "quelle": "crew O2 consumption proxy (0.84 kg/day/person) * closure_rate",
+        "safety_factor": (closure_rate / max(target_closure, 1e-9)) if target_closure > 0 else None,
+    }
+
+
 # Registry of validators the gate can run. Each is a *_check function returning a dict
 # that contains at least an "ok" bool (and usually a "safety_factor"). The key is the
 # stable name a PhysicsCheck declares.
@@ -134,6 +234,11 @@ VALIDATORS = {
     "inference_latency": inference_latency_check,
     "bus_bandwidth": bus_bandwidth_check,
     "bus_latency": bus_latency_check,
+    # space — multi-planetary vacuum radiation (no convection)
+    "vacuum_radiation_balance": vacuum_radiation_balance_check,
+    # ISRU / LIFE_SUPPORT closed-form proxies (mass balance, not full plant models)
+    "isru_electrolysis_o2": isru_electrolysis_o2_check,
+    "life_support_o2_balance": life_support_o2_balance_check,
     # robot dynamics — motion over a gait cycle (dynamic balance + swing inverse dynamics)
     "swing_resonance": swing_resonance_check,
     "zmp_dynamic": zmp_dynamic_check,
@@ -240,8 +345,30 @@ def run_physics_checks(checks: list[PhysicsCheck]) -> list[dict]:
                 "result": None, "dimensional_ok": None,
             })
             continue
+        # Screen non-finite numeric inputs before the validator (IEEE NaN never
+        # fails ``sf < limit`` comparisons — fail as ERROR, never a green pass).
+        bad = next(
+            (
+                (k, v)
+                for k, v in check.inputs.items()
+                if isinstance(v, (int, float))
+                and not isinstance(v, bool)
+                and not math.isfinite(float(v))
+            ),
+            None,
+        )
+        if bad is not None:
+            out.append({
+                "name": check.name, "validator": check.validator, "status": "error",
+                "ok": False, "detail": f"non-finite input {bad[0]}={bad[1]}",
+                "result": None, "dimensional_ok": None,
+            })
+            continue
         try:
             result = fn(**check.inputs)
+            if not isinstance(result, dict):
+                # a non-dict would crash .get() below — surface as THIS check's error
+                raise TypeError(f"validator returned non-dict ({type(result).__name__})")
         except Exception as exc:  # a bad/contradictory input must surface, not pass
             out.append({
                 "name": check.name, "validator": check.validator, "status": "error",
@@ -303,9 +430,10 @@ def gate_delta_physics(checks: list[PhysicsCheck]) -> GateResult:
         elif not r["ok"]:
             res = r["result"] or {}
             margin = res.get("safety_factor", res.get("ratio"))
+            margin_txt = "no margin reported" if margin is None else f"safety_factor={margin}"
             failures.append(GateFailure(
                 code="PHYSICS_CHECK_FAILED",
-                detail=f"{r['name']} ({r['validator']}): not ok (safety_factor={margin})",
+                detail=f"{r['name']} ({r['validator']}): not ok ({margin_txt})",
             ))
         elif r.get("dimensional_ok") is False:
             failures.append(GateFailure(

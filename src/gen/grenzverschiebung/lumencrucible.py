@@ -249,9 +249,10 @@ class LumenCrucible:
                     f"simulation.runner ({type(exc).__name__}: {exc})"
                 )
 
-        # 3c. Full multi-domain for complex products (drone/robot etc.) – hardens all pipelines to max level like Electronics
-        # Always synthesize rich data from Architekt + Ingenieur + Physiker + Techniker + Software + Electronics for Closed-Loop
-        multi_domain_data = {}
+        # 3c. Full multi-domain for complex products — each optional stage records
+        # structured skips (never silent) so claim confidence can degrade honestly.
+        multi_domain_data: dict = {}
+        skipped: list[dict[str, str]] = []
         is_complex = any(
             k in raw_dream.lower()
             for k in [
@@ -266,17 +267,13 @@ class LumenCrucible:
         )
         if is_complex:
             try:
-                # Pipelines live under gen.pipelines — relative `.architekt` was wrong
-                # (grenzverschiebung has no architekt module) and silently dropped
-                # multi_domain_data via the outer except.
+                # Pipelines live under gen.pipelines (not relative .architekt).
                 from ..pipelines.architekt import map_to_system_concept
                 from ..pipelines.ingenieur import map_to_ingenieur_spec
                 from ..pipelines.physiker import map_to_physiker_spec
                 from ..pipelines.techniker import map_to_techniker_spec
                 from ..pipelines.software import map_to_software_spec
-                from ..pipelines.regulatorik import (
-                    map_to_regulatorik_spec,
-                )  # Safety automation + conductor co-design (proposal 9+10)
+                from ..pipelines.regulatorik import map_to_regulatorik_spec
 
                 c = map_to_system_concept(raw_dream, run_id=run_id)
                 i = map_to_ingenieur_spec(c, run_id=run_id)
@@ -292,13 +289,19 @@ class LumenCrucible:
                     "software": s,
                     "regulatorik": r,
                 }
+            except Exception as exc:  # noqa: BLE001 — recorded as skip
+                skipped.append(
+                    {
+                        "stage": "multi_domain_pipelines",
+                        "reason": f"{type(exc).__name__}: {exc}",
+                    }
+                )
 
-                # Stärkere Subsystem-Abstraktion (general for ALL ideas, not elec-only)
+            if multi_domain_data:
                 try:
                     from ..core.state import ModuleSpec
 
-                    modules = []
-                    modules.append(
+                    modules = [
                         ModuleSpec(
                             name="main_power",
                             kind="power_distribution",
@@ -311,48 +314,46 @@ class LumenCrucible:
                             safety_level="S3",
                             quelle="LUMEN multi-domain + subsystem abstraction",
                         )
-                    )
-                    if (
-                        "multi-board" in raw_dream.lower()
-                        or "distributed" in raw_dream.lower()
-                    ):
-                        modules.append(
-                            ModuleSpec(
-                                name="sensor_fusion_board",
-                                kind="sensor_array",
-                                interfaces={
-                                    "data": "CAN",
-                                    "elec": "12V",
-                                    "safety": "S2",
-                                },
-                                power_budget_w=50,
-                                quelle="distributed systems support",
-                            )
-                        )
+                    ]
                     multi_domain_data["subsystem_modules"] = modules
-                except Exception:
-                    pass
-                # Electronics branch (max level, exactly like agent deliverable)
+                except Exception as exc:  # noqa: BLE001
+                    skipped.append(
+                        {
+                            "stage": "subsystem_modules",
+                            "reason": f"{type(exc).__name__}: {exc}",
+                        }
+                    )
                 if build_rich_electronics_pieces is not None:
-                    budget = (
-                        1500.0
-                        if "power" in raw_dream.lower() or "drone" in raw_dream.lower()
-                        else 400.0
-                    )
-                    elec_pieces = build_rich_electronics_pieces(
-                        raw_dream, budget, "LUMEN multi-domain complex", run_id=run_id
-                    )
-                    multi_domain_data["electronics"] = elec_pieces
-                    if (
-                        generate_falsification_experiments_for_electronics
-                        and elec_pieces.get("simulation_result")
-                    ):
-                        multi_domain_data["electronics_falsif"] = (
-                            generate_falsification_experiments_for_electronics(
-                                elec_pieces["simulation_result"]
-                            )
+                    try:
+                        budget = (
+                            1500.0
+                            if "power" in raw_dream.lower()
+                            or "drone" in raw_dream.lower()
+                            else 400.0
                         )
-                # Inverse design hook (proposal 6): if components seeded, suggest via query for co-design
+                        elec_pieces = build_rich_electronics_pieces(
+                            raw_dream,
+                            budget,
+                            "LUMEN multi-domain complex",
+                            run_id=run_id,
+                        )
+                        multi_domain_data["electronics"] = elec_pieces
+                        if (
+                            generate_falsification_experiments_for_electronics
+                            and elec_pieces.get("simulation_result")
+                        ):
+                            multi_domain_data["electronics_falsif"] = (
+                                generate_falsification_experiments_for_electronics(
+                                    elec_pieces["simulation_result"]
+                                )
+                            )
+                    except Exception as exc:  # noqa: BLE001
+                        skipped.append(
+                            {
+                                "stage": "electronics",
+                                "reason": f"{type(exc).__name__}: {exc}",
+                            }
+                        )
                 try:
                     from ..wissensbasis.store import (
                         query_component_recipes,
@@ -372,27 +373,28 @@ class LumenCrucible:
                         multi_domain_data["inverse_component_suggestions"] = [
                             s.id for s in inv_suggestions[:3]
                         ]
-                except Exception:
-                    pass
-            except Exception:
-                pass
+                except Exception as exc:  # noqa: BLE001
+                    skipped.append(
+                        {
+                            "stage": "inverse_design",
+                            "reason": f"{type(exc).__name__}: {exc}",
+                        }
+                    )
+
         elec_pieces = multi_domain_data.get("electronics")
         elec_falsif = multi_domain_data.get("electronics_falsif")
         if elec_pieces and elec_pieces.get("components"):
             hammer = LumenHammer(
                 experiment_name=hammer.experiment_name,
                 description=hammer.description
-                + f" | Full multi-domain (Elec+Mech+Control+Safety): {len(elec_pieces.get('components', []))} elec components + co-sim ready + Wissensbasis Closed-Loop seeded",
+                + f" | Full multi-domain (Elec+Mech+Control+Safety): {len(elec_pieces.get('components', []))} elec components + co-sim ready",
                 next_step=hammer.next_step
-                + " + full system placement/harness/test + Lern feedback to Wissensbasis (inverse + safety automation)",
+                + " + full system placement/harness/test + Lern feedback to Wissensbasis",
                 gate_to_pass=hammer.gate_to_pass,
                 frontier_snapshot=hammer.frontier_snapshot,
-                quelle=hammer.quelle
-                + " + all pipelines at max level (like Electronics) + Closed-Loop Wissensbasis-Seeding stone (4-5-6-8-9-10-15)",
+                quelle=hammer.quelle + " + all pipelines at max level (like Electronics)",
             )
-        # Co-sim always if elec
         if elec_pieces and elec_pieces.get("simulation_result"):
-            # keep previous co-sim enrichment logic
             hammer = LumenHammer(
                 experiment_name=hammer.experiment_name,
                 description=hammer.description
@@ -403,10 +405,6 @@ class LumenCrucible:
                 quelle=hammer.quelle + " + multi-physics co-sim",
             )
 
-        # 3d. Closed-Loop + Wissensbasis Seeding (chosen bahnbrechend stone): full multi-domain seed after synthesis
-        # All pipelines (Arch/Ing/Phys/Tech/Software/Regulatorik + Electronics at max) feed Closed-Loop to Wissensbasis.
-        # Fulfills: 4 Multi-Physics Closed-Loop, 5 component library seeding, 8 Software+Elec co-design, 9 safety automation, 15 full recursive loop.
-        # B2 polish: Always seed general subsystems for Subsystem-Abstraktion (works for bio/energy/software too).
         if is_complex and multi_domain_data:
             try:
                 from ..wissensbasis.store import (
@@ -416,21 +414,16 @@ class LumenCrucible:
                 )
 
                 seeded = seed_electronics_components(run_id=run_id)
-                # WB deepen: more seeds for platform-demo (auto, no stop)
-                try:
-                    from ..wissensbasis.store import seed_from_package_results
-                    # use previous multi for closed loop
-                    seeded += seed_from_package_results(multi_domain_data, run_id=run_id) or []
-                except Exception:
-                    pass
-                # Also broad Closed-Loop seeding (package-like results from multi here for immediate loop)
-                seeded += seed_from_package_results(multi_domain_data, run_id=run_id)
-                # B2/D: general subsystems for non-elec or mixed
+                seeded += seed_from_package_results(multi_domain_data, run_id=run_id) or []
                 seeded += seed_general_subsystems(run_id=run_id)
                 multi_domain_data["wissensbasis_seeded"] = seeded
-            except Exception:
-                pass
-        # B2: Always include subsystem modules in multi_domain for generalist abstraction (even non-elec)
+            except Exception as exc:  # noqa: BLE001
+                skipped.append(
+                    {
+                        "stage": "wissensbasis_seeding",
+                        "reason": f"{type(exc).__name__}: {exc}",
+                    }
+                )
         if is_complex:
             try:
                 from ..core.state import ModuleSpec
@@ -444,8 +437,16 @@ class LumenCrucible:
                             quelle="B2 Subsystem-Abstraktion general for all ideas",
                         ),
                     ]
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                skipped.append(
+                    {
+                        "stage": "b2_subsystem_modules",
+                        "reason": f"{type(exc).__name__}: {exc}",
+                    }
+                )
+
+        if skipped:
+            multi_domain_data["skipped"] = skipped
 
         # 4. Omega-Style Receipt (passt exakt in existierendes omega.py)
         receipt = self._build_omega_certificate(
@@ -464,13 +465,27 @@ class LumenCrucible:
             work_queue_path=work_queue_path,
         )
 
-        # 6. Claim — a DETERMINISTIC PROVENANCE claim (STATUS.md §1 #3).
-        # This is NOT a world-fact that needs cross-model verification: it states what the code
-        # PROVABLY just did (process_dream produced this hammer), sourced to the real in-repo code
-        # paths that did it. So it is verified by deterministic execution (confidence 1.0) — the
-        # strongest kind — NOT by the skeptic (whose job is world-facts, not applicable here).
-        # The old code set confidence=0.92 and claimed "Gate+Frontier carry the verification",
-        # which conflated this with cross-model VERIFIED — corrected to an explicit deterministic claim.
+        # 6. Claim — provenance of what ran; degrade when multi-domain stages skipped.
+        # VERIFIED/0.92 when all attempted stages ran; UNVERIFIED/0.7 when skips
+        # recorded; UNVERIFIED/0.5 when complex but multi_domain stayed empty.
+        ran_any_multi = any(
+            multi_domain_data.get(k)
+            for k in (
+                "concept",
+                "electronics",
+                "wissensbasis_seeded",
+                "subsystem_modules",
+            )
+        )
+        if not is_complex or (not skipped and (ran_any_multi or not is_complex)):
+            claim_status, claim_confidence = ClaimStatus.VERIFIED, 0.92
+        elif skipped and ran_any_multi:
+            claim_status, claim_confidence = ClaimStatus.UNVERIFIED, 0.7
+        elif is_complex:
+            claim_status, claim_confidence = ClaimStatus.UNVERIFIED, 0.5
+        else:
+            claim_status, claim_confidence = ClaimStatus.VERIFIED, 0.92
+
         claim = Claim(
             id=f"lumen-{run_id}",
             text=f"LUMENCRUCIBLE processed dream into first hammer: {hammer.experiment_name}",
@@ -491,8 +506,8 @@ class LumenCrucible:
                     support=SourceSupport.SUPPORTS,
                 ),
             ],
-            status=ClaimStatus.VERIFIED,  # deterministically true by execution (NOT cross-model; see note above)
-            confidence=1.0,  # deterministic provenance — reproducible, not a fuzzy/estimated score
+            status=claim_status,
+            confidence=claim_confidence,
         )
 
         # === SMALL MINIMAL E2E HORIZON ε/ζ CERT ATTACH TO RunState (primary scope) ===
@@ -850,8 +865,33 @@ class LumenCrucible:
             "optional_skips": optional_skips,
             "quelle": (
                 "LUMENCRUCIBLE Ω v1 (grenzverschiebung) + HORIZON.md + "
-                "real map_development_front + omega.OmegaCertificate + Claim + simulation.runner (Punkt 4) + electronics layer (agent: circuits/chips/simulation/Einbau + co-sim) + "
-                "full Wissensbasis-Seeding Closed-Loop stone (elec + mech + software + safety) + inverse design hook + conductor/safety co-design + multi-physics (proposal 4,5,6,8,9,10,15) + dream_to_hammer_gate + E2E seam/memory cert attach to RunState + δ+ evaluate_reality + gate_delta_plus + reviewed coverage + richer ε/ζ subgates + POST-CERTS build_omega+gate_omega (Ω aggregation in LUMEN return, MAX AGENTS swarm flow, 4L Return Gate) + TeacherMode + community_evidence (Platform Caps)"
+                "real map_development_front + omega.OmegaCertificate + Claim"
+                + (
+                    " + multi-domain pipelines"
+                    if multi_domain_data.get("concept")
+                    else ""
+                )
+                + (
+                    " + electronics layer"
+                    if multi_domain_data.get("electronics")
+                    else ""
+                )
+                + (
+                    " + Wissensbasis-Seeding"
+                    if multi_domain_data.get("wissensbasis_seeded")
+                    else ""
+                )
+                + (
+                    " + inverse design"
+                    if multi_domain_data.get("inverse_component_suggestions")
+                    else ""
+                )
+                + (
+                    " | übersprungene Stufen (ehrlich, siehe multi_domain['skipped']): "
+                    + ", ".join(s["stage"] for s in skipped)
+                    if skipped
+                    else ""
+                )
             ),
         }
 
@@ -1368,6 +1408,7 @@ def forge_research(
     | None = None,  # explicit existing recipes/seeds or component names
     n_sim_components: int = 3,
     run_id: str | None = None,
+    out_dir: str | None = None,  # artifact dir; default runs/forge_<run_id>
 ) -> ForgeResult:
     """
     The hardened researcher invention engine.
@@ -1388,8 +1429,13 @@ def forge_research(
     This is the thing that lets visionaries actually invent new Wertschöpfung,
     new technology, breakthroughs — not just consume pre-built ones.
     """
+    import os
+
     if run_id is None:
         run_id = f"forge-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+    if out_dir is None:
+        out_dir = f"runs/forge_{run_id}"
+    os.makedirs(out_dir, exist_ok=True)
 
     # 1. Frontier + Gap (reuse the real development_front)
     map_development_front(idea, run_id=run_id)
@@ -1523,70 +1569,68 @@ def forge_research(
             "Unabhängige Komponenten wurden simuliert und fusioniert. Emergence = Abweichung von reiner Addition."
         )
 
-    # 5. The 8-step Lernmaschine cycle on the research result (exact per plan)
-    lern_summary: list[dict] = []
-    new_recipe_id = None
-    try:
-        # We feed the study + emergence as "source" so the 8-step machine can work on it
-        # reuse the real lernmaschine if available
-        if (
-            "run_8_step_learning_cycle" in globals() or True
-        ):  # we know the module exists
-            # The engine is in lernmaschine/engine.py — we call the known public path via the integrator seam if possible
-            # For robustness we do a direct call pattern that matches the 8 steps the plan demands.
-            # Since the full engine is proven, we produce a faithful summary here and trigger persistence via wissensbasis.
-            lern_summary = [
-                {
-                    "step": 1,
-                    "name": "Lücke erkennen",
-                    "finding": f"Emergenz aus {detected_mode} noch nicht als eigenständige Capability dokumentiert",
-                },
-                {
-                    "step": 2,
-                    "name": "Verbesserungsvorschlag",
-                    "finding": "Neue 'ResearchForge'-Fähigkeit + neue Rezepte aus Fusion/MultiSim",
-                },
-                {
-                    "step": 3,
-                    "name": "Quellen sammeln",
-                    "finding": [
-                        study.quelle,
-                        "lumencrucible",
-                        "development_front",
-                        "reality",
-                        "wissensbasis seeds",
-                    ],
-                },
-                {
-                    "step": 4,
-                    "name": "Modul erweitern",
-                    "finding": "forge_research in lumencrucible.py (dieser Stein)",
-                },
-                {
-                    "step": 5,
-                    "name": "Gate/Validator",
-                    "finding": "4 Linsen + provenance auf allen Outputs erzwungen",
-                },
-                {
-                    "step": 6,
-                    "name": "Mit Tests beweisen",
-                    "finding": "wird in test_lumencrucible ergänzt",
-                },
-                {
-                    "step": 7,
-                    "name": "In Wissensbasis schreiben",
-                    "finding": "neues Rezept / neue Methode wird geseedet",
-                },
-                {
-                    "step": 8,
-                    "name": "Als Teil gelten",
-                    "finding": "applied=True nur wenn Persistenz + 4 Linsen ok",
-                },
-            ]
-    except Exception as e:
-        lern_summary.append({"step": "error", "detail": str(e)})
+    # 5. The 8-step Lernmaschine cycle is PLANNED here, not executed
+    # (real engine: lernmaschine/engine.py). Honest PLANNED_NOT_EXECUTED status.
+    lern_summary: list[dict] = [
+        {
+            "step": 1,
+            "name": "Lücke erkennen",
+            "status": "PLANNED_NOT_EXECUTED",
+            "finding": f"Emergenz aus {detected_mode} noch nicht als eigenständige Capability dokumentiert",
+        },
+        {
+            "step": 2,
+            "name": "Verbesserungsvorschlag",
+            "status": "PLANNED_NOT_EXECUTED",
+            "finding": "Neue 'ResearchForge'-Fähigkeit + neue Rezepte aus Fusion/MultiSim",
+        },
+        {
+            "step": 3,
+            "name": "Quellen sammeln",
+            "status": "PLANNED_NOT_EXECUTED",
+            "finding": [
+                study.quelle,
+                "lumencrucible",
+                "development_front",
+                "reality",
+                "wissensbasis seeds",
+            ],
+        },
+        {
+            "step": 4,
+            "name": "Modul erweitern",
+            "status": "PLANNED_NOT_EXECUTED",
+            "finding": "forge_research in lumencrucible.py (dieser Stein)",
+        },
+        {
+            "step": 5,
+            "name": "Gate/Validator",
+            "status": "PLANNED_NOT_EXECUTED",
+            "finding": "4 Linsen + provenance auf allen Outputs erzwungen",
+        },
+        {
+            "step": 6,
+            "name": "Mit Tests beweisen",
+            "status": "PLANNED_NOT_EXECUTED",
+            "finding": "tests/test_lumencrucible.py",
+        },
+        {
+            "step": 7,
+            "name": "In Wissensbasis schreiben",
+            "status": "PLANNED_NOT_EXECUTED",
+            "finding": "neues Rezept nur wenn save_fragment gelingt",
+        },
+        {
+            "step": 8,
+            "name": "Als Teil gelten",
+            "status": "PLANNED_NOT_EXECUTED",
+            "finding": "applied nur nach echter Persistenz — Zyklus hier nicht ausgeführt",
+        },
+    ]
 
-    # 6. Seed the new value (new recipe / new technology seed) — the "neue Wertschöpfungsquelle"
+    # 6. Seed — new_recipe_id ONLY when save_fragment really succeeds (Review F3).
+    new_recipe_id = None
+    seed_failed: str | None = None
     try:
         from ..wissensbasis import store as _wb_store
 
@@ -1601,7 +1645,6 @@ def forge_research(
             "provenance": study.quelle,
         }
         key = f"forge_recipe_{run_id}"
-        # Use the existing save_fragment / seed pattern (proven in lernmaschine + store)
         try:
             _wb_store.save_fragment(
                 new_recipe,
@@ -1610,14 +1653,14 @@ def forge_research(
                 quelle=study.quelle,
             )
             new_recipe_id = key
-        except Exception:
-            # fallback to the internal seed helpers if direct save not exposed the same way
-            new_recipe_id = key
+        except Exception as exc:  # noqa: BLE001 — honest seed_failed
+            seed_failed = f"{type(exc).__name__}: {exc}"
             emergence_notes.append(
-                "Wissensbasis-Seeding via save_fragment Pfad (oder Fallback)."
+                f"Wissensbasis-Seeding fehlgeschlagen (ehrlich, kein Rezept geseedet): {seed_failed}"
             )
-    except Exception as e:
-        emergence_notes.append(f"Seeding skipped (honest): {e}")
+    except Exception as e:  # noqa: BLE001
+        seed_failed = f"{type(e).__name__}: {e}"
+        emergence_notes.append(f"Seeding skipped (honest): {seed_failed}")
 
     # 7. Produce the actual "Arbeit" (the paper / the work)
     arbeit = f"""# ForschungsArbeit — {study.name}
@@ -1641,25 +1684,28 @@ Risiken & Abbruchkriterien: {study.risks}
 ## Ergebnisse (Emergence)
 {chr(10).join("- " + n for n in emergence_notes)}
 
-## Lernzyklus (8 Schritte)
-{chr(10).join(f"{s.get('step', '?')}. {s.get('name', '')}: {s.get('finding', s)}" for s in lern_summary)}
+## Lernzyklus (8 Schritte) — Status: PLANNED_NOT_EXECUTED
+Der 8-Schritt-Lernzyklus ist hier nur geplant, nicht ausgeführt (Engine: lernmaschine/engine.py).
+
+{chr(10).join(f"{s.get('step', '?')}. {s.get('name', '')} [{s.get('status', '?')}]: {s.get('finding', s)}" for s in lern_summary)}
 
 ## Diskussion & neuer Wert
-- Neues Rezept / neue Methode geseedet unter: {new_recipe_id or "pending"}
+- Neues Rezept / neue Methode geseedet unter: {new_recipe_id or "pending (Seed fehlgeschlagen oder nicht persistiert — siehe mehwert_indicators)"}
 - Dies erzeugt eine neue Wertschöpfungsquelle / neue Technologie / neuen Weg (je nach Emergence-Qualität).
 - Alles mit voller Provenance und 4 Linsen nachweisbar.
 
 **Quellen (L1):** {study.quelle}
 
-**4 Linsen Compliance:** {detected_mode}-Pfad wurde über bestehende, bereits verifizierte Module (development_front, simulation, reality, lernmaschine, wissensbasis) geführt. Keine neuen unbewiesenen Claims ohne Quelle.
+**4 Linsen Compliance:** {detected_mode}-Pfad wurde über bestehende, bereits verifizierte Module (development_front, experiment_designer-Logik, reality, wissensbasis) geführt; der lernmaschine-Zyklus ist nur geplant (PLANNED_NOT_EXECUTED). Keine neuen unbewiesenen Claims ohne Quelle.
 
 Erstellt mit Genesis ResearchForge (lumencrucible.forge_research) — {run_id}
 """
 
-    # 8. Always produce a clean, reliable artifact directory (hardened landing)
-    import os
+    # 8. Always produce a clean, reliable artifact directory (hardened landing).
+    # out_dir was resolved at entry (caller may pass tmp_path for hermetic tests).
 
-    out_dir = f"runs/forge_{run_id}"
+    if out_dir is None:
+        out_dir = f"runs/forge_{run_id}"
     os.makedirs(out_dir, exist_ok=True)
 
     mehwert = {
@@ -1670,6 +1716,8 @@ Erstellt mit Genesis ResearchForge (lumencrucible.forge_research) — {run_id}
         "artifact_dir": out_dir,
         "realizability": "high (Arbeit + summary always land; full package attempted)",
     }
+    if seed_failed:
+        mehwert["seed_failed"] = seed_failed
 
     four = {
         "L1": "Alle Outputs (Study, Emergence, Arbei t, Recipe, Package) tragen explizite quelle + run_id + Provenance.",

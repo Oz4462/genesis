@@ -56,6 +56,11 @@ class Assessment:
     corroboration: CorroborationReport | None
     completeness_warnings: list[str]
     overall: str
+    # Phase ε: None only when the spec has no seam obligations (honest vacuous).
+    seam_gate: GateResult | None = None
+    # BREP-vs-analytic: verified | failed | unavailable | no_geometry
+    geometry_status: str = "no_geometry"
+    geometry_checks: list[dict] | None = None
     # E2E HORIZON cert pop (ε/ζ; δ+/γ+/Ω for consumers). Typed as object|None so
     # ruff F821 does not require importing every optional cert type into pipeline.
     # Concrete types live on RunState; assess path may leave these None.
@@ -97,9 +102,56 @@ class Assessment:
     def constraints_consistent(self) -> bool:
         return not self.constraint_contradictions
 
+    @property
+    def seams_ok(self) -> bool:
+        """True only if seam obligations existed AND gate_epsilon passed."""
+        if self.seam_gate is None:
+            return False
+        return self.seam_gate.passed
+
+    @property
+    def geometry_ok(self) -> bool:
+        """True only when every geometry-carrying component's BREP agreed with analytic."""
+        return self.geometry_status == "verified"
+
+
+def _geometry_cross_check(spec: Specification) -> tuple[str, list[dict]]:
+    """Cross-check geometry-carrying components' BREP vs analytic layer.
+
+    Returns (status, results): no_geometry | unavailable | failed | verified.
+    """
+    parts = [c for c in spec.components if c.geometry is not None]
+    if not parts:
+        return "no_geometry", []
+    try:
+        import cadquery  # noqa: F401  (optional CAD kernel — probe only)
+    except ImportError:
+        return "unavailable", []
+
+    from .core.errors import GeometryError
+    from .geometry_verification import verify_geometry
+
+    quantities = {q.id: q for q in spec.quantities}
+    results: list[dict] = []
+    for comp in parts:
+        try:
+            r = verify_geometry(comp.geometry, quantities)
+            results.append({"component": comp.id, **r})
+        except GeometryError as exc:
+            results.append({"component": comp.id, "ok": False, "error": str(exc)})
+    status = "verified" if all(r.get("ok") for r in results) else "failed"
+    return status, results
+
 
 def _overall_status(
-    questions, gaps, gate: GateResult, contradictions, n_checks: int, corroboration
+    questions,
+    gaps,
+    gate: GateResult,
+    contradictions,
+    n_checks: int,
+    corroboration,
+    seam_gate: GateResult | None = None,
+    geometry_status: str = "no_geometry",
 ) -> str:
     """The single honest status, in priority order (what must be resolved first)."""
     if questions:
@@ -108,6 +160,10 @@ def _overall_status(
         return "inconsistent_constraints"
     if corroboration is not None and not corroboration.ok:
         return "grounding_failed"            # claims not independently corroborated (circular)
+    if geometry_status == "failed":
+        return "geometry_failed"
+    if seam_gate is not None and not seam_gate.passed:
+        return "seams_failed"
     if gaps:
         return "physics_incomplete"          # indicated but unrunnable — not a pass
     if not gate.passed:
@@ -152,6 +208,7 @@ def assess_specification(
     # Explicit arg wins; then spec-carried cert; else auto-detect (bundle/capstone demos).
     if seam_certificate is None:
         seam_certificate = getattr(spec, "seam_certificate", None)
+    seam_gate: GateResult | None = None
     memory_fabric = None
     pareto_front = None
     omega_certificate = None
@@ -163,13 +220,29 @@ def assess_specification(
     # (STATUS §5 bans bare ``except Exception: pass`` around verdict construction).
     optional_notes: list[str] = []
     try:
-        from .seams import build_seam_certificate, detect_cross_domain_seams
+        from .costing import bom_cost
+        from .seams import (
+            build_seam_certificate,
+            cost_rollup_required,
+            detect_cross_domain_seams,
+            gate_epsilon,
+            required_seam_pairs,
+        )
         from .memory_fabric import build_memory_fabric_certificate
         # richer auto (was skeleton []); real DomainSeams from spec/constraints/bom (architect post-γ or here after spec).
         # See detect_cross_domain_seams + gap report. Memory from passed claims (richer deposits).
         if seam_certificate is None:
             real_seams = detect_cross_domain_seams(spec)
             seam_certificate = build_seam_certificate(spec, real_seams, complete=bool(real_seams))
+        # Phase ε: only when adjacent pairs exist OR a *complete* cost rollup is provable.
+        # Incomplete BOM (missing prices) must not force MISSING_COST_ROLLUP.
+        required_pairs = required_seam_pairs(spec)
+        needs_seams = bool(required_pairs) or (
+            cost_rollup_required(spec) and bom_cost(spec).complete
+        )
+        if needs_seams:
+            cert = seam_certificate or build_seam_certificate(spec, [])
+            seam_gate = gate_epsilon(spec, cert)
         if claims:
             # minimal state-like (builder only needs claims + question.run_id)
             class _MinQ:
@@ -191,8 +264,29 @@ def assess_specification(
         if corroboration is not None:
             trace.record("grounding", "grounding", status="ok" if corroboration.ok else "error",
                          circular=len(corroboration.circular))
+        if seam_gate is not None:
+            trace.record_gate("epsilon", seam_gate)
 
-    overall = _overall_status(questions, gaps, gate, contradictions, len(checks), corroboration)
+    geometry_status, geometry_checks = _geometry_cross_check(spec)
+    if trace is not None:
+        trace.record(
+            "geometry",
+            "geometry",
+            status="error" if geometry_status == "failed" else "ok",
+            geometry_status=geometry_status,
+            n_components=len(geometry_checks),
+        )
+
+    overall = _overall_status(
+        questions,
+        gaps,
+        gate,
+        contradictions,
+        len(checks),
+        corroboration,
+        seam_gate,
+        geometry_status,
+    )
 
     # E2E caps (autonomy deepen): populate from grenz generators for consumers (honest minimal data here)
     proof_package = None
@@ -223,6 +317,9 @@ def assess_specification(
         constraint_contradictions=contradictions,
         corroboration=corroboration,
         completeness_warnings=[*comp_warns, *optional_notes],
+        seam_gate=seam_gate,
+        geometry_status=geometry_status,
+        geometry_checks=geometry_checks,
         seam_certificate=seam_certificate,
         memory_fabric=memory_fabric,
         pareto_front=pareto_front,
@@ -367,12 +464,15 @@ def assess_printability(spec: Specification) -> PrintabilityAssessment:
 
         mesh = stl_integrity_check(specification_to_brep_stl(spec))
     except GeometryError as exc:
-        # D14 G3 (low): preserve any blockers/advisories collected from per-comp checks
-        # before the mesh export raised. Previously discarded to [] (verwirft gefundene Blocker).
-        # Now honest: unavailable surfaces the geo problem + prior findings. See test_printability_pipeline.
+        # Blockers already found are FACTS — do not discard them when mesh export dies.
+        # With blockers → not_printable; blocker-free partial run → unavailable.
+        advisories.append(f"nicht beurteilt: {exc}")
         return PrintabilityAssessment(
-            status="unavailable", components=components, mesh=None,
-            blockers=blockers, advisories=advisories + [f"nicht beurteilt: {exc}"],
+            status="not_printable" if blockers else "unavailable",
+            components=components,
+            mesh=None,
+            blockers=blockers,
+            advisories=advisories,
         )
     if not mesh["ok"]:
         blockers.append(

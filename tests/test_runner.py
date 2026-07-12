@@ -179,7 +179,8 @@ def test_build_live_wires_models_into_config_and_deps():
     assert deps.verifier_llm.model == "gemma4:latest"
     # keyless Wikipedia is the first/primary backend (Semantic Scholar 429s w/o key); the
     # formula-aware backend (DLMF/CODATA authoritative sources) is wired third.
-    assert [b.name for b in deps.backends] == ["wikipedia", "semantic_scholar", "formula"]
+    assert [b.name for b in deps.backends][:3] == ["wikipedia", "semantic_scholar", "formula"]
+    assert "arxiv" in [b.name for b in deps.backends] and "openalex" in [b.name for b in deps.backends]
     # The config must carry the SAME ids the deps run on: the skeptic asserts
     # cross-model against config.phase_alpha.models.generator, and config_hash
     # (reproducibility anchor A5) must change when the live models change.

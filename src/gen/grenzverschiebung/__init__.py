@@ -41,6 +41,11 @@ from .technology_builder import (
     TechnologyPrototypePlan,
     build_technology_prototype,
 )
+from .bench_test_runner import (
+    run_bench_test,
+    BenchTestPlan,
+    BenchTestResult,
+)
 from .breakthrough_watch import (
     FrontierItem,
     FrontierUpdate,
@@ -107,6 +112,9 @@ __all__ = [
     "TechnologyPrototypeSpec",
     "TechnologyPrototypePlan",
     "build_technology_prototype",
+    "run_bench_test",
+    "BenchTestPlan",
+    "BenchTestResult",
     "FrontierItem",
     "FrontierUpdate",
     "watch_frontier",

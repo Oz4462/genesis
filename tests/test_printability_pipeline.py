@@ -134,7 +134,7 @@ def test_geometry_error_after_found_blockers_keeps_them(monkeypatch):
     monkeypatch.setattr(brep_stl, "specification_to_brep_stl", _dies)
     p = assess_printability(_pocket_spec())
     assert p.status == "not_printable" and not p.ok
-    assert len(p.blockers) == 2                          # plate contact + bridge span kept
+    assert len(p.blockers) >= 2                         # plate contact + bridge span kept (+ optional geo verify)
     assert any("Druckbett-Kontaktfläche" in b for b in p.blockers)
     assert any("Stützmaterial" in b for b in p.blockers)
     assert any("nicht beurteilt" in a for a in p.advisories)   # the cut-off stays visible
