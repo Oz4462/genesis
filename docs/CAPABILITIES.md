@@ -20,7 +20,7 @@
 **Kennzahlen (gemessen)**
 - ~19.700 LOC allein in den Top-Level-Modulen von `src/gen/`, **24 Subpackages**.
 - **~380+ Testdateien / ~3500 collected tests** (Stand rework; exact: `pytest --collect-only`).
-- **~46 CLI-Modi** (`--mode`, Stand 2026-07-12 inkl. Fach-Pipelines + aero/humanoid-report + surface).
+- **47 CLI-Modi** (`--mode`, gemessen 2026-07-12 aus `gen.cli` choices inkl. Fach-Pipelines + aero/humanoid-report + surface).
 - **40 Physik-Validatoren** (`physics_validation.VALIDATORS`), **35 Auto-Select-Rezepte** (`physics_selection.RECIPES`), **27 Closed-Form-Physik-/FEM-Module**.
 - Sehr wenige echte Stubs: 1 (`LeanKernelStub`); die ~21 „Unavailable"-Stellen sind **ehrliche Skip-Pfade** für optionale Dependencies (PyBullet, MuJoCo, GPU-Materials-Oracle, Postgres), keine Platzhalter.
 
@@ -178,12 +178,17 @@ Meta-/Vorausschau-Layer: `lumencrucible.py` (Selbst-Verbesserung), `technology_b
 | `invent` / `solve` | Inventor-Loop (Feld bzw. Problem) | ✅/🟡 |
 | `breakthrough` | HORIZON-Grenzverschiebung | 🟡 |
 | `eval` / `protocol` | Eval-Harness / Protokoll | ✅ |
+| `aero-report` | Real-Drohnen-Katalog + δ-flight-Kalibrierung | ✅ |
+| `humanoid-report` | Open-Humanoid-Katalog + Validation | ✅ |
+| `surface` | product_surface-Anker + find_islands-Totals | ✅ |
+| `horizon-full` | HORIZON-Bogen + Discovery + Grenz-Cluster (offline) | ✅ |
+| `goldset` / `divergence` / `frontier` | Anti-Halluzinations-Messung · φ · χ | ✅ |
 
 ---
 
 ## Gesamtbild (nüchtern)
 
-**Nachweislich nutzbar (✅):** der Verifikations-/Gate-Kern, das Fakten-Ledger (in-memory), die α–δ-Spezifikationskette mit 40 Physik-Validatoren, CSG-CAD + Export + Druckbarkeits-Beweis, Elektronik/DFM/G-Code/KiCad, die 11 Fach-Pipelines (Realisierung), der Discovery-Kern (Power-Law-Rediscovery + polynomialer z3-Beweis), der Inventor-Loop, die Wissensbasis/Retrieval-Schicht, das Web-UI und 24 CLI-Modi — alles durch 1755 Tests und CLI-Verdrahtung gedeckt, offline + deterministisch.
+**Nachweislich nutzbar (✅):** der Verifikations-/Gate-Kern, das Fakten-Ledger (in-memory), die α–δ-Spezifikationskette mit **44** Physik-Validatoren / **38** Recipes (2026-07-12), CSG-CAD + Export + Druckbarkeits-Beweis, Elektronik/DFM/G-Code/KiCad, die Fach-Pipelines (Realisierung), der Discovery-Kern (Power-Law-Rediscovery + polynomialer z3-Beweis), der Inventor-Loop, die Wissensbasis/Retrieval-Schicht, das Web-UI und **47 CLI-Modi** — Suite **2487 tests collected** (CI 3.11+3.12 grün), offline-Pfade deterministisch.
 
 **Vorhanden, aber begrenzt/optional (🟡):** Mehrkörper-Simulation (nur Einzel-DOF eigen; PyBullet/MuJoCo optional), Postgres-Ledger (kein DB-Lauf in der Sandbox), Live-LLM-Pfade (claude/grok-CLI, owner-/netz-gated), Materials-Oracle (GPU-gated, nur Offline-Twin), CAD-Fidelity (Primitive), Inventor-Grounding (eine Domäne), HORIZON/Grenzverschiebung (explorativ).
 
