@@ -1,49 +1,28 @@
-# Session Handoff — 2026-07-12
+# Session Handoff — 2026-07-12 (post-merge)
 
-> **Purpose:** Continue REWORK without losing state if context ends.  
 > **Repo:** https://github.com/Oz4462/genesis  
-> **Default branch `main`:** `31b2c50` (PR #1 **MERGED**)  
-> **Continue branch:** `rework/continue-2026-07-12` (PR #2) — **module inventory ~0 OPEN**
+> **main tip:** `e588810` — **PR #2 MERGED** (CI 3.11+3.12 green)
 
-## Done (do not re-do)
+## Done
 
-- PR #1 merged to main; CI green at merge tip.
-- Integrity / PRODUCT_WIRE / tools / discovery / grenz / inventor / humanoids.
-- Root physics + export + integration batches.
-- **Aero + drawing + professional package** restore; `MIN_THRUST_WEIGHT_BY_CLASS` in flight.
-- **Root OPEN physics/quality batch** (172p): omega, orientation, physics_selection, plate/pressure/proof/ratification/refinement/security/software/telemetry/thermal*/tolerance/torsion/training/uncertainty/visionary/run_audit.
-- **humanoid_research** root shim restored (ruff F811 fixed).
-- **_experimental/** honesty KEEP_OPTIN REWORKED.
-- **CAD TEIL2 + HORIZON phases:** 126p; ported `validate_pcb_with_kicad_cli` into electronics.
-- Campaign umbrella claims (WORK_QUEUE / HORIZON φ→Ω / CAD TEIL2) REWORKED.
-- Evidence paths: see commits on continue branch + `docs/REWORK_CAMPAIGN.md` log.
+- PR #1 + PR #2 on main: full rework campaign + continue (aero, inventory clear, kicad validate, STATUS honesty).
+- REWORK_CAMPAIGN: **0 OPEN modules**, ~303 REWORKED.
+- Aero T/W class floors, drawing/professional package, humanoid_research shim, validate_pcb_with_kicad_cli.
+- Autopilot: user authorized continuous work; push before ~500k context.
 
-## Branches
+## Next (autonomous)
 
-| Branch | Note |
-|--------|------|
-| `main` | `31b2c50` baseline |
-| `rework/continue-2026-07-12` | **active PR #2** — merge when CI green |
-| `rework/full-open-2026-07-11` | campaign source history |
-
-## Next (post-inventory)
-
-1. **Merge PR #2** when GitHub CI green (ruff + full pytest).
-2. Docs honesty pass if needed: STATUS / CAPABILITIES / HORIZON vs code.
-3. Optional deeper VERIFIED (4 lenses independent) pass — modules are REWORKED not all VERIFIED.
-4. Push/update before context ~500k; user authorized continuous autonomy.
+1. Branch `rework/post-merge-2026-07-12` from main for polish.
+2. Optional: run `scripts/gen_status.py` AUTO block refresh.
+3. Optional VERIFIED layer (4-lens independent) on high-risk modules.
+4. Island triage residual / CAPABILITIES number refresh if collect-only drift.
+5. Keep commits small; push often; no force-push main.
 
 ## Quick verify
 
 ```bash
 cd /home/genesis/genesis
-git checkout rework/continue-2026-07-12 && git pull
-.venv/bin/ruff check src/gen/electronics.py src/gen/flight.py src/gen/aero src/gen/humanoid_research.py
-.venv/bin/python -m pytest tests/test_aero_drone_calibration.py tests/test_kicad_cli_integration.py tests/test_phase_omega.py -q --tb=line
+git checkout main && git pull
+.venv/bin/ruff check .
+.venv/bin/python -m pytest -q --tb=line   # ~8 min full suite
 ```
-
-## Leave-off
-
-- Inventory OPEN modules cleared (REWORKED); 3 umbrella claims closed with suite evidence.
-- Latest code: aero restore + kicad validate_pcb + humanoid_research shim + root batch.
-- **Next autonomous:** ensure PR #2 CI green / fix if red; then STATUS/CAPABILITIES honesty if drift; merge when green.
