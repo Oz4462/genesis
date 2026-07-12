@@ -120,8 +120,9 @@ def _gate_proposals(problem: DiscoveryProblem, proposals: list[Proposal], *,
     for p in proposals:
         try:
             cand: Candidate = candidate_from_exponents(problem, p.exponents)
-        except Exception:
-            continue  # a proposal naming an unknown source is dropped, never trusted
+        except Exception:  # noqa: BLE001 — unbuildable proposal: abstain (skip), never trust
+            # Intentional: unknown/malformed sources are not candidates for the gate.
+            continue
         verdict = judge_candidate(problem, cand, known_laws=known_laws, r2_threshold=r2_threshold)
         judged.append(JudgedProposal(proposal=p, verdict=verdict))
     return judged
