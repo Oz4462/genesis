@@ -1,11 +1,11 @@
 # CAPABILITIES — GENESIS Fähigkeits-Inventar
 
-> **⚠️ HONESTY (REWORK 2026-07-11):** This inventory was historically over-optimistic
+> **⚠️ HONESTY (REWORK 2026-07-12):** This inventory was historically over-optimistic
 > (test counts, CLI mode counts, “fully wired” banners). **Authoritative product truth:**
 > [`docs/STATUS.md`](STATUS.md). Island disposition: [`docs/ISLAND_TRIAGE_2026-07-11.md`](ISLAND_TRIAGE_2026-07-11.md).
-> Campaign checklist: [`docs/REWORK_CAMPAIGN.md`](REWORK_CAMPAIGN.md).
-> When this file disagrees with STATUS, **STATUS wins**. Numbers below were partially
-> refreshed 2026-07-11; treat ✅ as “re-verified under rework” only when STATUS says so.
+> Campaign checklist: [`docs/REWORK_CAMPAIGN.md`](REWORK_CAMPAIGN.md) — **module inventory REWORKED (0 OPEN)**.
+> When this file disagrees with STATUS, **STATUS wins**. Treat ✅ as “re-verified under rework”
+> only when STATUS / REWORK_CAMPAIGN cite suite evidence.
 
 > **Grundlage:** direkte Code-Lesung auf Branch `feat/app-integration-phase0-2`
 > (HEAD `2094827`, Stand 2026-06-20). Status-Marker stützen sich auf reale Module,
