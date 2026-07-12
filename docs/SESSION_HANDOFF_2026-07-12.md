@@ -1,27 +1,16 @@
-# Session Handoff — 2026-07-12 (continue-5)
+# Session Handoff — 2026-07-12 (doc L2 resync)
 
-> **main tip:** `f2aba81` (PR #8 CLI report modes)
+> **main tip:** PR #10 CLAUDE.md · this branch: README/HORIZON/WORK_QUEUE honesty
 
-## Done today (autonomous chain)
+## Done
 
-| PR | Content |
-|----|---------|
-| #6 | product_surface WIRED 256 |
-| #7 | visualizer CI fix |
-| #8 | aero/humanoid-report + surface; discovery offline |
+- CLAUDE.md re-sync (PR #10)
+- README badges/counts → 2487 collected, 44 validators
+- WORK_QUEUE banner: historical (REWORK inventory closed)
+- HORIZON: measurement note + Gate+Tests legend (not overclaim "fertig")
+- DOC_CODE_DRIFT header → STATUS SSOT
+- STATUS AUTO regenerated
 
-## Metrics
+## Metrics (2026-07-12)
 
-- WIRED **258** · SCRIPT **9** · ISLAND **26** · modules **327**
-- REWORK OPEN modules: **0**
-- CLI modes ~46
-
-## Residual intentional
-
-26 KEEP_OPTIN islands (optional deps / humanoid SCRIPT experimental).
-
-## Next (optional product goals only)
-
-- VERIFIED 4-lens deep pass on high-risk modules
-- Wire more SCRIPT humanoid tools only with assets
-- gen_status AUTO refresh after large merges
+2487 collected · 44 validators · 38 recipes · WIRED 258 · ISLAND 26

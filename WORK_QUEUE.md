@@ -1,8 +1,15 @@
 # WORK QUEUE — GENESIS
 
-> **🔴 FULL REWORK CAMPAIGN OPEN — 2026-07-11**
+> **⚠️ HISTORICAL (Deep-Review / pre-closeout notes).**  
+> **Live SSOT:** [`docs/STATUS.md`](docs/STATUS.md) · Campaign: [`docs/REWORK_CAMPAIGN.md`](docs/REWORK_CAMPAIGN.md)  
+> · Agent ops: [`CLAUDE.md`](CLAUDE.md) (re-synced 2026-07-12).  
 >
-> Everything previously marked DONE / FIXED / CLOSED / COMPLETE is **OPEN** again.
+> **REWORK 2026-07-11 → 2026-07-12:** Module inventory **REWORKED** (0 OPEN modules in REWORK_CAMPAIGN).  
+> This file is **not** the live backlog. Checkbox counts here are often stale (Audit B1).  
+>
+> ~~**🔴 FULL REWORK CAMPAIGN OPEN — 2026-07-11**~~ *(superseded — inventory closed 2026-07-12)*  
+>
+> Original campaign policy (historical): Everything previously marked DONE / FIXED / CLOSED / COMPLETE was re-opened.
 > Campaign tracker: **`docs/REWORK_CAMPAIGN.md`** (290 modules). Product SSOT: **`docs/STATUS.md`**.
 > Local tree: `/home/genesis/genesis` · Remote: `https://github.com/Oz4462/genesis`
 >
