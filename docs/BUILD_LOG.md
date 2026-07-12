@@ -697,3 +697,17 @@ Unified facade + CLI + seams complete. 30p verified. Honest proposal. For komple
 - pytest test_topology_optimizer.py test_section_optimizer.py: 30 passed, 1 warning (38s + 21s re-run).
 - CLI --mode topology: executed successfully (proposal printed with mesh, vf, compliance, improvement, "vorschlag_unverifiziert", delta_path).
 **Status**: All Council requirements met (unified, CLI, seams, tests for bridge/integration/negatives, honesty, coverage). Green across runs. Ready for komplett Genesis usage.
+
+## 2026-07-12 — Aero + drawing + professional package restore (continue branch)
+
+**Branch:** `rework/continue-2026-07-12`
+**Work:** Restored `gen.aero.*`, `export.drawing`/`drawing_worker`, `finalizer.professional_package`, `visualization.robust_renderer` from campaign; ported `MIN_THRUST_WEIGHT_BY_CLASS` + `min_thrust_weight_for_class` into `flight.py`; ruff E702/F841 clean on package.
+**Evidence:** ruff All checks passed; pytest aero/flight/drawing/professional_package **48 passed** (~34s).
+**Campaign:** aero (5), drawing_worker, professional_package, robust_renderer → REWORKED.
+**Status:** Green cluster; next OPEN root physics/quality modules.
+
+## 2026-07-12 — Root OPEN batch + CAD TEIL2 kicad validate + inventory clear
+
+**Branch:** `rework/continue-2026-07-12`
+**Work:** Re-verified 19 root modules (172p+3s); restored `gen.humanoid_research` shim; KEEP_OPTIN experimental honesty; ported `validate_pcb_with_kicad_cli`; CAD TEIL2 + HORIZON phase suites **126 passed**; campaign OPEN module list → 0.
+**Status:** Ready for PR #2 CI gate + merge when green.

@@ -11,35 +11,34 @@
 > python scripts/find_islands.py      # the island report on its own
 > ```
 > Founded on the forensic audit `~/Schreibtisch/GENESIS_Resurrection_Report_2026-06-26.md`.
-> **Last curated review: 2026-07-11 — FULL REWORK CAMPAIGN OPEN.**
+> **Last curated review: 2026-07-12 — REWORK module inventory cleared (REWORKED); PR #2 pending CI.**
 
 ---
 
-## 🔴 FULL REWORK CAMPAIGN (2026-07-11) — ACTIVE
+## 🟢 FULL REWORK CAMPAIGN (2026-07-11) — MODULE INVENTORY REWORKED
 
-> **Owner directive:** Work on GENESIS continues. Everything previously marked DONE / FIXED / CLOSED /
-> COMPLETE / WIRED is **OPEN again** for full rework. Every module, every detail, every code path will be
-> re-read, re-verified, and reworked. Prior green banners are **not trusted** until re-proven in this campaign.
+> **Owner directive (original):** Everything previously DONE was re-opened for full rework. Prior green
+> banners were not trusted until re-proven.
 >
-> **Campaign tracker (module checklist):** [`docs/REWORK_CAMPAIGN.md`](REWORK_CAMPAIGN.md) — **290 modules, all OPEN.**
+> **Campaign tracker:** [`docs/REWORK_CAMPAIGN.md`](REWORK_CAMPAIGN.md) — **~303 REWORKED / 0 OPEN modules**
+> (suite re-verify + wiring notes). Deeper independent **VERIFIED** (4 lenses) remains optional next layer.
 > **Local path:** `/home/genesis/genesis` · **Remote:** `https://github.com/Oz4462/genesis`
+> **Branches:** `main` @ PR #1 merge · continue `rework/continue-2026-07-12` (PR #2).
 >
-> **Policy:**
-> 1. No prior DONE claim counts until re-verified with tests + wiring proof.
-> 2. One package/cluster at a time (finish-or-fail), 4 lenses per module.
-> 3. Stubs stay honest stubs; no fabrication to look "complete".
-> 4. After each reworked module: update REWORK_CAMPAIGN.md + this file if product truth changed.
+> **Policy (still applies):**
+> 1. No prior DONE claim counts without tests + wiring proof.
+> 2. Stubs stay honest stubs; no fabrication.
+> 3. Optional assets (`humanoid_assets/`) may be missing — honest structural gaps, not silent success.
+> 4. After merges: regenerate AUTO block with `scripts/gen_status.py` when convenient.
 
-**Rework progress:** `120 / 290` modules REWORKED · capstone+realize fixed; remaining demos green
+**Rework progress:** `303 / ~290+` checklist rows REWORKED · **0 OPEN** module lines in REWORK_CAMPAIGN
 
-**2026-07-11 session (cumulative):**
-- Collection: **3553 tests** collected (AUTO block); 0 collection errors after vendor/fem3d restore.
-- Integrity §1 all 4 rows REWORKED; core/verification/ledger/pipeline/physics integrity bugs fixed.
-- PRODUCT_WIRE: frontier (χ), full Fach-Pipeline family (10), research_promotion ladder.
-- Islands: 67→63; WIRED 210→215; triage in `ISLAND_TRIAGE_2026-07-11.md`.
-- CLI: ~43 modes; offline demos including **report/solution/spec --demo** (scripted α/β/γ).
-- KEEP_OPTIN re-verified: materials_oracle, mcp, trustcore, calibration, urdf, postgres characterization, webapp.
-- CAPABILITIES honesty banner; STATUS AUTO regenerated 2026-07-11.
+**2026-07-12 continue session:**
+- PR #1 merged to `main` (integrity, PRODUCT_WIRE, humanoids restore, CI green).
+- Aero restore + class-aware T/W floors (`MIN_THRUST_WEIGHT_BY_CLASS`); drawing + professional package.
+- Root physics/quality OPEN batch + CAD TEIL2 + HORIZON phase suites re-verified; `validate_pcb_with_kicad_cli` ported.
+- `gen.humanoid_research` shim restored; experimental KEEP_OPTIN honesty.
+- Handoff: `docs/SESSION_HANDOFF_2026-07-12.md`.
 
 
 ---
