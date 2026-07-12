@@ -11,7 +11,7 @@
 > python scripts/find_islands.py      # the island report on its own
 > ```
 > Founded on the forensic audit `~/Schreibtisch/GENESIS_Resurrection_Report_2026-06-26.md`.
-> **Last curated review: 2026-07-12 — PR #2 merged to main (`e588810`); inventory REWORKED.**
+> **Last curated review: 2026-07-12 — main through PR #9; inventory REWORKED; CLAUDE.md re-synced.**
 
 ---
 
@@ -23,7 +23,7 @@
 > **Campaign tracker:** [`docs/REWORK_CAMPAIGN.md`](REWORK_CAMPAIGN.md) — **~303 REWORKED / 0 OPEN modules**
 > (suite re-verify + wiring notes). Deeper independent **VERIFIED** (4 lenses) remains optional next layer.
 > **Local path:** `/home/genesis/genesis` · **Remote:** `https://github.com/Oz4462/genesis`
-> **Branches:** `main` @ `e588810` (PR #1 + PR #2 merged) · polish `rework/post-merge-2026-07-12`.
+> **Branches:** `main` tracks `origin/main` (PR #1–#9). SSOT tip: `git rev-parse origin/main`.
 >
 > **Policy (still applies):**
 > 1. No prior DONE claim counts without tests + wiring proof.

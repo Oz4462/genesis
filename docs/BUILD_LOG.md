@@ -717,3 +717,11 @@ Unified facade + CLI + seams complete. 30p verified. Honest proposal. For komple
 **Work:** `gen.product_surface` + CLI import; montecarlo GATE adapter; drawing static import in professional_package.
 **Evidence:** test_product_surface + physics_validation 27p; find_islands WIRED=256 ISLAND=26.
 **Residual:** 26 KEEP_OPTIN/experimental dispositioned (not open bugs).
+
+## 2026-07-12 — CLAUDE.md L2-Drift-Fix (Messwerte + SSOT)
+
+**Problem:** CLAUDE.md (2026-07-04) widersprach STATUS/REWORK: Testzahlen, Discovery-Counts,
+abgebrochene Frontier-Formel-Zeile, „35 Commits vor origin/main“, Fokus ohne REWORK-Closeout.
+**Fix:** CLAUDE.md neu synchronisiert auf Messungen 2026-07-12 (2487 collected, 44 validators,
+38 recipes, WIRED 258 / ISLAND 26); SSOT-Verweis STATUS; Frozen-Dateien explizit; Git-Stand ehrlich.
+**Evidence:** `pytest --collect-only`, `len(VALIDATORS/RECIPES)`, `find_islands.py`.
