@@ -32,7 +32,13 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class FrontierItem:
-    """Ein einzelnes beobachtetes Item (Paper, Tool, Material, Verfahren, Watch-Target)."""
+    """Ein einzelnes beobachtetes Item (Paper, Tool, Material, Verfahren, Watch-Target).
+
+    ``evidence_level`` (Review F6): "synthetic" = deterministisch fabriziertes
+    Plan-Beispiel (Default — breakthrough_watch has no live scan yet); "verified"
+    only when an independent, checked source backs the item. boundary_reviser
+    upgrades Grenztypen ONLY for verified items.
+    """
 
     titel: str
     typ: str                           # "Paper", "Tool", "Material", "Verfahren", "Watch"
@@ -40,6 +46,7 @@ class FrontierItem:
     relevanz_fuer_gap: str             # MUSS ein realer offener Gap der Eingabe-Map sein
     moeglicher_impact: str
     quelle: str | None = None
+    evidence_level: str = "synthetic"  # "synthetic" | "verified"
 
 
 @dataclass(frozen=True)
@@ -78,6 +85,7 @@ class _BreakthroughEntry:
             relevanz_fuer_gap=gap,
             moeglicher_impact=self.moeglicher_impact,
             quelle=self.quelle,
+            evidence_level="synthetic",
         )
 
 

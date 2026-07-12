@@ -178,6 +178,10 @@ def test_shipping_robot_knee_passes_the_squat_gate_after_calibration(key):
     """The core calibration finding: pre-fix, GENESIS's whole-leg-horizontal sizing over-predicted the
     knee demand ~2× and flagged these REAL, shipping robots as failing (capability < demand). The fixed
     squat-hold sizing must let each clear its own knee rating — a known-good robot passes the gate."""
+    from gen.humanoids.catalog import SPECS
+
+    if SPECS[key].peak_joint_torque_nm is None:
+        pytest.skip(f"{key}: no published knee torque in SPECS")
     results = validate_robot(key)
     knee = [r for r in results if "knee squat-hold torque" in r.axis]
     assert knee, f"{key} should have a knee squat-hold axis"
@@ -187,6 +191,11 @@ def test_shipping_robot_knee_passes_the_squat_gate_after_calibration(key):
 def test_cassie_dof_agrees_after_excluding_passive_springs():
     """Cassie's tree has 20 hinges but 10 are passive springs; the DOF cross-check must compare the
     10 MOTORISED joints to the published 10 — agreeing — not the 20 tree hinges."""
+    from gen.humanoids.catalog import ASSETS
+
+    path = ASSETS["agility_cassie"].model_path
+    if path is None or not Path(path).is_file():
+        pytest.skip("Cassie model not present in this environment (optional humanoid_assets)")
     results = validate_robot("agility_cassie")
     dof = [r for r in results if r.axis.startswith("DOF")]
     assert dof and dof[0].verdict == "agree"

@@ -54,12 +54,21 @@ def _agree(a: float, b: float, *, rel: float = 0.05, abs_: float = 0.0) -> bool:
 
 def structural_cross_check(key: str) -> list[CheckResult]:
     """Parse the robot's downloaded URDF/MJCF and compare derived DOF + mass to the published spec."""
+    from pathlib import Path
+
     spec = SPECS[key]
     asset = ASSETS[key]
     out: list[CheckResult] = []
-    if asset.model_path is None:
+    # Honest gap when no path OR path not present in this environment (CI has no local
+    # humanoid_assets tree — never crash the validation table on missing optional assets).
+    if asset.model_path is None or not Path(asset.model_path).is_file():
+        note = (
+            asset.status_note
+            if asset.model_path is None
+            else f"model path set but file missing in this env: {asset.model_path}"
+        )
         out.append(CheckResult(key, "structural", "—", "—", "gap",
-                               f"no machine-readable model on disk ({asset.status_note})"))
+                               f"no machine-readable model on disk ({note})"))
         return out
     s = parse_model(asset.model_path)
 
