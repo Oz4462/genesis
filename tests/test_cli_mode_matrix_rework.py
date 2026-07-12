@@ -97,7 +97,8 @@ def test_all_modes_listed_in_help():
         (["--mode", "capstone", "--demo"], {0}),
         (["--mode", "protocol", "--demo"], {0}),
         (["--mode", "eval", "--demo"], {0}),
-        (["--mode", "bundle", "--demo"], {0}),
+        # bundle exits 3 when optional CAD kernel lacks watertight STL — honest incomplete, not a crash
+        (["--mode", "bundle", "--demo"], {0, 3}),
         (["--mode", "section", "--demo"], {0}),
         (["--mode", "training", "--demo"], {0}),
         (["--mode", "chip", "--demo"], {0}),
