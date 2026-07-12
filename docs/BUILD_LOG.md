@@ -725,3 +725,11 @@ abgebrochene Frontier-Formel-Zeile, „35 Commits vor origin/main“, Fokus ohne
 **Fix:** CLAUDE.md neu synchronisiert auf Messungen 2026-07-12 (2487 collected, 44 validators,
 38 recipes, WIRED 258 / ISLAND 26); SSOT-Verweis STATUS; Frozen-Dateien explizit; Git-Stand ehrlich.
 **Evidence:** `pytest --collect-only`, `len(VALIDATORS/RECIPES)`, `find_islands.py`.
+
+## 2026-07-12 — README / HORIZON / WORK_QUEUE / DOC_CODE_DRIFT L2-resync
+
+**Problem:** README badge + counts still 1992/43 (2026-07-04); WORK_QUEUE banner still "REWORK OPEN";
+HORIZON "✓ bewiesen" without honesty legend; DOC_CODE_DRIFT pointed only at stale AUDIT.
+**Fix:** Dated 2487 collected / 44 validators; WORK_QUEUE historical banner; HORIZON Gate+Tests legend;
+SSOT pointers STATUS/CLAUDE; STATUS AUTO refreshed via gen_status.
+**Evidence:** pytest --collect-only 2487; find_islands WIRED=258; gen_status.py.

@@ -9,7 +9,7 @@
 <br/>
 
 ![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB?logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-1992%20passed%20%2F%200%20failed-2ea44f)
+![Tests](https://img.shields.io/badge/tests-2487%20collected%20(2026--07--12)-2ea44f)
 ![Determinism](https://img.shields.io/badge/runs-deterministisch%20%C2%B7%20reproduzierbar-blue)
 ![Offline](https://img.shields.io/badge/läuft-100%25%20lokal%20%C2%B7%20kein%20Cloud--Zwang-555)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
@@ -216,7 +216,7 @@ Ein deterministischer **GATE δ-Physik** wählt aus measurand-getaggten Größen
   + Krypto-Achsen (Geburtstagsschranke · Schlüsselstärke NIST SP-800-57 · GCM-Limit)
 ```
 
-Eine `Specification` mit measurand-getaggten Quantities feuert die zutreffenden Checks **automatisch** und liefert ein ehrliches Verdikt: **pass · fail · gap** — nie ein stiller Durchlass. Stand heute: **43 Validatoren, 38 Auto-Select-Recipes** (gezählt aus `physics_validation.VALIDATORS` / `physics_selection.RECIPES`). Zwei unabhängige Dynamik-Pfade kreuz-validieren: ein RK4-Vorwärts-Integrator (`simulation/multibody.py`) und PyBullet-Vollkontakt (`simulation/pybullet_sim.py`, inverse Dynamik == Closed-Form maschinengenau).
+Eine `Specification` mit measurand-getaggten Quantities feuert die zutreffenden Checks **automatisch** und liefert ein ehrliches Verdikt: **pass · fail · gap** — nie ein stiller Durchlass. Stand **2026-07-12 (gemessen):** **44 Validatoren, 38 Auto-Select-Recipes** (`len(physics_validation.VALIDATORS)` / `len(physics_selection.RECIPES)`). Zwei unabhängige Dynamik-Pfade: RK4-Vorwärts-Integrator (`simulation/multibody.py`) und optional PyBullet-Vollkontakt (`simulation/pybullet_sim.py`, KEEP_OPTIN).
 
 ---
 
@@ -300,7 +300,7 @@ GENESIS sagt nie „funktioniert", wenn es nicht verifizierbar ist. Was offline 
 
 | | Status | Bedeutung |
 |---|---|---|
-| 🟢 **Kern** | live | numpy/sympy/scipy/mpmath — alles offline-deterministisch, 1992 Tests grün |
+| 🟢 **Kern** | live | numpy/sympy/scipy/mpmath — offline-deterministisch; **2487 tests collected** (2026-07-12); CI 3.11+3.12 grün |
 | 🟢 **OpenAlex** | live ✓ | CC0-Literatur-Connector, gegen echten Endpoint verifiziert (HTTP 200) |
 | 🟡 **pip-opt-in** | nachrüstbar | PySINDy · pymoo · Ax/BoTorch · MuJoCo · OpenEvolve — Adapter gebaut, import-gegated |
 | 🔴 **Live-LLM-Council** | B1 BLOCKED | `claude -p` mit dem Council-Prompt > 300s-Timeout → `--live` degradiert *graceful* offline |
@@ -331,7 +331,7 @@ src/gen/
 ├── tools/           Connectoren (openalex CC0 · patents · codata · dlmf · wikidata)
 │                    + fetch/http (SSRF-gehärtet) · RAG · arXiv
 ├── simulation/      RK4 multibody · PyBullet · SimulatorBackend-Naht
-├── physics_*.py     δ-Physik-Engine: 43 Validatoren + 38 Auto-Select-Recipes
+├── physics_*.py     δ-Physik-Engine: 44 Validatoren + 38 Auto-Select-Recipes (2026-07-12)
 ├── grenzverschiebung/  HORIZON-Layer: LUMENCRUCIBLE · Roadmapper · Experiment-Designer
 ├── integration/     App-Integration: signierter audited_run · Drift · Research-Hook
 ├── proof_kernels.py z3-QF_NRA-Identitäts-Kernel (+ ehrlicher LeanKernelStub)
@@ -339,7 +339,7 @@ src/gen/
 ├── bundle.py        Bau-Bundle-Emitter (STL + BOM + Bauanleitung)
 └── cli.py           der CLI-Einstiegspunkt (alle Modi)
 
-tests/               255 Test-Dateien · 1992 passed / 54 skipped / 0 failed (2026-07-04, offline)
+tests/               ~299 Test-Dateien · **2487 tests collected** (gemessen 2026-07-12; CI green on main)
 docs/                ARCHITECTURE · DATA_MODEL · PIPELINE · phases/ · HORIZON · CAPABILITIES
                      · EXTERNAL_INTEGRATION
 ```
@@ -368,7 +368,7 @@ pip install -e ".[web]"      # lokale Web-UI (genesis-web)
 ## 🧪 Tests
 
 ```bash
-pytest -q                                      # volle Suite: 1992 passed / 54 skipped / 0 failed
+pytest -q                                      # volle Suite (CI: 3.11+3.12); collect-only ≈ 2487 (2026-07-12)
 pytest tests/test_inventor_loop.py -q          # der Erfindungs-Loop (M1)
 pytest tests/test_discovery_sindy.py -q        # SINDy-Entdeckung
 pytest tests/test_external_registry.py -q      # das Lizenz-Gate

@@ -30,8 +30,9 @@ Genesis härtet heute eine **fertige** Idee:
 α (belegte Recherche) → β (verankerter Lösungsraum) → γ (Spezifikation, parametrisches
 CAD) → δ (deterministische Physik-/Geometrie-Validierung), plus die integrierte Schicht
 (trust-core, ANAMNESIS-Memory, N-Judge-Consensus, signierter Audit, arXiv, SMT).
-1727 passed / 0 failed / 61 skipped (gemessen 2026-07-04, offline, deterministisch;
-Skips = optionale Deps).
+**Test-Messung (historisch 2026-07-04):** 1727 passed / 0 failed / 61 skipped (offline; Skips = optionale Deps).  
+**Aktuell (2026-07-12):** siehe `docs/STATUS.md` / `CLAUDE.md` — **2487 tests collected**, CI green.
+Zahlen hier **nicht** fortschreiben ohne frische Messung.
 
 Das ist die **mittlere** Hälfte des Wegs. HORIZONT ergänzt die erste und die dritte.
 
@@ -97,16 +98,20 @@ einem hübscheren Brainstorming-Tool. Sie zuerst zu lösen, de-riskt den ganzen 
 
 Jede Phase: was sie beweist · worauf sie aufbaut (bestehende Knochen) · Status.
 
+> **Status-Legende (ehrlich, 2026-07-12):** „✓ Gate+Tests“ = Code + `tests/test_phase_*` / CLI-Pfad
+> unter REWORK re-verifiziert. **Nicht** gleichbedeutend mit „produktionsreif / keine first-stone-Lücken“.
+> SSOT: `docs/STATUS.md` · Kampagne: `docs/REWORK_CAMPAIGN.md`.
+
 | Phase | Beweist | Baut auf | Status |
 |---|---|---|---|
-| **φ · Der Funke** | geerdete Divergenz: Funke → entwickelter, verankerter Gedanke; keine erfundene Möglichkeit | `clarification.py` (EVPI), Ledger, GATE-Muster aus α | ✓ bewiesen (`agents/forge.py` + `gate_phi`, `tests/test_phase_phi.py`) |
-| **χ · Die Frontkarte** | belegte Karte des Bekannten + ehrliche Kante des Unbekannten | scout→scholar→skeptic, arXiv/Wikipedia, cross-model | ✓ bewiesen (`gate_chi`, `tests/test_phase_chi.py`) |
-| **δ⁺ · Realitäts-Beweis** | selbst entworfenes Falsifikations-Experiment + Einlesen der echten Messung | δ-Engine, Ledger (Claim-Status), Audit-Receipts | ✓ bewiesen |
-| **δ⁺ · Deckungs-Beweis** | undeklarierter Versagensmodus + Vollständigkeits-Zertifikat | SMT-Feasibility, N-Judge-Consensus, `physics_selection` | ✓ bewiesen |
-| **γ⁺ · Inverses Design** | Ziel → validierte Pareto-Front statt einer Spec | architect, δ-Engine als Fitness-Orakel | ✓ bewiesen |
-| **ε · Nähte** | verifizierte Kopplung mechanisch↔thermisch↔elektrisch↔Firmware↔Kosten | δ-Validatoren, FEM, Einheiten-Gruppe | ✓ bewiesen |
-| **ζ · Bindegewebe** | geteiltes Gedächtnis: Frontkarte im Großen + Geister verbinden + Lernschleife (conformal garantiert) | ANAMNESIS, trust-core (drift/CRC/FDR), calibration | ✓ bewiesen |
-| **Ω · Exoskelett + Wette** | jeder Output macht den Menschen klüger; Nicht-Lügen über alle Phasen | Web-UI, Ledger, cross-model, Entscheidungsblatt | ✓ bewiesen — Querfaden fortlaufend |
+| **φ · Der Funke** | geerdete Divergenz: Funke → entwickelter, verankerter Gedanke; keine erfundene Möglichkeit | `clarification.py` (EVPI), Ledger, GATE-Muster aus α | ✓ Gate+Tests (`forge` + `gate_phi`, `test_phase_phi`) |
+| **χ · Die Frontkarte** | belegte Karte des Bekannten + ehrliche Kante des Unbekannten | scout→scholar→skeptic, arXiv/Wikipedia, cross-model | ✓ Gate+Tests (`gate_chi`, `test_phase_chi`, CLI `frontier`) |
+| **δ⁺ · Realitäts-Beweis** | Falsifikations-Experiment + Messung; ehrliche Abstention ohne unabhängige Messung | δ-Engine, Ledger, Audit-Receipts | ✓ Gate+Tests (REWORK: abstention honesty) |
+| **δ⁺ · Deckungs-Beweis** | undeklarierter Versagensmodus + Vollständigkeits-Zertifikat | SMT, N-Judge, `physics_selection` | ✓ Gate+Tests (first-stone richness varies) |
+| **γ⁺ · Inverses Design** | Ziel → validierte Pareto-Front statt einer Spec | architect, δ als Fitness-Orakel | ✓ Gate+Tests (empty front = honest gap) |
+| **ε · Nähte** | verifizierte Kopplung Domänen | δ-Validatoren, FEM, Einheiten | ✓ Gate+Tests (`test_phase_epsilon`) |
+| **ζ · Bindegewebe** | geteiltes Gedächtnis + Lernschleife | ANAMNESIS, trust-core (opt-in), calibration | ✓ Gate+Tests; trust-core = KEEP_OPTIN |
+| **Ω · Exoskelett + Wette** | Nicht-Lügen über Phasen; Lern-Notizen | Web-UI, Ledger, cross-model | ✓ Gate+Tests (`test_phase_omega`); enforce_omega opt-in |
 
 ## 5 · Der erste Stein: Phase φ, gate-first (so wie α geboren wurde)
 

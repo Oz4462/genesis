@@ -1,8 +1,10 @@
 # DOC ↔ CODE DRIFT — was geschrieben steht vs. was implementiert ist
 
-> **ABGELÖST (2026-07-04):** Dieses Dokument ist selbst gedriftet (nennt „27 Validatoren",
-> real 43; KiCad-Zeile durch `cad/kicad.py` vom 2026-06-18 widerlegt; HORIZON-φ/χ-Fix längst
-> erledigt). Aktuelle Wahrheitsquelle: `docs/AUDIT_2026-07-04.md`. Historisch belassen.
+> **ABGELÖST / HISTORISCH.** Dieses Dokument ist selbst gedriftet (nannte u. a. „27 Validatoren";
+> Live-Stand 2026-07-12: **44** Validatoren / 38 Recipes — siehe `CLAUDE.md` / `docs/STATUS.md`).
+> **Live-SSOT:** `docs/STATUS.md` · Agent-Ops: `CLAUDE.md` · Kampagne: `docs/REWORK_CAMPAIGN.md`.  
+> Audit-Snapshot: `docs/AUDIT_2026-07-04.md` (Zahlen veraltet). Dieses File nur noch als
+> historische Drift-Analyse belassen — **nicht** als Live-Inventar zitieren.
 
 **Stand:** 2026-06-17 · **Methode:** die Plan-/TODO-/HORIZON-Dokumente gegen den realen
 `src/gen/`-Baum + die Test-Suite geprüft (**Existenz** via `grep`/`find` + **Test-Präsenz**,
