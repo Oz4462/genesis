@@ -435,6 +435,8 @@ MANUAL_ONLY_VALIDATORS: frozenset[str] = frozenset({
     "overtemperature",
     "plate_bending",
     "thermal_mismatch",
+    # Monte Carlo uncertainty is formula-driven (not a single measurand recipe)
+    "montecarlo_uncertainty",
 })
 
 

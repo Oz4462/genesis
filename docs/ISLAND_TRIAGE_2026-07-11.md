@@ -114,3 +114,32 @@ Notes:
 - Static import of `grenzverschiebung.cluster` for reachability graph.
 - Re-measure: **WIRED 218 · ISLAND 63 · modules 326** (was 201/79 after scripts-only restore).
 - Smoke: DEFAULT_IDEA 6 ok / 0 error / 1 skipped; tests/test_horizon_full.py green.
+
+## Closeout 2026-07-12 — product_surface
+
+### Reachability after `gen.product_surface` + CLI import
+
+| Metric | Before closeout | After |
+|--------|-----------------|-------|
+| modules | 326 | 327 |
+| WIRED | 218 | **256** |
+| SCRIPT | 11 | 11 |
+| ISLAND | 63 | **26** |
+| INFRA | 34 | 34 |
+
+### Remaining 26 ISLANDs — intentional disposition (queue empty)
+
+**KEEP_OPTIN (optional external / private deps):**
+- `gen.ledger.postgres`, `gen.mcp.adapter`, `gen.external.materials_oracle`
+- `gen.tools.ollama_embedder`, `gen.simulation.*` (calculix/modelica/pybullet/backends/surrogate)
+- `gen.cad.cadquery_bridge` (isolated OCCT worker path; SCRIPT sibling exists)
+- `gen.integration.identity_research_hook`
+
+**Humanoid experimental / SCRIPT-adjacent (assets optional):**
+- `gen.humanoids.aethon_hydraulics`, `agiloped_stand`, `asimov_feet`, `insim_mujoco`, `mj_stand`, `n1_feet`
+- transitive: `coacd_feet`, `rl_env`, `step_controller`, `step_env` (via SCRIPT `rl_train`/`step_rl`)
+
+**Discovery harness (test-only, not CLI product):**
+- `rl_env`, `simulated_data`, `srbench_hygiene`, transitive `reward`/`validation`
+
+**Policy:** do not mass-import KEEP_OPTIN into product_surface (breaks CLI without optional stacks). Residual islands are **closed as dispositioned**, not abandoned bugs.

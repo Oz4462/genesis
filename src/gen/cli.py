@@ -19,6 +19,9 @@ import asyncio
 import os
 import sys
 
+# Anchor product-surface modules for reachability (drawing, aero, MC, …).
+from . import product_surface as _product_surface  # noqa: F401
+
 from .config import Config, default_config
 from .completeness import completeness_warnings
 from .core.errors import GenesisError
