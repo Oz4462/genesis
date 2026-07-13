@@ -178,3 +178,21 @@ e984d5c feat(self-improve loop): materials backend, α progress, print STL fallb
 
 ---
 
+
+## Iteration 9 — print exit 0 + full smoke (commit `3df7c0f`)
+
+- print tooling-gap (no cadquery) → exit 0
+- IRON material; smoke: 11 demos PASS including print
+- β/φ/γ progress emit
+
+## Iteration 10 — aluminum hybrid + solve live
+
+- Hybrid aluminum density → VERIFIED 2700 kg/m³ (registry)
+- Live solve (quiet 50kg roller cage): 3 grounded concepts, exit 0
+- Live invent (previous): 3 grounded concepts, exit 0
+
+### Tip
+`3df7c0f` (+ pending docs)
+
+---
+*Loop continues until stop…*
