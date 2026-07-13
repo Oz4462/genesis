@@ -1103,6 +1103,7 @@ def main(argv: list[str] | None = None) -> int:
             "aero-report",
             "humanoid-report",
             "surface",
+            "well-probe",
         ),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
@@ -1116,7 +1117,8 @@ def main(argv: list[str] | None = None) -> int:
         "→ forge → GATE φ; live, braucht Backends); "
         "frontier = Phase χ Frontier-Karte (build_frontier_map + GATE χ, offline); "
         "fach / architekt / ingenieur / physiker / techniker / elektriker / fertigungs / "
-        "regulatorik / software / designer / wirtschaft = Fach-Pipelines first-stone (offline) "
+        "regulatorik / software / designer / wirtschaft = Fach-Pipelines first-stone (offline); "
+        "well-probe = The Well stream-only physics-sim probe (no 15TB download; catalog or 1 batch) "
         "(default: report)",
     )
     parser.add_argument(
@@ -1601,6 +1603,37 @@ def main(argv: list[str] | None = None) -> int:
         except Exception as exc:  # noqa: BLE001 — optional analysis script
             print(f"\n  reachability: unavailable ({type(exc).__name__}: {exc})")
         return 0
+
+    if args.mode == "well-probe":
+        # Stream-only probe for PolymathicAI/the_well (~15TB collection).
+        # --demo / no args → offline catalog. Named dataset → stream ≤1–3 batches
+        # if optional package present; never bulk-download.
+        from .tools.the_well_probe import (
+            format_catalog,
+            format_probe_result,
+            probe_well_dataset,
+        )
+
+        if getattr(args, "demo", False) or not (args.question or "").strip():
+            print(format_catalog())
+            return 0
+        # question may be "active_matter" or "active_matter|train|2"
+        parts = [p.strip() for p in (args.question or "").split("|") if p.strip()]
+        ds = parts[0] if parts else "active_matter"
+        split = parts[1] if len(parts) > 1 else "train"
+        max_b = 1
+        if len(parts) > 2:
+            try:
+                max_b = int(parts[2])
+            except ValueError:
+                max_b = 1
+        result = probe_well_dataset(ds, split=split, max_batches=max_b, stream=True)
+        print(format_probe_result(result))
+        if result.status == "ok":
+            return 0
+        if result.status == "unavailable":
+            return 3  # honest tooling gap
+        return 2
 
     if args.mode == "section":
         # Generative-Design-Adoption: ein Minimal-Material-Querschnitts-VORSCHLAG, geerdet in einem

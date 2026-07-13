@@ -90,6 +90,7 @@ def test_all_modes_listed_in_help():
         (["--mode", "research", "(x+1)**2|x**2+2*x+1"], {0}),
         # catalog / product-surface reports (no live LLM)
         (["--mode", "surface"], {0}),
+        (["--mode", "well-probe", "--demo"], {0}),  # The Well catalog only
         (["--mode", "aero-report"], {0}),
         (["--mode", "humanoid-report"], {0}),
         (["--mode", "council"], {0}),

@@ -13,6 +13,7 @@ from .arxiv_backend import ArxivBackend
 from .fetch import FetchResult, WebFetchTool, require_ok
 from .formula_backend import FormulaBackend
 from .materials_backend import MaterialsBackend
+from .the_well_probe import WellProbeResult, format_catalog, probe_well_dataset
 from .http import HttpGet, HttpResponse, content_hash, default_http_get
 from .search import SemanticScholarBackend, WebSearchBackend
 
@@ -24,6 +25,10 @@ __all__ = [
     "WebSearchBackend",
     "ArxivBackend",
     "FormulaBackend",
+    "MaterialsBackend",
+    "WellProbeResult",
+    "format_catalog",
+    "probe_well_dataset",
     "HttpResponse",
     "HttpGet",
     "default_http_get",
