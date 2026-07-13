@@ -1244,11 +1244,10 @@ def main(argv: list[str] | None = None) -> int:
         from .goldset import load_goldset, pipeline_runner, run_goldset, score, run_goldset_dry
 
         cases = load_goldset()
-        import os as _os   # local to avoid UnboundLocal from later imports in this function
         use_dry = True
         try:
             # only if explicitly live-enabled
-            if _os.environ.get("GENESIS_ALLOW_LIVE"):
+            if os.environ.get("GENESIS_ALLOW_LIVE"):
                 deps, cfg = build_live(args.generator, args.verifier)
                 use_dry = False
         except Exception as exc:
@@ -1819,7 +1818,6 @@ def main(argv: list[str] | None = None) -> int:
         # + assess caps + integrator/build_full + sim gates (mesh + hammer) + bundle + real humanoid_assets (URDF/shells)
         # + existing γ/δ gates + comparison. Deterministic, offline. Assets from /home/genesis/humanoid_assets/aethon.
         from pathlib import Path
-        import os
         import shutil
 
         from .bundle import emit_bundle
@@ -2084,7 +2082,6 @@ def main(argv: list[str] | None = None) -> int:
         # + integrator/build_full + realize path + sim gates (mesh_convergence) + bundle + real assets from humanoid_assets.
         # Each produces out/competitive/<run_id>/ + full_pipeline/ subdir with proof, caps, sim report.
         from pathlib import Path
-        import os
         import shutil
 
         from .bundle import emit_bundle

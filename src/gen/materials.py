@@ -85,6 +85,22 @@ _METALS: dict[str, Material] = {
         source="nominal Al alloy handbook band (ρ≈2.70 g/cm³; E≈70 GPa); alloy TDS required",
         note="alias of ALUMINUM",
     ),
+    "COPPER": Material(
+        "COPPER",
+        youngs_modulus_mpa=110_000.0,
+        density_g_cm3=8.96,
+        yield_strength_mpa=70.0,  # annealed order; hard-drawn much higher — TDS required
+        source="nominal pure copper handbook band (ρ≈8.96 g/cm³; E≈110 GPa); temper TDS required",
+        note="nominal copper; temper-specific TDS required",
+    ),
+    "TITANIUM": Material(
+        "TITANIUM",
+        youngs_modulus_mpa=116_000.0,
+        density_g_cm3=4.51,
+        yield_strength_mpa=140.0,  # commercially pure order; Ti-6Al-4V much higher
+        source="nominal commercially pure Ti handbook band (ρ≈4.51 g/cm³); alloy TDS required",
+        note="nominal CP titanium; alloy grade TDS required",
+    ),
 }
 
 MATERIALS: dict[str, Material] = {**_FDM, **_METALS}
@@ -100,6 +116,8 @@ def get_material(name: str) -> Material:
         "STRUCTURAL_STEEL": "STEEL",
         "AL": "ALUMINUM",
         "ALU": "ALUMINUM",
+        "CU": "COPPER",
+        "TI": "TITANIUM",
     }
     key = aliases.get(key, key)
     material = MATERIALS.get(key)
