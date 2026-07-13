@@ -109,3 +109,17 @@ Commits: `f520100` … `5dc34ee`, `559d750`
 
 ---
 
+
+## Iteration 5 — Live α WIN: 7850 kg/m³ VERIFIED (materials + wiki)
+
+**Evidence** (`/tmp/loop_live_steel2.out`, ~12 min):
+- `verified=2 gaps=0 sources=5`
+- Claims: MILD_STEEL + STEEL registry 7850 kg/m³
+- Independent sources: Wikipedia Steel, Carbon steel, Stainless steel + gen-materials://
+- Progress: conductor scout/scholar/skeptic + materials claims logged
+- `gate alpha round=0 passed=True`
+
+**Follow-up:** dedupe MILD_STEEL when query only says "steel" (patch in this iter).
+
+---
+
