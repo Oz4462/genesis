@@ -230,6 +230,7 @@ async def run_solution(
         )
 
         await conductor.run_solution(state)
+        _emit_progress(state)
 
         if checkpoint_dir is not None:
             save_checkpoint(checkpoint_dir, state, chash)
@@ -279,10 +280,17 @@ async def run_divergence(
         )
         forge = Forge(deps.generator_llm, confidence_threshold=pa.confidence_threshold)
 
+        state.log.append("conductor: [phi] scout…")
         await scout.run(state)
+        state.log.append(
+            f"conductor: [phi] scholar… candidates={len(state.candidates)}"
+        )
         await scholar.run(state)
+        state.log.append(f"conductor: [phi] skeptic… claims={len(state.claims)}")
         await skeptic.run(state)
+        state.log.append("conductor: [phi] forge…")
         await forge.run(state)
+        _emit_progress(state)
 
         # GATE φ is the completion predicate (defense in depth — forge already drops every
         # ungrounded possibility, the gate re-checks and records the verdict for audit, the
@@ -362,6 +370,7 @@ async def run_specification(
         )
 
         await conductor.run_specification(state)
+        _emit_progress(state)
 
         if checkpoint_dir is not None:
             save_checkpoint(checkpoint_dir, state, chash)

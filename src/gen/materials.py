@@ -101,6 +101,14 @@ _METALS: dict[str, Material] = {
         source="nominal commercially pure Ti handbook band (ρ≈4.51 g/cm³); alloy TDS required",
         note="nominal CP titanium; alloy grade TDS required",
     ),
+    "IRON": Material(
+        "IRON",
+        youngs_modulus_mpa=200_000.0,
+        density_g_cm3=7.87,
+        yield_strength_mpa=50.0,  # pure iron soft; structural uses steel grades
+        source="nominal pure iron handbook band (ρ≈7.87 g/cm³; E≈200 GPa); grade TDS required",
+        note="nominal pure iron — prefer STEEL for structural design",
+    ),
 }
 
 MATERIALS: dict[str, Material] = {**_FDM, **_METALS}

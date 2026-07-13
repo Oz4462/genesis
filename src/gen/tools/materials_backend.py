@@ -32,6 +32,8 @@ class MaterialsBackend:
         ("titan", "TITANIUM"),
         ("copper", "COPPER"),
         ("kupfer", "COPPER"),
+        ("iron", "IRON"),
+        ("eisen", "IRON"),
         ("steel", "STEEL"),
         ("stahl", "STEEL"),
         ("pla", "PLA"),

@@ -2379,7 +2379,19 @@ def main(argv: list[str] | None = None) -> int:
             for adv in p.advisories:
                 print(f"  Hinweis: {adv}")
             print("")
-            all_ok = all_ok and (p.ok or p.status == "no_geometry")
+            # Self-improve loop: missing optional OCCT/cadquery is a tooling gap
+            # (status unavailable + advisory), not a product regression — same
+            # honesty class as optional STL in bundle demos. Real not_printable
+            # blockers still fail the demo.
+            tooling_gap = (
+                p.status == "unavailable"
+                and not p.blockers
+                and any(
+                    any(k in a.lower() for k in ("cadquery", "opencascade", "occt"))
+                    for a in p.advisories
+                )
+            )
+            all_ok = all_ok and (p.ok or p.status == "no_geometry" or tooling_gap)
         return 0 if all_ok else 3
 
     if args.mode == "research":

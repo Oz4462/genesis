@@ -165,3 +165,16 @@ e984d5c feat(self-improve loop): materials backend, α progress, print STL fallb
 
 ---
 *Loop still running — say **stopp** for final detailed report freeze.*
+
+## Iteration 9 — print tooling-gap exit 0 + expanded smoke
+
+**Done:**
+- `print --demo`: status `unavailable` for missing cadquery → **exit 0** (tooling gap, not product fail); real `not_printable` still fails
+- β/γ/φ: `_emit_progress` after solution/spec/divergence
+- Materials: IRON added
+- Smoke covers print/bundle/ideas/dream/solve/aethon
+
+**Verify:** `print_exit=0`, `SMOKE PASS` (39 pytest + 11 CLI demos)
+
+---
+
