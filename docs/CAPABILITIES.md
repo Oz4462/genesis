@@ -188,7 +188,7 @@ Meta-/Vorausschau-Layer: `lumencrucible.py` (Selbst-Verbesserung), `technology_b
 
 ## Gesamtbild (nüchtern)
 
-**Nachweislich nutzbar (✅):** der Verifikations-/Gate-Kern, das Fakten-Ledger (in-memory), die α–δ-Spezifikationskette mit **44** Physik-Validatoren / **38** Recipes (2026-07-12), CSG-CAD + Export + Druckbarkeits-Beweis, Elektronik/DFM/G-Code/KiCad, die Fach-Pipelines (Realisierung), der Discovery-Kern (Power-Law-Rediscovery + polynomialer z3-Beweis), der Inventor-Loop, die Wissensbasis/Retrieval-Schicht, das Web-UI und **47 CLI-Modi** — Suite **2487 tests collected** (CI 3.11+3.12 grün), offline-Pfade deterministisch.
+**Nachweislich nutzbar (✅):** der Verifikations-/Gate-Kern, das Fakten-Ledger (in-memory), die α–δ-Spezifikationskette mit **44** Physik-Validatoren / **38** Recipes (2026-07-12), CSG-CAD + Export + Druckbarkeits-Beweis, Elektronik/DFM/G-Code/KiCad, die Fach-Pipelines (Realisierung), der Discovery-Kern (Power-Law-Rediscovery + polynomialer z3-Beweis), der Inventor-Loop, die Wissensbasis/Retrieval-Schicht, das Web-UI und **47 CLI-Modi** — Suite **2494 tests collected** (CI 3.11+3.12 grün), offline-Pfade deterministisch.
 
 **Vorhanden, aber begrenzt/optional (🟡):** Mehrkörper-Simulation (nur Einzel-DOF eigen; PyBullet/MuJoCo optional), Postgres-Ledger (kein DB-Lauf in der Sandbox), Live-LLM-Pfade (claude/grok-CLI, owner-/netz-gated), Materials-Oracle (GPU-gated, nur Offline-Twin), CAD-Fidelity (Primitive), Inventor-Grounding (eine Domäne), HORIZON/Grenzverschiebung (explorativ).
 

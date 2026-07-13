@@ -31,7 +31,7 @@ Genesis härtet heute eine **fertige** Idee:
 CAD) → δ (deterministische Physik-/Geometrie-Validierung), plus die integrierte Schicht
 (trust-core, ANAMNESIS-Memory, N-Judge-Consensus, signierter Audit, arXiv, SMT).
 **Test-Messung (historisch 2026-07-04):** 1727 passed / 0 failed / 61 skipped (offline; Skips = optionale Deps).  
-**Aktuell (2026-07-12):** siehe `docs/STATUS.md` / `CLAUDE.md` — **2487 tests collected**, CI green.
+**Aktuell (2026-07-12):** siehe `docs/STATUS.md` / `CLAUDE.md` — **2494 tests collected**, CI green.
 Zahlen hier **nicht** fortschreiben ohne frische Messung.
 
 Das ist die **mittlere** Hälfte des Wegs. HORIZONT ergänzt die erste und die dritte.

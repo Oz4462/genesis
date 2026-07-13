@@ -9,7 +9,7 @@
 <br/>
 
 ![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB?logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-2487%20collected%20(2026--07--12)-2ea44f)
+![Tests](https://img.shields.io/badge/tests-2494%20collected%20(2026--07--12)-2ea44f)
 ![Determinism](https://img.shields.io/badge/runs-deterministisch%20%C2%B7%20reproduzierbar-blue)
 ![Offline](https://img.shields.io/badge/läuft-100%25%20lokal%20%C2%B7%20kein%20Cloud--Zwang-555)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
@@ -300,7 +300,7 @@ GENESIS sagt nie „funktioniert", wenn es nicht verifizierbar ist. Was offline 
 
 | | Status | Bedeutung |
 |---|---|---|
-| 🟢 **Kern** | live | numpy/sympy/scipy/mpmath — offline-deterministisch; **2487 tests collected** (2026-07-12); CI 3.11+3.12 grün |
+| 🟢 **Kern** | live | numpy/sympy/scipy/mpmath — offline-deterministisch; **2494 tests collected** (2026-07-12); CI 3.11+3.12 grün |
 | 🟢 **OpenAlex** | live ✓ | CC0-Literatur-Connector, gegen echten Endpoint verifiziert (HTTP 200) |
 | 🟡 **pip-opt-in** | nachrüstbar | PySINDy · pymoo · Ax/BoTorch · MuJoCo · OpenEvolve — Adapter gebaut, import-gegated |
 | 🔴 **Live-LLM-Council** | B1 BLOCKED | `claude -p` mit dem Council-Prompt > 300s-Timeout → `--live` degradiert *graceful* offline |
@@ -339,7 +339,7 @@ src/gen/
 ├── bundle.py        Bau-Bundle-Emitter (STL + BOM + Bauanleitung)
 └── cli.py           der CLI-Einstiegspunkt (alle Modi)
 
-tests/               ~299 Test-Dateien · **2487 tests collected** (gemessen 2026-07-12; CI green on main)
+tests/               ~299 Test-Dateien · **2494 tests collected** (gemessen 2026-07-12; CI green on main)
 docs/                ARCHITECTURE · DATA_MODEL · PIPELINE · phases/ · HORIZON · CAPABILITIES
                      · EXTERNAL_INTEGRATION
 ```
@@ -368,7 +368,7 @@ pip install -e ".[web]"      # lokale Web-UI (genesis-web)
 ## 🧪 Tests
 
 ```bash
-pytest -q                                      # volle Suite (CI: 3.11+3.12); collect-only ≈ 2487 (2026-07-12)
+pytest -q                                      # volle Suite (CI: 3.11+3.12); collect-only ≈ 2494 (2026-07-12)
 pytest tests/test_inventor_loop.py -q          # der Erfindungs-Loop (M1)
 pytest tests/test_discovery_sindy.py -q        # SINDy-Entdeckung
 pytest tests/test_external_registry.py -q      # das Lizenz-Gate

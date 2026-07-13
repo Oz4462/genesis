@@ -82,7 +82,7 @@ scripts/find_islands.py · scripts/gen_status.py
 
 | Messgröße | Wert (2026-07-12) | Quelle |
 |-----------|-------------------|--------|
-| Tests collected | **2487** | `pytest --collect-only -q` |
+| Tests collected | **2494** | `pytest --collect-only -q` |
 | Validatoren | **44** | `len(physics_validation.VALIDATORS)` |
 | Recipes | **38** | `len(physics_selection.RECIPES)` |
 | MANUAL_ONLY-Validatoren | **8** (u. a. `montecarlo_uncertainty`) | `physics_selection.MANUAL_ONLY_VALIDATORS` |
