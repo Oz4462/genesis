@@ -142,3 +142,26 @@ Commits: `f520100` … `5dc34ee`, `559d750`
 
 ---
 
+
+## Iteration 7–8 — product_surface, sub-q cap, invent live
+
+- product_surface: gen.materials + materials_backend (31 anchors)
+- live_tight: max 3 sub-questions
+- tools/__init__ exports MaterialsBackend
+- invent --live running in background
+
+### Loop commits since e984d5c
+
+```
+5afab54 test: build_live backends include materials_registry
+0a2634f perf(self-improve): cap sub-questions to 3 under live_tight α
+9caf95d feat(self-improve): export MaterialsBackend; update live loop log with α win
+b15f3e7 feat(self-improve): wire materials registry into product_surface
+685774a fix(self-improve): dedupe MILD_STEEL on plain steel queries; log live α win
+8fa449c chore(self-improve loop): offline smoke script + loop log iter 3-4
+e7071e9 fix(self-improve loop): live UnboundLocal os; Cu/Ti materials; loop log
+e984d5c feat(self-improve loop): materials backend, α progress, print STL fallback
+```
+
+---
+*Loop still running — say **stopp** for final detailed report freeze.*
