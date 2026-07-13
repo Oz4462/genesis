@@ -34,6 +34,8 @@ from . import urdf_bridge as urdf_bridge_mod  # noqa: F401
 
 # ── Tools / discovery / inventor (product research surface) ─────────────────
 from .tools import wikidata as wikidata_mod  # noqa: F401
+from .tools import materials_backend as materials_backend_mod  # noqa: F401
+from . import materials as materials_registry_mod  # noqa: F401
 from .discovery import first_principles as discovery_first_principles  # noqa: F401
 from .discovery import proof_loop as discovery_proof_loop  # noqa: F401
 from .discovery import uncertainty as discovery_uncertainty  # noqa: F401
@@ -82,6 +84,8 @@ PRODUCT_SURFACE_MODULES: tuple[str, ...] = (
     "gen.integration.audited_run",
     "gen.integration.drift",
     "gen.tools.wikidata",
+    "gen.tools.materials_backend",
+    "gen.materials",
     "gen.verification.trustcore_adapter",
     "gen.discovery.first_principles",
     "gen.discovery.proof_loop",

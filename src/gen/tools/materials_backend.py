@@ -74,20 +74,16 @@ class MaterialsBackend:
 
         found: list[str] = []
         seen: set[str] = set()
-        # Prefer primary keys; skip alias keys that share density identity
-        # (MILD_STEEL == STEEL) so α does not double-claim the same handbook band.
-        _alias_skip = {"MILD_STEEL", "ALUMINIUM"}
         for phrase, key in self._ALIASES:
-            if phrase in q and key in MATERIALS and key not in seen:
-                if key in _alias_skip and any(
-                    p in q for p in ("mild", "aluminium")
-                ) is False and key == "MILD_STEEL":
-                    # "steel" alone → STEEL only, not MILD_STEEL
-                    continue
-                if key == "ALUMINIUM" and "aluminium" not in q:
-                    continue
-                seen.add(key)
-                found.append(key)
+            if phrase not in q or key not in MATERIALS or key in seen:
+                continue
+            # Primary keys only for generic queries — aliases when explicitly named
+            if key == "MILD_STEEL" and "mild" not in q:
+                continue
+            if key == "ALUMINIUM" and "aluminium" not in q:
+                continue
+            seen.add(key)
+            found.append(key)
         if not found:
             return []
 
