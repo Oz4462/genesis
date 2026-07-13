@@ -87,3 +87,25 @@ Commits: `f520100` … `5dc34ee`, `559d750`
 ---
 
 *Loop continues until stop…*
+
+## Iteration 3 — Live UnboundLocal fix + Cu/Ti + smoke script
+
+**Bug:** Live report crashed immediately: `UnboundLocalError: os` (nested `import os` in `main()`).
+
+**Done:**
+- Removed nested `import os` shadows
+- COPPER + TITANIUM in materials registry + backend
+- `scripts/self_improve_smoke.sh` offline gate (pytest + CLI demos)
+
+**Verify:** smoke PASS; live re-check in flight (`/tmp/loop_live_steel2.*`)
+
+**Commit:** `e7071e9`
+
+---
+
+## Iteration 4 — Offline smoke automation
+
+**Done:** `scripts/self_improve_smoke.sh` executable and green.
+
+---
+
