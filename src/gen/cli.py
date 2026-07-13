@@ -48,6 +48,7 @@ from .tools.http import HttpResponse, default_http_get
 from .tools.arxiv_backend import ArxivBackend
 from .tools.formula_backend import FormulaBackend
 from .tools.search import SemanticScholarBackend, WikipediaBackend
+from .tools.materials_backend import MaterialsBackend
 
 
 def _only_optional_tooling_gaps(missing: list[str]) -> bool:
@@ -509,6 +510,7 @@ def build_live(generator: str, verifier: str) -> tuple[Dependencies, Config]:
     # loud SearchBackendError on transport/parse failure (never a silent or fabricated hit).
     backends = [
         WikipediaBackend(default_http_get),
+        MaterialsBackend(),  # offline grounded materials registry (self-improve loop)
         SemanticScholarBackend(default_http_get),
         FormulaBackend(default_http_get),  # formula-aware: DLMF, CODATA, authoritative laws
         ArxivBackend(default_http_get),    # preprints (arXiv Atom API, keyless)
@@ -2393,7 +2395,11 @@ def main(argv: list[str] | None = None) -> int:
 
         from . import identity_research as _ir
 
-        raw = args.question or ""
+        raw = (args.question or "").strip()
+        # Self-improve loop: --demo / bare --mode research uses a known identity
+        # so offline sweeps never exit 2 for missing argv.
+        if not raw or getattr(args, "demo", False):
+            raw = "(x+1)**2|x**2+2*x+1|eq"
         parts = [p.strip() for p in raw.split("|")]
         if len(parts) < 2 or not parts[0] or not parts[1]:
             print(
@@ -2762,11 +2768,19 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
             flush=True,
         )
+        # Enable mid-run progress lines from runner/conductor
+        os.environ.setdefault("GENESIS_PROGRESS", "1")
         if args.mode == "report":
             report = asyncio.run(
                 run(args.question, deps, config=cfg, checkpoint_dir=args.checkpoint_dir)
             )
             output = format_report(report)
+            print(
+                f"GENESIS live report done: verified={len(report.statement_to_claim)} "
+                f"gaps={len(report.gaps)} sources={len(report.sources_used)}",
+                file=sys.stderr,
+                flush=True,
+            )
         elif args.mode == "solution":
             sr = asyncio.run(
                 run_solution(

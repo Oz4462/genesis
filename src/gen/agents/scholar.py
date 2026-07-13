@@ -22,7 +22,8 @@ from ..llm.parsing import extract_json
 from ..tools.fetch import WebFetchTool, readable_text
 from ..tools.codata import load_codata_constants, make_codata_constant_claim
 from ..tools.dlmf import fetch_dlmf_entry, dlmf_latex_to_sympy
-
+from ..tools.materials_backend import materials_claim_text
+from ..core.state import SourceRef, SourceSupport
 _SYSTEM = (
     "You extract ATOMIC factual claims from a SOURCE TEXT that help answer a "
     "QUESTION. Rules: (1) use ONLY the source text, never outside knowledge; "
@@ -104,6 +105,15 @@ def claim_id(run_id: str, source: str, text: str) -> str:
     return f"{run_id}:{digest}"
 
 
+def _claim_language(question: str) -> str:
+    """Heuristic claim language: German question → de, else en."""
+    q = question.lower()
+    de_markers = ("was ist", "wie ", "dichte", "stahl", "für ", "ein ", "eine ")
+    if any(m in q for m in de_markers) or any(c in question for c in "äöüÄÖÜß"):
+        return "de"
+    return "en"
+
+
 class Scholar:
     """Satisfies the ``Agent`` Protocol. Creates ``UNVERIFIED`` claims only."""
 
@@ -129,8 +139,49 @@ class Scholar:
         existing_ids = {c.id for c in state.claims}
         batch: list[Claim] = []
         batch_ids: set[str] = set()
+        q_lang = _claim_language(state.question.raw)
+
+        # Materials registry candidates (gen-materials://) — offline grounded claims
+        # without HTTP. Still UNVERIFIED until skeptic finds independent sources.
+        for cand in list(state.candidates):
+            if not (cand.url_or_id or "").startswith("gen-materials://"):
+                continue
+            key = cand.url_or_id.split("://", 1)[-1].strip().upper()
+            try:
+                text, quote = materials_claim_text(key, language=q_lang)
+            except Exception as exc:  # noqa: BLE001
+                state.log.append(f"scholar: materials registry skip {key}: {exc}")
+                continue
+            cid = claim_id(run_id, cand.url_or_id, text)
+            if cid in existing_ids or cid in batch_ids:
+                continue
+            batch_ids.add(cid)
+            batch.append(
+                Claim(
+                    id=cid,
+                    text=text,
+                    sources=[
+                        SourceRef(
+                            url_or_id=cand.url_or_id,
+                            retrieved=True,
+                            content_hash=None,
+                            span=key,
+                            support=SourceSupport.SUPPORTS,
+                        )
+                    ],
+                    quote=quote,
+                    status=ClaimStatus.UNVERIFIED,
+                    produced_by=self.name + "+materials_registry",
+                    model="materials_registry",
+                )
+            )
+            state.log.append(
+                f"scholar: materials registry claim for {key} (UNVERIFIED until skeptic)"
+            )
 
         for cand in state.candidates[: self._max_sources]:
+            if (cand.url_or_id or "").startswith("gen-materials://"):
+                continue  # already handled offline above
             result = await self._fetch(url=cand.url_or_id)
             if not result.ok or result.content is None:
                 state.log.append(

@@ -205,7 +205,8 @@ class WikipediaBackend:
                 return (8, tl)
             if tl in ("density", "specific gravity", "relative density", "energy density"):
                 return (9, tl)  # generic property pages lack material numbers
-            return (5, tl)
+            # Unrelated titles (Gauge, Density cup, plastics) sink when query names a metal
+            return (10, tl)
 
         return sorted(titles, key=score)
 

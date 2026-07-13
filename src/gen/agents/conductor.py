@@ -55,11 +55,22 @@ class Conductor:
     async def run(self, state: RunState) -> RunState:
         if not state.sub_questions:
             state.sub_questions = await self._decompose(state.question)
+            state.log.append(
+                f"conductor: decomposed into {len(state.sub_questions)} sub-question(s)"
+            )
 
         rounds = 0
         while True:
+            state.log.append(f"conductor: α round={rounds} scout…")
             await self._scout.run(state)
+            state.log.append(
+                f"conductor: α round={rounds} scholar… "
+                f"candidates={len(state.candidates)}"
+            )
             await self._scholar.run(state)
+            state.log.append(
+                f"conductor: α round={rounds} skeptic… claims={len(state.claims)}"
+            )
             await self._skeptic.run(state)
             state.report = self._assemble(state)
 

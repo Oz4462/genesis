@@ -462,7 +462,30 @@ def assess_printability(spec: Specification) -> PrintabilityAssessment:
 
         from .export.brep_stl import specification_to_brep_stl
 
-        mesh = stl_integrity_check(specification_to_brep_stl(spec))
+        try:
+            mesh = stl_integrity_check(specification_to_brep_stl(spec))
+        except GeometryError as mesh_exc:
+            # Self-improve 2026-07-13: when OCCT/cadquery is absent, fall back to
+            # the primitive STL exporter for integrity check only — CSG booleans
+            # still refuse honestly (skipped → unavailable).
+            from .core.errors import ExportError
+            from .export.stl import specification_to_stl_report
+
+            try:
+                fallback, skipped = specification_to_stl_report(spec)
+            except ExportError as exp_exc:
+                raise GeometryError(
+                    f"{mesh_exc}; primitive fallback failed: {exp_exc}"
+                ) from mesh_exc
+            if skipped:
+                raise GeometryError(
+                    f"{mesh_exc}; primitive fallback skipped CSG parts: {sorted(skipped)}"
+                ) from mesh_exc
+            mesh = stl_integrity_check(fallback)
+            advisories.append(
+                "mesh via primitive STL fallback (cadquery/OCCT unavailable) — "
+                "curved surfaces faceted; CSG booleans not evaluated"
+            )
     except GeometryError as exc:
         # Blockers already found are FACTS — do not discard them when mesh export dies.
         # With blockers → not_printable; blocker-free partial run → unavailable.

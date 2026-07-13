@@ -12,6 +12,8 @@ deterministic offline stand-ins used in tests and the demo. Responsibilities:
 from __future__ import annotations
 
 import json
+import os
+import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -68,6 +70,15 @@ def make_run_id(question: str, cfg_hash: str, *, suffix: str | None = None) -> s
 
     base = hashlib.sha1(f"{question}|{cfg_hash}".encode("utf-8")).hexdigest()[:10]
     return f"run-{base}" + (f"-{suffix}" if suffix else "")
+
+
+def _emit_progress(state: RunState) -> None:
+    """Surface α progress lines on stderr when GENESIS_PROGRESS=1 (live operators)."""
+    if os.environ.get("GENESIS_PROGRESS", "").strip() not in ("1", "true", "yes"):
+        return
+    for line in state.log:
+        if line.startswith("conductor:") or line.startswith("scholar: materials"):
+            print(f"GENESIS progress: {line}", file=sys.stderr, flush=True)
 
 
 def _wire_alpha_agents(
@@ -157,6 +168,7 @@ async def run(
         )
 
         await conductor.run(state)
+        _emit_progress(state)
 
         if checkpoint_dir is not None:
             save_checkpoint(checkpoint_dir, state, chash)
