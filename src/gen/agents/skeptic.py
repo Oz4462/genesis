@@ -61,20 +61,36 @@ _QUERY_SYSTEM = (
 
 # Deterministic DE→EN search keywords only (never values). Matched case-insensitively
 # against the claim text; combined into short English query phrases for retrieval.
+# Longer phrases first so "stainless steel" wins over bare "steel".
 _DE_EN_SEARCH_TERMS: tuple[tuple[str, str], ...] = (
+    ("edelstahl", "stainless steel"),
+    ("rostfreier stahl", "stainless steel"),
+    ("stainless steel", "stainless steel"),
+    ("carbon steel", "carbon steel"),
+    ("baustahl", "structural steel"),
     ("stahl", "steel"),
+    ("steel", "steel"),
     ("dichte", "density"),
+    ("density", "density"),
     ("aluminium", "aluminum"),
     ("aluminum", "aluminum"),
     ("kupfer", "copper"),
+    ("copper", "copper"),
     ("eisen", "iron"),
+    ("iron", "iron"),
     ("festigkeit", "strength"),
     ("streckgrenze", "yield strength"),
+    ("yield strength", "yield strength"),
     ("elastizitätsmodul", "young modulus"),
     ("young", "young modulus"),
     ("wärmeleit", "thermal conductivity"),
     ("schmelzpunkt", "melting point"),
 )
+
+# Cap judge evidence: full Wikipedia extracts (~30k) blow CLI LLM argv/timeouts and
+# produced conf=0 (judge exception → irrelevant). Window around claim keywords.
+_JUDGE_MAX_CHARS = 6_000
+_JUDGE_WINDOW = 900
 
 
 def _english_search_boosts(claim_text: str) -> list[str]:
@@ -82,7 +98,7 @@ def _english_search_boosts(claim_text: str) -> list[str]:
 
     Returns zero or more short search strings. Never invents numeric values —
     only maps known material/property words so English-indexed backends can
-    retrieve corroborating pages for German claim prose.
+    retrieve corroborating pages for German *or* English claim prose.
     """
     low = claim_text.lower()
     en_terms: list[str] = []
@@ -97,8 +113,73 @@ def _english_search_boosts(claim_text: str) -> list[str]:
     if len(en_terms) >= 2:
         # alternate order often ranks better on Wikipedia ("steel density")
         boosts.append(" ".join(reversed(en_terms)))
+    # Multi-word materials get a dedicated density query when density is present
+    if "density" in en_terms:
+        for mat in en_terms:
+            if mat != "density" and " " in mat:
+                boosts.insert(0, f"{mat} density")
     return boosts
 
+
+def _evidence_for_judge(claim_text: str, content: str) -> str:
+    """Return a bounded evidence window for the judge LLM.
+
+    Full MediaWiki extracts are large; sending them whole caused live judge
+    timeouts / transport failures that silently degraded to ``irrelevant``
+    (conf=0). Prefer slices centered on shared keywords; fall back to a head
+    truncate. Never invents text — only selects substrings of ``content``.
+    """
+    if not content:
+        return content
+    if len(content) <= _JUDGE_MAX_CHARS:
+        return content
+    low_c = content.lower()
+    # Keywords from claim (length ≥ 4) plus known EN material/property terms
+    raw_tokens = [t.strip(".,;:()[]\"'") for t in claim_text.split()]
+    keys: list[str] = []
+    for t in raw_tokens:
+        if len(t) >= 4:
+            keys.append(t.lower())
+    for _de, en in _DE_EN_SEARCH_TERMS:
+        if en in claim_text.lower() or any(p in claim_text.lower() for p in en.split()):
+            keys.append(en.lower())
+    # de-dupe preserving order
+    seen_k: set[str] = set()
+    ordered_keys: list[str] = []
+    for k in keys:
+        if k not in seen_k:
+            seen_k.add(k)
+            ordered_keys.append(k)
+
+    spans: list[tuple[int, int]] = []
+    for k in ordered_keys[:12]:
+        start = 0
+        hits = 0
+        while hits < 3:
+            i = low_c.find(k, start)
+            if i < 0:
+                break
+            lo = max(0, i - _JUDGE_WINDOW // 3)
+            hi = min(len(content), i + len(k) + (2 * _JUDGE_WINDOW // 3))
+            spans.append((lo, hi))
+            start = i + len(k)
+            hits += 1
+    if not spans:
+        return content[:_JUDGE_MAX_CHARS]
+
+    # Merge overlapping spans
+    spans.sort()
+    merged: list[list[int]] = [list(spans[0])]
+    for lo, hi in spans[1:]:
+        if lo <= merged[-1][1] + 40:
+            merged[-1][1] = max(merged[-1][1], hi)
+        else:
+            merged.append([lo, hi])
+    parts = [content[lo:hi] for lo, hi in merged]
+    joined = "\n…\n".join(parts)
+    if len(joined) > _JUDGE_MAX_CHARS:
+        return joined[:_JUDGE_MAX_CHARS]
+    return joined
 
 @dataclass(frozen=True)
 class _Verdict:
@@ -264,25 +345,35 @@ class Skeptic:
         # until English keyword boosts were added). Deterministic DE→EN term
         # expansion is fact-free (search keywords only, never asserted values).
         queries: list[str] = []
-        try:
-            resp = await self._verifier.complete(
-                system=_QUERY_SYSTEM, user=f"CLAIM:\n{claim_text}"
-            )
-            parsed = extract_json(resp.text, agent="skeptic")
-            if isinstance(parsed, list):
-                queries = [str(q).strip() for q in parsed if str(q).strip()][:4]
-            else:
-                state.log.append(
-                    "skeptic: query reformulation returned non-array JSON; "
-                    "falling back to verbatim claim text"
+        boosts = _english_search_boosts(claim_text)
+        # When deterministic EN boosts already give strong retrieval keywords
+        # (material/property claims), skip the expensive reformulation LLM call —
+        # live α spent minutes here and still timed out outer 900s budgets.
+        if not boosts:
+            try:
+                resp = await self._verifier.complete(
+                    system=_QUERY_SYSTEM, user=f"CLAIM:\n{claim_text}"
                 )
-        except Exception as exc:  # noqa: BLE001 - reformulation is best-effort, never fatal
+                parsed = extract_json(resp.text, agent="skeptic")
+                if isinstance(parsed, list):
+                    queries = [str(q).strip() for q in parsed if str(q).strip()][:4]
+                else:
+                    state.log.append(
+                        "skeptic: query reformulation returned non-array JSON; "
+                        "falling back to verbatim claim text"
+                    )
+            except Exception as exc:  # noqa: BLE001 - reformulation is best-effort, never fatal
+                state.log.append(
+                    f"skeptic: query reformulation failed "
+                    f"({type(exc).__name__}: {exc}); falling back to verbatim claim text"
+                )
+                queries = []
+        else:
             state.log.append(
-                f"skeptic: query reformulation failed "
-                f"({type(exc).__name__}: {exc}); falling back to verbatim claim text"
+                f"skeptic: using deterministic EN search boosts {boosts!r} "
+                "(skip LLM reformulation)"
             )
-            queries = []
-        for boost in _english_search_boosts(claim_text):
+        for boost in boosts:
             if boost not in queries:
                 queries.insert(0, boost)
         if claim_text not in queries:
@@ -291,7 +382,12 @@ class Skeptic:
     async def _judge(
         self, llm: LLMClient, claim_text: str, content: str, url: str, state: RunState
     ) -> _Verdict:
-        user = f"CLAIM:\n{claim_text}\n\nINDEPENDENT SOURCE TEXT:\n{content}"
+        evidence = _evidence_for_judge(claim_text, content)
+        if len(content) > _JUDGE_MAX_CHARS and len(evidence) < len(content):
+            state.log.append(
+                f"skeptic: judge evidence windowed {len(content)}→{len(evidence)} chars for {url}"
+            )
+        user = f"CLAIM:\n{claim_text}\n\nINDEPENDENT SOURCE TEXT:\n{evidence}"
         try:
             resp = await llm.complete(system=_SYSTEM, user=user)
             value = extract_json(resp.text, agent="skeptic")

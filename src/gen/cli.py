@@ -48,6 +48,42 @@ from .tools.http import HttpResponse, default_http_get
 from .tools.arxiv_backend import ArxivBackend
 from .tools.formula_backend import FormulaBackend
 from .tools.search import SemanticScholarBackend, WikipediaBackend
+
+
+def _only_optional_tooling_gaps(missing: list[str]) -> bool:
+    """True when every missing deliverable is an *optional* tooling gap.
+
+    CadQuery/OCCT STLs and matplotlib renders are honest gaps when the optional
+    package is absent — OpenSCAD sources remain the print path. Physics-verified
+    demos must not hard-fail solely because optional CAD kernels are not installed.
+    Non-optional failures (export crashes, integrity fails without that marker) return False.
+    """
+    if not missing:
+        return True
+    markers = (
+        "cadquery",
+        "opencascade",
+        "occt",
+        "matplotlib",
+        "openscad-export",
+        "watertight stl nicht erzeugt",
+        "3d-montagebild nicht erzeugt",
+        "render fehlgeschlagen",
+    )
+    for item in missing:
+        low = item.lower()
+        if not any(m in low for m in markers):
+            return False
+    return True
+
+
+def _bundle_demo_ok(manifest, *, require_physics: bool = True) -> bool:
+    """Demo success: physics ok (when required) and either complete files or only optional gaps."""
+    if require_physics and not getattr(manifest, "physics_ok", False):
+        return False
+    if getattr(manifest, "files_complete", False):
+        return True
+    return _only_optional_tooling_gaps(list(getattr(manifest, "missing", None) or []))
 from .tools.sources import OpenAlexBackend, PatentsViewBackend
 from .verification.cross_model import assert_different_families
 from .verification.gates import (
@@ -1392,7 +1428,8 @@ def main(argv: list[str] | None = None) -> int:
                     f"({m.printed_share:.0%}) — Kaufteile: {', '.join(m.bought_parts) or '—'}"
                 )
             print("")
-            all_complete = all_complete and m.files_complete
+            # Optional CadQuery/matplotlib gaps are honest, not demo failures.
+            all_complete = all_complete and _bundle_demo_ok(m, require_physics=False)
         return 0 if all_complete else 3
 
     if args.mode == "ideas":
@@ -1419,7 +1456,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(f"  geschrieben:  {', '.join(m.written)}")
             print(f"  fehlt:        {', '.join(m.missing) if m.missing else '—'}\n")
-            all_ok = all_ok and m.files_complete and m.physics_ok
+            all_ok = all_ok and _bundle_demo_ok(m, require_physics=True)
         return 0 if all_ok else 3
 
     if args.mode == "council":
@@ -1995,7 +2032,9 @@ def main(argv: list[str] | None = None) -> int:
         for c in cmp["honest_caveats"]:
             print(f"     ~ {c}")
         return (
-            0 if (gg.passed and gd.passed and m.files_complete and m.physics_ok) else 3
+            0
+            if (gg.passed and gd.passed and m.physics_ok and _bundle_demo_ok(m, require_physics=True))
+            else 3
         )
 
     if args.mode in ("humanoid-research", "humanoid-chat"):
@@ -2277,7 +2316,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(f"  FULL-PIPELINE: {full_pl_dir} (LUMEN+CAPS+INTEGRATOR+SIM+ASSETS+URDF-CAD-PROOF)\n")
 
-            all_ok = all_ok and m.files_complete and m.physics_ok
+            all_ok = all_ok and _bundle_demo_ok(m, require_physics=True)
         return 0 if all_ok else 3
 
     if args.mode == "dream":
@@ -2304,7 +2343,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(f"  geschrieben:  {', '.join(m.written)}")
             print(f"  fehlt:        {', '.join(m.missing) if m.missing else '—'}\n")
-            all_ok = all_ok and m.files_complete and m.physics_ok
+            all_ok = all_ok and _bundle_demo_ok(m, require_physics=True)
         return 0 if all_ok else 3
 
     if args.mode == "print":

@@ -70,6 +70,41 @@ def make_run_id(question: str, cfg_hash: str, *, suffix: str | None = None) -> s
     return f"run-{base}" + (f"-{suffix}" if suffix else "")
 
 
+def _wire_alpha_agents(
+    deps: Dependencies,
+    *,
+    fetch: WebFetchTool,
+    generator_model: str,
+    min_sources_for_verified: int,
+    live_tight: bool,
+) -> tuple[Scout, Scholar, Skeptic]:
+    """Shared scout/scholar/skeptic wiring for α/β/φ/γ (bounded fan-out when live_tight)."""
+    scout = Scout(
+        deps.backends,
+        llm=deps.generator_llm,
+        max_queries=2 if live_tight else 3,
+        per_query_limit=4 if live_tight else 5,
+    )
+    scholar = Scholar(
+        fetch,
+        deps.generator_llm,
+        deps.ledger,
+        max_sources=4 if live_tight else 8,
+    )
+    skeptic = Skeptic(
+        deps.backends,
+        fetch,
+        deps.verifier_llm,
+        deps.ledger,
+        generator_model=generator_model,
+        second_judge=deps.judge_llm,
+        extra_judges=deps.extra_judges,
+        min_sources_for_verified=min_sources_for_verified,
+        max_verify_sources=3 if live_tight else 4,
+    )
+    return scout, scholar, skeptic
+
+
 async def run(
     question_text: str,
     deps: Dependencies,
@@ -102,17 +137,15 @@ async def run(
         )
 
         fetch = WebFetchTool(deps.http_get, ledger=deps.ledger, run_id=rid)
-        scout = Scout(deps.backends, llm=deps.generator_llm)
-        scholar = Scholar(fetch, deps.generator_llm, deps.ledger)
-        skeptic = Skeptic(
-            deps.backends,
-            fetch,
-            deps.verifier_llm,
-            deps.ledger,
+        # Live CLIs are 20–60s/call: keep per-round LLM fan-out bounded so α finishes
+        # under outer ~900s budgets (full wiki extracts already add fetch cost).
+        live_tight = pa.max_refine_rounds == 0
+        scout, scholar, skeptic = _wire_alpha_agents(
+            deps,
+            fetch=fetch,
             generator_model=pa.models.generator,
-            second_judge=deps.judge_llm,
-            extra_judges=deps.extra_judges,
             min_sources_for_verified=pa.min_sources_for_verified,
+            live_tight=live_tight,
         )
         conductor = Conductor(
             scout,
@@ -163,17 +196,13 @@ async def run_solution(
         )
 
         fetch = WebFetchTool(deps.http_get, ledger=deps.ledger, run_id=rid)
-        scout = Scout(deps.backends, llm=deps.generator_llm)
-        scholar = Scholar(fetch, deps.generator_llm, deps.ledger)
-        skeptic = Skeptic(
-            deps.backends,
-            fetch,
-            deps.verifier_llm,
-            deps.ledger,
+        live_tight = pa.max_refine_rounds == 0
+        scout, scholar, skeptic = _wire_alpha_agents(
+            deps,
+            fetch=fetch,
             generator_model=pa.models.generator,
-            second_judge=deps.judge_llm,
-            extra_judges=deps.extra_judges,
             min_sources_for_verified=pa.min_sources_for_verified,
+            live_tight=live_tight,
         )
         synthesizer = Synthesizer(
             deps.generator_llm, confidence_threshold=pb.confidence_threshold
@@ -228,17 +257,13 @@ async def run_divergence(
         )
 
         fetch = WebFetchTool(deps.http_get, ledger=deps.ledger, run_id=rid)
-        scout = Scout(deps.backends, llm=deps.generator_llm)
-        scholar = Scholar(fetch, deps.generator_llm, deps.ledger)
-        skeptic = Skeptic(
-            deps.backends,
-            fetch,
-            deps.verifier_llm,
-            deps.ledger,
+        live_tight = pa.max_refine_rounds == 0
+        scout, scholar, skeptic = _wire_alpha_agents(
+            deps,
+            fetch=fetch,
             generator_model=pa.models.generator,
-            second_judge=deps.judge_llm,
-            extra_judges=deps.extra_judges,
             min_sources_for_verified=pa.min_sources_for_verified,
+            live_tight=live_tight,
         )
         forge = Forge(deps.generator_llm, confidence_threshold=pa.confidence_threshold)
 
@@ -296,17 +321,13 @@ async def run_specification(
         )
 
         fetch = WebFetchTool(deps.http_get, ledger=deps.ledger, run_id=rid)
-        scout = Scout(deps.backends, llm=deps.generator_llm)
-        scholar = Scholar(fetch, deps.generator_llm, deps.ledger)
-        skeptic = Skeptic(
-            deps.backends,
-            fetch,
-            deps.verifier_llm,
-            deps.ledger,
+        live_tight = pa.max_refine_rounds == 0
+        scout, scholar, skeptic = _wire_alpha_agents(
+            deps,
+            fetch=fetch,
             generator_model=pa.models.generator,
-            second_judge=deps.judge_llm,
-            extra_judges=deps.extra_judges,
             min_sources_for_verified=pa.min_sources_for_verified,
+            live_tight=live_tight,
         )
         synthesizer = Synthesizer(
             deps.generator_llm, confidence_threshold=pb.confidence_threshold

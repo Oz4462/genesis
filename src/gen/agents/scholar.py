@@ -31,14 +31,18 @@ _SYSTEM = (
     "sentence with a clear subject. NEVER a sentence fragment, a dangling clause, "
     "a list item, or a dangling phrase. If a fact needs context from the rest of "
     "the sentence to make sense, include that context in the text. "
-    "(3) LANGUAGE: write each claim 'text' in GERMAN (the reader is "
-    "German-speaking) — keep technical terms, proper nouns, numbers, and units "
-    "exactly as the source states them. (4) for each claim include a quote "
-    "COPIED CHARACTER-FOR-CHARACTER from the source IN ITS ORIGINAL LANGUAGE as "
-    "one contiguous span — findable with Ctrl+F. Do NOT translate, paraphrase, "
-    "reorder, abbreviate, or reconstruct the quote; if you cannot copy an exact "
-    "span, omit the claim. (5) if the source has nothing relevant, return an "
-    'empty array. Return JSON: [{"text": "...", "quote": "..."}].'
+    "(3) LANGUAGE: write each claim 'text' in the SAME LANGUAGE as the QUESTION "
+    "(German question → German claims; English question → English claims). Keep "
+    "technical terms, proper nouns, numbers, and units exactly as the source "
+    "states them — do not convert units. Prefer the material/property page that "
+    "actually states the numeric value asked for (e.g. steel density → the Steel "
+    "article's kg/m3 band, not a tangential stainless-only aside). "
+    "(4) for each claim include a quote COPIED CHARACTER-FOR-CHARACTER from the "
+    "source IN ITS ORIGINAL LANGUAGE as one contiguous span — findable with "
+    "Ctrl+F. Do NOT translate, paraphrase, reorder, abbreviate, or reconstruct "
+    "the quote; if you cannot copy an exact span, omit the claim. "
+    "(5) if the source has nothing relevant, return an empty array. "
+    'Return JSON: [{"text": "...", "quote": "..."}].'
 )
 
 # readable_text is re-exported (moved to tools.fetch as a neutral home shared with
