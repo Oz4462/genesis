@@ -25,3 +25,9 @@ bash scripts/self_improve_smoke.sh
 ## Living log
 
 `docs/SELF_IMPROVE_LOOP_LIVE.md`
+
+## Live invent evidence (continue)
+
+Field: leises 50kg Rollenlager aus Stahl und PETG  
+- novelty=neuer_mechanismus, Quellen=4, physics_verified  
+- Tip at invent wiring: `8dadbc2`

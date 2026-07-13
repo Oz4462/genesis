@@ -237,3 +237,22 @@ e984d5c feat(self-improve loop): materials backend, α progress, print STL fallb
 **Verify:** invent/solve --demo exit 0; inventor tests green
 
 ---
+
+## Iteration 13 — invent novelty_gate CLI wiring (`8dadbc2`)
+
+**Bug:** Materials/RAG backends existed but invent CLI never passed `novelty_gate`.
+
+**Done:**
+- Wire `build_novelty_gate(domain.prior_art_sources())`
+- Live invent: OpenAlex + materials + RAG
+- CLI shows novelty= + rejected concepts
+- invent --demo: novelty=neu, Quellen 1–2
+
+**Live invent** (`leises 50kg Rollenlager aus Stahl und PETG`):
+- 3 proposed, 3 grounded, Pareto 1
+- novelty=**neuer_mechanismus**, Quellen=4, verifiziert=True
+- Steel races + PETG cage damping concept
+
+**Smoke:** PASS (47 pytest + 12 CLI demos)
+
+---
