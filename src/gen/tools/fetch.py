@@ -52,8 +52,23 @@ def readable_text(content: str) -> str:
         value = doc.get(field)
         if isinstance(value, str) and value.strip():
             return value
+    # MediaWiki action=query&prop=extracts nests prose under query.pages.*.extract
+    # (not a top-level "extract" like the REST summary). Unwrap so scholar/skeptic
+    # quote-check real article text instead of the raw JSON envelope.
+    query = doc.get("query")
+    if isinstance(query, dict):
+        pages = query.get("pages")
+        if isinstance(pages, dict):
+            extracts: list[str] = []
+            for page in pages.values():
+                if not isinstance(page, dict):
+                    continue
+                ex = page.get("extract")
+                if isinstance(ex, str) and ex.strip():
+                    extracts.append(ex.strip())
+            if extracts:
+                return "\n\n".join(extracts)
     return content
-
 
 @dataclass(frozen=True)
 class FetchResult:

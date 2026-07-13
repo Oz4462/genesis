@@ -54,8 +54,50 @@ _SYSTEM = (
 _QUERY_SYSTEM = (
     "You generate search queries to find INDEPENDENT evidence that could confirm or "
     "refute a CLAIM. Return ONLY a JSON array of 2-4 short keyword queries (no prose, "
-    "no questions). Prefer authoritative phrasings a source would actually use."
+    "no questions). Prefer authoritative phrasings a source would actually use. "
+    "When the claim is in German, emit ENGLISH keyword queries (Wikipedia/scholarly "
+    "indexes are English-primary)."
 )
+
+# Deterministic DE→EN search keywords only (never values). Matched case-insensitively
+# against the claim text; combined into short English query phrases for retrieval.
+_DE_EN_SEARCH_TERMS: tuple[tuple[str, str], ...] = (
+    ("stahl", "steel"),
+    ("dichte", "density"),
+    ("aluminium", "aluminum"),
+    ("aluminum", "aluminum"),
+    ("kupfer", "copper"),
+    ("eisen", "iron"),
+    ("festigkeit", "strength"),
+    ("streckgrenze", "yield strength"),
+    ("elastizitätsmodul", "young modulus"),
+    ("young", "young modulus"),
+    ("wärmeleit", "thermal conductivity"),
+    ("schmelzpunkt", "melting point"),
+)
+
+
+def _english_search_boosts(claim_text: str) -> list[str]:
+    """Fact-free English keyword boosts for DE (or mixed) claim text.
+
+    Returns zero or more short search strings. Never invents numeric values —
+    only maps known material/property words so English-indexed backends can
+    retrieve corroborating pages for German claim prose.
+    """
+    low = claim_text.lower()
+    en_terms: list[str] = []
+    seen: set[str] = set()
+    for de, en in _DE_EN_SEARCH_TERMS:
+        if de in low and en not in seen:
+            seen.add(en)
+            en_terms.append(en)
+    if not en_terms:
+        return []
+    boosts = [" ".join(en_terms)]
+    if len(en_terms) >= 2:
+        # alternate order often ranks better on Wikipedia ("steel density")
+        boosts.append(" ".join(reversed(en_terms)))
+    return boosts
 
 
 @dataclass(frozen=True)
@@ -215,6 +257,12 @@ class Skeptic:
         # it alone — never an empty query, never a fabricated one, and never silent:
         # the swallowed error is logged to state.log (D11). (Recall tuning: verbatim
         # claim text alone often misses corroborating sources.)
+        #
+        # Additionally: scholar writes claim *text* in German while Wikipedia (and
+        # most free backends) index English. A German claim as the only query
+        # under-retrieves (live 2026-07-13: density-of-steel stayed UNSUPPORTED
+        # until English keyword boosts were added). Deterministic DE→EN term
+        # expansion is fact-free (search keywords only, never asserted values).
         queries: list[str] = []
         try:
             resp = await self._verifier.complete(
@@ -234,10 +282,12 @@ class Skeptic:
                 f"({type(exc).__name__}: {exc}); falling back to verbatim claim text"
             )
             queries = []
+        for boost in _english_search_boosts(claim_text):
+            if boost not in queries:
+                queries.insert(0, boost)
         if claim_text not in queries:
             queries.append(claim_text)
         return queries
-
     async def _judge(
         self, llm: LLMClient, claim_text: str, content: str, url: str, state: RunState
     ) -> _Verdict:

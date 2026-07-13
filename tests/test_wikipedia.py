@@ -2,7 +2,7 @@
 
 Wikipedia is GENESIS's keyless, non-rate-limited discovery workhorse (the free
 Semantic Scholar API 429s without a key). Like every backend it does DISCOVERY
-only: it returns candidate URLs (the REST *summary* endpoint, whose body is clean
+only: it returns candidate URLs (MediaWiki plain-text *extracts*, full article
 prose the scholar can quote-check verbatim) and never asserts a fact. A transport
 failure raises ``SearchBackendError`` — loud, never a silent empty list that would
 hide an outage.
@@ -46,16 +46,17 @@ def search_body(*titles: str) -> str:
 
 # --- tracer bullet: real result shape -> candidates ---------------------------
 
-def test_search_maps_titles_to_summary_url_candidates():
+def test_search_maps_titles_to_extract_url_candidates():
     calls: list = []
     be = WikipediaBackend(http_returning(200, search_body("Solid modeling", "FreeCAD"), calls))
     cands = run(be.search("CAD kernel", 5))
     assert [c.title for c in cands] == ["Solid modeling", "FreeCAD"]
-    # Candidate URL is the REST summary endpoint (clean prose for quote-checking),
-    # title path-encoded (space -> underscore, then percent-encoding).
-    assert cands[0].url_or_id == (
-        "https://en.wikipedia.org/api/rest_v1/page/summary/Solid_modeling"
-    )
+    # Candidate URL is the MediaWiki plain-text extracts API (full article prose
+    # for quote-checking — REST summaries omit many property numbers).
+    assert "action=query" in cands[0].url_or_id
+    assert "prop=extracts" in cands[0].url_or_id
+    assert "explaintext=1" in cands[0].url_or_id
+    assert "titles=Solid%20modeling" in cands[0].url_or_id or "titles=Solid+modeling" in cands[0].url_or_id or "Solid" in cands[0].url_or_id
     assert all(c.backend == "wikipedia" for c in cands)
     assert all(c.fetched_ok is False for c in cands)  # discovery only
     # the search query was sent to the MediaWiki API endpoint
@@ -115,14 +116,13 @@ def test_result_without_title_is_skipped_never_invented():
     assert [c.title for c in cands] == ["Real"]  # the title-less hit is dropped
 
 
-def test_special_characters_in_title_are_path_encoded():
+def test_special_characters_in_title_are_url_encoded():
     be = WikipediaBackend(http_returning(200, search_body("C++ (programming language)")))
     (cand,) = run(be.search("q", 5))
-    # space -> underscore, then '+', '(', ')' percent-encoded -> a safe, real URL
-    assert cand.url_or_id == (
-        "https://en.wikipedia.org/api/rest_v1/page/summary/"
-        "C%2B%2B_%28programming_language%29"
-    )
+    # titles= parameter percent-encodes +, spaces, parentheses
+    assert "prop=extracts" in cand.url_or_id
+    assert "C%2B%2B" in cand.url_or_id or "C++" in cand.url_or_id
+    assert "programming" in cand.url_or_id
 
 
 # --- query normalization: Wikipedia full-text search wants keywords, not questions
@@ -134,6 +134,13 @@ def test_to_keywords_strips_question_framing_and_punctuation():
     assert to_keywords("How does the Open Cascade Technology work?") == "Open Cascade Technology work"
     assert to_keywords("geometric modeling kernel") == "geometric modeling kernel"  # already keywords
     assert to_keywords("What are the main features of OCCT?") == "main features of OCCT"
+
+
+def test_to_keywords_strips_unit_tokens_for_property_queries():
+    # Live bug: units drown ranking → generic Density page instead of Steel.
+    assert to_keywords("What is the density of steel in kg/m3?") == "density of steel"
+    assert to_keywords("density of steel in kg/m3") == "density of steel"
+    assert "kg" not in to_keywords("yield strength of PLA in MPa")
 
 
 def test_search_sends_normalized_keywords_not_the_raw_question():

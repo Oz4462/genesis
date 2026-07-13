@@ -497,18 +497,18 @@ def build_live(generator: str, verifier: str) -> tuple[Dependencies, Config]:
         ledger=InMemoryLedgerStore(),
     )
     models = {"generator": generator, "verifier": verifier}
-    # Live CLI calls are sequential and often 20–60s each; keep refine rounds low so
-    # outer sweep timeouts (≈600–900s) still get a finished honest report rather than
-    # a mid-run kill. Offline demos use their own scripted configs (higher rounds OK).
+    # Live CLI calls are sequential and often 20–60s each. max_refine_rounds=0 means
+    # ONE scout→scholar→skeptic pass (conductor breaks when rounds >= max after the
+    # first attempt). A value of 1 allowed a second full cycle (~2× wall time) and
+    # routinely blew 900s outer timeouts. Offline demos keep higher rounds.
     config = Config.from_dict(
         {
-            "phase_alpha": {"models": models, "max_refine_rounds": 1},
-            "phase_beta": {"models": models, "max_refine_rounds": 1},
-            "phase_gamma": {"models": models, "max_refine_rounds": 1},
+            "phase_alpha": {"models": models, "max_refine_rounds": 0},
+            "phase_beta": {"models": models, "max_refine_rounds": 0},
+            "phase_gamma": {"models": models, "max_refine_rounds": 0},
         }
     )
     return deps, config
-
 
 # --- presentation ------------------------------------------------------------
 

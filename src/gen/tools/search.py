@@ -45,22 +45,39 @@ _QUESTION_LEAD = re.compile(
     re.IGNORECASE,
 )
 
+# Unit / dimension tokens that drown Wikipedia ranking ("density of steel in kg/m3"
+# ranks generic Density pages; "density of steel" ranks Steel). Pure units only —
+# never strip content words that share letters with units in longer tokens.
+_UNIT_TOKEN = re.compile(
+    r"(?i)^(kg(?:\/?(?:m(?:³|3)?))?|g(?:\/?(?:cm(?:³|3)?))?|"
+    r"mpa|gpa|kpa|pa|n(?:·?m)?|kn|hz|khz|mhz|"
+    r"mm|cm|km|m(?:²|2|³|3)?|s|ms|µs|us|kwh|wh|j|w|v|a|"
+    r"lb|ft|in|oz|psi|°?c|°?f)$"
+)
+
 
 def to_keywords(query: str) -> str:
     """Reduce a natural-language question to keyword form for full-text search.
 
     Wikipedia's search matches keywords, not questions: a leading "What is ..."
     and a trailing "?" pollute the ranking and surface tangential articles. This
-    strips that framing and question punctuation while preserving the content
-    words (and their case, so proper nouns like "Open Cascade Technology" stay
-    intact). Already-keyword queries pass through unchanged. If stripping would
-    empty the query, the original is kept (never search for nothing).
+    strips that framing, question punctuation, and pure unit tokens (``kg/m3``,
+    ``MPa``, …) while preserving content words (and their case, so proper nouns
+    like "Open Cascade Technology" stay intact). Already-keyword queries pass
+    through largely unchanged. If stripping would empty the query, the original
+    is kept (never search for nothing).
+
+    Live diagnosis 2026-07-13: ``What is the density of steel in kg/m3?`` →
+    ``density of steel in kg/m3`` ranked generic Density pages; after unit strip
+    → ``density of steel`` ranks Steel first (which states 7750–8050 kg/m³).
     """
     cleaned = query.replace("?", " ").replace("(", " ").replace(")", " ")
+    # Split compound units so ``kg/m3`` becomes two tokens both matched by _UNIT_TOKEN.
+    cleaned = cleaned.replace("/", " ")
     stripped = _QUESTION_LEAD.sub("", cleaned, count=1)
-    result = " ".join(stripped.split())
+    tokens = [t for t in stripped.split() if t and not _UNIT_TOKEN.match(t)]
+    result = " ".join(tokens)
     return result or " ".join(query.split())
-
 
 class SemanticScholarBackend:
     """Academic search via the free Semantic Scholar Graph API.
@@ -124,28 +141,33 @@ class SemanticScholarBackend:
 
 
 class WikipediaBackend:
-    """Keyless discovery via the MediaWiki search API.
+    """Keyless discovery via the MediaWiki search API + full plain-text extracts.
 
     The free Semantic Scholar API rate-limits (HTTP 429) without a key; Wikipedia's
     API needs none and is reliable, so it is GENESIS's default discovery workhorse.
 
-    A candidate's ``url_or_id`` points at the REST *summary* endpoint, whose body
-    is clean, fact-dense prose — exactly what the scholar's verbatim quote guard
-    needs to actually match (a raw article URL fetches noisy HTML instead). Like
-    every backend this does DISCOVERY only: it returns candidates, never facts, and
-    raises ``SearchBackendError`` on transport failure rather than a silent empty
-    list.
+    A candidate's ``url_or_id`` points at ``action=query&prop=extracts&explaintext``
+    (full article plain text), not the short REST *summary* endpoint. Live diagnosis
+    2026-07-13: REST summaries for Steel omit the density band (7750–8050 kg/m³), so
+    scholar could extract nothing; the full extract includes it for quote-checking.
+    Like every backend this does DISCOVERY only: candidates, never facts; transport
+    failure raises ``SearchBackendError`` rather than a silent empty list.
     """
 
     name = "wikipedia"
     _SEARCH = "https://en.wikipedia.org/w/api.php"
-    _SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/"
 
     def __init__(self, http_get: HttpGet, *, lang: str = "en") -> None:
         self._http_get = http_get
         if lang != "en":  # keep the default endpoints unless a caller overrides lang
             self._SEARCH = f"https://{lang}.wikipedia.org/w/api.php"
-            self._SUMMARY = f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/"
+
+    def _extract_url(self, title: str) -> str:
+        """MediaWiki plain-text extract URL for a page title (full article prose)."""
+        return (
+            f"{self._SEARCH}?action=query&prop=extracts&explaintext=1"
+            f"&format=json&redirects=1&titles={quote(title, safe='')}"
+        )
 
     async def search(self, query: str, limit: int) -> list[SourceCandidate]:
         url = (
@@ -176,11 +198,10 @@ class WikipediaBackend:
         for hit in results:
             title = hit.get("title")
             if not title:
-                continue  # no title -> no stable summary URL; skip, never invent
-            path = quote(title.replace(" ", "_"), safe="")
+                continue  # no title -> no stable extract URL; skip, never invent
             out.append(
                 SourceCandidate(
-                    url_or_id=self._SUMMARY + path,
+                    url_or_id=self._extract_url(title),
                     title=title,
                     backend=self.name,
                     relevance_note=f"Wikipedia: search match for {query!r}",
@@ -188,7 +209,6 @@ class WikipediaBackend:
                 )
             )
         return out
-
 
 def _best_paper_id(paper: Mapping) -> str | None:
     ext = paper.get("externalIds") or {}

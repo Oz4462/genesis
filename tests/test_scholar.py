@@ -178,6 +178,28 @@ def test_readable_text_unwraps_json_api_prose():
     assert readable_text(body) == "The 3D ACIS Modeler is a geometric modeling kernel."
 
 
+def test_readable_text_unwraps_mediawiki_nested_extracts():
+    # action=query&prop=extracts nests under query.pages.*.extract
+    body = json.dumps({
+        "batchcomplete": "",
+        "query": {
+            "pages": {
+                "26909": {
+                    "pageid": 26909,
+                    "title": "Steel",
+                    "extract": (
+                        "The density of steel varies based on the alloying "
+                        "constituents but usually ranges between 7,750 and 8,050 kg/m3."
+                    ),
+                }
+            }
+        },
+    })
+    prose = readable_text(body)
+    assert "7,750" in prose and "density of steel" in prose
+    assert "batchcomplete" not in prose
+
+
 def test_scholar_feeds_readable_prose_not_raw_json_to_model():
     # Regression for the live ACIS finding: the model must see clean prose, not the
     # JSON envelope, so it can copy a verbatim quote instead of paraphrasing one.
