@@ -1,0 +1,532 @@
+[
+  {
+    "name": "report--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.6,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "================================================================ | GENESIS \u2014 Phase \u03b1: verifizierter Recherche-Report | =============================================================",
+    "log": "/tmp/genesis_full_live_20260713_v2/report--demo.log"
+  },
+  {
+    "name": "solution--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.4,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "================================================================ | GENESIS \u2014 Phase \u03b2: belegter L\u00f6sungsraum | ================================================================ | Prob",
+    "log": "/tmp/genesis_full_live_20260713_v2/solution--demo.log"
+  },
+  {
+    "name": "spec--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.6,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "================================================================ | GENESIS \u2014 Phase \u03b3: verifizierte Bau-Spezifikation | =============================================================",
+    "log": "/tmp/genesis_full_live_20260713_v2/spec--demo.log"
+  },
+  {
+    "name": "capstone--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.6,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "================================================================ | GENESIS \u2014 Phase \u03b3: verifizierte Bau-Spezifikation | =============================================================",
+    "log": "/tmp/genesis_full_live_20260713_v2/capstone--demo.log"
+  },
+  {
+    "name": "eval--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.4,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "Anti-Halluzinations-Gate-Evaluation (deterministisch, offline): | OK PASS (erwartet PASS)  capstone (full sound spec) | OK PASS (erwartet PASS)  honest abstention (empty + gaps) | ",
+    "log": "/tmp/genesis_full_live_20260713_v2/eval--demo.log"
+  },
+  {
+    "name": "protocol--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.4,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "================================================================ | GENESIS \u2014 Phase \u03b3: verifizierte Bau-Spezifikation | =============================================================",
+    "log": "/tmp/genesis_full_live_20260713_v2/protocol--demo.log"
+  },
+  {
+    "name": "assess--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.6,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "=== Antriebswelle (Physik greift) === | Gesamturteil:           physics_verified | Physik: gepr\u00fcft=True vollst\u00e4ndig=True ok=True  (3 Pr\u00fcfungen, 0 L\u00fccken) | Anforderungen konsistent",
+    "log": "/tmp/genesis_full_live_20260713_v2/assess--demo.log"
+  },
+  {
+    "name": "print--demo",
+    "kind": "offline",
+    "exit": 3,
+    "seconds": 2.4,
+    "ok": true,
+    "strict_ok": false,
+    "summary": "=== Druckbarkeit: capstone === | Status: unavailable | Hinweis: nicht beurteilt: Geometry error: exact BREP needs the optional 'cadquery' package (OpenCASCADE kernel); install it w",
+    "log": "/tmp/genesis_full_live_20260713_v2/print--demo.log"
+  },
+  {
+    "name": "bundle--demo",
+    "kind": "offline",
+    "exit": 3,
+    "seconds": 2.3,
+    "ok": true,
+    "strict_ok": false,
+    "summary": "=== B\u00fcndel: humanoid -> out/bundle/humanoid === | geschrieben:  BAUANLEITUNG.md, humanoid.scad, bom.json, MANIFEST.json, MISSING.md | fehlt:        humanoid__c_pelvis.stl: watertig",
+    "log": "/tmp/genesis_full_live_20260713_v2/bundle--demo.log"
+  },
+  {
+    "name": "ideas--demo",
+    "kind": "offline",
+    "exit": 3,
+    "seconds": 2.5,
+    "ok": true,
+    "strict_ok": false,
+    "summary": "=== Idee: delivery_drone -> out/future_ideas/delivery_drone === | Eine autonome urbane Paket-Lieferdrohne (Quadrocopter) \u2014 gegatet gegen Rotor-Schwebe, Akku-Flugzeit, ESC/Akku-Stro",
+    "log": "/tmp/genesis_full_live_20260713_v2/ideas--demo.log"
+  },
+  {
+    "name": "dream--demo",
+    "kind": "offline",
+    "exit": 3,
+    "seconds": 2.6,
+    "ok": true,
+    "strict_ok": false,
+    "summary": "=== Vision (grok): skyclaw -> out/visionary_ideas/skyclaw === | SkyClaw \u2014 ein rucksack-transportabler, vor Ort druckbarer fliegender Manipulator (Quadrocopter + 2R-Arm + Greifer) f",
+    "log": "/tmp/genesis_full_live_20260713_v2/dream--demo.log"
+  },
+  {
+    "name": "humanoid--demo",
+    "kind": "offline",
+    "exit": 3,
+    "seconds": 2.6,
+    "ok": true,
+    "strict_ok": false,
+    "summary": "=== Humanoid: printed_humanoid -> out/competitive/printed_humanoid === | Ein vollst\u00e4ndig 3D-gedruckter Ganzk\u00f6rper-Humanoid (CF-Nylon), der die druckbare/Hobby-Klasse (InMoov/Poppy)",
+    "log": "/tmp/genesis_full_live_20260713_v2/humanoid--demo.log"
+  },
+  {
+    "name": "aethon--demo",
+    "kind": "offline",
+    "exit": 3,
+    "seconds": 2.9,
+    "ok": true,
+    "strict_ok": false,
+    "summary": "=== AETHON \u2014 1.35 m, 22.0 kg, 39 DOF (27 K\u00f6rper + 12 Hand) === | GATE \u03b3 (C-1..C-18): PASS (0 Fehler) | GATE \u03b4 (Physik):    PASS (0 Fehler) | B\u00fcndel -> out/aethon: physics_verified ",
+    "log": "/tmp/genesis_full_live_20260713_v2/aethon--demo.log"
+  },
+  {
+    "name": "section--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.8,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Querschnitts-Optimierer (Vorschlag \u2192 unabh\u00e4ngiges Streckgrenzen-Gate entscheidet) | Last: F=100 N am Hebel L=50 mm \u00b7 Sicherheitsfaktor 2.0 | OK PLA   b\u00d7h =   4.22\u00d7 16.88 ",
+    "log": "/tmp/genesis_full_live_20260713_v2/section--demo.log"
+  },
+  {
+    "name": "topology--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 20.2,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 SIMP Topology (unified proposer) | type=topology verdict=vorschlag_unverifiziert | delta_path: \u03b4-Pfad bis zur Zertifizierung: (1) threshold_resolve \u2014 bin\u00e4res Design bei g",
+    "log": "/tmp/genesis_full_live_20260713_v2/topology--demo.log"
+  },
+  {
+    "name": "structural--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 18.0,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Unified structural proposer (section + topology) | section: verdict=vorschlag_unverifiziert  delta_path=structural yield gate (cegis + smt) + printability | topology: ver",
+    "log": "/tmp/genesis_full_live_20260713_v2/structural--demo.log"
+  },
+  {
+    "name": "training--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.2,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Trainings-Plan-Gate (ehrliche Grenze: spezifizieren + ratifizieren, NICHT trainieren) | Aufgabe: humanoid flat-ground walking policy | Erfolg vorab deklariert: task_succe",
+    "log": "/tmp/genesis_full_live_20260713_v2/training--demo.log"
+  },
+  {
+    "name": "chip--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.2,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Chip-Auswahl-nach-Anforderung (Vorschlag: Katalog \u2192 Gate: compute.py) | Anforderung: 30 TOPS \u00b7 \u2264 40 W \u00b7 50 GOps/Inferenz \u00b7 Regelperiode 10 ms | XX Jetson Nano (legacy)   ",
+    "log": "/tmp/genesis_full_live_20260713_v2/chip--demo.log"
+  },
+  {
+    "name": "realize--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.3,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "Real mini package dir written: out/genesis_realization_fragments/cli-realize | Visualization dashboard written: dashboard.html (interactive, generalist, with transient plot) | Stan",
+    "log": "/tmp/genesis_full_live_20260713_v2/realize--demo.log"
+  },
+  {
+    "name": "breakthrough--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.6,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "Real mini package dir written: out/genesis_realization_fragments/breakthrough-20260713124914 | Visualization dashboard written: dashboard.html (interactive, generalist, with transi",
+    "log": "/tmp/genesis_full_live_20260713_v2/breakthrough--demo.log"
+  },
+  {
+    "name": "goldset--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.5,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "============================================================ | GOLD SET \u2014 GENESIS anti-hallucination measurement (DRY / mechanism verified) | ======================================",
+    "log": "/tmp/genesis_full_live_20260713_v2/goldset--demo.log"
+  },
+  {
+    "name": "divergence--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.6,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "================================================================ | GENESIS \u2014 Phase \u03c6: geerdeter M\u00f6glichkeitsraum (HORIZON) | =======================================================",
+    "log": "/tmp/genesis_full_live_20260713_v2/divergence--demo.log"
+  },
+  {
+    "name": "frontier",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.7,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Phase \u03c7: Frontier-Karte (HORIZON \u00a72C) | ================================================================ | Bekannte Regionen: 1 | \u00b7 Steel density is about 7850 kg/m3. | F",
+    "log": "/tmp/genesis_full_live_20260713_v2/frontier.log"
+  },
+  {
+    "name": "invent--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.6,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "=== GENESIS Erfindungs-Loop (invent) \u2014 Feld: ein druckbares mechatronisches Bauteil === | Quelle:        offline-deterministisch (scripted council) | Konzepte:      2 vorgeschlagen",
+    "log": "/tmp/genesis_full_live_20260713_v2/invent--demo.log"
+  },
+  {
+    "name": "solve--demo",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.6,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "=== GENESIS Erfindungs-Loop (solve) \u2014 Problem: ein druckbares mechatronisches Bauteil === | Quelle:        offline-deterministisch (scripted council) | Konzepte:      2 vorgeschlag",
+    "log": "/tmp/genesis_full_live_20260713_v2/solve--demo.log"
+  },
+  {
+    "name": "council",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 3.0,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Cross-Model-Council (offline: echte grok+Claude-Vorschl\u00e4ge vom 2026-06-19 gegated \u2014 --live f\u00fcr die echten CLIs, das Gate entscheidet) | === Pendulum period: Schwingungsda",
+    "log": "/tmp/genesis_full_live_20260713_v2/council.log"
+  },
+  {
+    "name": "feynman",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.5,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Feynman-SRDB-Benchmark (ehrliche Zwei-Raten-Zahl) | Recovery (Potenzgesetz-Familie):        5/5 = 100% | Honest Abstention (nicht-Potenzgesetz): 3/3 = 100% | OK Newton gr",
+    "log": "/tmp/genesis_full_live_20260713_v2/feynman.log"
+  },
+  {
+    "name": "campaign",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.7,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Discovery-Kampagne (MAP-Elites-Archiv + gelernter Prior, das Gate entscheidet) | validierte Verdikte: 5   Archiv-Diversit\u00e4t (Zellen): 3 | T = 6.28319 * L^1/2 * g^-1/2  (R",
+    "log": "/tmp/genesis_full_live_20260713_v2/campaign.log"
+  },
+  {
+    "name": "discover-ode",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.5,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "=== ODE-Entdeckung (SINDy aus GENESIS-Simulator, deterministisch, offline) === | System:        gedaempftes Pendel  I\u00b7\u03b8\u0308 = \u2212c\u00b7\u03c9 \u2212 m\u00b7g\u00b7d\u00b7sin\u03b8  (m=2.0, d=0.18, c=0.2) | Entdeckt:    ",
+    "log": "/tmp/genesis_full_live_20260713_v2/discover-ode.log"
+  },
+  {
+    "name": "research",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.5,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "=== Math-Research: (x+1)**2 = x**2+2*x+1  (domain R, vars: x) === | Status:    SURVIVED_NOVEL | Promotion: ...->GATE-FALSIFICATION(survived)->GATE-PROOF->GATE-NOVELTY(novel)->NOVEL",
+    "log": "/tmp/genesis_full_live_20260713_v2/research.log"
+  },
+  {
+    "name": "horizon-full",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.7,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "\u2550\u2550\u2550 GENESIS HORIZON-FULL \u2550\u2550\u2550 | idea: Ein leiser, energieautarker Innenraum-Transportroboter. | \u2713 HORIZON arc (lumencrucible.process_dream): process_dream \u2192 24 keys \u00b7 \u03a9.passed=True ",
+    "log": "/tmp/genesis_full_live_20260713_v2/horizon-full.log"
+  },
+  {
+    "name": "aero-report",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.3,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "============================================================================================ | GENESIS \u00d7 REAL DRONES \u2014 acquisition + \u03b4-FLIGHT validator calibration report | =======",
+    "log": "/tmp/genesis_full_live_20260713_v2/aero-report.log"
+  },
+  {
+    "name": "humanoid-report",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 13.9,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "========================================================================================== | GENESIS \u00d7 REAL OPEN-SOURCE HUMANOIDS \u2014 acquisition + validation report | ==============",
+    "log": "/tmp/genesis_full_live_20260713_v2/humanoid-report.log"
+  },
+  {
+    "name": "surface",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 6.2,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 product surface (CLI-anchored modules) | anchored: 29 | \u00b7 gen.export.drawing | \u00b7 gen.export.ros2_package | \u00b7 gen.aero.calibration | \u00b7 gen.aero.drone_catalog | \u00b7 gen.aero.",
+    "log": "/tmp/genesis_full_live_20260713_v2/surface.log"
+  },
+  {
+    "name": "fach",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.6,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Fach-Pipeline family (all first stones) | ================================================================ | pipelines: 10 | \u00b7 architekt: Minimal SystemConcept f\u00fcr noch n",
+    "log": "/tmp/genesis_full_live_20260713_v2/fach.log"
+  },
+  {
+    "name": "architekt",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.7,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Fach-Pipeline: architekt | ================================================================ | source_idea: Modularer leiser Krankenhaus-Indoor-Transportroboter, batteriee",
+    "log": "/tmp/genesis_full_live_20260713_v2/architekt.log"
+  },
+  {
+    "name": "ingenieur",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.6,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Fach-Pipeline: ingenieur | ================================================================ | source_concept: Modularer leiser Krankenhaus-Indoor-Transportroboter, batter",
+    "log": "/tmp/genesis_full_live_20260713_v2/ingenieur.log"
+  },
+  {
+    "name": "physiker",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.6,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Fach-Pipeline: physiker | ================================================================ | source_idea: Modularer leiser Krankenhaus-Indoor-Transportroboter, batterieel",
+    "log": "/tmp/genesis_full_live_20260713_v2/physiker.log"
+  },
+  {
+    "name": "techniker",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.5,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Fach-Pipeline: techniker | ================================================================ | source_idea: Modularer leiser Krankenhaus-Indoor-Transportroboter, batteriee",
+    "log": "/tmp/genesis_full_live_20260713_v2/techniker.log"
+  },
+  {
+    "name": "elektriker",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.6,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Fach-Pipeline: elektriker | ================================================================ | source_idea: Modularer leiser Krankenhaus-Indoor-Transportroboter, batterie",
+    "log": "/tmp/genesis_full_live_20260713_v2/elektriker.log"
+  },
+  {
+    "name": "fertigungs",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.5,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Fach-Pipeline: fertigungs | ================================================================ | source_idea: Modularer leiser Krankenhaus-Indoor-Transportroboter, batterie",
+    "log": "/tmp/genesis_full_live_20260713_v2/fertigungs.log"
+  },
+  {
+    "name": "regulatorik",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.3,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Fach-Pipeline: regulatorik | ================================================================ | source_idea: Modularer leiser Krankenhaus-Indoor-Transportroboter, batteri",
+    "log": "/tmp/genesis_full_live_20260713_v2/regulatorik.log"
+  },
+  {
+    "name": "software",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.3,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Fach-Pipeline: software | ================================================================ | source_idea: Modularer leiser Krankenhaus-Indoor-Transportroboter, batterieel",
+    "log": "/tmp/genesis_full_live_20260713_v2/software.log"
+  },
+  {
+    "name": "designer",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.5,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Fach-Pipeline: designer | ================================================================ | source_idea: Modularer leiser Krankenhaus-Indoor-Transportroboter, batterieel",
+    "log": "/tmp/genesis_full_live_20260713_v2/designer.log"
+  },
+  {
+    "name": "wirtschaft",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.5,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Fach-Pipeline: wirtschaft | ================================================================ | source_idea: Modularer leiser Krankenhaus-Indoor-Transportroboter, batterie",
+    "log": "/tmp/genesis_full_live_20260713_v2/wirtschaft.log"
+  },
+  {
+    "name": "humanoid-research",
+    "kind": "offline",
+    "exit": 0,
+    "seconds": 2.9,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "# GENESIS Humanoid Next-Gen Research Report | **Modul: humanoid_research** \u2014 Vollst\u00e4ndige Abdeckung aller Aspekte des Baus eines humanoiden Roboters der n\u00e4chsten Generation. | **Pr",
+    "log": "/tmp/genesis_full_live_20260713_v2/humanoid-research.log"
+  },
+  {
+    "name": "LIVE-report",
+    "kind": "live_llm",
+    "exit": 0,
+    "seconds": 830.0,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "================================================================ | GENESIS \u2014 Phase \u03b1: verifizierter Recherche-Report | =============================================================",
+    "log": "/tmp/genesis_full_live_20260713_v2/LIVE-report.log"
+  },
+  {
+    "name": "LIVE-solution",
+    "kind": "live_llm",
+    "exit": 0,
+    "seconds": 829.0,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "================================================================ | GENESIS \u2014 Phase \u03b2: belegter L\u00f6sungsraum | ================================================================ | Prob",
+    "log": "/tmp/genesis_full_live_20260713_v2/LIVE-solution.log"
+  },
+  {
+    "name": "LIVE-spec",
+    "kind": "live_llm",
+    "exit": 0,
+    "seconds": 759.3,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "================================================================ | GENESIS \u2014 Phase \u03b3: verifizierte Bau-Spezifikation | =============================================================",
+    "log": "/tmp/genesis_full_live_20260713_v2/LIVE-spec.log"
+  },
+  {
+    "name": "LIVE-divergence",
+    "kind": "live_llm",
+    "exit": 0,
+    "seconds": 312.4,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "================================================================ | GENESIS \u2014 Phase \u03c6: geerdeter M\u00f6glichkeitsraum (HORIZON) | =======================================================",
+    "log": "/tmp/genesis_full_live_20260713_v2/LIVE-divergence.log"
+  },
+  {
+    "name": "LIVE-invent",
+    "kind": "live_llm",
+    "exit": 0,
+    "seconds": 53.2,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "=== GENESIS Erfindungs-Loop (invent) \u2014 Feld: Modularer leiser Krankenhaus-Indoor-Transportroboter, batterieelektrisch, Nutzlast 50 kg, ehrliche Physik und BOM === | Quelle:        ",
+    "log": "/tmp/genesis_full_live_20260713_v2/LIVE-invent.log"
+  },
+  {
+    "name": "LIVE-solve",
+    "kind": "live_llm",
+    "exit": 0,
+    "seconds": 44.3,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "=== GENESIS Erfindungs-Loop (solve) \u2014 Problem: How to move 50 kg quietly indoors on hospital floors without mecanum noise? === | Quelle:        LIVE council via claude-opus-4-8 (Ar",
+    "log": "/tmp/genesis_full_live_20260713_v2/LIVE-solve.log"
+  },
+  {
+    "name": "LIVE-council",
+    "kind": "live_llm",
+    "exit": 0,
+    "seconds": 77.5,
+    "ok": true,
+    "strict_ok": true,
+    "summary": "GENESIS \u2014 Cross-Model-Council (grok + Claude LIVE IN GENESIS, das Gate entscheidet) | === Pendulum period: Schwingungsdauer eines Fadenpendels. === | cross_model=True  Familien=cla",
+    "log": "/tmp/genesis_full_live_20260713_v2/LIVE-council.log"
+  }
+]
