@@ -196,3 +196,18 @@ e984d5c feat(self-improve loop): materials backend, α progress, print STL fallb
 
 ---
 *Loop continues until stop…*
+
+## Iteration 11 — The Well stream-only probe (`6ab2386`)
+
+**Done:**
+- `gen.tools.the_well_probe` — catalog + stream probe (max 3 batches)
+- CLI `--mode well-probe` (demo = catalog; named dataset = stream if package)
+- Product surface anchor; tests green; docs/THE_WELL_PROBE.md
+- Policy: never 15TB download; HF stream; honest exit 3 without package
+
+**Verify:**
+- `well-probe --demo` → exit 0 catalog
+- `well-probe active_matter` without package → exit 3 unavailable
+- pytest test_the_well_probe + cli matrix green
+
+---
