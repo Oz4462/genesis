@@ -223,3 +223,17 @@ e984d5c feat(self-improve loop): materials backend, α progress, print STL fallb
 **Verify:** invent --demo 0; invent loop tests; well fixture exit 0; unavailable without package still 3
 
 ---
+
+## Iteration 13 — invent novelty_gate wired (2026-07-14)
+
+**Bug:** Materials/RAG prior-art backends existed but invent CLI never passed `novelty_gate` → search never ran.
+
+**Done:**
+- `build_novelty_gate(domain.prior_art_sources())` on invent/solve CLI
+- Live invent: OpenAlex + materials + RAG
+- Print `novelty=` + abgelehnte nicht_neu concepts
+- invent --demo: novelty=neu, Quellen up to 2
+
+**Verify:** invent/solve --demo exit 0; inventor tests green
+
+---

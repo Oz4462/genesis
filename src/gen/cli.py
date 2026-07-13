@@ -2601,6 +2601,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         from .inventor.generate import scripted_council
         from .inventor.loop import run_invention
+        from .inventor.novelty import build_novelty_gate
         from .inventor.safety import safety_gate, screen_brief
         from .llm.base import LLMClient
 
@@ -2672,7 +2673,19 @@ def main(argv: list[str] | None = None) -> int:
             domain = ThermalDomain()
         else:
             architect = scripted_mechatronics_architect(first_natural_hz=150.0)
-            domain = MechatronicsDomain()
+            # Offline: RAG + materials. Live: same + keyless OpenAlex for real prior art.
+            if args.live:
+                from .tools.http import default_http_get
+                from .tools.sources import OpenAlexBackend
+
+                _backends = list(MechatronicsDomain().prior_art_sources())
+                _backends.append(OpenAlexBackend(default_http_get))
+                domain = MechatronicsDomain(backends=_backends)
+            else:
+                domain = MechatronicsDomain()
+        # Self-improve 2026-07-14: wire domain prior-art backends into novelty gate
+        # (was never connected on CLI — materials/RAG search did nothing for invent).
+        novelty_gate = build_novelty_gate(domain.prior_art_sources())
         try:
             result = _asyncio.run(
                 run_invention(
@@ -2681,6 +2694,7 @@ def main(argv: list[str] | None = None) -> int:
                     council=council,
                     architect=architect,
                     safety_screen=safety_gate,
+                    novelty_gate=novelty_gate,
                 )
             )
         except GenesisError as exc:
@@ -2694,6 +2708,7 @@ def main(argv: list[str] | None = None) -> int:
                     council=scripted,
                     architect=architect,
                     safety_screen=safety_gate,
+                    novelty_gate=novelty_gate,
                 )
             )
 
@@ -2707,13 +2722,26 @@ def main(argv: list[str] | None = None) -> int:
             f"  Pareto-Front (proxy):  {len(result.front)} nicht-dominierte Erfindung(en)"
         )
         for inv in result.front:
+            nov = inv.novelty_verdict or "—"
             print(
                 f"    • {inv.concept.statement}  [verifiziert={inv.physics_verified}, "
-                f"Quellen={len(inv.prior_art)}, Lücken={len(inv.gaps)}]"
+                f"novelty={nov}, Quellen={len(inv.prior_art)}, Lücken={len(inv.gaps)}]"
+            )
+        rejected = [
+            inv
+            for inv in result.inventions
+            if inv.novelty_verdict == "nicht_neu" or (inv.gaps and not inv.physics_verified)
+        ]
+        for inv in rejected:
+            if inv in result.front:
+                continue
+            print(
+                f"    · abgelehnt: {inv.concept.statement}  "
+                f"[novelty={inv.novelty_verdict or '—'}, gaps={len(inv.gaps)}]"
             )
         if not result.front:
             print(
-                "    (leere Front — kein Konzept überlebte das δ-Physik-Gate; ehrliche Lücke, keine Halluzination)"
+                "    (leere Front — kein Konzept überlebte Novelty/δ-Physik-Gate; ehrliche Lücke, keine Halluzination)"
             )
         # γ+ full Pareto (HORIZON bridge from inventor loop)
         pf = getattr(result, "pareto_front", None)
