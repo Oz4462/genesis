@@ -66,14 +66,32 @@ Commits: `f520100` … `5dc34ee`, `559d750`
 
 ---
 
+## Iteration 5 — Live α WIN: 7850 kg/m³ VERIFIED
+
+**Evidence** `/tmp/loop_live_steel2.out` (~12 min):
+- verified=2 gaps=0 sources=5
+- STEEL/MILD_STEEL registry 7850 kg/m³ + Wikipedia Steel/Carbon steel corroboration
+- Progress logs: scout → scholar (materials claims) → skeptic → gate passed
+- Commit follow-up: dedupe MILD_STEEL (`685774a`)
+
+## Iteration 6 — Product surface + smoke
+
+- materials + materials_backend anchored (surface: 31 modules)
+- `scripts/self_improve_smoke.sh` offline gate green
+- Commits: `8fa449c`, `b15f3e7`, `e7071e9`, `e984d5c`
+
+---
+
 ## Cumulative metrics
 
 | Metric | Value |
 |--------|--------|
 | Hard sweep fails | 0 (v2) |
 | Offline demo exits humanoid/aethon/… | 0 |
-| Hybrid steel VERIFIED claims | 2 |
-| Live α | completes + verified (prior); re-check pending |
+| Hybrid steel VERIFIED claims | 2 (registry + wiki) |
+| Live α steel density | **VERIFIED 7850 kg/m³** + wiki sources |
+| Product surface anchored | 31 (+materials) |
+| Loop commits | e984d5c → b15f3e7 |
 
 ---
 
@@ -81,12 +99,13 @@ Commits: `f520100` … `5dc34ee`, `559d750`
 
 - `src/gen/tools/materials_backend.py` (new)
 - `src/gen/agents/scholar.py`, `conductor.py`
-- `src/gen/tools/search.py`, `runner.py`, `cli.py`, `pipeline.py`
-- `tests/test_materials_backend.py`
+- `src/gen/tools/search.py`, `runner.py`, `cli.py`, `pipeline.py`, `materials.py`, `product_surface.py`
+- `tests/test_materials_backend.py`, `scripts/self_improve_smoke.sh`
+- `docs/SELF_IMPROVE_LOOP_LIVE.md`, `LESSONS.md`, `SELF_IMPROVEMENT_2026-07-13.md`
 
 ---
 
-*Loop continues until stop…*
+*Loop continues until you say stop…*
 
 ## Iteration 3 — Live UnboundLocal fix + Cu/Ti + smoke script
 

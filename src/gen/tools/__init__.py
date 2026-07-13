@@ -12,6 +12,7 @@ from __future__ import annotations
 from .arxiv_backend import ArxivBackend
 from .fetch import FetchResult, WebFetchTool, require_ok
 from .formula_backend import FormulaBackend
+from .materials_backend import MaterialsBackend
 from .http import HttpGet, HttpResponse, content_hash, default_http_get
 from .search import SemanticScholarBackend, WebSearchBackend
 
