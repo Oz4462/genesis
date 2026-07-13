@@ -46,6 +46,11 @@
 - Wikipedia canonical title re-rank (Steel > alloys); materials registry +STEEL; optional CAD gaps ≠ demo fail.
 - Handoff: `docs/LESSONS.md`, `docs/FULL_MODULE_SWEEP_2026-07-13_v2.md`.
 
+**2026-07-14 self-improve continue:**
+- The Well: stream-only probe CLI `--mode well-probe` (`docs/THE_WELL_PROBE.md`) — no bulk 15TB; catalog offline; package optional.
+- Invent mechatronics prior-art includes materials registry + MaterialsBackend.
+- Offline smoke includes well-probe; print tooling-gap exit 0; living log `docs/SELF_IMPROVE_LOOP_LIVE.md`.
+
 
 ---
 

@@ -17,6 +17,8 @@ from ...core.interfaces import SearchBackend
 from ...core.state import Possibility, Specification
 from ...external.oracle import ExternalOracle
 from ...llm.base import LLMClient, ScriptedLLM
+from ...materials import MATERIALS, density_kg_m3
+from ...tools.materials_backend import MaterialsBackend
 from ...tools.rag_backend import Document, RagBackend
 from ..brief import Invention, InventionBrief
 from .base import ground_with_architect, scripted_architect
@@ -34,22 +36,51 @@ _PRIOR_ART_CORPUS = [
 ]
 
 
+def _materials_prior_art_docs() -> list[Document]:
+    """Offline prior-art cards from the grounded materials registry (self-improve 2026-07-14).
+
+    Gives invent/solve prior-art search a deterministic density/modulus anchor without
+    network. Values are handbook bands with provenance — not part-specific measurements.
+    """
+    docs: list[Document] = []
+    for key in ("STEEL", "ALUMINUM", "COPPER", "PLA", "PETG", "ABS"):
+        m = MATERIALS[key]
+        rho = density_kg_m3(key)
+        docs.append(
+            Document(
+                url_or_id=f"gen-materials://{key}",
+                title=f"GENESIS materials registry: {m.name}",
+                text=(
+                    f"{m.name} nominal density {rho:.0f} kg/m3 ({m.density_g_cm3} g/cm3); "
+                    f"Young modulus {m.youngs_modulus_mpa:g} MPa; yield {m.yield_strength_mpa:g} MPa. "
+                    f"Source: {m.source}. Note: {m.note}"
+                ),
+            )
+        )
+    return docs
+
+
 def _default_rag() -> RagBackend:
     """A tiny offline prior-art corpus so the domain is fully testable without the network. Live runs inject
-    the OpenAlex + PatentsView connectors instead."""
-    return RagBackend(_PRIOR_ART_CORPUS)
+    the OpenAlex + PatentsView connectors instead. Materials registry cards are always included."""
+    return RagBackend(_PRIOR_ART_CORPUS + _materials_prior_art_docs())
 
 
 class MechatronicsDomain:
     """Printable mechatronic parts domain. Satisfies :class:`InventionDomain`.
 
-    ``backends`` (optional) are the prior-art SearchBackends; the offline default is a small RagBackend, so a
-    live run injects ``[OpenAlexBackend(...), PatentsViewBackend(...)]`` to search real prior art."""
+    ``backends`` (optional) are the prior-art SearchBackends; the offline default is a small RagBackend
+    plus the offline MaterialsBackend, so density/modulus queries hit grounded handbook bands.
+    A live run may inject ``[OpenAlexBackend(...), PatentsViewBackend(...)]`` for real prior art."""
 
     name = "mechatronics"
 
     def __init__(self, *, backends: Optional[Sequence[SearchBackend]] = None) -> None:
-        self._backends: list[SearchBackend] = list(backends) if backends is not None else [_default_rag()]
+        if backends is not None:
+            self._backends = list(backends)
+        else:
+            # RAG corpus + materials registry search (both offline, no network).
+            self._backends = [_default_rag(), MaterialsBackend()]
 
     def prior_art_sources(self) -> list[SearchBackend]:
         return list(self._backends)

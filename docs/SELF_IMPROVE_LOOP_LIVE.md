@@ -211,3 +211,15 @@ e984d5c feat(self-improve loop): materials backend, α progress, print STL fallb
 - pytest test_the_well_probe + cli matrix green
 
 ---
+
+## Iteration 12 — invent materials prior-art + Well fixture (2026-07-14)
+
+**Done:**
+- Mechatronics invent: MaterialsBackend + registry RAG cards (STEEL density etc.)
+- `GENESIS_WELL_FIXTURE=1` → status=fixture, exit 0, zero fake tensors
+- CLI well-probe treats fixture as success (offline CI path)
+- STATUS 2026-07-14 continue note
+
+**Verify:** invent --demo 0; invent loop tests; well fixture exit 0; unavailable without package still 3
+
+---

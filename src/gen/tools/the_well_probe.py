@@ -197,6 +197,35 @@ def probe_well_dataset(
             ),
         )
 
+    # CI / offline operator path: explicit fixture — never real tensors, never bulk data.
+    if os.environ.get("GENESIS_WELL_FIXTURE", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    ):
+        return WellProbeResult(
+            status="fixture",
+            dataset=name,
+            split=split,
+            stream=True,
+            max_batches=max_batches,
+            batches_seen=0,
+            package_available=the_well_package_available(),
+            sample_summary={
+                "fixture": True,
+                "note": (
+                    "CI/offline fixture — NOT real The Well simulation data; "
+                    "no tensors loaded; catalog metadata only"
+                ),
+                "catalog": WELL_DATASET_CATALOG.get(name, {}),
+                "hf_base": WELL_HF_BASE,
+            },
+            gaps=(
+                "fixture mode (GENESIS_WELL_FIXTURE=1): zero batches, zero fabricated physics",
+                "for real samples: install the_well in a venv and unset GENESIS_WELL_FIXTURE",
+            ),
+        )
+
     if name not in WELL_DATASET_CATALOG and base_path is None:
         # Still allow unknown names if package can resolve them, but flag gap
         catalog_gap = (

@@ -71,3 +71,14 @@ def test_catalog_keys_are_strings():
     for k, v in WELL_DATASET_CATALOG.items():
         assert isinstance(k, str) and k
         assert "domain" in v and "hf_dataset" in v
+
+
+def test_fixture_mode_is_honest_not_ok_tensors(monkeypatch):
+    monkeypatch.setenv("GENESIS_WELL_FIXTURE", "1")
+    r = probe_well_dataset("active_matter", max_batches=1)
+    assert r.status == "fixture"
+    assert r.batches_seen == 0
+    assert r.sample_summary.get("fixture") is True
+    assert any("fixture" in g.lower() for g in r.gaps)
+    # Must not claim real simulation batches
+    assert not r.sample_summary.get("batches")

@@ -1629,10 +1629,10 @@ def main(argv: list[str] | None = None) -> int:
                 max_b = 1
         result = probe_well_dataset(ds, split=split, max_batches=max_b, stream=True)
         print(format_probe_result(result))
-        if result.status == "ok":
+        if result.status in ("ok", "fixture", "catalog"):
             return 0
         if result.status == "unavailable":
-            return 3  # honest tooling gap
+            return 3  # honest tooling gap (package/network missing)
         return 2
 
     if args.mode == "section":
