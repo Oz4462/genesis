@@ -104,7 +104,10 @@ class Conductor:
                 # back to the raw question — same array-shape discipline as
                 # scout._queries / scholar._extract / skeptic._check_queries.
                 value = []
-            subs = [str(s).strip() for s in value if str(s).strip()][:_MAX_SUB_QUESTIONS]
+            # live_tight (max_refine_rounds==0): fewer sub-questions → fewer LLM
+            # extract/judge calls under outer time budgets (self-improve loop).
+            cap = 3 if self._max_refine_rounds == 0 else _MAX_SUB_QUESTIONS
+            subs = [str(s).strip() for s in value if str(s).strip()][:cap]
         except Exception:  # noqa: BLE001 - decomposition is best-effort
             subs = []
         if not subs:
