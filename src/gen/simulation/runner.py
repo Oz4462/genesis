@@ -693,6 +693,118 @@ def build_simulation_report(
 
 
 # =============================================================================
+# Mesh-convergence gate + analytical reference cases (humanoid/aethon CLI path)
+# =============================================================================
+
+def get_reference_cases() -> list[dict[str, Any]]:
+    """Known analytical / textbook benchmarks used to calibrate simulation predictions.
+
+    Deterministic, offline, no network. Each entry is a *reference*, not a measured
+    run — callers that claim a design is verified must still pass independent δ gates.
+    """
+    return [
+        {
+            "name": "euler_bernoulli_cantilever_tip",
+            "domain": "structural_linear",
+            "formula": "δ = F·L³ / (3·E·I)",
+            "quelle": "Euler–Bernoulli beam theory (standard strength of materials)",
+        },
+        {
+            "name": "simple_harmonic_period",
+            "domain": "modal",
+            "formula": "T = 2π √(m/k)",
+            "quelle": "Newtonian mechanics / SHM (standard dynamics)",
+        },
+        {
+            "name": "pendulum_small_angle",
+            "domain": "modal",
+            "formula": "T = 2π √(L/g)",
+            "quelle": "Small-angle pendulum linearization",
+        },
+    ]
+
+
+def mesh_convergence_gate(
+    case: SimulationCase | None = None,
+    *,
+    relative_tol: float = 0.05,
+) -> dict[str, Any]:
+    """Honest mesh-convergence gate for simulation predictions.
+
+    Contract (used by ``gen --mode humanoid|aethon`` and humanoid_research):
+      * returns a dict with at least ``ok: bool``
+      * never invents convergence — without multi-level mesh evidence, ``ok=False``
+      * analytical solvers are mesh-independent → ``ok=True`` with explicit reason
+
+    ``inputs_summary['mesh_series']`` may be a list of floats (predictions at successive
+    refinements) or a list of dicts with a ``value`` key. Relative change between the
+    last two levels must be ≤ ``relative_tol`` for ``ok=True``.
+    """
+    base: dict[str, Any] = {
+        "ok": False,
+        "converged": False,
+        "relative_tol": relative_tol,
+        "quelle": "simulation.runner.mesh_convergence_gate (honest, offline)",
+        "gaps": [],
+    }
+    if case is None:
+        base["reason"] = "no simulation case provided"
+        base["gaps"] = [
+            "mesh_convergence requires a SimulationCase "
+            "(analytical solver flag or inputs_summary['mesh_series'] with ≥2 levels)"
+        ]
+        return base
+
+    base["case_domain"] = case.domain
+    base["solver"] = case.solver
+    solver_l = (case.solver or "").lower()
+    if "analytical" in solver_l:
+        base["ok"] = True
+        base["converged"] = True
+        base["reason"] = "analytical solver — mesh independence not applicable"
+        base["gaps"] = []
+        return base
+
+    series_raw: Any = None
+    if isinstance(case.inputs_summary, dict):
+        series_raw = case.inputs_summary.get("mesh_series")
+    values: list[float] = []
+    if isinstance(series_raw, (list, tuple)):
+        for item in series_raw:
+            if isinstance(item, (int, float)):
+                values.append(float(item))
+            elif isinstance(item, dict) and "value" in item:
+                try:
+                    values.append(float(item["value"]))
+                except (TypeError, ValueError):
+                    continue
+
+    if len(values) < 2:
+        base["reason"] = "no mesh_series on case — cannot claim convergence"
+        base["gaps"] = [
+            "provide inputs_summary['mesh_series'] with ≥2 refinement levels "
+            "(floats or {value: float})"
+        ]
+        base["predicted_value"] = case.predicted_value
+        return base
+
+    a, b = values[-2], values[-1]
+    denom = max(abs(a), abs(b), 1e-12)
+    rel = abs(a - b) / denom
+    base["mesh_series"] = values
+    base["relative_change"] = rel
+    if rel <= relative_tol:
+        base["ok"] = True
+        base["converged"] = True
+        base["reason"] = f"last two mesh levels relative change {rel:.4g} ≤ tol {relative_tol}"
+        base["gaps"] = []
+    else:
+        base["reason"] = f"mesh not converged: relative change {rel:.4g} > tol {relative_tol}"
+        base["gaps"] = ["refine mesh further or widen relative_tol with explicit justification"]
+    return base
+
+
+# =============================================================================
 # Co-simulation seam with the new Electronics layer (agent-delivered)
 # =============================================================================
 

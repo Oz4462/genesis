@@ -24,10 +24,23 @@ import tempfile
 
 from ..core.errors import LLMTransportError
 from .base import LLMResponse
-from ._cli import CliRunner, default_cli_run, extract_cli_text, resolve_binary
+from ._cli import CliRunner, default_cli_run, extract_cli_text, resolve_binary, resolve_llm_timeout
 
 #: Prefer --prompt-file when system+user may blow OS ARG_MAX (live GENESIS prompts do).
 _PROMPT_FILE_THRESHOLD = 4_000
+
+#: Retired / product nicknames → ids the live ``grok models`` list actually accepts (2026-07).
+_MODEL_ALIASES: dict[str, str] = {
+    "grok-build": "grok-4.5",
+}
+
+
+def _resolve_model_id(model: str) -> str:
+    """Map legacy model ids to the current Grok CLI catalog (never invent an unknown id)."""
+    key = model.strip()
+    if not key:
+        return key
+    return _MODEL_ALIASES.get(key.lower(), key)
 
 
 class GrokCLI:
@@ -38,14 +51,15 @@ class GrokCLI:
         model: str = "grok-4.5",
         *,
         runner: CliRunner | None = None,
-        timeout: float = 300.0,
+        timeout: float | None = None,
         binary: str = "grok",
     ) -> None:
         if not model.strip():
             # An empty id defeats the cross-model audit (model_family raises on it);
             # fail at construction, not deep inside a run (mirrors OllamaLLM).
             raise ValueError("model id is empty; the cross-model audit needs a real id.")
-        self.model = model
+        self.model = _resolve_model_id(model)
+        timeout = resolve_llm_timeout(timeout)
         if runner is not None:
             self._run = runner          # tests inject a fake; no real binary needed
             self._binary = binary

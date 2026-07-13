@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from ..core.errors import LLMTransportError
 from .base import LLMResponse
-from ._cli import CliRunner, default_cli_run, extract_cli_text, resolve_binary
+from ._cli import CliRunner, default_cli_run, extract_cli_text, resolve_binary, resolve_llm_timeout
 
 
 class ClaudeCLI:
@@ -29,12 +29,13 @@ class ClaudeCLI:
         model: str = "claude-opus-4-8",
         *,
         runner: CliRunner | None = None,
-        timeout: float = 300.0,
+        timeout: float | None = None,
         binary: str = "claude",
     ) -> None:
         if not model.strip():
             raise ValueError("model id is empty; the cross-model audit needs a real id.")
         self.model = model
+        timeout = resolve_llm_timeout(timeout)
         if runner is not None:
             self._run = runner          # tests inject a fake; no real binary needed
             self._binary = binary

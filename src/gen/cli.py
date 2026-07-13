@@ -497,11 +497,14 @@ def build_live(generator: str, verifier: str) -> tuple[Dependencies, Config]:
         ledger=InMemoryLedgerStore(),
     )
     models = {"generator": generator, "verifier": verifier}
+    # Live CLI calls are sequential and often 20–60s each; keep refine rounds low so
+    # outer sweep timeouts (≈600–900s) still get a finished honest report rather than
+    # a mid-run kill. Offline demos use their own scripted configs (higher rounds OK).
     config = Config.from_dict(
         {
-            "phase_alpha": {"models": models},
-            "phase_beta": {"models": models},
-            "phase_gamma": {"models": models},
+            "phase_alpha": {"models": models, "max_refine_rounds": 1},
+            "phase_beta": {"models": models, "max_refine_rounds": 1},
+            "phase_gamma": {"models": models, "max_refine_rounds": 1},
         }
     )
     return deps, config
@@ -1650,9 +1653,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.mode == "structural":
         from .section_optimizer import propose_structural
         print("GENESIS — Unified structural proposer (section + topology)\n")
+        # Demo defaults match section--demo / physics rework tests (F=100 N, L=50 mm, σ_allow=200 MPa).
+        # Library stays strict (kwargs required); CLI supplies a grounded demo load case.
+        section_demo = {
+            "force": 100.0,
+            "arm": 50.0,
+            "sigma_allow": 200.0,
+            "min_wall": 1.0,
+            "max_wall": 40.0,
+        }
         for dt in ("section", "topology"):
-            p = propose_structural(design_type=dt)
-            print(f"  {dt}: verdict={p.verdict}")
+            kwargs = dict(section_demo) if dt == "section" else {}
+            p = propose_structural(design_type=dt, **kwargs)
+            print(f"  {dt}: verdict={p.verdict}  delta_path={p.delta_path}")
         return 0
 
     if args.mode == "training":
@@ -2702,6 +2715,14 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         deps, cfg = build_live(args.generator, args.verifier)
+        # Progress on stderr so long LIVE α/β/γ runs are not silent until the end
+        # (outer sweep timeouts previously looked like "empty hang" with no log).
+        print(
+            f"GENESIS live {args.mode}: generator={args.generator} "
+            f"verifier={args.verifier} idea={args.question[:80]!r}…",
+            file=sys.stderr,
+            flush=True,
+        )
         if args.mode == "report":
             report = asyncio.run(
                 run(args.question, deps, config=cfg, checkpoint_dir=args.checkpoint_dir)

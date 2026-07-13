@@ -8,9 +8,10 @@ cross-model pair declared in ``config.Models`` becomes a real, callable client p
   * an "xai"/grok id      -> ``GrokCLI``   (Grok subscription via the ``grok`` CLI, OAuth)
   * anything else         -> ``OllamaLLM`` (local FALLBACK only, e.g. qwen/gemma)
 
-The ACTIVE default is now the grok + Claude CLI pair (``grok-build`` generator, ``claude-opus-4-8``
+The ACTIVE default is now the grok + Claude CLI pair (``grok-4.5`` generator, ``claude-opus-4-8``
 verifier — the cli.py defaults): the strong subscription models, used everywhere in place of the
 local Ollama model, which proved too weak as a proposer and now only serves as an offline fallback.
+Legacy id ``grok-build`` is aliased to ``grok-4.5`` inside ``GrokCLI``.
 
 Routing reuses ``verification.cross_model.model_family`` so there is ONE source of truth for
 model families — the same function the cross-model audit uses — and adding a backend never

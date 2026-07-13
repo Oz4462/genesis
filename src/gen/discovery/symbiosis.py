@@ -14,14 +14,14 @@ Two honesty guarantees are built in:
   * GENESIS runs WITHOUT Grok. With no proposer the protocol falls back to the engine's own
     dimensional discovery, so the system never depends on the external model.
 
-On the cross-model discipline: the proposer is the xAI family (``model_family('grok-build') ==
+On the cross-model discipline: the proposer is the xAI family (``model_family('grok-4.5') ==
 'xai'``) and the verifier is the DETERMINISTIC gate — a model-free checker. That is a stronger
 separation than the usual LLM-vs-LLM family split (`verification.cross_model`): the thing that
 judges cannot share a failure mode with the thing that proposes, because it is not a model at
 all. The proposer's family is recorded in provenance for the audit.
 
 The proposer sits behind the mockable ``LLMClient`` seam (``llm.base``), so the protocol is
-fully testable offline with a scripted client; live runs use ``GrokCLI(model='grok-build')``.
+fully testable offline with a scripted client; live runs use ``GrokCLI(model='grok-4.5')``.
 """
 
 from __future__ import annotations
@@ -76,10 +76,10 @@ class SymbiosisResult:
 
 
 class GrokProposer:
-    """Breadth via a Grok model (default ``GrokCLI(model='grok-build')``, overridable for tests
+    """Breadth via a Grok model (default ``GrokCLI(model='grok-4.5')``, overridable for tests
     with any ``LLMClient``). It ONLY produces ``Proposal``s — the gate disposes."""
 
-    def __init__(self, client: LLMClient | None = None, *, model: str = "grok-build") -> None:
+    def __init__(self, client: LLMClient | None = None, *, model: str = "grok-4.5") -> None:
         if client is None:
             from ..llm.grok_cli import GrokCLI
             client = GrokCLI(model=model)
@@ -230,12 +230,17 @@ def council_discover(
                          families=fam_set, cross_model=len(fam_set) >= 2)
 
 
-def default_council(*, grok_model: str = "grok-build",
+def default_council(*, grok_model: str = "grok-4.5",
                     claude_model: str = "claude-opus-4-8") -> list[GrokProposer]:
     """Build the LIVE cross-model council: a grok proposer (xAI family) AND a Claude proposer
     (anthropic family), each a real CLI. Opt-in and non-deterministic (it shells out to the
     installed ``grok`` and ``claude`` CLIs); for offline/reproducible runs use ``scripted_council``
-    (the default everywhere) instead."""
+    (the default everywhere) instead.
+
+    Default ``grok_model`` is ``grok-4.5`` (the only current Grok CLI id). Legacy ``grok-build``
+    is accepted via ``GrokCLI`` alias → ``grok-4.5``. Offline ``CAPTURED_PROPOSALS`` keys may still
+    say ``grok-build`` as the historical capture label for scripted replay.
+    """
     from ..llm.claude_cli import ClaudeCLI
     from ..llm.grok_cli import GrokCLI
 

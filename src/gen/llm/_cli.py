@@ -38,6 +38,40 @@ CliRunner = Callable[[list[str]], Awaitable[tuple[int, str, str]]]
 TIMEOUT_RETURNCODE = 124
 
 
+def resolve_llm_timeout(explicit: float | None = None, *, default: float = 300.0) -> float:
+    """Per-call CLI LLM timeout (seconds).
+
+    Order: explicit argument → ``GENESIS_LLM_TIMEOUT`` env → ``default`` (300s).
+    Full Phase-α/β/γ live pipelines issue many sequential calls; raise the env for long
+    sweeps (e.g. ``GENESIS_LLM_TIMEOUT=480``). Floor 30s so a typo never disables the kill.
+    """
+    if explicit is not None:
+        return max(30.0, float(explicit))
+    raw = os.environ.get("GENESIS_LLM_TIMEOUT", "").strip()
+    if raw:
+        try:
+            return max(30.0, float(raw))
+        except ValueError:
+            pass
+    return max(30.0, float(default))
+
+
+def _prefer_real_grok_binary(path: str) -> str:
+    """If ``~/.grok/downloads/grok-*-linux-*`` exists, prefer it over a PATH wrapper.
+
+    The ``~/.grok/bin/grok`` entry is often a thin wrapper that injects ``--agent structured``
+    (interactive TUI mode). Headless ``-p`` / ``--prompt-file`` then hang or mis-route.
+    """
+    downloads = Path.home() / ".grok" / "downloads"
+    if not downloads.is_dir():
+        return path
+    candidates = sorted(downloads.glob("grok-*-linux*"), reverse=True)
+    for c in candidates:
+        if c.is_file() and os.access(c, os.X_OK):
+            return str(c.resolve())
+    return path
+
+
 def resolve_binary(name: str, *, env_var: str | None = None) -> str:
     """Absolute path to a CLI, or fail loud at CONSTRUCTION (not deep inside a run).
 
@@ -46,16 +80,19 @@ def resolve_binary(name: str, *, env_var: str | None = None) -> str:
 
     If ``env_var`` is set and points to an existing file, that path wins (used e.g. to bypass
     a PATH wrapper that injects interactive flags into the real ``grok`` binary).
+    For ``grok`` without an override, prefer ``~/.grok/downloads/grok-*`` when present.
     """
     if env_var:
         override = os.environ.get(env_var, "").strip()
         if override and Path(override).is_file():
-            return override
+            return str(Path(override).resolve())
     path = shutil.which(name)
     if not path:
         raise ValueError(
             f"CLI {name!r} not found on PATH; the {name} subscription adapter needs it installed."
         )
+    if name in ("grok", "grok.exe") or path.rstrip("/").endswith("/grok"):
+        return _prefer_real_grok_binary(path)
     return path
 
 
