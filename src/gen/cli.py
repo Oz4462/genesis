@@ -1092,8 +1092,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--generator",
-        default="grok-build",
-        help="generator/proposer model for scout/scholar (default: grok-build via the grok CLI; "
+        default="grok-4.5",
+        help="generator/proposer model for scout/scholar (default: grok-4.5 via the grok CLI; "
         "the strong cross-model default — a local Ollama id like qwen3.5:9b still works as a "
         "fallback when offline)",
     )
