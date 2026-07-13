@@ -169,10 +169,54 @@ class WikipediaBackend:
             f"&format=json&redirects=1&titles={quote(title, safe='')}"
         )
 
+    @staticmethod
+    def _prefer_canonical_titles(keywords: str, titles: list[str]) -> list[str]:
+        """Re-order MediaWiki hits so base material pages beat alloys / generics.
+
+        Live self-improve 2026-07-13: ``density of steel`` still surfaced
+        Stainless/Electrical steel and generic Density before **Steel**, so α
+        verified a stainless band instead of the carbon-steel 7750–8050 kg/m³
+        fact. When the query names a base material without an alloy qualifier,
+        exact/base titles rank first; alloy variants and pure property pages last.
+        """
+        if not titles:
+            return titles
+        kw = keywords.lower()
+        # Base materials we care about for property questions
+        bases = ("steel", "iron", "aluminum", "aluminium", "copper", "titanium")
+        base = next((b for b in bases if re.search(rf"\b{re.escape(b)}\b", kw)), None)
+        if base is None:
+            return titles
+        # Query already names a specific alloy family → keep MediaWiki order
+        if any(a in kw for a in ("stainless", "electrical", "tool steel", "damascus")):
+            return titles
+
+        def score(title: str) -> tuple[int, str]:
+            tl = title.lower().strip()
+            if tl == base or tl == base.replace("aluminium", "aluminum"):
+                return (0, tl)
+            if base == "steel" and tl == "carbon steel":
+                return (1, tl)
+            if base in tl and not any(
+                m in tl for m in ("stainless", "electrical", "tool", "damascus", "weathering")
+            ):
+                return (2, tl)
+            if base in tl:  # alloy variants of the base
+                return (8, tl)
+            if tl in ("density", "specific gravity", "relative density", "energy density"):
+                return (9, tl)  # generic property pages lack material numbers
+            return (5, tl)
+
+        return sorted(titles, key=score)
+
     async def search(self, query: str, limit: int) -> list[SourceCandidate]:
+        keywords = to_keywords(query)
+        # Fetch extra hits so re-ranking can promote canonical titles that
+        # MediaWiki ranked below alloys (self-improve 2026-07-13).
+        fetch_n = min(max(limit * 2, limit), 20)
         url = (
             f"{self._SEARCH}?action=query&list=search&format=json"
-            f"&srsearch={quote_plus(to_keywords(query))}&srlimit={limit}"
+            f"&srsearch={quote_plus(keywords)}&srlimit={fetch_n}"
         )
         try:
             resp = await self._http_get(url)
@@ -193,12 +237,10 @@ class WikipediaBackend:
             # {"query": {"search": []}}. Fail loud on the former, honest [] on the
             # latter — never a silent empty list that hides an outage.
             raise SearchBackendError(self.name, "malformed response: missing query.search list")
-        results = search_hits[:limit]
+        raw_titles = [h.get("title") for h in search_hits if h.get("title")]
+        ordered = self._prefer_canonical_titles(keywords, list(raw_titles))[:limit]
         out: list[SourceCandidate] = []
-        for hit in results:
-            title = hit.get("title")
-            if not title:
-                continue  # no title -> no stable extract URL; skip, never invent
+        for title in ordered:
             out.append(
                 SourceCandidate(
                     url_or_id=self._extract_url(title),

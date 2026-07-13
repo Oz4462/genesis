@@ -40,6 +40,12 @@
 - `gen.humanoid_research` shim restored; experimental KEEP_OPTIN honesty.
 - Handoff: `docs/SESSION_HANDOFF_2026-07-12.md`.
 
+**2026-07-13 self-improve / live closeout (evidence in `docs/SELF_IMPROVEMENT_2026-07-13.md`):**
+- Full module sweep v2: **53/53 ok**, hard fails cleared (mesh gate, structural demo, grok-4.5, timeouts).
+- Live α: steel-density question completes with **Verifizierte Befunde** (not empty); hybrid proves 7750–8050 kg/m³.
+- Wikipedia canonical title re-rank (Steel > alloys); materials registry +STEEL; optional CAD gaps ≠ demo fail.
+- Handoff: `docs/LESSONS.md`, `docs/FULL_MODULE_SWEEP_2026-07-13_v2.md`.
+
 
 ---
 

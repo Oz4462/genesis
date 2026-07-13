@@ -35,7 +35,7 @@ class Material:
 _TDS = "typical FDM datasheet range (printed-plastics references); nominal, not part-specific"
 
 #: Curated registry of common FDM materials. Values are widely-published typical ranges, each sourced.
-MATERIALS: dict[str, Material] = {
+_FDM: dict[str, Material] = {
     "PLA": Material("PLA", 3500.0, 1.24, 50.0, _TDS),
     "PETG": Material("PETG", 2100.0, 1.27, 50.0, _TDS),
     "ABS": Material("ABS", 2300.0, 1.04, 40.0, _TDS),
@@ -43,12 +43,72 @@ MATERIALS: dict[str, Material] = {
     "TPU": Material("TPU", 80.0, 1.21, 8.0, _TDS),          # flexible
 }
 
+# Structural metals — nominal engineering handbook band (not part-specific).
+# Density mid-band of the Wikipedia/common handbook range 7750–8050 kg/m³ for
+# carbon/structural steel (self-improve 2026-07-13: offline δ-path needs a
+# grounded STEEL entry; live α still prefers Wikipedia extracts).
+_METAL_SRC = (
+    "nominal structural-steel handbook band (≈7850 kg/m³ density; E≈210 GPa; "
+    "fy≈250 MPa mild steel); confirm against the specific alloy datasheet — "
+    "Wikipedia Steel density band 7750–8050 kg/m³ as orientation only"
+)
+_METALS: dict[str, Material] = {
+    "STEEL": Material(
+        "STEEL",
+        youngs_modulus_mpa=210_000.0,
+        density_g_cm3=7.85,  # 7850 kg/m³
+        yield_strength_mpa=250.0,
+        source=_METAL_SRC,
+        note="nominal mild/structural steel; alloy-specific TDS required for certified design",
+    ),
+    "MILD_STEEL": Material(
+        "MILD_STEEL",
+        youngs_modulus_mpa=210_000.0,
+        density_g_cm3=7.85,
+        yield_strength_mpa=250.0,
+        source=_METAL_SRC,
+        note="alias of STEEL (mild/structural)",
+    ),
+    "ALUMINUM": Material(
+        "ALUMINUM",
+        youngs_modulus_mpa=70_000.0,
+        density_g_cm3=2.70,
+        yield_strength_mpa=95.0,  # 6061-T6 order of magnitude; TDS required
+        source="nominal Al alloy handbook band (ρ≈2.70 g/cm³; E≈70 GPa); alloy TDS required",
+        note="nominal aluminum alloy; grade-specific TDS required",
+    ),
+    "ALUMINIUM": Material(  # spelling alias
+        "ALUMINIUM",
+        youngs_modulus_mpa=70_000.0,
+        density_g_cm3=2.70,
+        yield_strength_mpa=95.0,
+        source="nominal Al alloy handbook band (ρ≈2.70 g/cm³; E≈70 GPa); alloy TDS required",
+        note="alias of ALUMINUM",
+    ),
+}
+
+MATERIALS: dict[str, Material] = {**_FDM, **_METALS}
+
 
 def get_material(name: str) -> Material:
     """Look up a grounded material by name (case-insensitive). Raises ``ValueError`` for an unknown
     material — GENESIS never returns a guessed property."""
-    material = MATERIALS.get(name.strip().upper())
+    key = name.strip().upper().replace(" ", "_").replace("-", "_")
+    # common aliases
+    aliases = {
+        "CARBON_STEEL": "STEEL",
+        "STRUCTURAL_STEEL": "STEEL",
+        "AL": "ALUMINUM",
+        "ALU": "ALUMINUM",
+    }
+    key = aliases.get(key, key)
+    material = MATERIALS.get(key)
     if material is None:
         known = ", ".join(sorted(MATERIALS))
         raise ValueError(f"unknown material {name!r}; no grounded properties available (known: {known})")
     return material
+
+
+def density_kg_m3(material_name: str) -> float:
+    """Density in SI kg/m³ from the grounded registry (g/cm³ × 1000)."""
+    return get_material(material_name).density_g_cm3 * 1000.0

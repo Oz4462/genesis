@@ -143,6 +143,21 @@ def test_to_keywords_strips_unit_tokens_for_property_queries():
     assert "kg" not in to_keywords("yield strength of PLA in MPa")
 
 
+def test_prefer_canonical_titles_promotes_steel_over_stainless():
+    # Self-improve 2026-07-13: MediaWiki ranked alloys first; re-rank base material.
+    titles = [
+        "Density",
+        "Stainless steel",
+        "Electrical steel",
+        "Steel",
+        "Carbon steel",
+    ]
+    ordered = WikipediaBackend._prefer_canonical_titles("density of steel", titles)
+    assert ordered[0] == "Steel"
+    assert ordered[1] == "Carbon steel"
+    assert ordered.index("Stainless steel") > ordered.index("Carbon steel")
+
+
 def test_search_sends_normalized_keywords_not_the_raw_question():
     calls: list = []
     be = WikipediaBackend(http_returning(200, search_body("Geometric modeling kernel"), calls))
