@@ -23,6 +23,7 @@ import json
 import os
 import shutil
 import subprocess
+from pathlib import Path
 import sys
 from typing import Awaitable, Callable
 
@@ -37,12 +38,19 @@ CliRunner = Callable[[list[str]], Awaitable[tuple[int, str, str]]]
 TIMEOUT_RETURNCODE = 124
 
 
-def resolve_binary(name: str) -> str:
+def resolve_binary(name: str, *, env_var: str | None = None) -> str:
     """Absolute path to a CLI, or fail loud at CONSTRUCTION (not deep inside a run).
 
     A missing CLI is a configuration error the operator must see immediately; resolving it
     up front mirrors ``OllamaLLM``'s empty-model guard.
+
+    If ``env_var`` is set and points to an existing file, that path wins (used e.g. to bypass
+    a PATH wrapper that injects interactive flags into the real ``grok`` binary).
     """
+    if env_var:
+        override = os.environ.get(env_var, "").strip()
+        if override and Path(override).is_file():
+            return override
     path = shutil.which(name)
     if not path:
         raise ValueError(

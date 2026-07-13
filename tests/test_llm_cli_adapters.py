@@ -8,6 +8,7 @@ Offline, no network, no LLM, no subscription needed.
 """
 
 import shutil
+from pathlib import Path
 import types
 
 import pytest
@@ -40,13 +41,29 @@ async def test_grok_cli_parses_json_and_concatenates_prompt():
     resp = await llm.complete(system="be terse", user="hi")
     assert resp.text == "hello from grok"
     assert resp.model == "grok"
-    # grok -p takes ONE prompt -> system + user are concatenated into argv[2]
+    # short prompts: grok -p takes ONE prompt -> system + user concatenated into argv[2]
     assert r.argv is not None
     assert r.argv[0:2] == ["grok", "-p"]
     assert "be terse" in r.argv[2] and "hi" in r.argv[2]
     # grok's --output-format json mode auth-errors + hangs (verified live), so the adapter does NOT
     # pass it; plain mode prints the (JSON) answer on stdout, which extract_cli_text reads.
     assert "--model" in r.argv and "--output-format" not in r.argv
+
+
+@pytest.mark.asyncio
+async def test_grok_cli_long_prompt_uses_prompt_file(tmp_path):
+    """Live GENESIS system prompts exceed ARG_MAX via -p — use --prompt-file."""
+    r = _FakeRunner(stdout='{"result": "ok"}')
+    llm = GrokCLI("grok-4.5", runner=r)
+    long_sys = "x" * 5_000
+    resp = await llm.complete(system=long_sys, user="hi")
+    assert resp.text == "ok"
+    assert r.argv is not None
+    assert "--prompt-file" in r.argv
+    assert "-p" not in r.argv
+    path = r.argv[r.argv.index("--prompt-file") + 1]
+    # temp file is deleted after the call
+    assert not Path(path).exists()
 
 
 @pytest.mark.asyncio
