@@ -11,6 +11,9 @@ python3 -m pytest \
   tests/test_english_search_boosts.py \
   tests/test_the_well_probe.py \
   tests/test_runner.py \
+  tests/test_inventor_score.py \
+  tests/test_inventor_loop.py \
+  tests/test_inventor_domains.py \
   -q
 echo "== CLI demos =="
 for m in research invent solve council structural humanoid aethon print bundle ideas dream well-probe; do
@@ -31,4 +34,11 @@ for m in research invent solve council structural humanoid aethon print bundle i
   esac
   echo "  $m OK"
 done
+# Thermal invent path (overtemperature recipe + γ+ score) — must not regress to vacuous δ
+echo "== invent thermal =="
+out=$(timeout 60 python3 -m gen --mode invent --demo "Kühlung für 1kW Chip" 2>&1) || true
+echo "$out" | grep -q "physik-verifiziert (δ-Physik-Gate)" || { echo "thermal invent missing gate line"; exit 1; }
+echo "$out" | grep -qE "Geerdet:[[:space:]]+[1-9]" || { echo "thermal invent expected >=1 grounded"; echo "$out"; exit 1; }
+echo "$out" | grep -q "by=inventor.score_proxy" || { echo "thermal invent missing γ+ score_proxy"; echo "$out"; exit 1; }
+echo "  invent-thermal OK"
 echo "SMOKE PASS"

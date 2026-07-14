@@ -291,3 +291,13 @@ e984d5c feat(self-improve loop): materials backend, α progress, print STL fallb
 **Verify:** invent thermal still 2 grounded; score test green; SMOKE PASS
 
 ---
+
+## Iteration 16 — smoke covers thermal invent + inventor suite (2026-07-14)
+
+**Done:**
+- `self_improve_smoke.sh`: pytest adds inventor score/loop/domains
+- Explicit **invent thermal** CLI check: ≥1 grounded + `by=inventor.score_proxy` (guards vacuous-δ regression)
+
+**Verify:** SMOKE PASS — 71 pytest + 12 demos + invent-thermal OK
+
+---
