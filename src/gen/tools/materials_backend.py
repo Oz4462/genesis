@@ -127,38 +127,71 @@ class MaterialsBackend:
 
 
 def materials_claim_text(key: str, *, language: str = "en") -> tuple[str, str]:
-    """Return (claim_text, quote) for a registry material — density-focused.
+    """Return (claim_text, quote) for a registry material — density-focused (compat).
 
-    Quote is a contiguous span of the registry source string (provenance text),
-    not a fabricated measurement. Claim states SI density from the registry.
+    Prefer :func:`materials_claims` when the scholar wants separate ρ/k claims.
+    """
+    claims = materials_claims(key, language=language)
+    # density claim is always first
+    text, quote, _span = claims[0]
+    return text, quote
+
+
+def materials_claims(
+    key: str, *, language: str = "en"
+) -> list[tuple[str, str, str]]:
+    """Return grounded registry claims as ``(text, quote, span_tag)``.
+
+    Self-improve 2026-07-14: density and thermal conductivity are **separate** claims
+    so α can verify ρ and k independently (a single blob mixed both properties and
+    made skeptic evidence windows noisier). Each claim is UNVERIFIED handbook band
+    until an independent source corroborates.
     """
     mat = MATERIALS[key]
     rho_kg = mat.density_g_cm3 * 1000.0
     quote = mat.source.strip()
     if len(quote) < 12:
         quote = f"{mat.name} density_g_cm3={mat.density_g_cm3} source={mat.source}"
-    k_part_en = (
-        f" Nominal thermal conductivity is {mat.thermal_conductivity_w_mk:g} W/(m·K)."
-        if mat.thermal_conductivity_w_mk is not None
-        else ""
-    )
-    k_part_de = (
-        f" Nominelle Wärmeleitfähigkeit {mat.thermal_conductivity_w_mk:g} W/(m·K)."
-        if mat.thermal_conductivity_w_mk is not None
-        else ""
-    )
+    quote = quote[:200]
+    out: list[tuple[str, str, str]] = []
     if language == "de":
-        text = (
-            f"Die nominelle Dichte von {mat.name} im GENESIS-Materialregister "
-            f"beträgt {rho_kg:.0f} kg/m³ ({mat.density_g_cm3} g/cm³)."
-            f"{k_part_de} "
-            f"Quelle: Registereintrag (nicht messwert-spezifisch)."
+        out.append(
+            (
+                f"Die nominelle Dichte von {mat.name} im GENESIS-Materialregister "
+                f"beträgt {rho_kg:.0f} kg/m³ ({mat.density_g_cm3} g/cm³); "
+                f"Quelle: Registereintrag (nicht messwert-spezifisch).",
+                quote,
+                f"{key}/density",
+            )
         )
+        if mat.thermal_conductivity_w_mk is not None:
+            out.append(
+                (
+                    f"Die nominelle Wärmeleitfähigkeit von {mat.name} im GENESIS-Materialregister "
+                    f"beträgt {mat.thermal_conductivity_w_mk:g} W/(m·K); "
+                    f"Quelle: Registereintrag (Handbuchband, nicht messwert-spezifisch).",
+                    quote,
+                    f"{key}/thermal_conductivity",
+                )
+            )
     else:
-        text = (
-            f"The nominal density of {mat.name} in the GENESIS materials registry "
-            f"is {rho_kg:.0f} kg/m³ ({mat.density_g_cm3} g/cm³)."
-            f"{k_part_en} "
-            f"source: registry entry (handbook band, not part-specific)."
+        out.append(
+            (
+                f"The nominal density of {mat.name} in the GENESIS materials registry "
+                f"is {rho_kg:.0f} kg/m³ ({mat.density_g_cm3} g/cm³); "
+                f"source: registry entry (handbook band, not part-specific).",
+                quote,
+                f"{key}/density",
+            )
         )
-    return text, quote[:200]
+        if mat.thermal_conductivity_w_mk is not None:
+            out.append(
+                (
+                    f"The nominal thermal conductivity of {mat.name} in the GENESIS materials registry "
+                    f"is {mat.thermal_conductivity_w_mk:g} W/(m·K); "
+                    f"source: registry entry (handbook band, not part-specific).",
+                    quote,
+                    f"{key}/thermal_conductivity",
+                )
+            )
+    return out

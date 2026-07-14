@@ -22,7 +22,7 @@ from ..llm.parsing import extract_json
 from ..tools.fetch import WebFetchTool, readable_text
 from ..tools.codata import load_codata_constants, make_codata_constant_claim
 from ..tools.dlmf import fetch_dlmf_entry, dlmf_latex_to_sympy
-from ..tools.materials_backend import materials_claim_text
+from ..tools.materials_backend import materials_claim_text, materials_claims
 from ..core.state import SourceRef, SourceSupport
 _SYSTEM = (
     "You extract ATOMIC factual claims from a SOURCE TEXT that help answer a "
@@ -143,40 +143,51 @@ class Scholar:
 
         # Materials registry candidates (gen-materials://) — offline grounded claims
         # without HTTP. Still UNVERIFIED until skeptic finds independent sources.
+        # Self-improve 2026-07-14: emit separate density + thermal_conductivity claims
+        # (materials_claims) so α can verify ρ and k independently.
         for cand in list(state.candidates):
             if not (cand.url_or_id or "").startswith("gen-materials://"):
                 continue
             key = cand.url_or_id.split("://", 1)[-1].strip().upper()
             try:
-                text, quote = materials_claim_text(key, language=q_lang)
+                claim_rows = materials_claims(key, language=q_lang)
             except Exception as exc:  # noqa: BLE001
-                state.log.append(f"scholar: materials registry skip {key}: {exc}")
-                continue
-            cid = claim_id(run_id, cand.url_or_id, text)
-            if cid in existing_ids or cid in batch_ids:
-                continue
-            batch_ids.add(cid)
-            batch.append(
-                Claim(
-                    id=cid,
-                    text=text,
-                    sources=[
-                        SourceRef(
-                            url_or_id=cand.url_or_id,
-                            retrieved=True,
-                            content_hash=None,
-                            span=key,
-                            support=SourceSupport.SUPPORTS,
-                        )
-                    ],
-                    quote=quote,
-                    status=ClaimStatus.UNVERIFIED,
-                    produced_by=self.name + "+materials_registry",
-                    model="materials_registry",
+                # fallback single density claim for unknown/legacy keys
+                try:
+                    text, quote = materials_claim_text(key, language=q_lang)
+                    claim_rows = [(text, quote, key)]
+                except Exception as exc2:  # noqa: BLE001
+                    state.log.append(f"scholar: materials registry skip {key}: {exc2}")
+                    continue
+            for text, quote, span_tag in claim_rows:
+                # Distinct id seed per property so density and k never collide
+                url_seed = f"{cand.url_or_id}#{span_tag}"
+                cid = claim_id(run_id, url_seed, text)
+                if cid in existing_ids or cid in batch_ids:
+                    continue
+                batch_ids.add(cid)
+                batch.append(
+                    Claim(
+                        id=cid,
+                        text=text,
+                        sources=[
+                            SourceRef(
+                                url_or_id=cand.url_or_id,
+                                retrieved=True,
+                                content_hash=None,
+                                span=span_tag,
+                                support=SourceSupport.SUPPORTS,
+                            )
+                        ],
+                        quote=quote,
+                        status=ClaimStatus.UNVERIFIED,
+                        produced_by=self.name + "+materials_registry",
+                        model="materials_registry",
+                    )
                 )
-            )
             state.log.append(
-                f"scholar: materials registry claim for {key} (UNVERIFIED until skeptic)"
+                f"scholar: materials registry {len(claim_rows)} claim(s) for {key} "
+                f"(UNVERIFIED until skeptic)"
             )
 
         for cand in state.candidates[: self._max_sources]:

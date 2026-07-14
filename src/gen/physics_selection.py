@@ -462,6 +462,22 @@ RECIPES: list[CheckRecipe] = [
         },
         extra={"geometry_factor_y": 1.12},  # edge-crack default
     ),
+    # ---- creep rupture life (Larson-Miller) — self-improve 2026-07-14 ----
+    # LMP at the applied stress is a material master-curve input (from real rupture data);
+    # GENESIS computes t_r = 10^(LMP/T − C) and compares to design life — does NOT invent LMP.
+    # design_life uses unit "h" (hours); scale_from/scale_to cancel so the value stays in hours.
+    CheckRecipe(
+        name="creep rupture life (Larson-Miller)",
+        validator="creep",
+        trigger="creep.applied_stress",
+        inputs={
+            "applied_stress": ("creep.applied_stress", "MPa"),
+            "temperature_K": ("creep.temperature", "K"),
+            "design_life_hours": ("creep.design_life", "h"),
+            "lmp_at_stress": ("material.lmp_at_stress", "1"),
+        },
+        extra={"constant_C": 20.0},
+    ),
     # ---- space multi-physics (vacuum radiation dominant, for habitats/radiators/TPS) ----
     CheckRecipe(
         name="vacuum radiation balance (space thermal)", validator="vacuum_radiation_balance",
@@ -519,8 +535,8 @@ RECIPES: list[CheckRecipe] = [
 #: (Schritt-7-Review F2, 2026-07-04). Designing honest recipes for these is an open
 #: WORK_QUEUE follow-up; remove an entry here the moment its recipe lands.
 MANUAL_ONLY_VALIDATORS: frozenset[str] = frozenset({
-    # bolted_joint, contact, plate_bending, thermal_mismatch, fracture: recipes 2026-07-14
-    "creep",  # needs Larson-Miller parameter tables — no honest single-measurand set yet
+    # creep recipe landed 2026-07-14: LMP at stress is a declared quantity (master-curve input),
+    # not invented by GENESIS — same honesty as material.fracture_toughness.
     # Monte Carlo uncertainty is formula-driven (not a single measurand recipe)
     "montecarlo_uncertainty",
 })

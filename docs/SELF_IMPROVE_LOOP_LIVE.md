@@ -344,3 +344,22 @@ e984d5c feat(self-improve loop): materials backend, α progress, print STL fallb
 **Verify:** SMOKE PASS
 
 ---
+
+## Iteration 21 — creep recipe + split ρ/k claims + material-aware thermal invent (2026-07-14)
+
+**Friction:**
+1. `creep` still MANUAL_ONLY despite Larson-Miller closed form + clear inputs
+2. Materials density claim smuggled k → noisy skeptic windows
+3. Thermal invent always copper k even for "Aluminium" briefs
+
+**Done:**
+- CheckRecipe creep (LMP declared, not invented); design_life unit `h` scale-cancels
+- `materials_claims()` → separate density + thermal_conductivity claims; scholar emits both
+- invent thermal: brief keywords → ALUMINUM 205 / STEEL 50 / TITANIUM 22 / COPPER 401
+- CLI prints `Material-k: plate_k=… from gen-materials://…`
+- Smoke: copper plate_k=401 + aluminium plate_k=205 guards
+- MANUAL_ONLY only `montecarlo_uncertainty`
+
+**Verify:** invent Al 2 grounded plate_k=205; Cu plate_k=401; 121 pytest smoke
+
+---

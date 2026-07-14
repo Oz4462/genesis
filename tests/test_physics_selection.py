@@ -97,6 +97,25 @@ def test_thermal_mismatch_recipe_auto_selects():
     assert {c.validator for c in checks} == {"thermal_mismatch"}
 
 
+def test_creep_larson_miller_recipe_auto_selects():
+    """Self-improve: creep was MANUAL_ONLY — LMP is declared, not invented."""
+    qs = [
+        _q("sig", 100.0, "MPa", "creep.applied_stress"),
+        _q("T", 811.0, "K", "creep.temperature"),
+        _q("life", 1e4, "h", "creep.design_life"),
+        # LMP at stress: T=811, t_r=1e5 h, C=20 -> LMP≈20275 (creep.py anchor)
+        _q("lmp", 20275.0, "1", "material.lmp_at_stress"),
+    ]
+    checks, gaps = select_physics_checks(_spec(qs))
+    assert gaps == []
+    assert {c.validator for c in checks} == {"creep"}
+    # design life must stay in hours (h→h scale cancel), not become seconds
+    creep = next(c for c in checks if c.validator == "creep")
+    assert creep.inputs["design_life_hours"] == 1e4
+    result = evaluate_spec_physics(_spec(qs))
+    assert result["gate"].passed  # rupture ~1e5 h > design 1e4 h
+
+
 def test_bolted_joint_and_fracture_recipes_auto_select():
     """Self-improve: bolted_joint + fracture left MANUAL_ONLY → recipes (KIc opaque unit)."""
     qs = [

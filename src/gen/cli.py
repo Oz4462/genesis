@@ -2674,9 +2674,32 @@ def main(argv: list[str] | None = None) -> int:
 
         refine_schedule = None
         max_refine = 3  # bounded; no-op when first ground already passes
+        live_note_mat = None  # thermal: grounded plate k from materials registry
         if is_thermal:
-            architect = scripted_thermal_architect()
-            refine_schedule = thermal_strengthening_schedule(start_k=15.0, step_k=100.0)
+            # Material-aware plate k from grounded registry (self-improve 2026-07-14).
+            # Default copper; brief keywords select Al/steel so invent is not always Cu-only.
+            from .materials import thermal_conductivity_w_mk as _k_mat
+
+            _tf = field.lower()
+            if any(k in _tf for k in ("aluminium", "aluminum", "alu", "al ")):
+                _plate_k = _k_mat("ALUMINUM")
+                _mat_note = "ALUMINUM"
+            elif any(k in _tf for k in ("stahl", "steel")):
+                _plate_k = _k_mat("STEEL")
+                _mat_note = "STEEL"
+            elif any(k in _tf for k in ("titan", "titanium")):
+                _plate_k = _k_mat("TITANIUM")
+                _mat_note = "TITANIUM"
+            else:
+                _plate_k = _k_mat("COPPER")
+                _mat_note = "COPPER"
+            architect = scripted_thermal_architect(plate_conductivity_w_mk=_plate_k)
+            # Refine starts below chosen k and steps toward/above it
+            refine_schedule = thermal_strengthening_schedule(
+                start_k=max(10.0, _plate_k * 0.05),
+                step_k=max(20.0, _plate_k * 0.3),
+            )
+            live_note_mat = f"plate_k={_plate_k:g} W/m·K from gen-materials://{_mat_note}"
             # Offline: RAG cooling + materials. Live: same + keyless OpenAlex (parity with mechatronics).
             if args.live:
                 from .tools.http import default_http_get
@@ -2733,6 +2756,8 @@ def main(argv: list[str] | None = None) -> int:
 
         print(f"=== GENESIS Erfindungs-Loop ({args.mode}) — {framing}: {field} ===")
         print(f"  Quelle:        {live_note}")
+        if live_note_mat:
+            print(f"  Material-k:    {live_note_mat}")
         print(f"  Konzepte:      {len(result.concepts)} vorgeschlagen")
         print(
             f"  Geerdet:       {result.grounded_count} physik-verifiziert (δ-Physik-Gate)"
