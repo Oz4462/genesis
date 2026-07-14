@@ -83,11 +83,11 @@
 
 | Sprint | Ziel | Done-Kriterium |
 |--------|------|----------------|
-| **H1** | ζ attach in LUMEN | `process_dream` → `memory_fabric` not None; `horizon_subgates.zeta` bool; test |
-| **H2** | ε/coverage/γ⁺ attach | subgates all non-None on steel-bracket dream OR honest skip code in surface |
-| **H3** | Ω notes from real subgate set | OmegaCertificate lists receipts for attached gates; enforce still green |
-| **H4** | δ⁺ ingest fixture | `Measurement` from fixture file → non-inconclusive path tested; live still gated |
-| **H5** | Doc-Sync HORIZON | Tabelle L-levels + link to tests; STATUS no overclaim |
+| **H1** | ζ attach in LUMEN | **DONE** `a6c59c3` — import split; `memory_fabric` + zeta=True |
+| **H2** | ε/coverage/γ⁺ attach | **DONE** `a6c59c3` — all subgates True |
+| **H3** | Ω notes from real subgate set | **DONE** `9959bea` — receipts ε/ζ/γ⁺/coverage |
+| **H4** | δ⁺ ingest fixture | **DONE** `a3128bf` — fixture → corroborated |
+| **H5** | Doc-Sync HORIZON | **DONE** — STATUS/HORIZON L-levels (no overclaim) |
 
 ---
 

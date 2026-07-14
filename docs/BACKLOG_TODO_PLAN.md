@@ -7,11 +7,11 @@
 
 ## Phase A — HORIZON Trust (P0)
 
-- [x] **H1** ζ `memory_fabric` populate + attach in LUMEN + `horizon_subgates.zeta` — `1931afb`+H1 commit (import split root cause)
-- [x] **H2** ε / coverage / γ⁺ attach (same root fix; subgates all True on steel bracket)
-- [ ] **H3** Ω certificate receipts include attached subgates; enforce still green
-- [ ] **H4** δ⁺ measurement fixture ingest path (non-inconclusive when data present)
-- [ ] **H5** Doc-Sync HORIZON/STATUS levels L0–L4 (no “complete” overclaim)
+- [x] **H1** ζ `memory_fabric` populate + attach — `a6c59c3` (import split root cause)
+- [x] **H2** ε / coverage / γ⁺ attach — `a6c59c3` (same fix; all subgates True)
+- [x] **H3** Ω receipts include ε/ζ/γ⁺/coverage — `9959bea`
+- [x] **H4** δ⁺ measurement fixture ingest — `a3128bf`
+- [x] **H5** Doc-Sync HORIZON/STATUS L0–L4 — this commit
 
 ## Phase B — PRINTFORGE Core (P0/P1)
 
@@ -53,7 +53,8 @@
 
 ## Active sprint
 
-**Now:** H1 (ζ memory_fabric attach)
+**Phase A complete (H1–H5).**  
+**Now:** Phase B **C1** — CNC ProcessDFM rules in `manufacturing_check`
 
 ## Definition of Done (every sprint)
 
