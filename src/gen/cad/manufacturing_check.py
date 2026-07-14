@@ -23,8 +23,8 @@ import math
 import os
 
 from .prototype_cad_builder import BuildArtifact
-from .cost_model import CostEstimate, estimate_fdm_cost
-from .gcode import GCodeProgram, generate_profile_gcode
+from .cost_model import CostEstimate, estimate_fdm_cost, estimate_cnc_cost, estimate_laser_cost
+from .gcode import GCodeProgram, generate_profile_gcode, generate_face_mill_gcode
 from gen.dfm import (
     FDM_MIN_WALL_MM,
     FDM_MIN_HOLE_DIAMETER_MM,
@@ -308,9 +308,10 @@ def check_advanced_dfm(
             "material_hint": getattr(artifact.spec, "material_hint", None),
             "source": CNC_DFM_SOURCE,
         },
-        cost_hint=None,  # C3 cost models
+        cost_hint=(estimate_cnc_cost(vol).summary() if vol > 0 else None),
         qa_hints=["CMM on toleranced dims", "Surface-finish (Ra) check"],
     ))
+    cnc_cost = estimate_cnc_cost(vol) if vol > 0 else None
     # Laser / sheet cutting — a 2D process on constant-thickness stock (dfm.py).
     # The governing quantity is the sheet thickness = the part's smallest extent.
     # Only thickness-vs-max is evaluable; the in-plane form, feature sizes vs
@@ -355,8 +356,17 @@ def check_advanced_dfm(
             "kerf_mm_typical": f"{LASER_KERF_MIN_MM}-{LASER_KERF_MAX_MM}",
             "source": LASER_DFM_SOURCE,
         },
-        cost_hint=None,  # no laser cost model yet — separate stone (DOC_CODE_DRIFT §8)
+        cost_hint=(
+            estimate_laser_cost(bx, by, thickness_mm=thickness if thickness > 0 else None).summary()
+            if bx > 0 and by > 0
+            else None
+        ),
     ))
+    laser_cost = (
+        estimate_laser_cost(bx, by, thickness_mm=thickness if thickness > 0 else None)
+        if bx > 0 and by > 0
+        else None
+    )
 
     # PCB — C2: with optional pcb_layout summary evaluate real fab rules; else all gaps.
     if pcb_layout is not None:
@@ -406,26 +416,43 @@ def check_advanced_dfm(
         "real STL from prototype_cad_builder"
     )
 
-    # real computed FDM cost summary (the volume-driven process); subtractive/sheet/
-    # PCB cost needs process data not in the mechanical artifact — stated, not guessed.
+    # C3: FDM + CNC + Laser ranged costs (each with honest gaps for path/CAM).
+    cost_bits = []
+    if fdm_cost:
+        cost_bits.append(f"FDM {fdm_cost.summary()}")
+    if cnc_cost:
+        cost_bits.append(f"CNC {cnc_cost.summary()}")
+    if laser_cost:
+        cost_bits.append(f"Laser {laser_cost.summary()}")
     cost_summary = (
-        f"{fdm_cost.summary()} — FDM only; CNC/laser/PCB cost needs process data "
-        f"(toolpath time / cut length / board layers) not in the artifact"
-        if fdm_cost else
-        "cost not estimable — the artifact carries no volume estimate"
+        "; ".join(cost_bits) + " — each band has process-data gaps (CAM/path/nesting)"
+        if cost_bits
+        else "cost not estimable — the artifact carries no volume/footprint"
     )
     qa_stub = ["FDM: dimensional + pull sample", "CNC: surface + tolerance", "Final: fit to assembly + functional load test"]
 
-    # real, verified 2.5D outside-profile CNC program for the bounding footprint (a
-    # runnable starting program); None if the bbox is degenerate. Replaces the prose
-    # "datei_stub" — internal features / 3D toolpaths are declared as its gaps.
+    # C4: profile + face-mill programs for the bounding footprint (runnable starters).
+    # Primary gcode_program remains outside-profile; face mill attached in details.
     bx, by, bz = artifact.spec.bounding_box_hint_mm
+    gcode_face: GCodeProgram | None = None
     try:
         gcode_program = (generate_profile_gcode(bx, by, bz)
                          if all(isinstance(d, (int, float)) and d > 0 for d in (bx, by, bz))
                          else None)
     except (ValueError, TypeError):
         gcode_program = None
+    try:
+        if all(isinstance(d, (int, float)) and d > 0 for d in (bx, by)):
+            face_d = 0.5 if not (isinstance(bz, (int, float)) and bz > 0) else min(0.5, max(float(bz) * 0.05, 0.1))
+            gcode_face = generate_face_mill_gcode(bx, by, face_depth_mm=face_d)
+    except (ValueError, TypeError):
+        gcode_face = None
+    if gcode_face is not None:
+        for p in processes:
+            if p.process == "CNC" and isinstance(p.details, dict):
+                p.details["face_mill_operation"] = gcode_face.operation
+                p.details["face_mill_lines"] = len(gcode_face.lines)
+                break
 
     return AdvancedDFMReport(
         artifact_name=name,

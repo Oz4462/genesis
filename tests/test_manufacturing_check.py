@@ -397,10 +397,12 @@ def test_advanced_report_carries_a_real_cost_estimate_not_a_fabricated_stub():
     fdm = next(p for p in rep.processes if p.process == "FDM")
     assert fdm.cost_hint and "0.05-0.15 EUR/g" not in fdm.cost_hint  # computed, not prose
 
-    # no volume on the artifact -> honest refusal, not a guessed number
+    # no volume -> FDM cost_estimate None; laser can still estimate from footprint (C3)
     rep0 = check_advanced_dfm(_artifact("No Vol", (80, 60, 20), 2.0, vol=0.0))
     assert rep0.cost_estimate is None
-    assert "not estimable" in (rep0.cost_model_stub or "")
+    stub0 = rep0.cost_model_stub or ""
+    assert "8-25 EUR" not in stub0
+    assert "Laser" in stub0 or "not estimable" in stub0
 
 
 def test_advanced_report_carries_a_real_verified_gcode_program():

@@ -275,6 +275,105 @@ def generate_rect_pocket_gcode(
     )
 
 
+def generate_face_mill_gcode(
+    width_mm: float,
+    height_mm: float,
+    *,
+    face_depth_mm: float = 0.5,
+    tool_diameter_mm: float = GCODE_DEFAULT_TOOL_DIAMETER_MM,
+    cut_feed_mm_min: float = GCODE_DEFAULT_CUT_FEED_MM_MIN,
+    plunge_feed_mm_min: float = GCODE_DEFAULT_PLUNGE_FEED_MM_MIN,
+    stepover_mm: float | None = None,
+    safe_z_mm: float = GCODE_DEFAULT_SAFE_Z_MM,
+    spindle_rpm: int = GCODE_DEFAULT_SPINDLE_RPM,
+) -> GCodeProgram:
+    """C4: face-mill the top of a rectangular stock (single Z depth, raster XY).
+
+    Removes ``face_depth_mm`` from the stock top with zig-zag passes. Scope: flat
+    facing only — not 3D sculpting, not multi-axis. Feeds are stated assumptions.
+    """
+    for name, v in (
+        ("width", width_mm),
+        ("height", height_mm),
+        ("face_depth", face_depth_mm),
+        ("tool_diameter", tool_diameter_mm),
+        ("safe_z", safe_z_mm),
+    ):
+        if not math.isfinite(v) or v <= 0:
+            raise ValueError(f"generate_face_mill_gcode: {name} must be a finite value > 0")
+    for name, v in (
+        ("cut_feed", cut_feed_mm_min),
+        ("plunge_feed", plunge_feed_mm_min),
+        ("spindle_rpm", spindle_rpm),
+    ):
+        if not math.isfinite(v) or v < 1:
+            raise ValueError(f"generate_face_mill_gcode: {name} must be a finite value >= 1")
+
+    r = tool_diameter_mm / 2.0
+    so = stepover_mm if stepover_mm is not None else tool_diameter_mm * 0.6
+    if not math.isfinite(so) or so <= 0:
+        raise ValueError("generate_face_mill_gcode: stepover_mm must be a finite value > 0")
+    so = min(so, height_mm)
+
+    def fmt(v: float) -> str:
+        return f"{v:.3f}".rstrip("0").rstrip(".")
+
+    # tool centre from 0..width, 0..height (stock XY), start at -r for edge clean
+    x0, x1 = -r, width_mm + r
+    y0, y1 = 0.0, height_mm
+
+    y_lines: list[float] = []
+    y = y0
+    while y < y1 - 1e-9:
+        y_lines.append(y)
+        y += so
+    if not y_lines or abs(y_lines[-1] - y1) > 1e-6:
+        y_lines.append(y1)
+
+    z_face = -face_depth_mm
+    lines = [
+        f"( face-mill {fmt(width_mm)}x{fmt(height_mm)}mm, depth {fmt(face_depth_mm)}mm, "
+        f"tool d={fmt(tool_diameter_mm)}mm; {GCODE_SOURCE} )",
+        "G21 ( units: millimeters )",
+        "G90 ( absolute positioning )",
+        "G17 ( XY plane )",
+        f"M3 S{int(spindle_rpm)} ( spindle on, clockwise )",
+        f"G0 Z{fmt(safe_z_mm)} ( retract to safe height )",
+        f"G0 X{fmt(x0)} Y{fmt(y0)} ( rapid to start )",
+        f"G1 Z{fmt(z_face)} F{fmt(plunge_feed_mm_min)} ( plunge to face depth )",
+    ]
+    for i, y in enumerate(y_lines):
+        lines.append(f"G1 Y{fmt(y)} F{fmt(cut_feed_mm_min)}")
+        if i % 2 == 0:
+            lines.append(f"G1 X{fmt(x1)}")
+        else:
+            lines.append(f"G1 X{fmt(x0)}")
+    lines += [
+        f"G0 Z{fmt(safe_z_mm)} ( retract )",
+        "M5 ( spindle off )",
+        "M30 ( program end )",
+    ]
+
+    return GCodeProgram(
+        operation="face_mill",
+        lines=lines,
+        bounds_mm={"x": (x0, x1), "y": (min(y0, y1), max(y0, y1)), "z": (z_face, safe_z_mm)},
+        safe_z_mm=safe_z_mm,
+        assumptions=[
+            f"face depth {fmt(face_depth_mm)}mm, stepover {fmt(so)}mm, tool d={fmt(tool_diameter_mm)}mm",
+            f"feeds cut {fmt(cut_feed_mm_min)} / plunge {fmt(plunge_feed_mm_min)} mm/min, "
+            f"spindle {int(spindle_rpm)} rpm — GENERIC defaults",
+            "flat facing only — stock top assumed Z=0",
+        ],
+        gaps=[
+            "adaptive clearing / 3D surface facing: need a CAM kernel",
+            "feeds & speeds material-specific",
+            "work-offset (G54), tool length offset, fixturing: setup-specific",
+        ],
+        source=GCODE_SOURCE,
+    )
+
+
 def _parse_words(raw: str) -> dict[str, float] | None:
     """Parse one line into {letter: value}, stripping comments. Returns None for a
     blank/comment-only line, or raises nothing — unknown letters are reported by the

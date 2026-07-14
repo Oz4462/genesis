@@ -15,10 +15,10 @@
 
 ## Phase B — PRINTFORGE Core (P0/P1)
 
-- [ ] **C1** CNC ProcessDFM rules + tests
-- [ ] **C2** Laser + PCB process rules + tests
-- [ ] **C3** CNC/Laser cost ranges (`estimate_*_cost`) + gaps API
-- [ ] **C4** Additional real GCode feature + fertigungs wire
+- [x] **C1** CNC material-aware ProcessDFM — `3d7e126` (+ resolve/evaluate_cnc_wall)
+- [x] **C2** PCB layout evaluation + laser rules already L2 — same commit family
+- [x] **C3** CNC/Laser cost ranges (`estimate_cnc_cost` / `estimate_laser_cost`)
+- [x] **C4** Face-mill GCode + advanced DFM surface face_mill details
 
 ## Phase C — Realization Package (P1)
 

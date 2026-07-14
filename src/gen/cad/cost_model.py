@@ -173,3 +173,143 @@ def estimate_fdm_cost(volume_cm3: float, material: str | None = None, *,
         gaps=gaps,
         source=COST_MODEL_SOURCE,
     )
+
+
+# === C3: CNC / Laser ranged cost (honest, process-data incomplete) ===
+# Subtractive and sheet costs need toolpath time / cut length the mechanical
+# artifact often lacks. We estimate from bounding volume / sheet area with wide
+# sourced shop-rate bands and declare path-length gaps.
+
+CNC_COST_SOURCE = "Xometry / Protolabs CNC pricing bands (engineering estimate 2026-07-15)"
+#: Machine + labour rate band [EUR/h] for small 3-axis shop work.
+CNC_RATE_EUR_PER_H_LOW = 45.0
+CNC_RATE_EUR_PER_H_HIGH = 120.0
+#: Rough stock removal rate band [cm³/h] — wide; real CAM time is a gap.
+CNC_REMOVE_CM3_PER_H_LOW = 5.0
+CNC_REMOVE_CM3_PER_H_HIGH = 40.0
+CNC_SETUP_EUR_LOW = 30.0
+CNC_SETUP_EUR_HIGH = 150.0
+#: Material cost band [EUR/cm³] for generic billet (Al / steel mix).
+CNC_MATERIAL_EUR_PER_CM3_LOW = 0.02
+CNC_MATERIAL_EUR_PER_CM3_HIGH = 0.15
+
+LASER_COST_SOURCE = "SendCutSend / Xometry laser sheet pricing (engineering estimate 2026-07-15)"
+LASER_RATE_EUR_PER_MIN_LOW = 0.5
+LASER_RATE_EUR_PER_MIN_HIGH = 2.5
+#: Assumed cut speed band [mm/min] for mild steel mid-thickness (path length gap).
+LASER_SPEED_MM_PER_MIN_LOW = 200.0
+LASER_SPEED_MM_PER_MIN_HIGH = 2000.0
+LASER_SETUP_EUR = 15.0
+#: Sheet material band [EUR/cm²] for 3–6mm mild steel order of magnitude.
+LASER_MATERIAL_EUR_PER_CM2_LOW = 0.01
+LASER_MATERIAL_EUR_PER_CM2_HIGH = 0.08
+
+
+def estimate_cnc_cost(
+    volume_cm3: float,
+    *,
+    stock_volume_cm3: float | None = None,
+) -> CostEstimate:
+    """C3: ranged CNC cost from part volume (and optional stock volume).
+
+    Time ≈ removed volume / removal rate. Without a toolpath, removal rate is a
+    wide band — declared as a gap. Raises on non-positive volume.
+    """
+    if not math.isfinite(volume_cm3) or volume_cm3 <= 0:
+        raise ValueError("estimate_cnc_cost: volume_cm3 must be a finite value > 0")
+    stock = stock_volume_cm3 if stock_volume_cm3 is not None else volume_cm3 * 1.5
+    if not math.isfinite(stock) or stock < volume_cm3:
+        stock = volume_cm3 * 1.5
+    removed = max(stock - volume_cm3, volume_cm3 * 0.1)
+
+    mat_low = stock * CNC_MATERIAL_EUR_PER_CM3_LOW
+    mat_high = stock * CNC_MATERIAL_EUR_PER_CM3_HIGH
+    time_h_low = removed / CNC_REMOVE_CM3_PER_H_HIGH
+    time_h_high = removed / CNC_REMOVE_CM3_PER_H_LOW
+    mach_low = time_h_low * CNC_RATE_EUR_PER_H_LOW
+    mach_high = time_h_high * CNC_RATE_EUR_PER_H_HIGH
+    low = mat_low + mach_low + CNC_SETUP_EUR_LOW
+    high = mat_high + mach_high + CNC_SETUP_EUR_HIGH
+
+    return CostEstimate(
+        process="CNC",
+        low_eur=round(low, 2),
+        high_eur=round(high, 2),
+        breakdown={
+            "material_stock": (round(mat_low, 2), round(mat_high, 2)),
+            "machine_time": (round(mach_low, 2), round(mach_high, 2)),
+            "setup": (CNC_SETUP_EUR_LOW, CNC_SETUP_EUR_HIGH),
+        },
+        assumptions=[
+            f"part volume {volume_cm3:g} cm³; stock ~{stock:g} cm³ (or 1.5× part if unset)",
+            f"removed ~{removed:g} cm³ at {CNC_REMOVE_CM3_PER_H_LOW:g}–{CNC_REMOVE_CM3_PER_H_HIGH:g} cm³/h",
+            f"shop rate {CNC_RATE_EUR_PER_H_LOW:g}–{CNC_RATE_EUR_PER_H_HIGH:g} EUR/h",
+            "band is independent-factor outer bound, not a calibrated percentile",
+        ],
+        gaps=[
+            "toolpath / CAM time not computed — need real CAM for accurate machine hours",
+            "fixturing, tooling, surface finish ops, secondary ops not modelled",
+            "material grade premium and scrap rate not modelled",
+            "bureau vs self-run pricing spread not fully captured",
+        ],
+        source=CNC_COST_SOURCE,
+    )
+
+
+def estimate_laser_cost(
+    length_mm: float,
+    width_mm: float,
+    *,
+    thickness_mm: float | None = None,
+    cut_length_mm: float | None = None,
+) -> CostEstimate:
+    """C3: ranged laser sheet cost from plate footprint (+ optional cut path length).
+
+    Without cut_length_mm, assumes perimeter of the rectangle (outside only) —
+    internal cut features are a gap. Raises on non-positive dimensions.
+    """
+    for name, v in (("length", length_mm), ("width", width_mm)):
+        if not math.isfinite(v) or v <= 0:
+            raise ValueError(f"estimate_laser_cost: {name} must be a finite value > 0")
+    area_cm2 = (length_mm * width_mm) / 100.0
+    perimeter = 2.0 * (length_mm + width_mm)
+    path = cut_length_mm if cut_length_mm is not None else perimeter
+    if not math.isfinite(path) or path <= 0:
+        raise ValueError("estimate_laser_cost: cut_length_mm must be finite > 0 when set")
+
+    mat_low = area_cm2 * LASER_MATERIAL_EUR_PER_CM2_LOW
+    mat_high = area_cm2 * LASER_MATERIAL_EUR_PER_CM2_HIGH
+    time_min_low = path / LASER_SPEED_MM_PER_MIN_HIGH
+    time_min_high = path / LASER_SPEED_MM_PER_MIN_LOW
+    cut_low = time_min_low * LASER_RATE_EUR_PER_MIN_LOW
+    cut_high = time_min_high * LASER_RATE_EUR_PER_MIN_HIGH
+    low = mat_low + cut_low + LASER_SETUP_EUR * 0.5
+    high = mat_high + cut_high + LASER_SETUP_EUR * 2.0
+
+    gaps = [
+        "cut path is perimeter-only unless cut_length_mm provided — internal features gap",
+        "material grade / thickness surcharge not fully modelled",
+        "pierces, lead-ins, nesting efficiency not modelled",
+    ]
+    if thickness_mm is not None:
+        gaps.append(f"thickness ~{thickness_mm:g}mm noted but rate not thickness-tabled")
+    if cut_length_mm is None:
+        gaps.append("cut_length_mm not supplied — used rectangle perimeter as path proxy")
+
+    return CostEstimate(
+        process="Laser",
+        low_eur=round(low, 2),
+        high_eur=round(high, 2),
+        breakdown={
+            "sheet_material": (round(mat_low, 2), round(mat_high, 2)),
+            "cut_time": (round(cut_low, 2), round(cut_high, 2)),
+            "setup": (round(LASER_SETUP_EUR * 0.5, 2), round(LASER_SETUP_EUR * 2.0, 2)),
+        },
+        assumptions=[
+            f"sheet {length_mm:g}×{width_mm:g}mm (~{area_cm2:g} cm²); path ~{path:g}mm",
+            f"cut speed {LASER_SPEED_MM_PER_MIN_LOW:g}–{LASER_SPEED_MM_PER_MIN_HIGH:g} mm/min",
+            f"rate {LASER_RATE_EUR_PER_MIN_LOW:g}–{LASER_RATE_EUR_PER_MIN_HIGH:g} EUR/min",
+        ],
+        gaps=gaps,
+        source=LASER_COST_SOURCE,
+    )

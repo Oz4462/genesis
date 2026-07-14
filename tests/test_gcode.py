@@ -19,6 +19,7 @@ from gen.cad.gcode import (
     GCodeProgram,
     generate_profile_gcode,
     generate_rect_pocket_gcode,
+    generate_face_mill_gcode,
     verify_gcode,
 )
 
@@ -128,3 +129,14 @@ def test_verifier_catches_missing_feed_no_retract_and_rapid_plunge():
     cut_after_stop = ["G21", "G90", "M3 S1000", "G1 Z-1 F100", "G0 Z5", "M5",
                       "G1 X10 Y0 F300", "M30"]
     assert any("spindle" in i.lower() for i in verify_gcode(cut_after_stop).issues)
+
+
+def test_c4_face_mill_gcode_verifies():
+    """C4: face-mill program is valid RS-274 and reaches face depth."""
+    prog = generate_face_mill_gcode(100.0, 60.0, face_depth_mm=0.5)
+    assert prog.operation == "face_mill"
+    chk = verify_gcode(prog)
+    assert chk.ok, chk.issues
+    assert prog.bounds_mm["z"][0] <= -0.5 + 1e-9
+    text = prog.text()
+    assert "G21" in text and "M3" in text and "M30" in text
