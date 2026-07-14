@@ -776,12 +776,22 @@ class LumenCrucible:
             try:
                 from ..omega import build_omega_certificate, gate_omega
 
-                # supply the pre gate + let build pull artifacts for full cross-phase cert
-                gate_res_map = (
-                    {"lumencrucible_pre": gate_result}
-                    if gate_result is not None
-                    else None
-                )
+                # H3: feed ALL real subgate GateResults into Ω receipts (ε/ζ/γ⁺/coverage + pre).
+                # Only true GateResult objects — string error markers stay out of receipts.
+                gate_res_map: dict[str, Any] = {}
+                if gate_result is not None:
+                    gate_res_map["lumencrucible_pre"] = gate_result
+                for _gname, _glocal in (
+                    ("epsilon", "epsilon_gate"),
+                    ("zeta", "zeta_gate"),
+                    ("gamma_plus", "gamma_plus_gate"),
+                    ("coverage", "coverage_gate"),
+                ):
+                    _gv = locals().get(_glocal)
+                    if _gv is not None and hasattr(_gv, "passed") and hasattr(_gv, "failures"):
+                        gate_res_map[_gname] = _gv
+                if not gate_res_map:
+                    gate_res_map = None  # type: ignore[assignment]
                 # The canonical cert is built from RunState artifacts only. Without carrying
                 # them forward it would silently DROP the self_ascent + delta_plus_reality
                 # notes that this phase genuinely produced (that was the facade). Re-attach

@@ -121,3 +121,22 @@ def test_h2_subgates_epsilon_coverage_gamma_not_none(tmp_path):
     assert out.get("coverage_certificate") is not None
     assert out.get("memory_fabric") is not None
     assert getattr(out.get("run_state"), "pareto_front", None) is not None
+
+
+def test_h3_omega_receipts_include_subgates(tmp_path):
+    """H3: OmegaCertificate.gate_receipts includes ε/ζ/γ⁺/coverage when attached."""
+    out = LumenCrucible().process_dream(
+        "steel bracket for 100 N",
+        run_id="h3-omega",
+        work_queue_path=str(tmp_path / "wq.md"),
+    )
+    cert = out["omega_certificate"]
+    names = {r.name for r in cert.gate_receipts}
+    for required in ("lumencrucible_pre", "epsilon", "zeta", "gamma_plus", "coverage"):
+        assert required in names, f"missing Ω receipt {required!r}; have {sorted(names)}"
+    assert all(r.passed for r in cert.gate_receipts)
+    assert out["omega_gate"].passed is True
+    # dynamic notes for each receipt
+    note_refs = {n.ref for n in cert.learning_notes}
+    assert "gate:zeta" in note_refs
+    assert "gate:epsilon" in note_refs
