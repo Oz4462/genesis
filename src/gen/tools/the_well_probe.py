@@ -317,7 +317,7 @@ def probe_well_dataset(
         gaps = [
             f"stream failed: {type(exc).__name__}: {exc}",
             "check network, Hugging Face access, and dataset name",
-            f"HF collection: https://huggingface.co/collections/polymathic-ai/the-well-67e129f4ca23e0447395d74c",
+            "HF collection: https://huggingface.co/collections/polymathic-ai/the-well-67e129f4ca23e0447395d74c",
         ]
         if catalog_gap:
             gaps.insert(0, catalog_gap)

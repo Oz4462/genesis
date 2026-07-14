@@ -13,12 +13,15 @@ fills it — scoring composes with, but does not fake, the novelty verdict.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Optional, Sequence
+from typing import TYPE_CHECKING, Callable, Optional, Sequence
 
 from ..inverse_design import DesignObjective, InverseDesignGoal, ObjectiveDirection
 from ..core.state import Specification
 from .brief import Invention
 from .optimize import ParetoOptimizer
+
+if TYPE_CHECKING:
+    from ..core.state import ParetoFront
 
 #: The fixed 5-axis goal. cost/mass/complexity are MINIMIZED, performance/novelty MAXIMIZED.
 INVENTION_GOAL = InverseDesignGoal(

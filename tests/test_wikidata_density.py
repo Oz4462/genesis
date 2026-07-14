@@ -5,8 +5,6 @@ from __future__ import annotations
 import asyncio
 import math
 
-import pytest
-
 from gen.tools.wikidata import (
     MATERIAL_DENSITY_QIDS,
     density_claims_for_material,

@@ -1,8 +1,6 @@
 """W1–W5: source catalog, patents key gate, ledger/vector honesty, richer seeds."""
 from __future__ import annotations
 
-import os
-
 from gen.tools.source_catalog import (
     catalog_report,
     ledger_status,

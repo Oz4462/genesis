@@ -9,8 +9,6 @@ provenance. It never invents numeric values outside ``materials.MATERIALS``.
 
 from __future__ import annotations
 
-import re
-
 from ..core.state import SourceCandidate
 from ..materials import MATERIALS
 

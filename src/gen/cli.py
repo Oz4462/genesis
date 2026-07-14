@@ -49,6 +49,16 @@ from .tools.arxiv_backend import ArxivBackend
 from .tools.formula_backend import FormulaBackend
 from .tools.search import SemanticScholarBackend, WikipediaBackend
 from .tools.materials_backend import MaterialsBackend
+from .tools.sources import OpenAlexBackend, PatentsViewBackend
+from .verification.cross_model import assert_different_families
+from .verification.gates import (
+    gate_code,
+    gate_delta,
+    gate_erc,
+    gate_protocol,
+    geometry_envelope,
+)
+from .verification.geometry import geometry_length_unit, mass_of, volume_of
 
 
 def _only_optional_tooling_gaps(missing: list[str]) -> bool:
@@ -85,16 +95,7 @@ def _bundle_demo_ok(manifest, *, require_physics: bool = True) -> bool:
     if getattr(manifest, "files_complete", False):
         return True
     return _only_optional_tooling_gaps(list(getattr(manifest, "missing", None) or []))
-from .tools.sources import OpenAlexBackend, PatentsViewBackend
-from .verification.cross_model import assert_different_families
-from .verification.gates import (
-    gate_code,
-    gate_delta,
-    gate_erc,
-    gate_protocol,
-    geometry_envelope,
-)
-from .verification.geometry import geometry_length_unit, mass_of, volume_of
+
 
 # --- offline demo world (deterministic) --------------------------------------
 

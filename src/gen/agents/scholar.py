@@ -152,7 +152,7 @@ class Scholar:
             key = cand.url_or_id.split("://", 1)[-1].strip().upper()
             try:
                 claim_rows = materials_claims(key, language=q_lang)
-            except Exception as exc:  # noqa: BLE001
+            except Exception:  # noqa: BLE001
                 # fallback single density claim for unknown/legacy keys
                 try:
                     text, quote = materials_claim_text(key, language=q_lang)
