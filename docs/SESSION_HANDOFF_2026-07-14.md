@@ -32,7 +32,7 @@ bash scripts/self_improve_smoke.sh
 - The Well: HF package optional (stream/fixture; never 15 TB bulk)
 - Multi-part BREP STL via cad-venv: opt-in `GENESIS_CAD_MULTIPART=1`
 - Community/TRL/trustcore: stub scores (field data deferred)
-- Live α: use `--live` with grok/claude (copper offline anchor 8960 kg/m³ ready)
+- Live α copper (2026-07-14 run): pipeline completed with grok-4.5+claude; registry claims 8960 kg/m³ + k=401 surfaced but skeptic left them **unsupported** (wiki corroboration windows hit electroplating/overview pages without the density number). Offline registry anchor remains the grounded δ-path.
 
 ## Closed (do not re-open as bugs)
 
