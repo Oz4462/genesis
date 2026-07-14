@@ -85,3 +85,39 @@ def test_enforce_omega_opt_out_does_not_raise(tmp_path):
         enforce_omega=False,
     )
     assert "hammer" in out
+
+
+def test_h1_memory_fabric_attached_and_zeta_gate_bool(tmp_path):
+    """H1: ζ memory_fabric certificate + gate_zeta must attach (not silent None)."""
+    out = LumenCrucible().process_dream(
+        "steel bracket for 100 N",
+        run_id="h1-zeta",
+        work_queue_path=str(tmp_path / "wq.md"),
+    )
+    mf = out.get("memory_fabric")
+    assert mf is not None, "memory_fabric must be attached after H1 import split"
+    assert getattr(mf, "run_id", None) == "h1-zeta"
+    # VERIFIED lumen claim → at least one deposit
+    assert len(getattr(mf, "deposits", ())) >= 1
+    zeta = (out.get("horizon_subgates") or {}).get("zeta")
+    assert zeta is True, f"expected zeta gate True, got {zeta!r}"
+    rs = out.get("run_state")
+    assert rs is not None
+    assert getattr(rs, "memory_fabric", None) is not None
+
+
+def test_h2_subgates_epsilon_coverage_gamma_not_none(tmp_path):
+    """H2: ε / coverage / γ⁺ attach as real gate verdicts (not silent None)."""
+    out = LumenCrucible().process_dream(
+        "steel bracket for 100 N",
+        run_id="h2-subgates",
+        work_queue_path=str(tmp_path / "wq.md"),
+    )
+    sub = out.get("horizon_subgates") or {}
+    for key in ("epsilon", "zeta", "gamma_plus", "coverage", "omega"):
+        assert sub.get(key) is not None, f"subgate {key} must not be None after H2"
+        assert sub.get(key) is True or sub.get(key) is False or isinstance(sub.get(key), str)
+    assert out.get("seam_certificate") is not None
+    assert out.get("coverage_certificate") is not None
+    assert out.get("memory_fabric") is not None
+    assert getattr(out.get("run_state"), "pareto_front", None) is not None

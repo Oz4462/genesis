@@ -53,34 +53,45 @@ from ..verification.gates import GateResult  # for typing the internal check
 from .development_front import map_development_front, DevelopmentFrontMap, Grenztyp
 from .readiness_ladder import TeacherMode, community_evidence
 
-# HORIZON ε/ζ/Ω E2E cert pop (loop continuation): reach the builders so seams/memory
-# certificates are constructible inside LUMEN flow. Guarded for partial envs.
-# + δ+ coverage (build + reviewed_failure_modes) + richer ε/ζ gate flow for full chain elaboration.
+# HORIZON ε/ζ/Ω E2E cert builders — EACH import guarded SEPARATELY.
+# H1 root cause (2026-07-15): one failed inverse_design name (derive_goal_from_spec
+# does not exist) nulled *all* builders via a single try/except → memory_fabric/seam/
+# coverage always None and horizon_subgates all None. Independent imports fix that.
 try:
     from ..seams import build_seam_certificate, detect_cross_domain_seams, gate_epsilon  # ε
-    from ..memory_fabric import build_memory_fabric_certificate, gate_zeta  # ζ
-    from ..omega import gate_omega  # Ω
-    from ..coverage import (
-        build_coverage_certificate,
-        gate_delta_plus_coverage,
-    )  # δ+ coverage + reviewed
-    from ..inverse_design import (
-        build_pareto_front,
-        derive_goal_from_spec,
-        gate_gamma_plus,
-    )  # γ+ (elaborate integration)
 except Exception:  # noqa: BLE001
     build_seam_certificate = None  # type: ignore
     detect_cross_domain_seams = None  # type: ignore
     gate_epsilon = None  # type: ignore
+
+try:
+    from ..memory_fabric import build_memory_fabric_certificate, gate_zeta  # ζ
+except Exception:  # noqa: BLE001
     build_memory_fabric_certificate = None  # type: ignore
     gate_zeta = None  # type: ignore
+
+try:
+    from ..omega import gate_omega  # Ω (also imported inside process_dream path)
+except Exception:  # noqa: BLE001
     gate_omega = None  # type: ignore
+
+try:
+    from ..coverage import (
+        build_coverage_certificate,
+        gate_delta_plus_coverage,
+    )  # δ+ coverage
+except Exception:  # noqa: BLE001
     build_coverage_certificate = None  # type: ignore
     gate_delta_plus_coverage = None  # type: ignore
+
+try:
+    from ..inverse_design import build_pareto_front, gate_gamma_plus  # γ+
+except Exception:  # noqa: BLE001
     build_pareto_front = None  # type: ignore
-    derive_goal_from_spec = None  # type: ignore
     gate_gamma_plus = None  # type: ignore
+
+# Not exported by inverse_design (honest): LUMEN uses local fallback goal builder.
+derive_goal_from_spec = None  # type: ignore
 
 
 # New hardened simulation layer (Punkt 4 complete)
@@ -749,9 +760,11 @@ class LumenCrucible:
                                 coverage_gate = f"error: {type(e).__name__}: {e}"
                     except Exception:
                         pass
-            except Exception:
+            except Exception as exc:  # noqa: BLE001 — record, never silent facade success
                 # honest skip for any partial data (guarded spirit, like pipeline.py:150)
-                pass
+                optional_skips.append(
+                    f"horizon_cert_block_skipped ({type(exc).__name__}: {exc})"
+                )
 
         # === AFTER certs attached: call real build_omega + gate_omega (Ω full aggregation)
         # Smallest guarded (matches lumen/cond style). Uses populated run_state (δ γ ε ζ certs).

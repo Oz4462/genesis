@@ -7,8 +7,8 @@
 
 ## Phase A — HORIZON Trust (P0)
 
-- [ ] **H1** ζ `memory_fabric` populate + attach in LUMEN + `horizon_subgates.zeta`
-- [ ] **H2** ε / coverage / γ⁺ attach (or honest skip codes, never silent None without reason)
+- [x] **H1** ζ `memory_fabric` populate + attach in LUMEN + `horizon_subgates.zeta` — `1931afb`+H1 commit (import split root cause)
+- [x] **H2** ε / coverage / γ⁺ attach (same root fix; subgates all True on steel bracket)
 - [ ] **H3** Ω certificate receipts include attached subgates; enforce still green
 - [ ] **H4** δ⁺ measurement fixture ingest path (non-inconclusive when data present)
 - [ ] **H5** Doc-Sync HORIZON/STATUS levels L0–L4 (no “complete” overclaim)
