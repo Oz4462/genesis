@@ -44,17 +44,17 @@
 
 ## Phase F — Cleanup (P2, continuous)
 
-- [ ] **X1** Stale doc claims (e.g. fracture NotImplemented) removed
-- [ ] **X2** learning_integrator richer path
-- [ ] **X3** boundary_reviser full path
-- [ ] **X4** Doc-sync after every P0 sprint
+- [x] **X1** Stale fracture NotImplemented claims fixed in OPEN_MODULES + DOC_CODE_DRIFT
+- [x] **X2** learning_integrator extracts safety.stages + revised.revisions; `run_grenz_learning_loop`
+- [x] **X3** `revise_with_learning` + `apply_delta_to_front` (no fake Grenztyp upgrades)
+- [x] **X4** STATUS/BACKLOG synced — Phases A–F complete
 
 ---
 
 ## Active sprint
 
-**Phases A–E complete (H1–H5, C1–C8, W1–W5, S1–S4).**  
-**Now:** Phase F **X1–X4** cleanup (stale docs, learning_integrator, boundary_reviser)
+**Phases A–F COMPLETE** (H1–X4).  
+**Residual product depth:** multi-axis CAM, GD&T PDF, prod vector DB, live lab ingest — see SYSTEMATIC_BACKLOG_REPORT.
 
 ## Definition of Done (every sprint)
 

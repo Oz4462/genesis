@@ -84,7 +84,7 @@ Von DOC_CODE_DRIFT §6, WORK_QUEUE CAD TEIL2 (complete with real sourced for FDM
 - Fuller multi-physics closed-loop (mech+therm+elec+control) over LUMEN + reality + Wissensbasis.
 - More CFD domains, 3D integration depth.
 - "Excellent" Geo/Math/Phys hardening (agent partial; manual compensations done, not full).
-- Some NotImplemented (fracture.py:140 for unsupported cases — honest).
+- fracture Paris m=2 closed form implemented (`math.log`); no NotImplemented at :140 (corrected 2026-07-15).
 
 **Cites:** DOC_CODE_DRIFT:114, simulation/runner.py, physics_validation.py, BUILD_LOG tool + physics campaigns.
 
@@ -119,7 +119,7 @@ Genuin nicht or partial:
 **Cites:** CK MED test gaps, pipeline.py, bundle/web/cli, WQ.
 
 ### 8. Specific Code Items / NotImplemented / Stubs (non-architectural)
-- fracture.py:140 `raise NotImplementedError` (unsupported cases).
+- ~~fracture.py:140 NotImplemented~~ **CLOSED** — Paris m=2 closed form (2026-07-15).
 - Various "first stone" docstrings (honest).
 - Some tmp_*.py, scripts/pov/ have stubs (test/dev).
 - Goldset live runs owner-gated/deferred.

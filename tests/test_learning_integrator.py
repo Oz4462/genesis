@@ -36,6 +36,22 @@ def test_jetpack_produces_rich_learning_delta_with_rules_failures_and_vorschlaeg
     assert any("Solid-State" in r.regel for r in delta.rules)
     assert any("Recovery" in (f.modus + f.evidenz) for f in delta.failure_modes)
     assert delta.quelle is not None
+    # X2: rules mined from real safety.stages
+    assert any("safety_ladder.stages" in (r.quelle or "") for r in delta.rules)
+
+
+def test_x2_x3_grenz_learning_loop_end_to_end():
+    """Full offline chain front→frontier→revise→safety→delta→feed."""
+    from gen.grenzverschiebung.learning_integrator import run_grenz_learning_loop
+
+    out = run_grenz_learning_loop(
+        "Ich will ein Jetpack bauen, das Menschen sicher über einer Menge frei fliegen lässt.",
+        run_id="loop-x2",
+    )
+    assert out["schema"] == "genesis-grenz-learning-loop-v1"
+    assert out["n_safety_stages"] >= 1
+    assert out["n_rules"] >= 2
+    assert out["loop_notes"]
 
 
 def test_jetpack_wissens_eintrag_from_synthetic_frontier_is_labeled():

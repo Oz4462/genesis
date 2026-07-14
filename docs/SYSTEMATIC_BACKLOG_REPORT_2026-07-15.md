@@ -198,10 +198,10 @@
 
 | Sprint | Ziel |
 |--------|------|
-| **X1** | Remove stale “NotImplemented” claims from docs |
-| **X2** | learning_integrator: one richer cycle test + wire note |
-| **X3** | boundary_reviser: one full revision path test |
-| **X4** | Doc-sync pass after every P0 sprint (H*/C*) |
+| **X1** | Remove stale “NotImplemented” claims from docs | **DONE** OPEN_MODULES + DOC_CODE_DRIFT |
+| **X2** | learning_integrator: extract stages/revisions | **DONE** + `run_grenz_learning_loop` |
+| **X3** | boundary_reviser: full path with learning | **DONE** `revise_with_learning` |
+| **X4** | Doc-sync STATUS / plan | **DONE** Phases A–F complete 2026-07-15 |
 
 ---
 

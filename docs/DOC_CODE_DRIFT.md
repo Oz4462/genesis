@@ -115,8 +115,10 @@ Drift liegt allein darin, dass die Build-Logs sie als „abgeschlossen" zusammen
   `notch_fatigue`, `fracture`, `contact`, `creep`, `pressure_vessel`, `plate_bending`, `bolted_joint`,
   `thermal`, `thermal_stress`, `modal`, `fem`/`fem3d`/`fem3d_quadratic`/`bracket_fem`, `montecarlo`,
   `uncertainty`, `tolerance`, `circuit` — je eigene Testdatei, gegen geschlossene Formen (README §5).
-- **Ehrliche Grenze (vorbildlich):** `fracture.py:140` wirft `NotImplementedError` für nicht
-  unterstützte Fälle, statt einen falschen Wert zu liefern — deklarierte Lücke, kein stiller Fehler.
+- **Ehrliche Grenze (historisch):** fracture Paris m≠2 closed form; m=2 uses `math.log`
+  (was documented as NotImplemented — **fixed**; see fracture.py paris_cycles).
+  Legacy note below retained for audit trail only — do not re-open as bug:
+  ~~`fracture.py:140` wirft `NotImplementedError` für nicht~~  unterstützte Fälle, statt einen falschen Wert zu liefern — deklarierte Lücke, kein stiller Fehler.
 - **Unfertig:** die „Geo/Math/Physik von *Gut* auf *Excellent*"-Härtung (GENESIS_TODO Z.40/60) ist
   **nicht abgeschlossen** — der dedizierte Agent endete an `max_tokens` (nach 47 Tool-Calls), kompensiert
   durch partielle manuelle Härtungen. Kern solide; das „Excellent"-Niveau ist teil-erreicht, nicht fertig.

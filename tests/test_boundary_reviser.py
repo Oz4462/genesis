@@ -78,6 +78,19 @@ def test_synthetic_frontier_items_do_not_upgrade_boundaries():
     assert any(r.new_typ != r.old_typ for r in revised2.revisions)
 
 
+def test_x3_revise_with_learning_returns_delta_and_feed():
+    from gen.grenzverschiebung.boundary_reviser import revise_with_learning
+
+    idee = "Ich will ein Jetpack bauen, das Menschen sicher über einer Menge frei fliegen lässt."
+    front = map_development_front(idee, run_id="rev-learn-001")
+    frontier = watch_frontier(front, run_id="rev-learn-001")
+    out = revise_with_learning(front, frontier, run_id="rev-learn-001")
+    assert out["schema"] == "genesis-revise-with-learning-v1"
+    assert out["delta"].rules
+    assert out["learning_feed"]["upgrades_applied"] == 0
+    assert "verified" in out["learning_feed"]["honest"].lower() or "Grenztyp" in out["learning_feed"]["honest"]
+
+
 def test_generic_idea_produces_minimal_revision():
     """Generische Idee → minimale Revision (generic item)."""
     idee = "Ein tragbares Gerät, das Schwerkraft lokal aufhebt."

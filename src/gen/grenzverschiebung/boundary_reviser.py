@@ -164,11 +164,44 @@ def revise_boundary(
         quelle="boundary_reviser (erster Stein) + frontier_update + GENESIS_PLATFORM_PLAN.md §3.3",
     )
 
+    upgrades = [r for r in revisions if r.new_typ != r.old_typ]
+    zusammenfassung = (
+        f"{len(revisions)} boundary revision(s); {len(upgrades)} real upgrade(s) "
+        f"(verified evidence only). Traum: {traum[:60]}…"
+    )
+
     return RevisedFrontMap(
         source_traum=traum,
         revised_map=revised_map,
         revisions=revisions,
-        zusammenfassung=f"{len(revisions)} Boundary revisions applied based on new frontier evidence. Grenze updated for {traum[:60]}...",
+        zusammenfassung=zusammenfassung,
         run_id=run_id,
-        quelle="boundary_reviser (erster Stein) + frontier_update + GENESIS_PLATFORM_PLAN.md §3.3",
+        quelle="boundary_reviser X3 + frontier_update + GENESIS_PLATFORM_PLAN.md §3.3",
     )
+
+
+def revise_with_learning(
+    current_front: "DevelopmentFrontMap",
+    frontier_update: "FrontierUpdate",
+    *,
+    run_id: str | None = None,
+) -> dict:
+    """X3: full revise path + optional learning loop attachment.
+
+    Returns revised map plus a learning-cycle delta when safety ladder is available.
+    """
+    from .safety_ladder import build_safety_ladder
+    from .learning_integrator import apply_learning_cycle, apply_delta_to_front
+
+    revised = revise_boundary(current_front, frontier_update, run_id=run_id)
+    safety = build_safety_ladder(revised, run_id=run_id)
+    delta = apply_learning_cycle(safety=safety, revised=revised, run_id=run_id)
+    feed = apply_delta_to_front(revised, delta, run_id=run_id)
+    return {
+        "schema": "genesis-revise-with-learning-v1",
+        "revised": revised,
+        "delta": delta,
+        "learning_feed": feed,
+        "n_upgrades": sum(1 for r in revised.revisions if r.new_typ != r.old_typ),
+        "quelle": "boundary_reviser.revise_with_learning",
+    }
