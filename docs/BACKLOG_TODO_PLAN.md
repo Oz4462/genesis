@@ -53,8 +53,8 @@
 
 ## Active sprint
 
-**Phases A–D complete (H1–H5, C1–C8, W1–W5).**  
-**Now:** Phase E **S1** — Caps surface matrix across CLI modes
+**Phases A–E complete (H1–H5, C1–C8, W1–W5, S1–S4).**  
+**Now:** Phase F **X1–X4** cleanup (stale docs, learning_integrator, boundary_reviser)
 
 ## Definition of Done (every sprint)
 
