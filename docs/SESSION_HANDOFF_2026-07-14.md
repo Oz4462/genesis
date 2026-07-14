@@ -34,6 +34,14 @@ bash scripts/self_improve_smoke.sh
 - Community/TRL: **agent-sourced** via OpenAlex (`community_evidence`, `GENESIS_ALLOW_LIVE=1`) — **user supplies no JSON**; private lab measurements remain non-inventable
 - Live α copper (2026-07-14): **VERIFIED 8960 kg/m³** — materials registry + Wikidata P2054 (8940 kg/m³, 0.22% rel); sources gen-materials://COPPER + wikidata Q753#P2054.
 
+## Systematic backlog (2026-07-15)
+
+**SSOT:** `docs/SYSTEMATIC_BACKLOG_REPORT_2026-07-15.md`  
+**TODO plan:** `docs/BACKLOG_TODO_PLAN.md`  
+
+Phases A→F (HORIZON H1–H5 → PRINTFORGE C1–C8 → Knowledge W* → Sim S* → Cleanup X*).  
+**Next sprint: H1** — ζ `memory_fabric` attach in LUMEN (subgates currently often `None`).
+
 ## Closed (do not re-open as bugs)
 
 - CadQuery: PEP 668 + isolated `.venv-cad` + bridge (see `docs/CADQUERY_VENV.md`)

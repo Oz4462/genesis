@@ -1,0 +1,64 @@
+# GENESIS Backlog — Sequential TODO Plan
+
+**SSOT report:** `docs/SYSTEMATIC_BACKLOG_REPORT_2026-07-15.md`  
+**Rule:** One sprint at a time. Check boxes only with commit SHA + test evidence.
+
+---
+
+## Phase A — HORIZON Trust (P0)
+
+- [ ] **H1** ζ `memory_fabric` populate + attach in LUMEN + `horizon_subgates.zeta`
+- [ ] **H2** ε / coverage / γ⁺ attach (or honest skip codes, never silent None without reason)
+- [ ] **H3** Ω certificate receipts include attached subgates; enforce still green
+- [ ] **H4** δ⁺ measurement fixture ingest path (non-inconclusive when data present)
+- [ ] **H5** Doc-Sync HORIZON/STATUS levels L0–L4 (no “complete” overclaim)
+
+## Phase B — PRINTFORGE Core (P0/P1)
+
+- [ ] **C1** CNC ProcessDFM rules + tests
+- [ ] **C2** Laser + PCB process rules + tests
+- [ ] **C3** CNC/Laser cost ranges (`estimate_*_cost`) + gaps API
+- [ ] **C4** Additional real GCode feature + fertigungs wire
+
+## Phase C — Realization Package (P1)
+
+- [ ] **C5** Full structured BOM (mech+elec) in realize package
+- [ ] **C6** Harness / placement / netlist section
+- [ ] **C7** Drawings non-stub or explicit drawing_gap
+- [ ] **C8** PRINTFORGE inventory = code truth
+
+## Phase D — Live Knowledge (P1)
+
+- [ ] **W1** SourceConnectorRegistry health / catalog CLI
+- [ ] **W2** Electronics / components richer seeding
+- [ ] **W3** Patents path key-gated honest
+- [ ] **W4** Ledger/postgres production smoke
+- [ ] **W5** Vector (pgvector/qdrant) one path or explicit not-wired
+
+## Phase E — Simulation & Caps (P1/P2)
+
+- [ ] **S1** Caps surface matrix across CLI modes
+- [ ] **S2** Mini multi-physics co-sim receipt
+- [ ] **S3** mesh_convergence + more reference cases
+- [ ] **S4** Bundle MANIFEST caps honesty
+
+## Phase F — Cleanup (P2, continuous)
+
+- [ ] **X1** Stale doc claims (e.g. fracture NotImplemented) removed
+- [ ] **X2** learning_integrator richer path
+- [ ] **X3** boundary_reviser full path
+- [ ] **X4** Doc-sync after every P0 sprint
+
+---
+
+## Active sprint
+
+**Now:** H1 (ζ memory_fabric attach)
+
+## Definition of Done (every sprint)
+
+1. Implementation + unit tests  
+2. Smoke or mode demo if CLI-facing  
+3. Commit message references sprint id (H1/C1/…)  
+4. Check box + SHA in this file  
+5. One-line update in SYSTEMATIC_BACKLOG_REPORT  
