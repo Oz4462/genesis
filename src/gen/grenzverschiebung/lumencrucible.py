@@ -168,6 +168,66 @@ _SELF_ASCENT_SUGGESTION = (
 # process_dream is the HORIZON ignition entry (with register() support). Suggestion fulfilled as gate + exposure.
 
 
+def load_measurement_fixture(
+    fixture: str | dict[str, Any],
+    *,
+    experiment_id: str,
+    default_unit: str = "1",
+) -> Any:
+    """H4: load an independent measurement from a JSON path or dict.
+
+    Required keys: ``value`` (float). Optional: ``id``, ``unit``, ``source`` / ``sources``.
+    Sources must be marked retrieved — a fixture is treated as a real reading with
+    provenance ``fixture:<path-or-inline>`` (never an invented match to the prediction).
+    """
+    import json
+    from pathlib import Path
+
+    from ..core.state import Measurement as _Measurement
+    from ..core.state import SourceRef as _SourceRef
+    from ..core.state import SourceSupport as _SourceSupport
+
+    meta_source = "fixture:inline"
+    if isinstance(fixture, str):
+        path = Path(fixture)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        meta_source = f"fixture:{path.as_posix()}"
+    elif isinstance(fixture, dict):
+        data = fixture
+    else:
+        raise TypeError("measurement_fixture must be a path str or dict")
+
+    if not isinstance(data, dict):
+        raise ValueError("measurement fixture must be a JSON object")
+    if "value" not in data:
+        raise ValueError("measurement fixture needs a finite 'value'")
+    value = float(data["value"])
+    unit = str(data.get("unit") or default_unit).strip() or default_unit
+    mid = str(data.get("id") or f"meas-{experiment_id}")
+    sources_raw = data.get("sources") or data.get("source") or meta_source
+    if isinstance(sources_raw, str):
+        source_ids = [sources_raw]
+    else:
+        source_ids = [str(s) for s in sources_raw]
+    if not source_ids:
+        source_ids = [meta_source]
+    sources = [
+        _SourceRef(
+            url_or_id=sid,
+            retrieved=True,
+            support=_SourceSupport.SUPPORTS,
+        )
+        for sid in source_ids
+    ]
+    return _Measurement(
+        id=mid,
+        experiment_id=experiment_id,
+        value=value,
+        unit=unit,
+        sources=sources,
+    )
+
+
 @dataclass
 class LumenCrucible:
     """Rekursive Genesis-Extension: Traum → erster Hammer + Self-Ascent.
@@ -187,6 +247,7 @@ class LumenCrucible:
         context: dict[str, Any] | None = None,
         work_queue_path: str = "WORK_QUEUE.md",
         enforce_omega: bool = True,  # HORIZON-COMPLETION: default on + mandatory
+        measurement_fixture: str | dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Haupt-Einstieg. Respektiert HORIZON + bestehende Gates/Frontier/Omega/Claim.
 
@@ -199,6 +260,7 @@ class LumenCrucible:
         7. E2E HORIZON certs: guarded evaluate_reality + δ coverage (reviewed_failure_modes) + ε/ζ/Ω attach + subgates (smallest elaboration beyond skeleton).
         8. HONEST Ω ENFORCEMENT (default): absent/failed Ω raises OmegaGateNotPassed.
         9. TeacherMode + community_evidence (agent-sourced; user supplies no data).
+        10. H4: optional ``measurement_fixture`` (path or dict) → real Measurement ingest for δ⁺.
         """
         if run_id is None:
             run_id = f"lumen-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
@@ -206,6 +268,9 @@ class LumenCrucible:
         # Optional enrichments that fail must not be silent (REWORK 2026-07-11).
         # Each skipped optional path is recorded and returned as ``optional_skips``.
         optional_skips: list[str] = []
+        # H4: allow fixture via context as well
+        if measurement_fixture is None and isinstance(context, dict):
+            measurement_fixture = context.get("measurement_fixture")
 
         # 1. Einfache deterministische Gate-Prüfung (kein LLM)
         gate_result = self._internal_gate_check(raw_dream)
@@ -695,13 +760,10 @@ class LumenCrucible:
                             method=m_note,
                             grounding=[claim.id],
                         )
-                        # HONEST δ⁺ (STATUS.md §1 #1): a Measurement is structurally a REAL,
-                        # retrieved reading — core/state.py:441 raises without retrieved provenance.
-                        # We have NO independent measurement, so we do NOT fabricate one (the old
-                        # code lied retrieved=True on a value equal to the prediction → always
-                        # "corroborated": the δ⁺ tautology). The experiment IS designed; the reading
-                        # is honestly absent → δ⁺ is INCONCLUSIVE. When a real measurement is later
-                        # attached to state, build the Measurement + call evaluate_reality(exp, meas).
+                        # HONEST δ⁺ (STATUS.md §1 #1 / H4):
+                        # Without a real Measurement (retrieved provenance) → INCONCLUSIVE.
+                        # With measurement_fixture (path|dict) → build Measurement + evaluate_reality.
+                        # Never invent a reading that equals the prediction just to pass.
                         reality_verdict = None
                         rs.reality_verdict = None
                         delta_plus_result = {
@@ -714,6 +776,52 @@ class LumenCrucible:
                                 "cannot corroborate or refute (honest abstention, HORIZON.md §2B)"
                             ),
                         }
+                        if measurement_fixture is not None and Measurement is not None:
+                            try:
+                                meas = load_measurement_fixture(
+                                    measurement_fixture,
+                                    experiment_id=exp.id,
+                                    default_unit=p_unit,
+                                )
+                                reality_verdict = evaluate_reality(exp, meas)
+                                rs.reality_verdict = reality_verdict
+                                status_s = (
+                                    reality_verdict.status.value
+                                    if hasattr(reality_verdict.status, "value")
+                                    else str(reality_verdict.status)
+                                )
+                                delta_plus_result = {
+                                    "status": status_s,
+                                    "experiment_id": exp.id,
+                                    "measurement_id": meas.id,
+                                    "predicted_value": p_val,
+                                    "predicted_unit": p_unit,
+                                    "measured_value": meas.value,
+                                    "measured_unit": meas.unit,
+                                    "residual": reality_verdict.residual,
+                                    "within_tolerance": reality_verdict.within_tolerance,
+                                    "detail": reality_verdict.detail,
+                                    "note": "δ⁺ with independent measurement fixture (H4 ingest)",
+                                }
+                                if gate_delta_plus is not None:
+                                    try:
+                                        delta_plus_gate = gate_delta_plus(
+                                            exp, meas, list(rs.claims or [])
+                                        )
+                                        delta_plus_result["gate_passed"] = (
+                                            delta_plus_gate.passed
+                                        )
+                                    except Exception as ge:  # noqa: BLE001
+                                        delta_plus_result["gate_error"] = (
+                                            f"{type(ge).__name__}: {ge}"
+                                        )
+                            except Exception as me:  # noqa: BLE001
+                                optional_skips.append(
+                                    f"delta_plus_fixture_skipped ({type(me).__name__}: {me})"
+                                )
+                                delta_plus_result["fixture_error"] = (
+                                    f"{type(me).__name__}: {me}"
+                                )
                         rs.delta_plus_result = delta_plus_result
                     except Exception:
                         # honest: any partial-import/data failure → explicit skip (never a fake pass)

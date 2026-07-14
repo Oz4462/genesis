@@ -140,3 +140,37 @@ def test_h3_omega_receipts_include_subgates(tmp_path):
     note_refs = {n.ref for n in cert.learning_notes}
     assert "gate:zeta" in note_refs
     assert "gate:epsilon" in note_refs
+
+
+def test_h4_delta_plus_fixture_corroborates(tmp_path):
+    """H4: independent measurement fixture → non-inconclusive δ⁺ (corroborated)."""
+    # LUMEN demo quantity is value=1.0 unit=1, tolerance=0.05
+    fixture = {
+        "id": "lab-h4-1",
+        "value": 1.0,
+        "unit": "1",
+        "source": "fixture:tests/h4_demo_measurement",
+    }
+    out = LumenCrucible().process_dream(
+        "steel bracket for 100 N",
+        run_id="h4-delta",
+        work_queue_path=str(tmp_path / "wq.md"),
+        measurement_fixture=fixture,
+    )
+    dpr = out.get("delta_plus_result") or {}
+    assert dpr.get("status") == "corroborated", dpr
+    assert dpr.get("within_tolerance") is True
+    assert dpr.get("measurement_id") == "lab-h4-1"
+    assert out.get("reality_verdict") is not None
+    assert out["reality_verdict"].status.value == "corroborated"
+
+
+def test_h4_delta_plus_without_fixture_stays_inconclusive(tmp_path):
+    """Without fixture, δ⁺ remains honest INCONCLUSIVE (no invented reading)."""
+    out = LumenCrucible().process_dream(
+        "steel bracket for 100 N",
+        run_id="h4-no-meas",
+        work_queue_path=str(tmp_path / "wq.md"),
+    )
+    dpr = out.get("delta_plus_result") or {}
+    assert dpr.get("status") == "inconclusive"
