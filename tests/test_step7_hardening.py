@@ -45,6 +45,7 @@ class _StubSolid:
 
 def _patch_orientation(monkeypatch):
     import gen.orientation as orientation
+    monkeypatch.setattr(orientation, "_in_process_cadquery", lambda: True)
     monkeypatch.setattr(orientation, "_require_cadquery", lambda: None)
     monkeypatch.setattr(orientation, "csg_to_solid", lambda node, q: _StubSolid())
     return orientation

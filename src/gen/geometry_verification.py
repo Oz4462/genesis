@@ -53,14 +53,22 @@ def _kernel_call(solid, method: str, node_kind: str):
 def _brep_measures(
     node: GeometryNode, quantities: dict[str, Quantity]
 ) -> tuple[bool, float, tuple[float, float, float]]:
-    """(valid, volume, extent_xyz) via in-process OCCT or cad-venv bridge."""
-    if not _in_process_cadquery():
-        from .cad import cadquery_bridge as br
+    """(valid, volume, extent_xyz) via in-process OCCT, cad-venv bridge, or tests.
 
-        valid = br.is_valid(node, quantities)
-        vol = br.exact_volume(node, quantities)
-        xmin, xmax, ymin, ymax, zmin, zmax = br.bounding_box(node, quantities)
-        return valid, float(vol), (xmax - xmin, ymax - ymin, zmax - zmin)
+    Prefer the isolated cad-venv bridge only when it is *available* (interpreter
+    exists). Otherwise use ``csg_to_solid`` — which tests monkeypatch offline
+    without a kernel, and which raises GeometryError if no kernel is present.
+    """
+    if not _in_process_cadquery():
+        try:
+            from .cad.cadquery_bridge import cad_available, bounding_box, exact_volume, is_valid
+        except Exception:  # noqa: BLE001
+            cad_available = None  # type: ignore
+        if cad_available is not None and cad_available():
+            valid = is_valid(node, quantities)
+            vol = exact_volume(node, quantities)
+            xmin, xmax, ymin, ymax, zmin, zmax = bounding_box(node, quantities)
+            return valid, float(vol), (xmax - xmin, ymax - ymin, zmax - zmin)
     solid = csg_to_solid(node, quantities)
     valid = bool(_kernel_call(solid, "isValid", node.kind))
     brep_volume = float(_kernel_call(solid, "Volume", node.kind))

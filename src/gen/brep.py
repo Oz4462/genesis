@@ -170,14 +170,32 @@ def csg_to_solid(node: GeometryNode, quantities: dict[str, Quantity]):
     raise GeometryError(f"unknown geometry kind {node.kind!r}")
 
 
+def _prefer_cad_bridge() -> bool:
+    """Use isolated cad-venv bridge only when it is actually available.
+
+    CI and developer laptops without ``.venv-cad`` must fall through to
+    in-process cadquery (if installed) or to monkeypatched ``csg_to_solid``
+    paths used by offline unit tests — never call the bridge with a
+    non-existent default interpreter path.
+    """
+    if _in_process_cadquery():
+        return False
+    try:
+        from .cad.cadquery_bridge import cad_available
+
+        return cad_available()
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def exact_volume(node: GeometryNode, quantities: dict[str, Quantity]) -> float:
     """Exact solid volume from the OCCT kernel (vs the analytic bound of
     geometry.volume_of). Same length unit cubed as the quantities.
 
     Uses in-process cadquery when present; otherwise the isolated cad-venv bridge
-    (self-improve gap close 2026-07-14 — print/BREP work without system pip).
+    when that interpreter exists; else GeometryError (or test monkeypatch).
     """
-    if not _in_process_cadquery():
+    if _prefer_cad_bridge():
         from .cad import cadquery_bridge as br
 
         return br.exact_volume(node, quantities)
@@ -186,7 +204,7 @@ def exact_volume(node: GeometryNode, quantities: dict[str, Quantity]) -> float:
 
 def is_valid(node: GeometryNode, quantities: dict[str, Quantity]) -> bool:
     """True if the kernel reports a topologically valid solid (BRepCheck)."""
-    if not _in_process_cadquery():
+    if _prefer_cad_bridge():
         from .cad import cadquery_bridge as br
 
         return br.is_valid(node, quantities)
@@ -209,7 +227,7 @@ def interferes(
     null result shape — is "no overlap". An unexpected kernel failure (boolean
     op or volume measurement) raises GeometryError; it is NEVER swallowed into
     False, because "collision check crashed" must not read as "no collision"."""
-    if not _in_process_cadquery():
+    if _prefer_cad_bridge():
         from .cad import cadquery_bridge as br
 
         return br.interferes(node_a, node_b, quantities, tolerance=tolerance)

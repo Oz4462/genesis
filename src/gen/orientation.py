@@ -60,11 +60,14 @@ def _bbox_and_mesh(
     Returns ``((xmin,xmax,ymin,ymax,zmin,zmax), verts, tris)`` with plain floats.
     """
     if not _in_process_cadquery():
-        from .cad import cadquery_bridge as br
-
-        bb = br.bounding_box(node, quantities)
-        verts, tris = br.tessellate(node, quantities, tolerance=tol)
-        return bb, list(verts), list(tris)
+        try:
+            from .cad.cadquery_bridge import cad_available, bounding_box, tessellate
+        except Exception:  # noqa: BLE001
+            cad_available = None  # type: ignore
+        if cad_available is not None and cad_available():
+            bb = bounding_box(node, quantities)
+            verts, tris = tessellate(node, quantities, tolerance=tol)
+            return bb, list(verts), list(tris)
     _require_cadquery()
     solid = csg_to_solid(node, quantities)
     box = solid.BoundingBox()

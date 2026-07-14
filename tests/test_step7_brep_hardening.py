@@ -144,6 +144,7 @@ def test_interferes_null_intersection_is_no_overlap(monkeypatch):
         def Volume(self):
             raise AssertionError("Volume() must not be measured on a null shape")
 
+    monkeypatch.setattr(brep, "_prefer_cad_bridge", lambda: False)
     monkeypatch.setattr(brep, "csg_to_solid", lambda node, q: _S())
     assert brep.interferes(None, None, {}) is False
 
@@ -167,6 +168,7 @@ def test_interferes_kernel_failure_raises_not_false(monkeypatch):
         def Volume(self):
             raise RuntimeError("BRepGProp failed")
 
+    monkeypatch.setattr(brep, "_prefer_cad_bridge", lambda: False)
     monkeypatch.setattr(brep, "csg_to_solid", lambda node, q: _S())
     with pytest.raises(GeometryError, match="intersection"):
         brep.interferes(None, None, {})
@@ -180,6 +182,7 @@ def test_interferes_boolean_failure_raises_not_false(monkeypatch):
         def intersect(self, other):
             raise RuntimeError("BOPAlgo error")
 
+    monkeypatch.setattr(brep, "_prefer_cad_bridge", lambda: False)
     monkeypatch.setattr(brep, "csg_to_solid", lambda node, q: _S())
     with pytest.raises(GeometryError, match="intersection"):
         brep.interferes(None, None, {})

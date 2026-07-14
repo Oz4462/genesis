@@ -77,6 +77,9 @@ class _FakeSolid:
 
 
 def _patch(monkeypatch, solid: _FakeSolid) -> None:
+    # Force in-process path so a developer machine with .venv-cad does not
+    # bypass the stub via cadquery_bridge (CI has no cad venv either way).
+    monkeypatch.setattr(gv, "_in_process_cadquery", lambda: True)
     monkeypatch.setattr(gv, "csg_to_solid", lambda node, quantities: solid)
 
 

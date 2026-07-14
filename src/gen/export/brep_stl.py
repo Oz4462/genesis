@@ -52,6 +52,11 @@ def _stl_via_bridge(geometry, quantities: dict[str, Quantity], *, name: str, tol
     """Tessellate via isolated cad-venv (no in-process cadquery)."""
     from ..cad import cadquery_bridge as br
 
+    if not br.cad_available():
+        raise GeometryError(
+            "exact BREP STL needs CadQuery (in-process) or the isolated cad-venv "
+            f"(GENESIS_CAD_PYTHON / default venv missing at {br.cad_python()!r})"
+        )
     return br.to_stl(geometry, quantities, name=name, tolerance=tolerance)
 
 
@@ -74,16 +79,20 @@ def specification_to_brep_stl(spec: Specification, *, tolerance: float = 0.1) ->
         raise GeometryError("no component with geometry to export")
 
     if not _in_process_cadquery():
-        if len(parts) != 1:
-            raise GeometryError(
-                "multi-component BREP STL via cad-venv bridge needs one geometric "
-                "component (fuse-across-components is in-process OCCT only); "
-                "export each part with component_to_brep_stl or install cadquery "
-                "in the isolated venv and use a single-body design."
+        from ..cad.cadquery_bridge import cad_available
+
+        if cad_available():
+            if len(parts) != 1:
+                raise GeometryError(
+                    "multi-component BREP STL via cad-venv bridge needs one geometric "
+                    "component (fuse-across-components is in-process OCCT only); "
+                    "export each part with component_to_brep_stl or install cadquery "
+                    "in the isolated venv and use a single-body design."
+                )
+            return _stl_via_bridge(
+                parts[0].geometry, quantities, name=spec.run_id, tolerance=tolerance
             )
-        return _stl_via_bridge(
-            parts[0].geometry, quantities, name=spec.run_id, tolerance=tolerance
-        )
+        # No bridge: fall through to csg_to_solid (raises if no kernel; tests may patch)
 
     chunks: list[str] = [f"solid genesis_{spec.run_id}\n"]
     n_facets = 0
@@ -108,7 +117,11 @@ def component_to_brep_stl(geometry, quantities: dict[str, Quantity], *,
     part), unlike ``specification_to_brep_stl`` which fuses every component into a single body. Same
     tessellation and outward winding. Uses the cad-venv bridge when cadquery is not in-process."""
     if not _in_process_cadquery():
-        return _stl_via_bridge(geometry, quantities, name=name, tolerance=tolerance)
+        from ..cad.cadquery_bridge import cad_available
+
+        if cad_available():
+            return _stl_via_bridge(geometry, quantities, name=name, tolerance=tolerance)
+        # fall through to in-process / monkeypatched csg_to_solid
 
     solid = csg_to_solid(geometry, quantities)
     verts, tris = solid.tessellate(tolerance)
