@@ -1231,13 +1231,23 @@ def main(argv: list[str] | None = None) -> int:
         return
 
     if getattr(args, "mode", None) == "horizon-full":
-        # WIRE (STATUS.md §4): make the previously-island HORIZON arc + deep-discovery controller
-        # + frontier-6.x laws + grenz development-front reachable from the CLI. Runs each engine for
-        # real on canonical inputs and prints an honest summary (failures are surfaced, never faked).
+        # WIRE (STATUS.md §4 / Council HORIZON-COMPLETION): full arc Funke → Hammer → Exoskelett.
+        # Real engines only; Ω enforced via process_dream(enforce_omega=True). Failures surfaced.
+        # --live enables agent-sourced community (OpenAlex); user supplies no data.
+        import json as _json
+
         from .horizon_full import run_full_horizon
+
+        if getattr(args, "live", False):
+            os.environ.setdefault("GENESIS_ALLOW_LIVE", "1")
+            os.environ.setdefault("GENESIS_COMMUNITY_LIVE", "1")
 
         result = run_full_horizon(args.question) if args.question else run_full_horizon()
         print(result.summary)
+        # Machine-readable surface for agents (JSON-safe; not raw LUMEN objects)
+        if getattr(args, "format", None) == "md" or os.environ.get("GENESIS_HORIZON_JSON") == "1":
+            print("")
+            print(_json.dumps(result.to_dict(), indent=2, ensure_ascii=False, default=str))
         return 0 if result.ok else 3
 
     if getattr(args, "mode", None) == "goldset":

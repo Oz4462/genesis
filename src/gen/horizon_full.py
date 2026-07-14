@@ -45,11 +45,31 @@ class StepResult:
 class HorizonFullResult:
     idea: str
     steps: list[StepResult] = field(default_factory=list)
+    #: Compact, JSON-safe surface of the LUMEN arc (never invents values).
+    lumen_surface: dict | None = None
 
     @property
     def ok(self) -> bool:
         """True only if no step errored. (Skipped steps are honest, not failures.)"""
         return all(s.status != "error" for s in self.steps)
+
+    def to_dict(self) -> dict:
+        """Machine-readable payload (Council CLI / agents) — no non-JSON types."""
+        return {
+            "idea": self.idea,
+            "ok": self.ok,
+            "steps": [
+                {
+                    "name": s.name,
+                    "status": s.status,
+                    "detail": s.detail,
+                    "error": s.error,
+                }
+                for s in self.steps
+            ],
+            "lumen_surface": self.lumen_surface,
+            "quelle": "gen.horizon_full.run_full_horizon",
+        }
 
     @property
     def summary(self) -> str:
@@ -65,10 +85,19 @@ class HorizonFullResult:
         lines += [
             "",
             f"{n_ok} ok · {n_err} error · {n_skip} skipped (islands now reachable from the CLI)",
-            "δ⁺ now abstains honestly (INCONCLUSIVE) when there is no independent measurement —",
-            "it no longer fabricates corroboration (STATUS.md §1 #1 fixed). Ω still aggregates thin",
-            "certs and is not yet enforced, so 'reachable' ≠ 'fully trustworthy'.",
+            "δ⁺ abstains honestly (INCONCLUSIVE) when there is no independent measurement —",
+            "it no longer fabricates corroboration (STATUS.md §1 #1 fixed).",
+            "Ω is enforced by default (process_dream enforce_omega=True / OM-4):",
+            "failed or absent Ω blocks the HORIZON arc step (not a silent pass).",
         ]
+        if self.lumen_surface:
+            ls = self.lumen_surface
+            lines += [
+                "",
+                f"LUMEN surface: keys={ls.get('n_keys')} · claim={ls.get('claim_status')} · "
+                f"teacher={ls.get('teacher')} · community_score={ls.get('community_score')} · "
+                f"user_data_required={ls.get('user_data_required')}",
+            ]
         return "\n".join(lines)
 
 
@@ -100,19 +129,46 @@ def run_full_horizon(
     """
     result = HorizonFullResult(idea=idea)
 
-    # 1) HORIZON arc — the real LUMENCRUCIBLE orchestrator (δ⁺ / γ⁺ / ε / ζ / Ω + platform caps).
+    # 1) HORIZON arc — LUMENCRUCIBLE (δ⁺ / γ⁺ / ε / ζ / Ω + platform caps).
+    # Council / HORIZON-COMPLETION: enforce_omega=True (default) — failed Ω surfaces as step error.
     def _horizon() -> str:
         from .grenzverschiebung.lumencrucible import process_dream
 
-        out = process_dream(idea)
+        out = process_dream(idea, enforce_omega=True)
         if not isinstance(out, dict):
             return f"process_dream → {type(out).__name__}"
         omega = getattr(out.get("omega_gate"), "passed", None)
         sub = out.get("horizon_subgates") or {}
         dpr = out.get("delta_plus_result") or {}
-        return (f"process_dream → {len(out)} keys · Ω.passed={omega} · δ⁺={dpr.get('status')} · "
-                f"sub-gates ε={sub.get('epsilon')} ζ={sub.get('zeta')} "
-                f"γ⁺={sub.get('gamma_plus')} cov={sub.get('coverage')}")
+        claim = out.get("claim")
+        community = out.get("community_evidence") or {}
+        teacher = out.get("teacher_notes")
+        result.lumen_surface = {
+            "n_keys": len(out),
+            "omega_passed": omega,
+            "delta_plus_status": dpr.get("status") if isinstance(dpr, dict) else str(dpr),
+            "subgates": {
+                "epsilon": sub.get("epsilon"),
+                "zeta": sub.get("zeta"),
+                "gamma_plus": sub.get("gamma_plus"),
+                "coverage": sub.get("coverage"),
+                "omega": sub.get("omega"),
+            },
+            "claim_status": getattr(getattr(claim, "status", None), "value", None)
+            or str(getattr(claim, "status", None)),
+            "teacher": bool(teacher),
+            "community_score": community.get("community_score"),
+            "literature_count": community.get("literature_count"),
+            "user_data_required": community.get("user_data_required", False),
+            "agent_sourced": community.get("agent_sourced", True),
+        }
+        return (
+            f"process_dream → {len(out)} keys · Ω.passed={omega} (enforced) · "
+            f"δ⁺={dpr.get('status') if isinstance(dpr, dict) else dpr} · "
+            f"sub-gates ε={sub.get('epsilon')} ζ={sub.get('zeta')} "
+            f"γ⁺={sub.get('gamma_plus')} cov={sub.get('coverage')} · "
+            f"community_score={community.get('community_score')}"
+        )
 
     _step(result, "HORIZON arc (lumencrucible.process_dream)", _horizon)
 
