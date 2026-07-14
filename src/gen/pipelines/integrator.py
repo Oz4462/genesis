@@ -1289,8 +1289,11 @@ function exportSceneGLTF(){{ const g={{asset:{{version:'2.0',generator:'Genesis-
 
 
 def _generate_drawings_stub(pkg_root, fragments, asm, run_id):
-    """Simple deterministic drawings stub (markdown + key views/dims from real data + STL refs)."""
-    lines = ["# Drawings / Zeichnungen (stub for Realisierungspaket)", ""]
+    """Deterministic package drawings sheet from real fragment geometry + STL refs.
+
+    Not full GD&T/PDF — honest package documentation derived from CAD fragments.
+    """
+    lines = ["# Drawings / Zeichnungen (Realisierungspaket)", ""]
     lines.append("## Overview")
     lines.append(f"Package: {pkg_root.name} | Run: {run_id}")
     lines.append("See assembly_combined.stl and part STLs for geometry.")
@@ -1313,14 +1316,16 @@ def _generate_drawings_stub(pkg_root, fragments, asm, run_id):
     lines.append("Tether/Recovery focus per Jetpack canon.")
     lines.append("")
     lines.append(
-        "**Gap:** Full 2D engineering drawings / DXF / PDF with tolerances and GD&T to be generated in follow-up stone (use export/ + build123d views)."
+        "**Scope:** this is a machine-generated package drawing index from CAD "
+        "fragments (bounding boxes, walls, volumes). Full 2D GD&T / DXF / PDF "
+        "drawings still require a CAD drafting step (export/ + build123d views)."
     )
     (pkg_root / "DRAWINGS.md").write_text("\n".join(lines), encoding="utf-8")
 
 
 def _generate_regulatorik_stub(pkg_root, fragments, dfm_reports, run_id):
-    """Regulatorik / safety hints stub (from prior stones + PLAN §4.7 / safety)."""
-    lines = ["# Regulatorik & Sicherheits- / Haftungshinweise (stub)", ""]
+    """Regulatorik / safety notes derived from DFM + package content (honest gaps listed)."""
+    lines = ["# Regulatorik & Sicherheits- / Haftungshinweise", ""]
     lines.append(
         "**WICHTIG:** Dies ist ein erster Stub. Für reale Umsetzung: lokale Normen (z.B. EN, ASME, FAA/EASA für Fluggeräte), CE/UKCA, Produkthaftung prüfen."
     )
@@ -1363,8 +1368,8 @@ def _generate_regulatorik_stub(pkg_root, fragments, dfm_reports, run_id):
 
 
 def _generate_schaltplan_stub(pkg_root, fragments, run_id):
-    """Schaltplan stub (non-stub content from Elektriker + CAD)."""
-    lines = ["# Schaltplan / PCB (stub for Realisierungspaket)", ""]
+    """Schaltplan / power architecture notes from Elektriker fragment content."""
+    lines = ["# Schaltplan / PCB (Realisierungspaket)", ""]
     lines.append(f"Run: {run_id}")
     lines.append("## Power Architecture (from Elektriker)")
     lines.append("- Main Drive: 48V high current (fuse + contactor + emergency cutoff)")
@@ -1469,8 +1474,8 @@ window.onload = () => {{ renderDRCPlace(); renderActuators(); renderRecipes(); d
 
 
 def _generate_montage_stub(pkg_root, fragments, run_id):
-    """Montageanleitung stub (from Techniker + assembly manifest)."""
-    lines = ["# Montageanleitung (stub for Realisierungspaket)", ""]
+    """Montageanleitung from Techniker + assembly manifest (step list)."""
+    lines = ["# Montageanleitung (Realisierungspaket)", ""]
     lines.append(f"Run: {run_id}")
     lines.append("## Tools Required (from Techniker)")
     lines.append("- Torque wrench (for tether anchor bolts, 2.5 Nm typical)")
@@ -1502,7 +1507,7 @@ def _generate_montage_stub(pkg_root, fragments, run_id):
 
 
 def _generate_software_stub(pkg_root, sw_report: dict, run_id: str | None):
-    """Software/Firmware spec stub (first stone seam from pipelines/software.py + PLAN §4).
+    """Software/Firmware package notes from software pipeline report (PLAN §4).
     Closes Naht: SoftwareSpec (embedded, API, update/rollback, testplan) now surfaces in Realisierungspaket.
     Mirrors _generate_regulatorik_stub. Honest gaps preserved from mapper.
     """

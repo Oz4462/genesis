@@ -20,6 +20,9 @@ python3 -m pytest \
   tests/test_inventor_domains.py \
   tests/test_physics_selection.py \
   tests/test_physics_validation.py \
+  tests/test_gcode.py \
+  tests/test_wikidata_density.py \
+  tests/test_readiness_community.py \
   -q
 echo "== CLI demos =="
 for m in research invent solve council structural humanoid aethon print bundle ideas dream well-probe; do

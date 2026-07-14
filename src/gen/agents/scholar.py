@@ -23,6 +23,7 @@ from ..tools.fetch import WebFetchTool, readable_text
 from ..tools.codata import load_codata_constants, make_codata_constant_claim
 from ..tools.dlmf import fetch_dlmf_entry, dlmf_latex_to_sympy
 from ..tools.materials_backend import materials_claim_text, materials_claims
+from ..tools.wikidata import MATERIAL_DENSITY_QIDS, density_claims_for_material
 from ..core.state import SourceRef, SourceSupport
 _SYSTEM = (
     "You extract ATOMIC factual claims from a SOURCE TEXT that help answer a "
@@ -188,6 +189,66 @@ class Scholar:
             state.log.append(
                 f"scholar: materials registry {len(claim_rows)} claim(s) for {key} "
                 f"(UNVERIFIED until skeptic)"
+            )
+
+        # Independent Wikidata density (P2054) — Wikipedia extracts omit infobox
+        # density for many elements; this is the corroboration path for registry bands.
+        q_raw = (state.question.raw or "").lower()
+        for mat_key in MATERIAL_DENSITY_QIDS:
+            token = mat_key.lower().replace("_", " ")
+            aliases = {token, mat_key.lower()}
+            if mat_key in ("ALUMINUM", "ALUMINIUM"):
+                aliases |= {"aluminium", "aluminum", "alu"}
+            if mat_key == "COPPER":
+                aliases |= {"copper", "kupfer", "cu"}
+            if mat_key in ("STEEL", "MILD_STEEL"):
+                aliases |= {"steel", "stahl"}
+            if mat_key == "IRON":
+                aliases |= {"iron", "eisen"}
+            if mat_key == "TITANIUM":
+                aliases |= {"titanium", "titan"}
+            if not any(a in q_raw for a in aliases):
+                continue
+            if "densit" not in q_raw and "dichte" not in q_raw and "kg/m" not in q_raw:
+                # only auto-emit density for density-ish questions
+                if not any(
+                    "densit" in (c.title or "").lower() or "densit" in (c.relevance_note or "").lower()
+                    for c in state.candidates
+                ):
+                    continue
+            try:
+                row = density_claims_for_material(mat_key, language=q_lang)
+            except Exception as exc:  # noqa: BLE001
+                state.log.append(f"scholar: wikidata density skip {mat_key}: {exc}")
+                continue
+            if row is None:
+                continue
+            text, quote, url = row
+            cid = claim_id(run_id, f"{url}#{mat_key}/density", text)
+            if cid in existing_ids or cid in batch_ids:
+                continue
+            batch_ids.add(cid)
+            batch.append(
+                Claim(
+                    id=cid,
+                    text=text,
+                    sources=[
+                        SourceRef(
+                            url_or_id=url,
+                            retrieved=True,
+                            content_hash=None,
+                            span=f"{mat_key}/wikidata_P2054",
+                            support=SourceSupport.SUPPORTS,
+                        )
+                    ],
+                    quote=quote,
+                    status=ClaimStatus.UNVERIFIED,
+                    produced_by=self.name + "+wikidata_density",
+                    model="wikidata_P2054",
+                )
+            )
+            state.log.append(
+                f"scholar: Wikidata P2054 density claim for {mat_key} (UNVERIFIED until skeptic)"
             )
 
         for cand in state.candidates[: self._max_sources]:

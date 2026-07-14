@@ -133,3 +133,131 @@ def get_formula_for(entity_qid: str) -> Optional[str]:
     if rows:
         return rows[0].get("formula", {}).get("value")
     return None
+
+
+# --- density (P2054) for material α grounding (gap-close 2026-07-14) -----------
+# Wikipedia plain extracts omit infobox density; Wikidata carries P2054 numerically.
+
+#: Common engineering materials → Wikidata entity (for density P2054).
+MATERIAL_DENSITY_QIDS: dict[str, str] = {
+    "COPPER": "Q753",
+    "ALUMINUM": "Q663",
+    "ALUMINIUM": "Q663",
+    "IRON": "Q677",
+    "STEEL": "Q11427",
+    "MILD_STEEL": "Q11427",
+    "TITANIUM": "Q716",  # may lack P2054 — then None
+}
+
+#: Unit Q-ids for density quantities on Wikidata.
+_UNIT_G_CM3 = "Q13147228"   # gram per cubic centimetre
+_UNIT_KG_M3 = "Q844211"     # kilogram per cubic metre
+
+
+@dataclass(frozen=True)
+class WikidataDensityHit:
+    """Independent density from Wikidata P2054 (not the GENESIS materials registry)."""
+
+    material_key: str
+    entity_qid: str
+    density_kg_m3: float
+    density_g_cm3: float
+    raw_amount: float
+    unit_qid: str
+    source_url: str
+    quote: str
+
+
+def get_density_kg_m3(entity_qid: str, *, timeout: float = 20.0) -> Optional[WikidataDensityHit]:
+    """Fetch mass density (P2054) for a Wikidata entity; return SI kg/m³ or None.
+
+    Uses the wbgetclaims API (no SPARQL). Converts g/cm³ → kg/m³ (×1000). Raises
+    WikidataError only on transport/parse failure — missing property returns None.
+    """
+    qid = _assert_qid(entity_qid)
+    # material key unknown here — fill when called via material map
+    url = (
+        "https://www.wikidata.org/w/api.php"
+        f"?action=wbgetclaims&entity={qid}&property=P2054&format=json"
+    )
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "GENESIS-research/0.1 (https://github.com/genesis; mailto:research@genesis.local)",
+            "Accept": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            if resp.status != 200:
+                raise WikidataError(f"wbgetclaims HTTP {resp.status}")
+            data = json.loads(resp.read().decode("utf-8"))
+    except WikidataError:
+        raise
+    except Exception as exc:
+        raise WikidataError(f"Wikidata density fetch failed: {exc}") from exc
+
+    claims = (data.get("claims") or {}).get("P2054") or []
+    if not claims:
+        return None
+    snak = claims[0].get("mainsnak") or {}
+    if snak.get("snaktype") != "value":
+        return None
+    val = (snak.get("datavalue") or {}).get("value") or {}
+    try:
+        amount = float(str(val.get("amount", "")).lstrip("+"))
+    except (TypeError, ValueError):
+        return None
+    unit = str(val.get("unit", ""))
+    unit_qid = unit.rsplit("/", 1)[-1] if unit else ""
+    if unit_qid == _UNIT_G_CM3 or unit.endswith("Q13147228"):
+        dens_g = amount
+        dens_si = amount * 1000.0
+    elif unit_qid == _UNIT_KG_M3 or unit.endswith("Q844211"):
+        dens_si = amount
+        dens_g = amount / 1000.0
+    else:
+        # unknown unit — refuse rather than guess
+        return None
+    quote = (
+        f"Wikidata {qid} P2054 amount={val.get('amount')} unit={unit_qid} "
+        f"(density mass)"
+    )
+    return WikidataDensityHit(
+        material_key="",
+        entity_qid=qid,
+        density_kg_m3=dens_si,
+        density_g_cm3=dens_g,
+        raw_amount=amount,
+        unit_qid=unit_qid,
+        source_url=f"https://www.wikidata.org/wiki/{qid}#P2054",
+        quote=quote[:200],
+    )
+
+
+def density_claims_for_material(material_key: str, *, language: str = "en") -> Optional[tuple[str, str, str]]:
+    """Return (claim_text, quote, url) for independent Wikidata density of a registry key.
+
+    Independent of gen-materials:// — used so α skeptic can corroborate registry bands.
+    """
+    key = material_key.strip().upper().replace(" ", "_")
+    qid = MATERIAL_DENSITY_QIDS.get(key)
+    if not qid:
+        return None
+    try:
+        hit = get_density_kg_m3(qid)
+    except WikidataError:
+        return None
+    if hit is None:
+        return None
+    if language == "de":
+        text = (
+            f"Laut Wikidata ({qid}, Eigenschaft P2054) beträgt die Massendichte von "
+            f"{key} {hit.density_kg_m3:.0f} kg/m³ ({hit.density_g_cm3:g} g/cm³)."
+        )
+    else:
+        text = (
+            f"According to Wikidata ({qid}, property P2054), the mass density of "
+            f"{key} is {hit.density_kg_m3:.0f} kg/m³ ({hit.density_g_cm3:g} g/cm³)."
+        )
+    return text, hit.quote, hit.source_url

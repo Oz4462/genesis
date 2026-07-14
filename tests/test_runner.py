@@ -180,7 +180,12 @@ def test_build_live_wires_models_into_config_and_deps():
     # keyless Wikipedia first; materials registry offline second (self-improve loop);
     # Semantic Scholar 429s w/o key; formula-aware DLMF/CODATA follows.
     names = [b.name for b in deps.backends]
-    assert names[:3] == ["wikipedia", "materials_registry", "semantic_scholar"]
+    assert names[:4] == [
+        "wikipedia",
+        "materials_registry",
+        "wikidata_density",
+        "semantic_scholar",
+    ]
     assert "formula" in names and "arxiv" in names and "openalex" in names
     # The config must carry the SAME ids the deps run on: the skeptic asserts
     # cross-model against config.phase_alpha.models.generator, and config_hash

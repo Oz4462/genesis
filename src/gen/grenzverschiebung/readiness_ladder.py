@@ -1,15 +1,19 @@
-"""TechnologyReadinessLadder and TeacherMode basics (PLAN G1/G4).
+"""TechnologyReadinessLadder and TeacherMode (PLAN G1/G4).
 
 Simple ladder: Idee -> Konzept -> Modell -> Simulation -> Pruefstand -> Prototyp -> etc.
 
 TeacherMode: each step produces learning notes.
 
-Honest: no auto promotion without evidence.
+Honest: no auto promotion without evidence. Community evidence uses a local ledger
+file when present — never invents replications.
 """
 
 from __future__ import annotations
 
+import json
+import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 
@@ -37,33 +41,63 @@ READINESS_LADDER: list[ReadinessLevel] = [
 
 
 def assess_readiness(package: dict | Any, gates: list[str] | None = None) -> ReadinessLevel:
-    """Simple assessor. Returns highest achieved level with evidence.
+    """Return highest achieved TRL with evidence derived from package + gates.
 
-    Uses package contents + passed gates.
+    Gaps list only the *next* missing requirements — not a perpetual "deferred" when
+    early TRL is honestly achieved.
     """
     gates = gates or []
+    pkg = package if isinstance(package, dict) else {}
+    pkg_s = str(package)
+    evidence: list[dict] = []
     achieved = "TRL1"
-    evidence = []
-    gaps = ["real operational data deferred"]
+    evidence.append({"type": "baseline", "note": "package assessed"})
 
-    if package.get("claims"):
+    if pkg.get("claims") or pkg.get("claim_ids") or "claim" in pkg_s.lower():
         achieved = "TRL2"
-    if "simulation" in str(package) or any("sim" in g for g in gates):
+        evidence.append({"type": "claims", "present": True})
+    if "simulation" in pkg_s.lower() or any("sim" in g.lower() for g in gates):
         achieved = "TRL3"
-    if package.get("cad_artifacts") or "dfm" in str(package):
+        evidence.append({"type": "gates", "passed": [g for g in gates if "sim" in g.lower()]})
+    if pkg.get("cad_artifacts") or pkg.get("physics_ok") or "dfm" in pkg_s.lower():
         achieved = "TRL4"
-    if any("delta" in g or "reality" in g for g in gates):
+        evidence.append({"type": "cad_or_dfm", "present": True})
+    if any("delta" in g.lower() or "reality" in g.lower() for g in gates):
         achieved = "TRL5"
-    if package.get("assembly") or "e2e" in str(package):
+        evidence.append({"type": "reality_delta", "present": True})
+    if pkg.get("assembly") or any("e2e" in g.lower() for g in gates) or pkg.get("bundle"):
         achieved = "TRL6"
+        evidence.append({"type": "assembly_or_e2e", "present": True})
+    if pkg.get("field_test") or pkg.get("community_replications"):
+        achieved = "TRL7"
+        evidence.append({"type": "field_or_community", "present": True})
+    if pkg.get("certification") or any("cert" in g.lower() for g in gates):
+        achieved = "TRL8"
+        evidence.append({"type": "cert", "present": True})
+    if pkg.get("production") or pkg.get("real_measurements"):
+        achieved = "TRL9"
+        evidence.append({"type": "production", "present": True})
+
+    # Next-level gaps only
+    order = [lvl.level for lvl in READINESS_LADDER]
+    idx = order.index(achieved)
+    next_gaps: list[str] = []
+    if idx + 1 < len(READINESS_LADDER):
+        nxt = READINESS_LADDER[idx + 1]
+        next_gaps = [f"next {nxt.level} needs: {', '.join(nxt.required_evidence)}"]
+    if achieved in ("TRL1", "TRL2", "TRL3") and not pkg.get("real_measurements"):
+        next_gaps.append("no lab/field measurements attached to this package")
 
     for lvl in READINESS_LADDER:
         if lvl.level == achieved:
-            lvl.achieved = True
-            lvl.evidence = evidence or [{"type": "gates", "passed": gates}]
-            lvl.gaps = gaps
-            return lvl
-
+            return ReadinessLevel(
+                level=lvl.level,
+                name=lvl.name,
+                required_evidence=list(lvl.required_evidence),
+                achieved=True,
+                evidence=evidence,
+                gaps=next_gaps,
+            )
     return READINESS_LADDER[0]
 
 
@@ -81,6 +115,7 @@ class TeacherMode:
     """TeacherMode: each build/experiment/simulation step produces learning notes for the human.
     Makes the output make the human smarter (Exoskelett from HORIZON).
     """
+
     def __init__(self):
         self.notes: list[dict] = []
 
@@ -92,19 +127,68 @@ class TeacherMode:
     def apply(self, package: dict) -> dict:
         """Apply teacher notes to package for richer output."""
         package = dict(package) if isinstance(package, dict) else {"data": str(package)}
-        package["teacher_notes"] = self.notes or [{"step": "none", "insights": ["no learning recorded"]}]
+        package["teacher_notes"] = self.notes or [
+            {"step": "none", "insights": ["no learning recorded"]}
+        ]
         return package
 
 
-def community_evidence(build_report: dict) -> dict:
-    """Basic CommunityEvidence: simulate community replication/field feedback.
-    Honest: no real community data yet, marks as gap.
-    """
-    return {
-        "replications": build_report.get("replications", 0),
-        "field_failures": build_report.get("field_failures", []),
-        "community_score": 0.5,  # placeholder
-        "gaps": ["real community data deferred", "trustcore integration pending"],
-        "quelle": "basic community evidence stub per PLAN G5",
-    }
+def _community_ledger_path() -> Path:
+    env = os.environ.get("GENESIS_COMMUNITY_LEDGER", "").strip()
+    if env:
+        return Path(env)
+    return Path("out/community_ledger.json")
 
+
+def community_evidence(build_report: dict) -> dict:
+    """CommunityEvidence from build_report + optional local ledger file.
+
+    Honesty:
+    - Never invent replications or a fake 0.5 score.
+    - If no ledger and no report counts → score 0.0 and explicit gaps.
+    - Ledger format: ``{"replications": int, "field_failures": [...], "entries": [...]}``
+    """
+    report = build_report if isinstance(build_report, dict) else {}
+    replications = int(report.get("replications") or 0)
+    field_failures = list(report.get("field_failures") or [])
+    gaps: list[str] = []
+    quelle = "build_report"
+
+    ledger_path = _community_ledger_path()
+    if ledger_path.is_file():
+        try:
+            data = json.loads(ledger_path.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                replications = max(replications, int(data.get("replications") or 0))
+                field_failures = list(data.get("field_failures") or field_failures)
+                quelle = f"build_report+{ledger_path}"
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            gaps.append(f"community ledger unreadable: {exc}")
+    else:
+        gaps.append(
+            f"no community ledger at {ledger_path} — create JSON with "
+            f'{{"replications": N, "field_failures": []}} to record field feedback'
+        )
+
+    # Score in [0, 1] from evidence only — 0 when nothing recorded
+    if replications <= 0 and not field_failures:
+        score = 0.0
+        if not gaps:
+            gaps.append("no replications or field_failures recorded")
+    else:
+        # diminishing returns: 1 rep → 0.35, 3 → ~0.7, 10 → ~0.95
+        score = min(0.95, 0.25 + 0.15 * replications)
+        if field_failures:
+            score = max(0.0, score - 0.05 * min(len(field_failures), 6))
+
+    # trustcore remains optional companion — gap only if score claims high maturity
+    if score >= 0.5:
+        gaps.append("trustcore conformal batch scoring optional — install companion for FDR")
+
+    return {
+        "replications": replications,
+        "field_failures": field_failures,
+        "community_score": round(score, 4),
+        "gaps": gaps,
+        "quelle": quelle,
+    }

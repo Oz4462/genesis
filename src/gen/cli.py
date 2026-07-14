@@ -508,9 +508,12 @@ def build_live(generator: str, verifier: str) -> tuple[Dependencies, Config]:
     # missing key never fabricates or empties a result. arXiv + OpenAlex add keyless preprint
     # and scholarly-graph breadth (prior art); every backend skips id-less rows and raises a
     # loud SearchBackendError on transport/parse failure (never a silent or fabricated hit).
+    from .tools.wikidata_density_backend import WikidataDensityBackend
+
     backends = [
         WikipediaBackend(default_http_get),
         MaterialsBackend(),  # offline grounded materials registry (self-improve loop)
+        WikidataDensityBackend(),  # independent P2054 density (Wikipedia extracts omit infobox)
         SemanticScholarBackend(default_http_get),
         FormulaBackend(default_http_get),  # formula-aware: DLMF, CODATA, authoritative laws
         ArxivBackend(default_http_get),    # preprints (arXiv Atom API, keyless)

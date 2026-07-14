@@ -247,6 +247,15 @@ class Skeptic:
                 assert_different_families(gen_model, ex.model)
 
             scholar_urls = {s.url_or_id for s in claim.sources}
+
+            # Registry density + Wikidata P2054: two independent handbook sources.
+            # Wikipedia plain extracts often omit infobox density (Copper 2026-07-14),
+            # so LLM judges never see the number. When registry and Wikidata agree
+            # within 2%, accept as VERIFIED with explicit Wikidata verification ref.
+            if await self._try_registry_wikidata_density(claim, state):
+                await self._ledger.update_claim(claim)
+                continue
+
             candidates = await self._independent_candidates(claim.text, scholar_urls, state)
 
             # Fetch each independent source exactly once; both judges see the same
@@ -311,6 +320,84 @@ class Skeptic:
         return state
 
     # --- internals ------------------------------------------------------------
+
+    async def _try_registry_wikidata_density(self, claim, state: RunState) -> bool:
+        """If claim is registry density and Wikidata P2054 agrees within 2%, VERIFIED.
+
+        Returns True when the claim was decided here (caller should skip LLM judges).
+        """
+        import re
+
+        from ..tools.wikidata import MATERIAL_DENSITY_QIDS, density_claims_for_material
+
+        prod = claim.produced_by or ""
+        if "materials_registry" not in prod:
+            return False
+        text_l = (claim.text or "").lower()
+        if "densit" not in text_l and "dichte" not in text_l:
+            return False
+        # Extract kg/m³ from claim
+        m = re.search(r"(\d+(?:\.\d+)?)\s*kg\s*/\s*m", claim.text or "", re.I)
+        if not m:
+            return False
+        rho_claim = float(m.group(1))
+        # Which material?
+        mat_key = None
+        for key in MATERIAL_DENSITY_QIDS:
+            token = key.lower().replace("_", " ")
+            if token in text_l or key.lower() in text_l:
+                mat_key = key
+                break
+            if key == "COPPER" and ("copper" in text_l or "kupfer" in text_l):
+                mat_key = key
+                break
+            if key in ("ALUMINUM", "ALUMINIUM") and (
+                "aluminum" in text_l or "aluminium" in text_l
+            ):
+                mat_key = key
+                break
+            if key in ("STEEL", "MILD_STEEL") and ("steel" in text_l or "stahl" in text_l):
+                mat_key = key
+                break
+        if mat_key is None:
+            return False
+        try:
+            row = density_claims_for_material(mat_key)
+        except Exception as exc:  # noqa: BLE001
+            state.log.append(f"skeptic: wikidata density check failed: {exc}")
+            return False
+        if row is None:
+            return False
+        wd_text, wd_quote, wd_url = row
+        m2 = re.search(r"(\d+(?:\.\d+)?)\s*kg\s*/\s*m", wd_text, re.I)
+        if not m2:
+            return False
+        rho_wd = float(m2.group(1))
+        if rho_wd <= 0:
+            return False
+        rel = abs(rho_claim - rho_wd) / rho_wd
+        if rel > 0.02:  # >2% disagreement — leave to normal judges
+            state.log.append(
+                f"skeptic: registry density {rho_claim} vs Wikidata {rho_wd} "
+                f"({rel:.1%}) > 2% — no auto-verify"
+            )
+            return False
+        claim.status = ClaimStatus.VERIFIED
+        claim.confidence = max(0.8, min(0.95, 0.95 - rel * 5))
+        claim.verification = [
+            SourceRef(
+                url_or_id=wd_url,
+                retrieved=True,
+                content_hash=None,
+                span=wd_quote[:80],
+                support=SourceSupport.SUPPORTS,
+            )
+        ]
+        state.log.append(
+            f"skeptic: VERIFIED materials density via Wikidata P2054 "
+            f"({rho_claim:.0f} vs {rho_wd:.0f} kg/m³, {rel:.2%} rel)"
+        )
+        return True
 
     async def _independent_candidates(self, claim_text, scholar_urls, state):
         seen: set[str] = set()
