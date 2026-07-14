@@ -53,8 +53,8 @@
 
 ## Active sprint
 
-**Phases A–C complete (H1–H5, C1–C8).**  
-**Now:** Phase D **W1** — SourceConnectorRegistry health / catalog CLI
+**Phases A–D complete (H1–H5, C1–C8, W1–W5).**  
+**Now:** Phase E **S1** — Caps surface matrix across CLI modes
 
 ## Definition of Done (every sprint)
 
