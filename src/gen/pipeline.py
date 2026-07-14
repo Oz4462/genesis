@@ -320,7 +320,11 @@ def assess_specification(
         tm = TeacherMode()
         teacher_notes = tm.record('assess', ['physics', 'seams'])
         teacher_notes = tm.apply({'overall': overall})
-        community_evidence = _ce({'claims': len(claims or [])})
+        community_evidence = _ce({
+            'claims': len(claims or []),
+            'idea': getattr(spec, 'idea', None) or str(spec)[:120],
+            'gates': ['assess', 'delta'] if gate.passed else ['assess'],
+        })
     except Exception as exc:  # noqa: BLE001 — optional platform caps; recorded below
         optional_notes.append(
             f"optional_platform_caps_skipped ({type(exc).__name__}: {exc})"

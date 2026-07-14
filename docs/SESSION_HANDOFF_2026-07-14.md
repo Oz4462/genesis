@@ -31,7 +31,7 @@ bash scripts/self_improve_smoke.sh
 - Full-formula Monte Carlo remains MANUAL (`montecarlo_product` auto-selects)
 - The Well: HF package optional (stream/fixture; never 15 TB bulk)
 - Multi-part BREP STL via cad-venv: opt-in `GENESIS_CAD_MULTIPART=1`
-- Community/TRL/trustcore: stub scores (field data deferred)
+- Community/TRL: **agent-sourced** via OpenAlex (`community_evidence`, `GENESIS_ALLOW_LIVE=1`) — **user supplies no JSON**; private lab measurements remain non-inventable
 - Live α copper (2026-07-14): **VERIFIED 8960 kg/m³** — materials registry + Wikidata P2054 (8940 kg/m³, 0.22% rel); sources gen-materials://COPPER + wikidata Q753#P2054.
 
 ## Closed (do not re-open as bugs)

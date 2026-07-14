@@ -501,6 +501,8 @@ def build_full_mini_realization_package(
             "name": package_name,
             "num_fragments": len(fragments),
             "certs": cert_report,
+            "idea": (ideas[0] if ideas else package_name),
+            "query": (ideas[0] if ideas else package_name),
         }
         r = assess_readiness(readiness_input)
         proof_dir = proof.package_dir
@@ -508,6 +510,7 @@ def build_full_mini_realization_package(
         tm = TeacherMode()
         teacher = tm.record("realization_package", ["integrated proof, readiness, caps"])
         teacher = tm.apply(readiness_input)
+        # Agent-sourced community (OpenAlex when GENESIS_ALLOW_LIVE=1) — user supplies no data
         community = community_evidence(readiness_input)
     except Exception as e:  # noqa
         pass

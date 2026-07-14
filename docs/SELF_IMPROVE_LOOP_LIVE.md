@@ -385,3 +385,21 @@ e984d5c feat(self-improve loop): materials backend, α progress, print STL fallb
 **Evidence:** `python3 -m gen --mode print --demo` → Status needs_attention, watertight mesh
 
 ---
+
+## Gap-close — agent-sourced community (no user data) 2026-07-14
+
+**User:** „wieso muss ich die Daten liefern? genesis liefert alle Daten durch Grok und Claude Code“
+
+**Done:**
+- `community_evidence` no longer demands a user-written `community_ledger.json`
+- Primary path: **OpenAlex live** (`discover_community_literature`) when `GENESIS_ALLOW_LIVE=1` / `GENESIS_COMMUNITY_LIVE=1`
+- Optional `out/community_ledger.json` = **agent cache only**, never a human form
+- Response flags: `agent_sourced=True`, `user_data_required=False`
+- Literature hits labeled separately from field lab replications (honest TRL)
+- Live probe: 8 OpenAlex hits, score 0.55 (literature-only cap), query from idea/dream
+
+**Still not inventable by agents:** private lab measurements, trustcore private batch, The Well 15 TB bulk
+
+**Verify:** `tests/test_readiness_community.py` + smoke 141 pytest PASS
+
+---
