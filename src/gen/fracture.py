@@ -122,10 +122,8 @@ def paris_life(
 
     `paris_coeff_c` C and `paris_exponent_m` m are the Paris constants (units of C follow
     from m and the MPa*sqrt(mm)/mm system), `delta_stress` is the cyclic stress RANGE
-    (sigma_max - sigma_min) in MPa, a_initial/a_final in mm. The m == 2 case has a
-    logarithmic antiderivative (the power form above divides by zero) and is intentionally
-    NOT supported here -- it raises NotImplementedError rather than return a wrong value;
-    use the log form ln(a_f/a_i)/(C*(Y*delta_stress*sqrt(pi))**2) for m == 2. Raises
+    (sigma_max - sigma_min) in MPa, a_initial/a_final in mm. The m == 2 case uses the
+    logarithmic closed form ln(a_f/a_i)/(C*(Y*delta_stress*sqrt(pi))**2). Raises
     ValueError on a non-positive C, delta_stress, or crack length, or if a_final <= a_initial
     (a crack only grows)."""
     if paris_coeff_c <= 0.0:
@@ -136,16 +134,15 @@ def paris_life(
         raise ValueError("crack lengths must be positive")
     if a_final <= a_initial:
         raise ValueError("a_final must be larger than a_initial (a crack only grows)")
-    if paris_exponent_m == 2.0:
-        raise NotImplementedError(
-            "m == 2 uses the logarithmic form ln(a_f/a_i)/(C*(Y*delta_stress*sqrt(pi))**2); "
-            "the power closed form divides by zero"
-        )
+    # m == 2: power form divides by zero; use closed logarithmic antiderivative.
+    scale = geometry_factor_y * delta_stress * math.sqrt(math.pi)
+    if abs(paris_exponent_m - 2.0) < 1e-15:
+        return math.log(a_final / a_initial) / (paris_coeff_c * scale ** 2)
     exponent = 1.0 - paris_exponent_m / 2.0
     numerator = a_final ** exponent - a_initial ** exponent
     denominator = (
         paris_coeff_c
-        * (geometry_factor_y * delta_stress * math.sqrt(math.pi)) ** paris_exponent_m
+        * scale ** paris_exponent_m
         * exponent
     )
     return numerator / denominator

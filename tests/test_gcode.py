@@ -15,7 +15,12 @@ from __future__ import annotations
 
 import pytest
 
-from gen.cad.gcode import GCodeProgram, generate_profile_gcode, verify_gcode
+from gen.cad.gcode import (
+    GCodeProgram,
+    generate_profile_gcode,
+    generate_rect_pocket_gcode,
+    verify_gcode,
+)
 
 
 def test_generated_profile_gcode_is_valid_safe_and_bounded():
@@ -71,6 +76,23 @@ def test_generated_path_offsets_outward_and_respects_the_envelope():
     b = generate_profile_gcode(60.0, 40.0, 2.0)
     assert a.lines == b.lines
     assert a.bounds_mm["x"][1] == 60.0 + GCODE_DEFAULT_TOOL_DIAMETER_MM / 2.0
+
+
+def test_rect_pocket_gcode_is_valid_and_verifies():
+    """Humanoid/AETHON pipeline sample: rectangular pocket is real RS-274 + verify ok."""
+    prog = generate_rect_pocket_gcode(40.0, 25.0, 6.0)
+    assert prog.operation == "rectangular_pocket"
+    chk = verify_gcode(prog)
+    assert chk.ok, chk.issues
+    text = prog.text()
+    assert "G21" in text and "M3" in text and "M30" in text
+    assert "pocket" in text.lower()
+    # tool centre inset by tool radius (default 3 mm → r=1.5)
+    assert prog.bounds_mm["x"][0] == pytest.approx(1.5)
+    assert prog.bounds_mm["x"][1] == pytest.approx(38.5)
+    # tool larger than pocket refuses
+    with pytest.raises(ValueError):
+        generate_rect_pocket_gcode(2.0, 2.0, 1.0, tool_diameter_mm=5.0)
 
 
 def test_generate_profile_fails_loud_on_bad_dimensions():

@@ -16,7 +16,7 @@
 | Invent / solve honesty | **VERIFIED** | novelty_gate, TE2 refine, γ+ score_proxy, thermal δ real |
 | δ physics auto-select | **VERIFIED** | 45 recipes; MANUAL_ONLY only `montecarlo_uncertainty` |
 | The Well (~15 TB) | **HONEST GAP** | Stream/catalog/fixture only; no bulk download |
-| CadQuery system install | **PARTIAL** | PEP 668; primitive STL fallback / tooling gap exits |
+| CadQuery system install | **VERIFIED** (isolated venv) | PEP 668 blocks system pip; `.venv-cad` + bridge; print needs_attention |
 
 **Overall loop confidence:** 8.5/10 for offline + invent/thermal/δ paths; live α remains network/budget-bound.
 

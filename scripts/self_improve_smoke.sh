@@ -3,6 +3,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PYTHONPATH=src
+# Prefer project venv (matplotlib, scientific stack) when present
+if [[ -x .venv/bin/python ]]; then
+  export PATH="$(pwd)/.venv/bin:$PATH"
+fi
 echo "== pytest materials/wiki/backend/runner =="
 python3 -m pytest \
   tests/test_materials.py \

@@ -50,6 +50,7 @@
 - The Well: stream-only probe CLI `--mode well-probe` (`docs/THE_WELL_PROBE.md`) — no bulk 15TB; catalog offline; package optional.
 - Invent mechatronics prior-art includes materials registry + MaterialsBackend.
 - Offline smoke includes well-probe; print tooling-gap exit 0; living log `docs/SELF_IMPROVE_LOOP_LIVE.md`.
+- **2026-07-14 gap-close:** CadQuery via isolated `.venv-cad` + bridge (not system pip / PEP 668); print demo `needs_attention` with real mesh; `generate_rect_pocket_gcode`; invent γ+ recomputable; smoke prefers `.venv/bin/python`.
 
 
 ---

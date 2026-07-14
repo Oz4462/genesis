@@ -2012,7 +2012,7 @@ def main(argv: list[str] | None = None) -> int:
                             break
                 break
             sample = _gc.generate_rect_pocket_gcode(w, h, d)
-            gtxt = getattr(sample, "gcode", str(sample))
+            gtxt = sample.text() if hasattr(sample, "text") else str(sample)
             (full_dir / "example_joint_bore_pocket.ngc").write_text(gtxt, encoding="utf-8")
             print(f"  AETHON-CAM: sample gcode pocket added (dims {w}x{h})")
             try:
@@ -2288,7 +2288,7 @@ def main(argv: list[str] | None = None) -> int:
                                 break
                     break
                 sample = _gc.generate_rect_pocket_gcode(w, h, d)
-                gtxt = getattr(sample, "gcode", str(sample))
+                gtxt = sample.text() if hasattr(sample, "text") else str(sample)
                 (full_pl_dir / "example_joint_bore_pocket.ngc").write_text(gtxt, encoding="utf-8")
                 sim_receipt["cam_sample_gcode"] = "example_joint_bore_pocket.ngc (reference for dxf/ assets)"
                 print(f"  CAM: wrote sample gcode pocket for humanoid joint bore (dims {w}x{h})")

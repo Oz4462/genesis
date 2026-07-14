@@ -26,9 +26,16 @@ bash scripts/self_improve_smoke.sh
 
 `docs/SELF_IMPROVE_LOOP_LIVE.md`
 
-## Still open (next friction)
+## Still open (next friction) — updated after gap-close
 
-- Creep recipe needs Larson-Miller tables (honest MANUAL_ONLY)
-- Monte Carlo remains formula-driven MANUAL_ONLY
-- Live α copper density (network) optional budget
-- CadQuery system install still blocked (PEP 668)
+- Full-formula Monte Carlo remains MANUAL (`montecarlo_product` auto-selects)
+- The Well: HF package optional (stream/fixture; never 15 TB bulk)
+- Multi-part BREP STL via cad-venv: opt-in `GENESIS_CAD_MULTIPART=1`
+- Community/TRL/trustcore: stub scores (field data deferred)
+- Live α: use `--live` with grok/claude (copper offline anchor 8960 kg/m³ ready)
+
+## Closed (do not re-open as bugs)
+
+- CadQuery: PEP 668 + isolated `.venv-cad` + bridge (see `docs/CADQUERY_VENV.md`)
+- Creep CheckRecipe landed; invent γ+ `score_recomputable`
+- `generate_rect_pocket_gcode` + CLI `.text()` write path

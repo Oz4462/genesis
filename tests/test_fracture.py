@@ -135,10 +135,15 @@ def test_larger_initial_crack_gives_fewer_cycles():
 
 # --- guards: loud failure, never a guessed value --------------------------------
 
-def test_paris_m_equals_2_is_not_implemented():
-    # m == 2 divides by zero in the power form -> raise, do not return a wrong number
-    with pytest.raises(NotImplementedError):
-        paris_life(1e-11, 2.0, 100.0, 1.0, 10.0)
+def test_paris_m_equals_2_uses_logarithmic_closed_form():
+    # m == 2: power form divides by zero → ln(a_f/a_i)/(C*(Y*ds*√π)**2)
+    import math
+
+    c, m, ds, ai, af, y = 1e-11, 2.0, 100.0, 1.0, 10.0, 1.12
+    closed = paris_life(c, m, ds, ai, af, geometry_factor_y=y)
+    expected = math.log(af / ai) / (c * (y * ds * math.sqrt(math.pi)) ** 2)
+    assert math.isclose(closed, expected, rel_tol=1e-12)
+    assert closed > 0.0
 
 
 def test_paris_rejects_non_growing_crack():

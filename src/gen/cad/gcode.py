@@ -150,6 +150,131 @@ def generate_profile_gcode(
     )
 
 
+def generate_rect_pocket_gcode(
+    width_mm: float,
+    height_mm: float,
+    depth_mm: float,
+    *,
+    tool_diameter_mm: float = GCODE_DEFAULT_TOOL_DIAMETER_MM,
+    cut_feed_mm_min: float = GCODE_DEFAULT_CUT_FEED_MM_MIN,
+    plunge_feed_mm_min: float = GCODE_DEFAULT_PLUNGE_FEED_MM_MIN,
+    stepdown_mm: float = GCODE_DEFAULT_STEPDOWN_MM,
+    stepover_mm: float | None = None,
+    safe_z_mm: float = GCODE_DEFAULT_SAFE_Z_MM,
+    spindle_rpm: int = GCODE_DEFAULT_SPINDLE_RPM,
+) -> GCodeProgram:
+    """Rectangular pocket: clear the interior of a ``width_mm`` × ``height_mm`` cavity
+    to ``depth_mm`` with zigzag passes (tool diameter inset from walls).
+
+    This is the real program the humanoid/AETHON pipeline expects for a joint-bore
+    pocket sample (was missing → AttributeError skip). Scope honesty: rectangular
+    flat-floor pocket only — not freeform 3D CAM, not drill cycles for round bores.
+    """
+    for name, v in (
+        ("width", width_mm),
+        ("height", height_mm),
+        ("depth", depth_mm),
+        ("tool_diameter", tool_diameter_mm),
+        ("stepdown", stepdown_mm),
+        ("safe_z", safe_z_mm),
+    ):
+        if not math.isfinite(v) or v <= 0:
+            raise ValueError(f"generate_rect_pocket_gcode: {name} must be a finite value > 0")
+    for name, v in (
+        ("cut_feed", cut_feed_mm_min),
+        ("plunge_feed", plunge_feed_mm_min),
+        ("spindle_rpm", spindle_rpm),
+    ):
+        if not math.isfinite(v) or v < 1:
+            raise ValueError(f"generate_rect_pocket_gcode: {name} must be a finite value >= 1")
+
+    r = tool_diameter_mm / 2.0
+    # usable floor after wall clearance (tool centre stays ≥ r from walls)
+    floor_w = width_mm - 2.0 * r
+    floor_h = height_mm - 2.0 * r
+    if floor_w <= 0 or floor_h <= 0:
+        raise ValueError(
+            f"generate_rect_pocket_gcode: pocket {width_mm}x{height_mm} mm is smaller "
+            f"than tool diameter {tool_diameter_mm} mm (no room for a pocket path)"
+        )
+    so = stepover_mm if stepover_mm is not None else tool_diameter_mm * 0.4
+    if not math.isfinite(so) or so <= 0:
+        raise ValueError("generate_rect_pocket_gcode: stepover_mm must be a finite value > 0")
+    so = min(so, floor_h)  # at least one pass along Y
+
+    def fmt(v: float) -> str:
+        return f"{v:.3f}".rstrip("0").rstrip(".")
+
+    # tool-centre limits (origin at pocket corner, Z=0 stock top)
+    x0, x1 = r, width_mm - r
+    y0, y1 = r, height_mm - r
+
+    # Y-raster lines
+    y_lines: list[float] = []
+    y = y0
+    while y < y1 - 1e-9:
+        y_lines.append(y)
+        y += so
+    if not y_lines or abs(y_lines[-1] - y1) > 1e-6:
+        y_lines.append(y1)
+
+    lines = [
+        f"( rectangular pocket {fmt(width_mm)}x{fmt(height_mm)}mm, depth {fmt(depth_mm)}mm, "
+        f"tool d={fmt(tool_diameter_mm)}mm; {GCODE_SOURCE} )",
+        "G21 ( units: millimeters )",
+        "G90 ( absolute positioning )",
+        "G17 ( XY plane )",
+        f"M3 S{int(spindle_rpm)} ( spindle on, clockwise )",
+        f"G0 Z{fmt(safe_z_mm)} ( retract to safe height )",
+        f"G0 X{fmt(x0)} Y{fmt(y0)} ( rapid to pocket start )",
+    ]
+
+    z = 0.0
+    while z > -depth_mm + 1e-9:
+        z = max(z - stepdown_mm, -depth_mm)
+        lines.append(f"G1 Z{fmt(z)} F{fmt(plunge_feed_mm_min)} ( plunge to pass depth )")
+        # zigzag clear
+        for i, y in enumerate(y_lines):
+            lines.append(f"G1 Y{fmt(y)} F{fmt(cut_feed_mm_min)}")
+            if i % 2 == 0:
+                lines.append(f"G1 X{fmt(x1)}")
+            else:
+                lines.append(f"G1 X{fmt(x0)}")
+        # finish contour at floor of this pass (wall cleanup)
+        lines.append(f"G1 X{fmt(x0)} Y{fmt(y0)} F{fmt(cut_feed_mm_min)} ( return for wall pass )")
+        lines.append(f"G1 X{fmt(x1)} Y{fmt(y0)}")
+        lines.append(f"G1 X{fmt(x1)} Y{fmt(y1)}")
+        lines.append(f"G1 X{fmt(x0)} Y{fmt(y1)}")
+        lines.append(f"G1 X{fmt(x0)} Y{fmt(y0)} ( close wall )")
+
+    lines += [
+        f"G0 Z{fmt(safe_z_mm)} ( retract )",
+        "M5 ( spindle off )",
+        "M30 ( program end )",
+    ]
+
+    return GCodeProgram(
+        operation="rectangular_pocket",
+        lines=lines,
+        # bounds = tool-centre envelope (what the verifier compares motion against)
+        bounds_mm={"x": (x0, x1), "y": (y0, y1), "z": (-depth_mm, safe_z_mm)},
+        safe_z_mm=safe_z_mm,
+        assumptions=[
+            f"tool d={fmt(tool_diameter_mm)}mm, stepover {fmt(so)}mm, stepdown {fmt(stepdown_mm)}mm; "
+            f"feeds cut {fmt(cut_feed_mm_min)} / plunge {fmt(plunge_feed_mm_min)} mm/min, "
+            f"spindle {int(spindle_rpm)} rpm — GENERIC defaults",
+            "rectangular flat-floor pocket; tool centre inset by tool radius from walls",
+            f"stock pocket envelope {fmt(width_mm)}x{fmt(height_mm)} mm (tool path inset)",
+        ],
+        gaps=[
+            "round bore / helical drill: not generated — use a drill cycle or 3D CAM",
+            "feeds & speeds: material + tool specific",
+            "work-offset (G54), tool length offset, fixturing: setup-specific",
+        ],
+        source=GCODE_SOURCE,
+    )
+
+
 def _parse_words(raw: str) -> dict[str, float] | None:
     """Parse one line into {letter: value}, stripping comments. Returns None for a
     blank/comment-only line, or raises nothing — unknown letters are reported by the
