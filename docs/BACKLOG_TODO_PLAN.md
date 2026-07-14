@@ -29,11 +29,11 @@
 
 ## Phase D — Live Knowledge (P1)
 
-- [ ] **W1** SourceConnectorRegistry health / catalog CLI
-- [ ] **W2** Electronics / components richer seeding
-- [ ] **W3** Patents path key-gated honest
-- [ ] **W4** Ledger/postgres production smoke
-- [ ] **W5** Vector (pgvector/qdrant) one path or explicit not-wired
+- [x] **W1** Source catalog + CLI `--mode sources` (`tools/source_catalog.py`)
+- [x] **W2** Electronics/improvement recipes in `seed_electronics_components`
+- [x] **W3** PatentsView key-gated status (no fake empty search)
+- [x] **W4** Ledger status: DSN / in-memory honesty + smoke pointer
+- [x] **W5** Vector status: anamnesis local vendor; production Qdrant/pgvector not wired
 
 ## Phase E — Simulation & Caps (P1/P2)
 

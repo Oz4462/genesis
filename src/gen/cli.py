@@ -1107,6 +1107,7 @@ def main(argv: list[str] | None = None) -> int:
             "humanoid-report",
             "surface",
             "well-probe",
+            "sources",
         ),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
@@ -1249,6 +1250,19 @@ def main(argv: list[str] | None = None) -> int:
             print("")
             print(_json.dumps(result.to_dict(), indent=2, ensure_ascii=False, default=str))
         return 0 if result.ok else 3
+
+    if getattr(args, "mode", None) == "sources":
+        # W1: Source connector catalog + health (search backends, wissensbasis, ledger, vector)
+        import json as _json
+
+        from .tools.source_catalog import catalog_report
+
+        rep = catalog_report()
+        print(rep.text())
+        if getattr(args, "format", None) == "md" or os.environ.get("GENESIS_SOURCES_JSON") == "1":
+            print("")
+            print(_json.dumps(rep.to_dict(), indent=2, ensure_ascii=False))
+        return 0
 
     if getattr(args, "mode", None) == "goldset":
         # WIRE (STATUS.md §1 "biggest missing wire" + z continuation): goldset scorer always runnable.

@@ -434,7 +434,74 @@ def seed_electronics_components(run_id: str | None = None) -> list[str]:
     )
     save_component_recipe(gen)
     seeded.append(gen.id)
+    # W2: richer electronics + improvement recipes (deterministic, offline)
+    for rec in _extra_electronics_improvement_recipes():
+        save_component_recipe(rec, quelle=rec.quelle)
+        seeded.append(rec.id)
     return seeded
+
+
+def _extra_electronics_improvement_recipes() -> list[ComponentRecipe]:
+    """W2: additional COTS-style + improvement recipes for invent/LUMEN (not jetpack-only)."""
+    return [
+        ComponentRecipe(
+            id="esc_48v_80a",
+            name="48V 80A BLDC ESC (FOC)",
+            kind="esc",
+            specs={"v_nom": 48.0, "i_max": 80.0, "p_max_dissip": 25.0, "control": "FOC"},
+            footprint_mm=(80.0, 50.0, 20.0),
+            source="representative_COTS_2026",
+            quelle="W2 electronics seeding — high-current drive",
+            simulation_hints={"p_dissip_w": 25.0, "thermal": "heatsink"},
+        ),
+        ComponentRecipe(
+            id="buck_5v_3a",
+            name="5V 3A synchronous buck",
+            kind="regulator",
+            specs={"v_in": 12.0, "v_out": 5.0, "i_max": 3.0, "eff": 0.92},
+            footprint_mm=(25.0, 20.0, 8.0),
+            source="representative_COTS_2026",
+            quelle="W2 electronics seeding — logic rail",
+            simulation_hints={"p_dissip_w": 1.2},
+        ),
+        ComponentRecipe(
+            id="can_fd_transceiver",
+            name="CAN-FD transceiver + common-mode choke",
+            kind="interface",
+            specs={"bus": "CAN-FD", "v_io": 3.3, "rate_mbps": 5},
+            footprint_mm=(10.0, 6.0, 2.0),
+            source="representative_COTS_2026",
+            quelle="W2 electronics seeding — multi-board bus",
+            simulation_hints={"emi": "choke"},
+        ),
+        ComponentRecipe(
+            id="improve_thermal_pad",
+            name="Improvement: add thermal pad under regulator",
+            kind="improvement_recipe",
+            specs={
+                "target_kind": "regulator",
+                "delta": "Rth_jc reduce ~20%",
+                "when": "p_dissip_w > 2",
+            },
+            source="closed_loop_improvement",
+            quelle="W2 improvement recipe — thermal pad under hot regulators",
+            simulation_hints={"r_th_factor": 0.8},
+        ),
+        ComponentRecipe(
+            id="improve_trace_width_1A",
+            name="Improvement: IPC-2221 external trace for 1A/10C",
+            kind="improvement_recipe",
+            specs={
+                "target_kind": "pcb",
+                "current_a": 1.0,
+                "temp_rise_c": 10.0,
+                "copper_oz": 1.0,
+            },
+            source="ipc2221",
+            quelle="W2 improvement recipe — trace width from current",
+            simulation_hints={},
+        ),
+    ]
 
 def query_component_recipes(kind: str | None = None, store: Optional[FragmentStore] = None) -> list[ComponentRecipe]:
     """Query for LUMEN, Closed-Loop, inverse design. Supports seeding feedback."""
