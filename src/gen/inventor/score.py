@@ -102,4 +102,71 @@ def pareto_inventions(
     return opt.select(grounded, lambda i: score(i).as_objectives(), INVENTION_GOAL)
 
 
-__all__ = ["ScoreVector", "INVENTION_GOAL", "score_invention", "pareto_inventions"]
+def inventions_to_pareto_front(
+    inventions: Sequence[Invention],
+    front: Optional[Sequence[Invention]] = None,
+    *,
+    score: Callable[[Invention], ScoreVector] = score_invention,
+) -> "ParetoFront":
+    """Bridge inventor 5-axis scores → HORIZON :class:`ParetoFront` for CLI / γ+ consumers.
+
+    Honesty contract (self-improve 2026-07-14):
+    - ``objective_values`` come from :func:`score_invention` **proxies** (BOM cost, mass
+      measurand, modal margin, quantity count, novelty map) — **not** from
+      ``inverse_design.objective_values`` recompute against quantity ids matching
+      :data:`INVENTION_GOAL`.
+    - ``produced_by`` is ``inventor.score_proxy`` so consumers never mistake this for a
+      full γ+ quantity-recomputed front.
+    - Ungrounded inventions are excluded; empty pool gets an explicit abstention gap.
+    """
+    from ..core.state import DesignCandidate, ParetoFront
+
+    evaluated: list[DesignCandidate] = []
+    for inv in inventions:
+        if not inv.grounded or inv.specification is None:
+            continue
+        try:
+            sv = score(inv)
+        except ValueError:
+            continue
+        evaluated.append(
+            DesignCandidate(
+                id=inv.concept.id,
+                specification=inv.specification,
+                objective_values=sv.as_objectives(),
+            )
+        )
+
+    if front is None:
+        front_ids = {i.concept.id for i in pareto_inventions(inventions, score=score)}
+    else:
+        front_ids = {i.concept.id for i in front}
+    candidates = [c for c in evaluated if c.id in front_ids]
+
+    gaps: list[str] = []
+    ungrounded = sum(1 for i in inventions if not (i.grounded and i.specification is not None))
+    if ungrounded:
+        gaps.append(f"{ungrounded} invention(s) ungrounded — excluded from γ+ pool")
+    if not evaluated:
+        gaps.append("No grounded inventions for γ+ Pareto (honest empty front)")
+    gaps.append(
+        "objective values from inventor 5-axis score proxies "
+        "(not quantity-id recompute via inverse_design.objective_values)"
+    )
+
+    return ParetoFront(
+        goal=INVENTION_GOAL,
+        candidates=candidates,
+        evaluated_candidates=evaluated,
+        gaps=gaps,
+        produced_by="inventor.score_proxy",
+    )
+
+
+__all__ = [
+    "ScoreVector",
+    "INVENTION_GOAL",
+    "score_invention",
+    "pareto_inventions",
+    "inventions_to_pareto_front",
+]

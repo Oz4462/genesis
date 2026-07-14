@@ -29,7 +29,7 @@ from .brief import Invention, InventionBrief
 from .domains.base import InventionDomain
 from .generate import generate_concepts
 from .novelty import NICHT_NEU, NoveltyVerdict
-from .score import pareto_inventions
+from .score import inventions_to_pareto_front, pareto_inventions
 
 #: Optional hooks the later phases wire in. SafetyScreen runs on the brief BEFORE generation; NoveltyGate runs
 #: on each CONCEPT before grounding (a nicht_neu concept is never grounded); NoveltyCheck annotates a grounded
@@ -44,7 +44,12 @@ Checkpoint = Callable[[Invention], None]
 class InventionRun:
     """The result of one invention run: the ``brief``, every proposed ``concept``, every ``invention``
     (grounded or an honest gap), the non-dominated grounded ``front``, the emitted ``artifact_dirs``, and
-    whether the run was ``refused`` by the safety screen before generation."""
+    whether the run was ``refused`` by the safety screen before generation.
+
+    ``pareto_front`` is the HORIZON γ+ bridge (self-improve 2026-07-14): a
+    :class:`~gen.core.state.ParetoFront` built from inventor 5-axis score proxies
+    (``produced_by=inventor.score_proxy``). None only on refused runs.
+    """
 
     brief: InventionBrief
     concepts: tuple[Possibility, ...]
@@ -52,6 +57,7 @@ class InventionRun:
     front: tuple[Invention, ...]
     artifact_dirs: tuple[str, ...]
     refused: bool = False
+    pareto_front: object = None  # ParetoFront | None — object avoids circular import weight
 
     @property
     def grounded_count(self) -> int:
@@ -76,7 +82,7 @@ async def run_invention(
     Deterministic given deterministic inputs — re-running yields an identical front. ``out_dir`` emits a bundle
     per front member under ``out_dir/<concept-id>/``."""
     if safety_screen is not None and not safety_screen(brief):
-        return InventionRun(brief, (), (), (), (), refused=True)
+        return InventionRun(brief, (), (), (), (), refused=True, pareto_front=None)
 
     concepts = await generate_concepts(brief, council)
     inventions: list[Invention] = []
@@ -106,6 +112,8 @@ async def run_invention(
             checkpoint(invention)
 
     front = pareto_inventions(inventions)
+    # γ+ bridge: attach HORIZON ParetoFront from 5-axis score proxies (CLI was printing empty).
+    pf = inventions_to_pareto_front(inventions, front)
 
     artifact_dirs: list[str] = []
     if out_dir is not None:
@@ -116,8 +124,15 @@ async def run_invention(
             domain.emit_artifact(invention.specification, part_dir)
             artifact_dirs.append(part_dir)
 
-    return InventionRun(brief, tuple(concepts), tuple(inventions), tuple(front),
-                        tuple(artifact_dirs), refused=False)
+    return InventionRun(
+        brief,
+        tuple(concepts),
+        tuple(inventions),
+        tuple(front),
+        tuple(artifact_dirs),
+        refused=False,
+        pareto_front=pf,
+    )
 
 
 __all__ = ["InventionRun", "run_invention", "SafetyScreen", "NoveltyGate", "NoveltyCheck", "Checkpoint"]

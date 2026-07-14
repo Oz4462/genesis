@@ -39,6 +39,11 @@ def test_full_run_yields_a_grounded_invention_with_sources_gate_and_artifact(tmp
     assert best.physics_verified                                    # passed the δ-physics gate
     assert best.prior_art                                           # carries its sources
     assert result.artifact_dirs and len(os.listdir(result.artifact_dirs[0])) > 0   # a real bundle was emitted
+    # γ+ bridge attached (self-improve 2026-07-14)
+    assert result.pareto_front is not None
+    assert result.pareto_front.produced_by == "inventor.score_proxy"
+    assert len(result.pareto_front.candidates) == len(result.front)
+    assert len(result.pareto_front.evaluated_candidates) >= result.grounded_count
 
 
 def test_the_run_is_reproducible():

@@ -4,11 +4,12 @@
 
 ## Done this session (continue)
 
-- Invent CLI: **novelty_gate** wired to domain prior-art (materials + RAG)
-- Invent live: OpenAlex added to mechatronics prior-art stack
-- Invent CLI prints novelty + rejected non-novel concepts
-- The Well fixture mode + stream-only probe (earlier)
-- Full offline smoke green (incl. well-probe, print)
+- Invent CLI: **novelty_gate** wired (iter 13)
+- Invent **γ+ ParetoFront** attached via `inventor.score_proxy` (iter 14)
+- Thermal invent: **overtemperature** CheckRecipe (δ no longer vacuous)
+- Thermal prior-art: materials cards + MaterialsBackend + live OpenAlex
+- MaterialsBackend: metal name tokens in property gate
+- Full offline smoke green
 
 ## The Well
 
@@ -26,8 +27,7 @@ bash scripts/self_improve_smoke.sh
 
 `docs/SELF_IMPROVE_LOOP_LIVE.md`
 
-## Live invent evidence (continue)
+## Evidence (iter 14)
 
-Field: leises 50kg Rollenlager aus Stahl und PETG  
-- novelty=neuer_mechanismus, Quellen=4, physics_verified  
-- Tip at invent wiring: `8dadbc2`
+- invent --demo: γ+ `cands=2 evaluated=2 by=inventor.score_proxy`
+- invent thermal Kühlung: 2 grounded, δ overtemperature real

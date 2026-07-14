@@ -23,6 +23,8 @@ from ...core.interfaces import SearchBackend
 from ...core.state import Possibility, Specification
 from ...external.oracle import ExternalOracle
 from ...llm.base import LLMClient, ScriptedLLM
+from ...materials import MATERIALS, density_kg_m3
+from ...tools.materials_backend import MaterialsBackend
 from ...tools.rag_backend import Document, RagBackend
 from ..brief import Invention, InventionBrief
 from .base import ground_with_architect, scripted_architect
@@ -54,22 +56,50 @@ _PRIOR_ART_CORPUS = [
 ]
 
 
+def _materials_thermal_prior_art_docs() -> list[Document]:
+    """Offline prior-art cards for cold-plate / heat-spreader materials (self-improve 2026-07-14).
+
+    Thermal invent used RAG cooling papers only; mechatronics already had materials cards.
+    Copper/aluminum density + modulus anchors conduction-plate design without network.
+    """
+    docs: list[Document] = []
+    for key in ("COPPER", "ALUMINUM", "STEEL", "TITANIUM"):
+        m = MATERIALS[key]
+        rho = density_kg_m3(key)
+        docs.append(
+            Document(
+                url_or_id=f"gen-materials://{key}",
+                title=f"GENESIS materials registry (thermal): {m.name}",
+                text=(
+                    f"{m.name} cold-plate / spreader material: density {rho:.0f} kg/m3 "
+                    f"({m.density_g_cm3} g/cm3); Young modulus {m.youngs_modulus_mpa:g} MPa; "
+                    f"yield {m.yield_strength_mpa:g} MPa. Source: {m.source}. Note: {m.note}. "
+                    f"Thermal conductivity k is NOT in this registry — conduction checks use "
+                    f"explicit architect quantities (plate_conductivity_w_mk), not invented k."
+                ),
+            )
+        )
+    return docs
+
+
 def _default_rag() -> RagBackend:
-    """A tiny offline cooling prior-art corpus so the domain is fully testable without the network. Live runs
-    inject the real connectors instead (``[OpenAlexBackend(...), ArxivBackend(...)]``)."""
-    return RagBackend(_PRIOR_ART_CORPUS)
+    """Offline cooling prior-art corpus + materials cards. Live runs may inject OpenAlex/arXiv."""
+    return RagBackend(_PRIOR_ART_CORPUS + _materials_thermal_prior_art_docs())
 
 
 class ThermalDomain:
     """Cooling / thermal-management domain. Satisfies :class:`InventionDomain`.
 
-    ``backends`` (optional) are the prior-art SearchBackends; the offline default is a small RagBackend, so a
-    live run injects the real OpenAlex/arXiv connectors to search real cooling prior art."""
+    ``backends`` (optional) are the prior-art SearchBackends; the offline default is a small RagBackend
+    plus MaterialsBackend (parity with mechatronics). Live runs may inject OpenAlex/arXiv for real prior art."""
 
     name = "thermal"
 
     def __init__(self, *, backends: Optional[Sequence[SearchBackend]] = None) -> None:
-        self._backends: list[SearchBackend] = list(backends) if backends is not None else [_default_rag()]
+        if backends is not None:
+            self._backends = list(backends)
+        else:
+            self._backends = [_default_rag(), MaterialsBackend()]
 
     def prior_art_sources(self) -> list[SearchBackend]:
         return list(self._backends)

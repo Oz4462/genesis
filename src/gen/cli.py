@@ -2670,7 +2670,16 @@ def main(argv: list[str] | None = None) -> int:
 
         if is_thermal:
             architect = scripted_thermal_architect()
-            domain = ThermalDomain()
+            # Offline: RAG cooling + materials. Live: same + keyless OpenAlex (parity with mechatronics).
+            if args.live:
+                from .tools.http import default_http_get
+                from .tools.sources import OpenAlexBackend
+
+                _backends = list(ThermalDomain().prior_art_sources())
+                _backends.append(OpenAlexBackend(default_http_get))
+                domain = ThermalDomain(backends=_backends)
+            else:
+                domain = ThermalDomain()
         else:
             architect = scripted_mechatronics_architect(first_natural_hz=150.0)
             # Offline: RAG + materials. Live: same + keyless OpenAlex for real prior art.
@@ -2743,11 +2752,14 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 "    (leere Front — kein Konzept überlebte Novelty/δ-Physik-Gate; ehrliche Lücke, keine Halluzination)"
             )
-        # γ+ full Pareto (HORIZON bridge from inventor loop)
+        # γ+ full Pareto (HORIZON bridge from inventor loop — wired self-improve 2026-07-14)
         pf = getattr(result, "pareto_front", None)
-        if pf:
+        if pf is not None:
+            prod = getattr(pf, "produced_by", "") or "—"
             print(
-                f"  Pareto-Front (γ+):   cands={len(getattr(pf, 'candidates', []))} evaluated={len(getattr(pf, 'evaluated_candidates', []))} gaps={len(getattr(pf, 'gaps', []))}"
+                f"  Pareto-Front (γ+):   cands={len(getattr(pf, 'candidates', []) or [])} "
+                f"evaluated={len(getattr(pf, 'evaluated_candidates', []) or [])} "
+                f"gaps={len(getattr(pf, 'gaps', []) or [])} by={prod}"
             )
         else:
             print("  Pareto-Front (γ+):   (not attached or empty — honest)")

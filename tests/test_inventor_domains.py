@@ -38,9 +38,12 @@ def _brief():
 def test_domain_satisfies_the_protocol_and_exposes_prior_art():
     dom = MechatronicsDomain()
     assert isinstance(dom, InventionDomain)
-    assert [b.name for b in dom.prior_art_sources()] == ["rag"]
+    # Self-improve: RAG corpus + materials_registry (offline handbook anchors)
+    assert [b.name for b in dom.prior_art_sources()] == ["rag", "materials_registry"]
     hits = run(dom.prior_art_sources()[0].search("resonant gripper mount", 3))
     assert any("actuator-mount" in c.url_or_id for c in hits)        # offline prior art is searchable
+    mat_hits = run(dom.prior_art_sources()[1].search("steel density", 3))
+    assert any("gen-materials://" in c.url_or_id for c in mat_hits)
     assert dom.external_oracle() is None                              # no oracle wired offline
 
 
@@ -75,6 +78,20 @@ def test_an_unparseable_architect_reply_is_an_honest_gap():
     inv = run(ground_with_architect(_concept(), _brief(), ScriptedLLM("m", "not json")))
     assert inv.specification is None and not inv.physics_verified
     assert any("unparsebar" in g for g in inv.gaps)
+
+
+def test_thermal_domain_has_materials_prior_art_parity():
+    """Self-improve: thermal prior-art stack matches mechatronics (RAG + materials_registry)."""
+    from gen.inventor.domains import ThermalDomain
+
+    dom = ThermalDomain()
+    assert isinstance(dom, InventionDomain)
+    names = [b.name for b in dom.prior_art_sources()]
+    assert names == ["rag", "materials_registry"]
+    rag_hits = run(dom.prior_art_sources()[0].search("direct-to-chip copper cold plate", 5))
+    assert any("direct-to-chip" in c.url_or_id or "materials" in c.url_or_id for c in rag_hits)
+    mat_hits = run(dom.prior_art_sources()[1].search("copper", 3))
+    assert any("gen-materials://COPPER" in c.url_or_id for c in mat_hits)
 
 
 def test_parse_quantities_honors_the_grounded_vs_decision_invariant():

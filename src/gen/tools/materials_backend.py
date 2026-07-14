@@ -50,7 +50,9 @@ class MaterialsBackend:
         q = (query or "").lower()
         if not q.strip():
             return []
-        # Only surface for property/material-ish questions (avoid noise on CAD kernels)
+        # Only surface for property/material-ish questions (avoid noise on CAD kernels).
+        # Metal names included so invent/thermal prior-art novelty queries hit the registry
+        # (self-improve 2026-07-14: "copper cold plate" was silent without copper in gate).
         property_hit = any(
             t in q
             for t in (
@@ -65,8 +67,15 @@ class MaterialsBackend:
                 "stahl",
                 "aluminum",
                 "aluminium",
+                "copper",
+                "kupfer",
+                "titanium",
+                "titan",
+                "iron",
+                "eisen",
                 "pla",
                 "petg",
+                "abs",
                 "kg/m",
                 "g/cm",
             )

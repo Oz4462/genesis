@@ -15,7 +15,13 @@ import pytest
 from gen.core.state import Possibility
 from gen.inventor import Invention, InventionBrief
 from gen.inventor.domains import MechatronicsDomain, scripted_mechatronics_architect
-from gen.inventor.score import INVENTION_GOAL, ScoreVector, pareto_inventions, score_invention
+from gen.inventor.score import (
+    INVENTION_GOAL,
+    ScoreVector,
+    inventions_to_pareto_front,
+    pareto_inventions,
+    score_invention,
+)
 
 _T0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
@@ -77,6 +83,37 @@ def test_pareto_keeps_genuine_tradeoffs_and_drops_ungrounded():
 
     front = pareto_inventions([a, b, ungrounded], score=fake)
     assert sorted(i.concept.id for i in front) == ["A", "B"]   # ungrounded U is not a competitor
+
+
+def test_inventions_to_pareto_front_bridges_gamma_plus_proxy():
+    """γ+ bridge: grounded inventions become a ParetoFront with score_proxy provenance."""
+    a = dataclasses.replace(_grounded("A"), concept=dataclasses.replace(_grounded("A").concept, id="A"))
+    b = dataclasses.replace(_grounded("B"), concept=dataclasses.replace(_grounded("B").concept, id="B"))
+    ungrounded = Invention(concept=Possibility(id="U", statement="s", mechanism="m", grounding=["x"],
+                                               produced_by="c", model="m", created_at=_T0))
+
+    def fake(inv):
+        return ScoreVector(10, 5, 2.0, 5, 0.5) if inv.concept.id == "A" else ScoreVector(15, 2, 2.0, 5, 0.5)
+
+    front = pareto_inventions([a, b, ungrounded], score=fake)
+    pf = inventions_to_pareto_front([a, b, ungrounded], front, score=fake)
+    assert pf.produced_by == "inventor.score_proxy"
+    assert pf.goal is INVENTION_GOAL or pf.goal.id == "invention"
+    assert sorted(c.id for c in pf.candidates) == ["A", "B"]
+    assert sorted(c.id for c in pf.evaluated_candidates) == ["A", "B"]
+    assert any("score proxies" in g for g in pf.gaps)
+    assert any("ungrounded" in g for g in pf.gaps)
+    # objective values are the proxies, not empty
+    assert pf.candidates[0].objective_values["cost"] in (10.0, 15.0)
+
+
+def test_inventions_to_pareto_front_empty_is_honest_abstention():
+    ungrounded = Invention(concept=Possibility(id="U", statement="s", mechanism="m", grounding=["x"],
+                                               produced_by="c", model="m", created_at=_T0))
+    pf = inventions_to_pareto_front([ungrounded], [])
+    assert pf.candidates == []
+    assert pf.evaluated_candidates == []
+    assert any("No grounded" in g or "ungrounded" in g for g in pf.gaps)
 
 
 def test_goal_has_five_axes():

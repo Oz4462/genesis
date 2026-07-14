@@ -256,3 +256,25 @@ e984d5c feat(self-improve loop): materials backend, α progress, print STL fallb
 **Smoke:** PASS (47 pytest + 12 CLI demos)
 
 ---
+
+## Iteration 14 — invent γ+ bridge + thermal δ overtemperature recipe (2026-07-14)
+
+**Friction:**
+1. CLI printed `Pareto-Front (γ+): (not attached or empty — honest)` — `InventionRun` never built a HORIZON `ParetoFront`.
+2. Thermal invent always **vacuous δ** — `overtemperature` validator existed but was `MANUAL_ONLY` without a `CheckRecipe`, while `scripted_thermal_architect` already emitted matching measurands.
+3. Thermal domain lacked materials prior-art parity; MaterialsBackend ignored bare metal names (`copper` alone).
+
+**Done:**
+- `inventions_to_pareto_front()` → `InventionRun.pareto_front` with `produced_by=inventor.score_proxy` (honest proxy objectives, not quantity-id recompute)
+- CLI prints `cands/evaluated/gaps by=inventor.score_proxy`
+- `CheckRecipe` **overtemperature (1-D conduction)**; removed from `MANUAL_ONLY_VALIDATORS`
+- ThermalDomain: RAG materials cards + `MaterialsBackend`; live OpenAlex for thermal invent (parity)
+- MaterialsBackend property gate: copper/titanium/iron/abs tokens
+- Tests: γ+ bridge, thermal prior-art, domains materials list; fix mechatronics prior-art expectation
+
+**Verify:**
+- invent --demo: γ+ cands=2 evaluated=2 by=inventor.score_proxy
+- invent "Kühlung für 1kW Chip": **2 physik-verifiziert** (was 0), γ+ attached
+- SMOKE PASS (47 pytest + 12 CLI)
+
+---

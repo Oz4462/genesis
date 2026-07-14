@@ -371,6 +371,23 @@ RECIPES: list[CheckRecipe] = [
             "available_torque": ("actuator.available_torque", "N*m"),
         },
     ),
+    # ---- conduction overtemperature (cold-plate / heat-spreader) — inventor thermal domain ----
+    # Self-improve 2026-07-14: was MANUAL_ONLY while scripted_thermal_architect already emitted
+    # the matching measurands → thermal invent always got "vacuous" δ. Recipe maps SI units so
+    # mm / mm^2 from the architect convert soundly to m / m^2 for Fourier ΔT = P·L/(k·A).
+    CheckRecipe(
+        name="overtemperature (1-D conduction)",
+        validator="overtemperature",
+        trigger="thermal.power_dissipation",
+        inputs={
+            "power": ("thermal.power_dissipation", "W"),
+            "conductivity": ("material.thermal_conductivity", "W/m/K"),
+            "area": ("thermal.conduction_area", "m^2"),
+            "length": ("thermal.conduction_length", "m"),
+            "ambient": ("thermal.ambient_temp", "K"),
+            "max_service_temp": ("material.max_service_temp", "K"),
+        },
+    ),
     # ---- space multi-physics (vacuum radiation dominant, for habitats/radiators/TPS) ----
     CheckRecipe(
         name="vacuum radiation balance (space thermal)", validator="vacuum_radiation_balance",
@@ -432,7 +449,7 @@ MANUAL_ONLY_VALIDATORS: frozenset[str] = frozenset({
     "contact",
     "creep",
     "fracture",
-    "overtemperature",
+    # overtemperature: recipe landed 2026-07-14 (thermal invent / cold-plate conduction)
     "plate_bending",
     "thermal_mismatch",
     # Monte Carlo uncertainty is formula-driven (not a single measurand recipe)
