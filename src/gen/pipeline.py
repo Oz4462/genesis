@@ -123,10 +123,27 @@ def _geometry_cross_check(spec: Specification) -> tuple[str, list[dict]]:
     parts = [c for c in spec.components if c.geometry is not None]
     if not parts:
         return "no_geometry", []
+    # Cross-check in assess_specification uses *in-process* cadquery only.
+    # Bridge-based OCCT (subprocess cold-start) is too slow for multi-part product
+    # demos (humanoid/aethon). Print/printability still use the cad-venv bridge via
+    # orientation/brep_stl (see docs/CADQUERY_VENV.md). Opt-in bridge here:
+    # GENESIS_BREP_CROSSCHECK=1.
     try:
         import cadquery  # noqa: F401  (optional CAD kernel — probe only)
+        in_process = True
     except ImportError:
-        return "unavailable", []
+        in_process = False
+    if not in_process:
+        import os
+
+        if os.environ.get("GENESIS_BREP_CROSSCHECK", "").strip() not in ("1", "true", "yes"):
+            return "unavailable", []
+        try:
+            from .cad.cadquery_bridge import cad_available
+        except Exception:  # noqa: BLE001
+            return "unavailable", []
+        if not cad_available():
+            return "unavailable", []
 
     from .core.errors import GeometryError
     from .geometry_verification import verify_geometry

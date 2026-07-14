@@ -478,6 +478,19 @@ RECIPES: list[CheckRecipe] = [
         },
         extra={"constant_C": 20.0},
     ),
+    # ---- Monte Carlo product y=a*b (flat-arg auto-select; full formula MC is MANUAL) ----
+    CheckRecipe(
+        name="montecarlo product uncertainty (y=a*b)",
+        validator="montecarlo_product",
+        trigger="uncertainty.a",
+        inputs={
+            "a": ("uncertainty.a", "1"),
+            "u_a": ("uncertainty.u_a", "1"),
+            "b": ("uncertainty.b", "1"),
+            "u_b": ("uncertainty.u_b", "1"),
+        },
+        extra={"n_samples": 200, "seed": 0, "coverage": 0.95, "max_rel_std": 0.25},
+    ),
     # ---- space multi-physics (vacuum radiation dominant, for habitats/radiators/TPS) ----
     CheckRecipe(
         name="vacuum radiation balance (space thermal)", validator="vacuum_radiation_balance",
@@ -535,9 +548,8 @@ RECIPES: list[CheckRecipe] = [
 #: (Schritt-7-Review F2, 2026-07-04). Designing honest recipes for these is an open
 #: WORK_QUEUE follow-up; remove an entry here the moment its recipe lands.
 MANUAL_ONLY_VALIDATORS: frozenset[str] = frozenset({
-    # creep recipe landed 2026-07-14: LMP at stress is a declared quantity (master-curve input),
-    # not invented by GENESIS — same honesty as material.fracture_toughness.
-    # Monte Carlo uncertainty is formula-driven (not a single measurand recipe)
+    # Arbitrary-formula MC still needs formula + dicts (manual PhysicsCheck path).
+    # Auto-select product form is validator "montecarlo_product" (recipe below).
     "montecarlo_uncertainty",
 })
 

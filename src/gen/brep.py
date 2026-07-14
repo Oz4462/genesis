@@ -36,14 +36,42 @@ from .core.state import (
 )
 
 
+def _in_process_cadquery() -> bool:
+    """True iff cadquery imports in *this* interpreter.
+
+    GENESIS main process deliberately omits cadquery (PEP 668 + numpy pin).
+    Exact OCCT then runs via ``cad.cadquery_bridge`` → isolated cad venv
+    (default ``/home/genesis/.venv-cad``, override ``GENESIS_CAD_PYTHON``).
+    """
+    try:
+        import cadquery  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
 def _require_cadquery():
     try:
         from cadquery import Solid, Vector  # type: ignore
     except ImportError as exc:  # pragma: no cover - exercised only without cadquery
+        from .cad.cadquery_bridge import cad_available, cad_python
+
+        if cad_available():
+            raise GeometryError(
+                "exact BREP in-process needs cadquery, but it is intentionally "
+                f"absent from this interpreter. The isolated cad venv at "
+                f"{cad_python()!r} IS available — use gen.brep.exact_volume / "
+                f"is_valid / interferes / export.brep_stl (bridge path), not "
+                f"csg_to_solid in the main process. Or set GENESIS_CAD_PYTHON."
+            ) from exc
         raise GeometryError(
-            "exact BREP needs the optional 'cadquery' package (OpenCASCADE kernel); "
-            "install it with `pip install cadquery`, or use the AABB layer "
-            "(verification/geometry.py), which needs no CAD kernel."
+            "exact BREP needs the optional CadQuery OpenCASCADE kernel in an "
+            "isolated venv (NOT system pip — PEP 668 externally-managed; and NOT "
+            "the main GENESIS venv — cadquery pins break numpy). Install once:\n"
+            "  python3 -m venv /home/genesis/.venv-cad\n"
+            "  /home/genesis/.venv-cad/bin/pip install cadquery\n"
+            "  # optional: export GENESIS_CAD_PYTHON=/home/genesis/.venv-cad/bin/python\n"
+            "Or use the AABB layer (verification/geometry.py) without a CAD kernel."
         ) from exc
     return Solid, Vector
 
@@ -144,12 +172,24 @@ def csg_to_solid(node: GeometryNode, quantities: dict[str, Quantity]):
 
 def exact_volume(node: GeometryNode, quantities: dict[str, Quantity]) -> float:
     """Exact solid volume from the OCCT kernel (vs the analytic bound of
-    geometry.volume_of). Same length unit cubed as the quantities."""
+    geometry.volume_of). Same length unit cubed as the quantities.
+
+    Uses in-process cadquery when present; otherwise the isolated cad-venv bridge
+    (self-improve gap close 2026-07-14 — print/BREP work without system pip).
+    """
+    if not _in_process_cadquery():
+        from .cad import cadquery_bridge as br
+
+        return br.exact_volume(node, quantities)
     return float(csg_to_solid(node, quantities).Volume())
 
 
 def is_valid(node: GeometryNode, quantities: dict[str, Quantity]) -> bool:
     """True if the kernel reports a topologically valid solid (BRepCheck)."""
+    if not _in_process_cadquery():
+        from .cad import cadquery_bridge as br
+
+        return br.is_valid(node, quantities)
     return bool(csg_to_solid(node, quantities).isValid())
 
 
@@ -169,6 +209,11 @@ def interferes(
     null result shape — is "no overlap". An unexpected kernel failure (boolean
     op or volume measurement) raises GeometryError; it is NEVER swallowed into
     False, because "collision check crashed" must not read as "no collision"."""
+    if not _in_process_cadquery():
+        from .cad import cadquery_bridge as br
+
+        return br.interferes(node_a, node_b, quantities, tolerance=tolerance)
+
     solid_a = csg_to_solid(node_a, quantities)
     solid_b = csg_to_solid(node_b, quantities)
     try:

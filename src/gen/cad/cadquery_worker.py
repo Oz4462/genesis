@@ -20,6 +20,8 @@ Ops:
   "interferes"  -> args: node_b, tolerance; result: bool (intersection vol > tol)
   "stl"         -> args: tolerance, name; result: str (ASCII STL, kernel winding)
   "step"        -> result: str (STEP AP214 text)
+  "bbox"        -> result: [xmin, xmax, ymin, ymax, zmin, zmax] (mm)
+  "tessellate"  -> args: tolerance; result: {"verts": [[x,y,z],...], "tris": [[i,j,k],...]}
 
 Geometry convention matches the rest of GENESIS: primitives CENTERED at the origin
 (see PHASE_DELTA.md §1 / export/openscad.py). A failure is reported as a typed
@@ -177,6 +179,29 @@ def handle(req: dict) -> dict:
         }
     if op == "step":
         return {"result": solid_to_step(build_solid(node, values))}
+    if op == "bbox":
+        solid = build_solid(node, values)
+        bb = solid.BoundingBox()
+        return {
+            "result": [
+                float(bb.xmin),
+                float(bb.xmax),
+                float(bb.ymin),
+                float(bb.ymax),
+                float(bb.zmin),
+                float(bb.zmax),
+            ]
+        }
+    if op == "tessellate":
+        solid = build_solid(node, values)
+        tol = float(req.get("tolerance", 0.1))
+        verts, tris = solid.tessellate(tol)
+        return {
+            "result": {
+                "verts": [[float(v.x), float(v.y), float(v.z)] for v in verts],
+                "tris": [[int(i), int(j), int(k)] for i, j, k in tris],
+            }
+        }
 
     raise ValueError(f"unknown op {op!r}")
 

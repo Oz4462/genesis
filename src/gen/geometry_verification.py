@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import math
 
-from .brep import csg_to_solid
+from .brep import _in_process_cadquery, csg_to_solid
 from .core.errors import GeometryError
 from .core.state import GeometryNode, Quantity
 from .verification.geometry import aabb_of, volume_of
@@ -48,6 +48,25 @@ def _kernel_call(solid, method: str, node_kind: str):
         raise GeometryError(
             f"OCCT kernel call {method}() failed for geometry {node_kind!r}: {exc}"
         ) from exc
+
+
+def _brep_measures(
+    node: GeometryNode, quantities: dict[str, Quantity]
+) -> tuple[bool, float, tuple[float, float, float]]:
+    """(valid, volume, extent_xyz) via in-process OCCT or cad-venv bridge."""
+    if not _in_process_cadquery():
+        from .cad import cadquery_bridge as br
+
+        valid = br.is_valid(node, quantities)
+        vol = br.exact_volume(node, quantities)
+        xmin, xmax, ymin, ymax, zmin, zmax = br.bounding_box(node, quantities)
+        return valid, float(vol), (xmax - xmin, ymax - ymin, zmax - zmin)
+    solid = csg_to_solid(node, quantities)
+    valid = bool(_kernel_call(solid, "isValid", node.kind))
+    brep_volume = float(_kernel_call(solid, "Volume", node.kind))
+    bb = _kernel_call(solid, "BoundingBox", node.kind)
+    brep_extent = (bb.xmax - bb.xmin, bb.ymax - bb.ymin, bb.zmax - bb.zmin)
+    return valid, brep_volume, brep_extent
 
 
 def verify_geometry(
@@ -66,13 +85,10 @@ def verify_geometry(
     analytic value (equal when that is exact, inside the provable ``[lower, upper]`` bracket
     otherwise), and its bounding box agrees with the analytic AABB on every axis (isclose when
     that box is provably tight, containment when it is only a sound superset — e.g. after a
-    non-quarter-turn rotation). Deterministic. Raises GeometryError (via brep.py) if cadquery
-    is absent or the CSG is malformed, and for an OCCT kernel call that crashes (guarded,
-    with context — never a raw kernel exception).
+    non-quarter-turn rotation). Deterministic. Raises GeometryError (via brep.py / bridge)
+    if the CAD kernel path is unavailable or the CSG is malformed.
     """
-    solid = csg_to_solid(node, quantities)
-    valid = bool(_kernel_call(solid, "isValid", node.kind))
-    brep_volume = float(_kernel_call(solid, "Volume", node.kind))
+    valid, brep_volume, brep_extent = _brep_measures(node, quantities)
     nonzero = brep_volume > abs_tol
     analytic = volume_of(node, quantities)
     analytic_box = aabb_of(node, quantities)
@@ -100,9 +116,6 @@ def verify_geometry(
         upper_ok = brep_volume <= analytic.value + abs_tol + rel_tol * abs(analytic.value)
         lower_ok = brep_volume >= analytic.lower - abs_tol - rel_tol * abs(analytic.lower)
         volume_ok = upper_ok and lower_ok
-
-    bb = _kernel_call(solid, "BoundingBox", node.kind)
-    brep_extent = (bb.xmax - bb.xmin, bb.ymax - bb.ymin, bb.zmax - bb.zmin)
     if analytic_box.exact:
         # the analytic box is provably tight -> the kernel must reproduce it
         extent_ok = all(

@@ -126,6 +126,33 @@ def montecarlo_uncertainty_check(
     return out
 
 
+def montecarlo_product_check(
+    a: float,
+    u_a: float,
+    b: float,
+    u_b: float,
+    *,
+    n_samples: int = 200,
+    seed: int = 0,
+    coverage: float = 0.95,
+    max_rel_std: float | None = 0.25,
+) -> dict:
+    """Auto-selectable MC screen for the product y = a·b (self-improve gap close).
+
+    Full arbitrary-formula MC stays callable via :func:`montecarlo_uncertainty_check`.
+    This flat-arg form matches CheckRecipe float inputs for δ auto-select.
+    """
+    return montecarlo_uncertainty_check(
+        "a*b",
+        {"a": float(a), "b": float(b)},
+        {"a": float(u_a), "b": float(u_b)},
+        n_samples=n_samples,
+        seed=seed,
+        coverage=coverage,
+        max_rel_std=max_rel_std,
+    )
+
+
 def vacuum_radiation_balance_check(
     absorbed_solar_w: float,
     epsilon: float,
@@ -281,6 +308,8 @@ VALIDATORS = {
     "joint_swing_torque": joint_swing_torque_check,
     # uncertainty — Monte Carlo propagation (JCGM 101 style screen)
     "montecarlo_uncertainty": montecarlo_uncertainty_check,
+    # flat-arg product form for CheckRecipe auto-select (gap close 2026-07-14)
+    "montecarlo_product": montecarlo_product_check,
 }
 
 

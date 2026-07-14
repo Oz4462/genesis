@@ -77,22 +77,32 @@ def test_geometry_less_spec_is_no_geometry_not_a_pass():
 
 
 def test_missing_kernel_is_unavailable_never_a_silent_pass(monkeypatch):
-    def _no_kernel():
+    """When both in-process cadquery and cad-venv bridge are gone, status is unavailable."""
+    import gen.brep
+    import gen.cad.cadquery_bridge as br
+    import gen.orientation
+
+    monkeypatch.setattr(gen.brep, "_in_process_cadquery", lambda: False)
+    monkeypatch.setattr(br, "cad_available", lambda: False)
+    monkeypatch.setattr(gen.orientation, "_in_process_cadquery", lambda: False)
+
+    def _boom(*_a, **_k):
         raise GeometryError("cadquery absent (simulated)")
 
-    import gen.brep
-    import gen.orientation
-    monkeypatch.setattr(gen.brep, "_require_cadquery", _no_kernel)
-    monkeypatch.setattr(gen.orientation, "_require_cadquery", _no_kernel)
+    monkeypatch.setattr(gen.orientation, "_bbox_and_mesh", _boom)
     p = assess_printability(_pocket_spec())
     assert p.status == "unavailable" and not p.ok
     assert any("nicht beurteilt" in a for a in p.advisories)
 
 
 def test_capstone_is_printable_with_elephant_foot_advisory():
-    pytest.importorskip("cadquery", reason="kernel printability needs cadquery/OCP")
+    # Kernel via in-process cadquery OR isolated cad-venv bridge
+    from gen.brep import _in_process_cadquery
+    from gen.cad.cadquery_bridge import cad_available
     from gen.demo import capstone_spec
 
+    if not (_in_process_cadquery() or cad_available()):
+        pytest.skip("needs cadquery in-process or GENESIS_CAD_PYTHON / .venv-cad")
     p = assess_printability(capstone_spec())
     assert p.ok and p.status == "needs_attention" and p.blockers == []
     assert p.mesh is not None and p.mesh["ok"] and p.mesh["genus"] == 1
@@ -103,7 +113,11 @@ def test_capstone_is_printable_with_elephant_foot_advisory():
 
 
 def test_bridgeable_ceiling_composes_to_zero_unsupported_overhang():
-    pytest.importorskip("cadquery", reason="kernel printability needs cadquery/OCP")
+    from gen.brep import _in_process_cadquery
+    from gen.cad.cadquery_bridge import cad_available
+
+    if not (_in_process_cadquery() or cad_available()):
+        pytest.skip("needs cadquery in-process or GENESIS_CAD_PYTHON / .venv-cad")
     p = assess_printability(_pocket_spec())
     (comp,) = p.components
     assert comp["overhang"]["overhang_area"] > 100.0    # the blanket rule flags ~8x16

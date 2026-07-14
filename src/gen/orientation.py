@@ -44,9 +44,42 @@ from __future__ import annotations
 
 import math
 
-from .brep import _require_cadquery, csg_to_solid
+from .brep import _in_process_cadquery, _require_cadquery, csg_to_solid
 from .core.state import GeometryNode, Quantity
 from .printability import FDM_BASE_CHAMFER_MM, FDM_MAX_BRIDGE_MM
+
+
+def _bbox_and_mesh(
+    node: GeometryNode,
+    quantities: dict[str, Quantity],
+    *,
+    tol: float,
+) -> tuple[tuple[float, float, float, float, float, float], list[tuple[float, float, float]], list[tuple[int, int, int]]]:
+    """Bounding box + tessellation via in-process OCCT or cad-venv bridge.
+
+    Returns ``((xmin,xmax,ymin,ymax,zmin,zmax), verts, tris)`` with plain floats.
+    """
+    if not _in_process_cadquery():
+        from .cad import cadquery_bridge as br
+
+        bb = br.bounding_box(node, quantities)
+        verts, tris = br.tessellate(node, quantities, tolerance=tol)
+        return bb, list(verts), list(tris)
+    _require_cadquery()
+    solid = csg_to_solid(node, quantities)
+    box = solid.BoundingBox()
+    bb = (
+        float(box.xmin),
+        float(box.xmax),
+        float(box.ymin),
+        float(box.ymax),
+        float(box.zmin),
+        float(box.zmax),
+    )
+    raw_v, raw_t = solid.tessellate(tol)
+    verts = [(float(p.x), float(p.y), float(p.z)) for p in raw_v]
+    tris = [(int(i), int(j), int(k)) for i, j, k in raw_t]
+    return bb, verts, tris
 
 
 def _unit(x: float, y: float, z: float) -> tuple[float, float, float]:
@@ -85,11 +118,11 @@ def overhang_check(
     means +Z is up. The support estimate is an upper bound because it counts the full
     column to the plate even where material sits below the overhang.
     """
-    _require_cadquery()  # clear error if OCP is missing
-    solid = csg_to_solid(node, quantities)
-    bb = solid.BoundingBox()
-    zmin = bb.zmin
-    extent = max(bb.xmax - bb.xmin, bb.ymax - bb.ymin, bb.zmax - bb.zmin)
+    # Probe extent first with a coarse mesh so tolerance scales with size
+    coarse_tol = 0.5
+    bb0, _, _ = _bbox_and_mesh(node, quantities, tol=coarse_tol)
+    zmin = bb0[4]
+    extent = max(bb0[1] - bb0[0], bb0[3] - bb0[2], bb0[5] - bb0[4])
     eps = extent * 1e-3 + 1e-9
     tol = tolerance if tolerance is not None else max(extent / 200.0, 1e-4)
     down = _unit(-build_dir[0], -build_dir[1], -build_dir[2])
@@ -97,7 +130,8 @@ def overhang_check(
         # a zero build direction would make every angle 90° -> never any support
         raise ValueError("build_dir must be non-zero")
 
-    verts, tris = solid.tessellate(tol)
+    bb, verts, tris = _bbox_and_mesh(node, quantities, tol=tol)
+    zmin = bb[4]
     if not tris:
         # same guard as first_layer_report/bridge_spans: zero triangles must never
         # read as "needs_support=False" — that would be a pass without geometry
@@ -107,12 +141,19 @@ def overhang_check(
     column_volume = 0.0
     for i, j, k in tris:
         a, b, c = verts[i], verts[j], verts[k]
-        cross = b.sub(a).cross(c.sub(a))
-        length = cross.Length
+        # cross product of edges (float tuples; no OCCT vectors)
+        ab = (b[0] - a[0], b[1] - a[1], b[2] - a[2])
+        ac = (c[0] - a[0], c[1] - a[1], c[2] - a[2])
+        cross = (
+            ab[1] * ac[2] - ab[2] * ac[1],
+            ab[2] * ac[0] - ab[0] * ac[2],
+            ab[0] * ac[1] - ab[1] * ac[0],
+        )
+        length = math.sqrt(cross[0] ** 2 + cross[1] ** 2 + cross[2] ** 2)
         if length < 1e-15:
             continue                                  # degenerate sliver
-        normal = (cross.x / length, cross.y / length, cross.z / length)
-        centroid_z = (a.z + b.z + c.z) / 3.0
+        normal = (cross[0] / length, cross[1] / length, cross[2] / length)
+        centroid_z = (a[2] + b[2] + c[2]) / 3.0
         phi = _angle_deg(normal, down)                # angle from straight-down
         if phi < max_overhang_deg and (centroid_z - zmin) > eps:
             area = 0.5 * length
@@ -151,16 +192,14 @@ def _mesh(node: GeometryNode, quantities: dict[str, Quantity],
     vertex-coordinate keys (exact tuples — adjacent OCCT face meshes share edge
     coordinates exactly, proven by the watertight STL topology test), outward
     normal, area, centroid height, min vertex height."""
-    _require_cadquery()
-    solid = csg_to_solid(node, quantities)
-    bb = solid.BoundingBox()
-    extent = max(bb.xmax - bb.xmin, bb.ymax - bb.ymin, bb.zmax - bb.zmin)
+    # Coarse bbox to scale tolerance, then full tessellation (in-process or bridge).
+    bb0, _, _ = _bbox_and_mesh(node, quantities, tol=0.5)
+    extent = max(bb0[1] - bb0[0], bb0[3] - bb0[2], bb0[5] - bb0[4])
     eps = extent * 1e-3 + 1e-9
     tol = tolerance if tolerance is not None else max(extent / 200.0, 1e-4)
     up = _unit(*build_dir)
 
-    verts, tris_idx = solid.tessellate(tol)
-    pos = [(p.x, p.y, p.z) for p in verts]
+    _bb, pos, tris_idx = _bbox_and_mesh(node, quantities, tol=tol)
     h = [p[0] * up[0] + p[1] * up[1] + p[2] * up[2] for p in pos]
     tris = []
     for i, j, k in tris_idx:

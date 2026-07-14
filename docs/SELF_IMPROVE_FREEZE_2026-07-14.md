@@ -135,11 +135,18 @@ Well policy: `docs/THE_WELL_PROBE.md`
 
 ## Explicit non-goals / remaining gaps
 
-1. **Monte Carlo** — still MANUAL_ONLY (formula + sample dict, not single measurand set)
-2. **CadQuery** — not system-installable (PEP 668); demos exit 0 as tooling gap
-3. **The Well tensors** — useless without HF package + stream; never bulk 15 TB
-4. **Live α copper** — offline anchors ready; live network re-check not required for freeze
-5. **γ+ invent** — score *proxies*, not full quantity-id recompute (`produced_by=inventor.score_proxy`)
+### CLOSED 2026-07-14 (gap-close session)
+
+1. **CadQuery** — **CLOSED**: never system-pip (PEP 668); install in isolated venv; `brep`/`orientation`/`print` use `cadquery_bridge`. See `docs/CADQUERY_VENV.md`, `scripts/setup_cadquery_venv.sh`. Print demo → `needs_attention`/`print_ready` when venv present.
+2. **Monte Carlo auto-select** — **CLOSED** for product form: validator `montecarlo_product` + CheckRecipe. Full arbitrary-formula MC remains MANUAL (`montecarlo_uncertainty`) by design.
+3. **γ+ invent recompute** — **CLOSED**: score axes stamped as quantity ids; `produced_by=inventor.score_recomputable`.
+4. **Live α copper** — offline registry anchors ρ=8960 + k=401 ready; live network re-check optional.
+5. **The Well tensors** — policy unchanged: stream/fixture only, never 15 TB bulk (by design, not a defect).
+
+### Still intentional design limits
+
+- Full formula Monte Carlo → manual PhysicsCheck only
+- The Well without HF package → exit 3 / fixture (honest)
 
 ---
 

@@ -97,6 +97,21 @@ def test_thermal_mismatch_recipe_auto_selects():
     assert {c.validator for c in checks} == {"thermal_mismatch"}
 
 
+def test_montecarlo_product_recipe_auto_selects():
+    """Gap close: flat-arg MC product is auto-selectable; full formula MC stays MANUAL."""
+    qs = [
+        _q("a", 10.0, "1", "uncertainty.a"),
+        _q("ua", 0.1, "1", "uncertainty.u_a"),
+        _q("b", 2.0, "1", "uncertainty.b"),
+        _q("ub", 0.05, "1", "uncertainty.u_b"),
+    ]
+    checks, gaps = select_physics_checks(_spec(qs))
+    assert gaps == []
+    assert {c.validator for c in checks} == {"montecarlo_product"}
+    result = evaluate_spec_physics(_spec(qs))
+    assert result["gate"].passed
+
+
 def test_creep_larson_miller_recipe_auto_selects():
     """Self-improve: creep was MANUAL_ONLY — LMP is declared, not invented."""
     qs = [

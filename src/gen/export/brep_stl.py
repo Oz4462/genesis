@@ -22,9 +22,9 @@ by the δ-DFM layers, not by this exporter.
 
 from __future__ import annotations
 
+from ..brep import _in_process_cadquery, csg_to_solid
 from ..core.errors import GeometryError
 from ..core.state import Quantity, Specification
-from ..brep import csg_to_solid
 
 
 def _facet(a, b, c) -> str | None:
@@ -48,6 +48,13 @@ def _facet(a, b, c) -> str | None:
     )
 
 
+def _stl_via_bridge(geometry, quantities: dict[str, Quantity], *, name: str, tolerance: float) -> str:
+    """Tessellate via isolated cad-venv (no in-process cadquery)."""
+    from ..cad import cadquery_bridge as br
+
+    return br.to_stl(geometry, quantities, name=name, tolerance=tolerance)
+
+
 def specification_to_brep_stl(spec: Specification, *, tolerance: float = 0.1) -> str:
     """Print-ready ASCII STL of every fabricated component, booleans evaluated on the
     OCCT kernel.
@@ -55,12 +62,28 @@ def specification_to_brep_stl(spec: Specification, *, tolerance: float = 0.1) ->
     All components' triangles are written into ONE ``solid`` block (slicers expect a
     single body per file by default; the capstone has one component). Deterministic for
     a fixed tolerance. Raises GeometryError if no component carries geometry, or (via
-    brep.py) when cadquery is absent or the CSG is malformed.
+    brep.py / cad bridge) when the CAD kernel path is unavailable or the CSG is malformed.
+
+    Without in-process cadquery, multi-component specs are exported per-component via the
+    bridge and concatenated only when there is exactly one geometric component (honest:
+    multi-body bridge fuse is not implemented — fall back would invent a merge).
     """
     quantities: dict[str, Quantity] = {q.id: q for q in spec.quantities}
     parts = [c for c in spec.components if c.geometry is not None]
     if not parts:
         raise GeometryError("no component with geometry to export")
+
+    if not _in_process_cadquery():
+        if len(parts) != 1:
+            raise GeometryError(
+                "multi-component BREP STL via cad-venv bridge needs one geometric "
+                "component (fuse-across-components is in-process OCCT only); "
+                "export each part with component_to_brep_stl or install cadquery "
+                "in the isolated venv and use a single-body design."
+            )
+        return _stl_via_bridge(
+            parts[0].geometry, quantities, name=spec.run_id, tolerance=tolerance
+        )
 
     chunks: list[str] = [f"solid genesis_{spec.run_id}\n"]
     n_facets = 0
@@ -83,8 +106,10 @@ def component_to_brep_stl(geometry, quantities: dict[str, Quantity], *,
     """Print-ready ASCII STL of ONE component's CSG, booleans evaluated on the OCCT kernel, as its own
     ``solid`` block — for multi-part ASSEMBLIES where each part is printed separately (one file per
     part), unlike ``specification_to_brep_stl`` which fuses every component into a single body. Same
-    tessellation and outward winding. Raises GeometryError if cadquery is absent, the CSG is malformed,
-    or the mesh is degenerate (no facets)."""
+    tessellation and outward winding. Uses the cad-venv bridge when cadquery is not in-process."""
+    if not _in_process_cadquery():
+        return _stl_via_bridge(geometry, quantities, name=name, tolerance=tolerance)
+
     solid = csg_to_solid(geometry, quantities)
     verts, tris = solid.tessellate(tolerance)
     chunks: list[str] = [f"solid genesis_{name}\n"]

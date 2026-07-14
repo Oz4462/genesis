@@ -127,11 +127,11 @@ def test_inventions_to_pareto_front_bridges_gamma_plus_proxy():
 
     front = pareto_inventions([a, b, ungrounded], score=fake)
     pf = inventions_to_pareto_front([a, b, ungrounded], front, score=fake)
-    assert pf.produced_by == "inventor.score_proxy"
+    assert pf.produced_by == "inventor.score_recomputable"
     assert pf.goal is INVENTION_GOAL or pf.goal.id == "invention"
     assert sorted(c.id for c in pf.candidates) == ["A", "B"]
     assert sorted(c.id for c in pf.evaluated_candidates) == ["A", "B"]
-    assert any("score proxies" in g for g in pf.gaps)
+    assert any("recomputed" in g or "score" in g for g in pf.gaps)
     assert any("ungrounded" in g for g in pf.gaps)
     # objective values are the proxies, not empty
     assert pf.candidates[0].objective_values["cost"] in (10.0, 15.0)

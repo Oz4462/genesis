@@ -2,11 +2,10 @@
 
 **Started:** 2026-07-13  
 **Stop condition:** user says stop  
-**Status:** **STOPPED** 2026-07-14 (user: loop stopp)  
-**Freeze tip:** `607b6bf`  
+**Status:** **STOPPED** 2026-07-14 (user: loop stopp); **gap-close follow-up** same day  
+**Freeze tip:** see `git log -1`  
 **Freeze report:** `docs/SELF_IMPROVE_FREEZE_2026-07-14.md`  
-**Final smoke:** PASS (121 pytest + 12 demos + invent-thermal + invent-thermal-al)
-
+**CadQuery:** `docs/CADQUERY_VENV.md` (PEP 668 + isolated venv + bridge)
 This file is the **living report**. When the loop stops, it is the source for the final detailed report.
 
 ---
@@ -364,5 +363,25 @@ e984d5c feat(self-improve loop): materials backend, α progress, print STL fallb
 - MANUAL_ONLY only `montecarlo_uncertainty`
 
 **Verify:** invent Al 2 grounded plate_k=205; Cu plate_k=401; 121 pytest smoke
+
+---
+
+---
+
+## Gap-close session (post-stopp) — CadQuery + remaining freeze gaps
+
+**Why CadQuery looked “uninstallable”:**
+1. **PEP 668** — system `pip install cadquery` is blocked (externally-managed Debian Python). Correct.
+2. **Main venv** — cadquery must not live next to GENESIS numpy (historical pin breakage).
+3. **Real product bug** — isolated `.venv-cad` *already had* cadquery, but `brep`/`orientation`/`print` used **in-process** `import cadquery` and never the bridge.
+
+**Closed:**
+- Wire `brep` / `export.brep_stl` / `orientation` / `geometry_verification` / `pipeline` print path through **cadquery_bridge** (volume, valid, interferes, stl, bbox, tessellate)
+- `docs/CADQUERY_VENV.md` + `scripts/setup_cadquery_venv.sh`
+- Print demo → `needs_attention` with real mesh when cad venv present
+- MC product CheckRecipe (`montecarlo_product`); full formula MC stays MANUAL
+- γ+ invent: stamped quantity ids → `inventor.score_recomputable`
+
+**Evidence:** `python3 -m gen --mode print --demo` → Status needs_attention, watertight mesh
 
 ---

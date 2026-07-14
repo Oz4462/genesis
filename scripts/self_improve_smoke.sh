@@ -41,7 +41,7 @@ echo "== invent thermal =="
 out=$(timeout 60 python3 -m gen --mode invent --demo "Kühlung für 1kW Chip" 2>&1) || true
 echo "$out" | grep -q "physik-verifiziert (δ-Physik-Gate)" || { echo "thermal invent missing gate line"; exit 1; }
 echo "$out" | grep -qE "Geerdet:[[:space:]]+[1-9]" || { echo "thermal invent expected >=1 grounded"; echo "$out"; exit 1; }
-echo "$out" | grep -q "by=inventor.score_proxy" || { echo "thermal invent missing γ+ score_proxy"; echo "$out"; exit 1; }
+echo "$out" | grep -qE "by=inventor.score_(proxy|recomputable)" || { echo "thermal invent missing γ+ score front"; echo "$out"; exit 1; }
 echo "$out" | grep -q "plate_k=401" || { echo "thermal invent expected copper plate_k=401"; echo "$out"; exit 1; }
 echo "  invent-thermal OK"
 # Material-aware plate k (Al brief → registry aluminum k=205)
@@ -49,4 +49,14 @@ out_al=$(timeout 60 python3 -m gen --mode invent --demo "Kühlung Aluminium 1kW"
 echo "$out_al" | grep -qE "Geerdet:[[:space:]]+[1-9]" || { echo "Al thermal invent expected >=1 grounded"; echo "$out_al"; exit 1; }
 echo "$out_al" | grep -q "plate_k=205" || { echo "Al thermal invent expected plate_k=205"; echo "$out_al"; exit 1; }
 echo "  invent-thermal-al OK"
+# Cad-venv print path (skip if cad python missing — honest optional)
+if [[ -x "${GENESIS_CAD_PYTHON:-/home/genesis/.venv-cad/bin/python}" ]]; then
+  echo "== print via cad-venv =="
+  pout=$(timeout 120 python3 -m gen --mode print --demo 2>&1) || true
+  echo "$pout" | grep -qE "Status:[[:space:]]+(print_ready|needs_attention)" \
+    || { echo "print demo expected print_ready/needs_attention when cad venv present"; echo "$pout"; exit 1; }
+  echo "  print-cad OK"
+else
+  echo "== print via cad-venv SKIP (no GENESIS_CAD_PYTHON / .venv-cad) =="
+fi
 echo "SMOKE PASS"

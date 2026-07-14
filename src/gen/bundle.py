@@ -196,6 +196,10 @@ def emit_bundle(spec: Specification, out_dir: str | Path, *, tolerance: float = 
     # print-ready watertight STL — ONE file per printed component (an assembly prints part-by-part,
     # so each component gets its own mesh); needs the OCCT kernel, whose absence is reported honestly.
     if has_geometry:
+        import os
+
+        from .brep import _in_process_cadquery
+        from .cad.cadquery_bridge import cad_available
         from .core.errors import GeometryError
         from .export.brep_stl import component_to_brep_stl
         from .mesh_integrity import stl_integrity_check
@@ -203,23 +207,51 @@ def emit_bundle(spec: Specification, out_dir: str | Path, *, tolerance: float = 
         geom_comps = [c for c in spec.components if c.geometry is not None]
         single = len(geom_comps) == 1
         quantities = {q.id: q for q in spec.quantities}
-        for comp in geom_comps:  # one watertight STL per printed part; each failure recorded per part
-            fname = f"{base}.stl" if single else f"{base}__{comp.id}.stl"
-            try:
-                stl = component_to_brep_stl(comp.geometry, quantities, name=comp.id, tolerance=tolerance)
-                verdict = stl_integrity_check(stl)
-                if verdict["ok"]:
-                    (out / fname).write_text(stl, encoding="utf-8")
-                    written.append(fname)
-                else:
-                    missing.append(
-                        f"{fname}: Mesh-Integrität nicht bestanden — {'; '.join(verdict['issues'])}")
-            except GeometryError as exc:  # cadquery absent or malformed CSG — the .scad is the print source
+        # Multi-part assemblies via cad-venv bridge are slow (cold OCCT per part).
+        # Default: only emit BREP STLs in-process OR for single-body specs via bridge.
+        # Opt-in multi-part bridge: GENESIS_CAD_MULTIPART=1
+        multipart_bridge = os.environ.get("GENESIS_CAD_MULTIPART", "").strip() in (
+            "1",
+            "true",
+            "yes",
+        )
+        can_brep = _in_process_cadquery() or (
+            cad_available() and (single or multipart_bridge)
+        )
+        if not can_brep:
+            for comp in geom_comps:
+                fname = f"{base}.stl" if single else f"{base}__{comp.id}.stl"
                 missing.append(
-                    f"{fname}: watertight STL nicht erzeugt — {exc} "
-                    "(der OpenSCAD-Quellcode ist die Druckquelle, bis der OCCT-Kernel installiert ist)")
-            except Exception as exc:  # any other failure is recorded, never swallowed
-                missing.append(f"{fname}: unerwarteter Fehler — {type(exc).__name__}: {exc}")
+                    f"{fname}: watertight STL nicht erzeugt — multi-part cad-venv "
+                    "export skipped by default (set GENESIS_CAD_MULTIPART=1); "
+                    "OpenSCAD bleibt die Druckquelle"
+                )
+        else:
+            for comp in geom_comps:  # one watertight STL per printed part
+                fname = f"{base}.stl" if single else f"{base}__{comp.id}.stl"
+                try:
+                    stl = component_to_brep_stl(
+                        comp.geometry, quantities, name=comp.id, tolerance=tolerance
+                    )
+                    verdict = stl_integrity_check(stl)
+                    if verdict["ok"]:
+                        (out / fname).write_text(stl, encoding="utf-8")
+                        written.append(fname)
+                    else:
+                        missing.append(
+                            f"{fname}: Mesh-Integrität nicht bestanden — "
+                            f"{'; '.join(verdict['issues'])}"
+                        )
+                except GeometryError as exc:
+                    missing.append(
+                        f"{fname}: watertight STL nicht erzeugt — {exc} "
+                        "(der OpenSCAD-Quellcode ist die Druckquelle, bis der "
+                        "OCCT-Kernel installiert ist)"
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    missing.append(
+                        f"{fname}: unerwarteter Fehler — {type(exc).__name__}: {exc}"
+                    )
 
     # BOM + honest cost
     cost = bom_cost(spec)

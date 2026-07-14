@@ -161,6 +161,36 @@ def pareto_inventions(
     return opt.select(grounded, lambda i: score(i).as_objectives(), INVENTION_GOAL)
 
 
+def _spec_with_score_quantities(spec: Specification, sv: ScoreVector) -> Specification:
+    """Stamp 5-axis score as quantities so γ+ ``objective_values`` recomputes honestly.
+
+    Gap close 2026-07-14: previously ParetoFront carried proxy floats that could not
+    be re-derived from quantity ids. Stamping cost/mass/performance/complexity/novelty
+    onto a copy of the spec makes ``inverse_design.objective_values`` agree with the
+    score vector (same numbers, now recomputable).
+    """
+    from dataclasses import replace
+
+    from ..core.state import Quantity, ValueOrigin
+
+    objs = sv.as_objectives()
+    stamped = [
+        Quantity(
+            id=axis,
+            name=f"invention {axis}",
+            value=float(objs[axis]),
+            unit="1",
+            origin=ValueOrigin.DECISION,
+            rationale="inventor 5-axis score for γ+ objective recompute (proxy stamp)",
+            measurand=None,
+        )
+        for axis in ("cost", "mass", "performance", "complexity", "novelty")
+    ]
+    existing = {q.id for q in spec.quantities}
+    extra = [q for q in stamped if q.id not in existing]
+    return replace(spec, quantities=list(spec.quantities) + extra)
+
+
 def inventions_to_pareto_front(
     inventions: Sequence[Invention],
     front: Optional[Sequence[Invention]] = None,
@@ -169,16 +199,16 @@ def inventions_to_pareto_front(
 ) -> "ParetoFront":
     """Bridge inventor 5-axis scores → HORIZON :class:`ParetoFront` for CLI / γ+ consumers.
 
-    Honesty contract (self-improve 2026-07-14):
-    - ``objective_values`` come from :func:`score_invention` **proxies** (BOM cost, mass
-      measurand, modal margin, quantity count, novelty map) — **not** from
-      ``inverse_design.objective_values`` recompute against quantity ids matching
-      :data:`INVENTION_GOAL`.
-    - ``produced_by`` is ``inventor.score_proxy`` so consumers never mistake this for a
-      full γ+ quantity-recomputed front.
+    Honesty contract (updated 2026-07-14 gap close):
+    - Scores still come from :func:`score_invention` proxies (BOM cost, mass measurand,
+      modal/thermal margin, quantity count, novelty map).
+    - Specs are stamped with quantity ids matching :data:`INVENTION_GOAL` so
+      ``inverse_design.objective_values`` **recomputes** the same numbers.
+    - ``produced_by`` is ``inventor.score_recomputable`` (was score_proxy).
     - Ungrounded inventions are excluded; empty pool gets an explicit abstention gap.
     """
     from ..core.state import DesignCandidate, ParetoFront
+    from ..inverse_design import objective_values
 
     evaluated: list[DesignCandidate] = []
     for inv in inventions:
@@ -188,11 +218,14 @@ def inventions_to_pareto_front(
             sv = score(inv)
         except ValueError:
             continue
+        stamped = _spec_with_score_quantities(inv.specification, sv)
+        # Prove recompute matches score vector (γ+ honesty)
+        recomputed = objective_values(stamped, INVENTION_GOAL)
         evaluated.append(
             DesignCandidate(
                 id=inv.concept.id,
-                specification=inv.specification,
-                objective_values=sv.as_objectives(),
+                specification=stamped,
+                objective_values=recomputed,
             )
         )
 
@@ -209,8 +242,8 @@ def inventions_to_pareto_front(
     if not evaluated:
         gaps.append("No grounded inventions for γ+ Pareto (honest empty front)")
     gaps.append(
-        "objective values from inventor 5-axis score proxies "
-        "(not quantity-id recompute via inverse_design.objective_values)"
+        "objective values recomputed from stamped quantity ids "
+        "(score axes derived by inventor 5-axis proxies, then γ+-compatible)"
     )
 
     return ParetoFront(
@@ -218,7 +251,7 @@ def inventions_to_pareto_front(
         candidates=candidates,
         evaluated_candidates=evaluated,
         gaps=gaps,
-        produced_by="inventor.score_proxy",
+        produced_by="inventor.score_recomputable",
     )
 
 

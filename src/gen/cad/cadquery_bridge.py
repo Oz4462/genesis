@@ -180,6 +180,37 @@ def to_step(node: GeometryNode, quantities: dict[str, Quantity]) -> str:
                     "values": _resolved_values(quantities)}))
 
 
+def bounding_box(
+    node: GeometryNode, quantities: dict[str, Quantity]
+) -> tuple[float, float, float, float, float, float]:
+    """Axis-aligned bounding box of the solid: (xmin, xmax, ymin, ymax, zmin, zmax)."""
+    raw = _run(
+        {"op": "bbox", "node": _serialize(node), "values": _resolved_values(quantities)}
+    )
+    return tuple(float(x) for x in raw)  # type: ignore[return-value]
+
+
+def tessellate(
+    node: GeometryNode,
+    quantities: dict[str, Quantity],
+    *,
+    tolerance: float = 0.1,
+) -> tuple[list[tuple[float, float, float]], list[tuple[int, int, int]]]:
+    """Kernel tessellation as plain floats (verts, tris) for orientation/DFM without
+    importing OCCT into the main process (self-improve gap close 2026-07-14)."""
+    raw = _run(
+        {
+            "op": "tessellate",
+            "node": _serialize(node),
+            "values": _resolved_values(quantities),
+            "tolerance": tolerance,
+        }
+    )
+    verts = [tuple(float(c) for c in v) for v in raw["verts"]]
+    tris = [tuple(int(i) for i in t) for t in raw["tris"]]
+    return verts, tris  # type: ignore[return-value]
+
+
 __all__ = [
     "cad_python",
     "cad_available",
@@ -188,4 +219,6 @@ __all__ = [
     "interferes",
     "to_stl",
     "to_step",
+    "bounding_box",
+    "tessellate",
 ]
