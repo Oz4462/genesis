@@ -22,10 +22,10 @@
 
 ## Phase C — Realization Package (P1)
 
-- [ ] **C5** Full structured BOM (mech+elec) in realize package
-- [ ] **C6** Harness / placement / netlist section
-- [ ] **C7** Drawings non-stub or explicit drawing_gap
-- [ ] **C8** PRINTFORGE inventory = code truth
+- [x] **C5** Structured BOM mech+elec (`realization_package.py` + bom.json)
+- [x] **C6** Harness / placement / netlist (`harness_package.json`)
+- [x] **C7** Drawings index + explicit `drawing_gap`
+- [x] **C8** PRINTFORGE inventory = code truth
 
 ## Phase D — Live Knowledge (P1)
 
@@ -53,8 +53,8 @@
 
 ## Active sprint
 
-**Phase A complete (H1–H5). Phase B complete (C1–C4).**  
-**Now:** Phase C **C5** — structured BOM (mech+elec) in realize package
+**Phases A–C complete (H1–H5, C1–C8).**  
+**Now:** Phase D **W1** — SourceConnectorRegistry health / catalog CLI
 
 ## Definition of Done (every sprint)
 

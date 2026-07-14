@@ -57,7 +57,14 @@ def test_packager_produces_richer_package_with_bom_and_assembly():
     assert "SUMMARY.md" in files
     manifest = json.loads((pkg_path / "manifest.json").read_text())
     assert "bom" in manifest
-    assert len(manifest["bom"]) >= 1
+    # C5: structured BOM (dict with lines) — not a bare string list
+    bom = manifest["bom"]
+    assert isinstance(bom, dict), bom
+    assert bom.get("schema") == "genesis-bom-v1"
+    assert bom.get("counts", {}).get("mechanical", 0) >= 1
+    assert len(bom.get("lines") or []) >= 1
+    assert "bom.json" in files
+    assert "BOM.md" in files
     assert "costs" in manifest
     assert "test_plan" in manifest
     assert "assembly" in manifest
@@ -67,11 +74,16 @@ def test_packager_produces_richer_package_with_bom_and_assembly():
 
     # Realisierungspaket enrichment: drawings + regulatorik stubs + richer manifest
     assert "DRAWINGS.md" in files
+    assert "drawings.json" in files
     assert "REGULATORIK.md" in files
     assert "advanced_dfm" in manifest
     assert "drawings" in manifest
+    assert manifest.get("drawing_gap") is True
     assert "regulatorik" in manifest
     assert "open_gaps" in manifest
+    # C6 harness package
+    assert "harness_package.json" in files or "HARNESS.md" in files
+    assert "harness_package" in manifest
     # Schritt-9 #7 (verschärft): die Fertigungs-Naht muss ECHT sein. Vorher wurden
     # SystemConcept/IngenieurSpec ohne Pflichtfelder konstruiert → TypeError bei JEDEM
     # Aufruf, vom breiten except zu [{"note": "fertigungs skipped: ..."}] verschluckt —

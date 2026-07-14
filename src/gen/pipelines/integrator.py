@@ -297,12 +297,8 @@ def build_full_mini_realization_package(
     if asm.combined_stl and os.path.exists(asm.combined_stl):
         shutil.copy(asm.combined_stl, pkg_root / "assembly_combined.stl")
 
-    # BOM derived per fragment: each line carries the part name AND the idea it was synthesized from.
-    # The part name alone is a constant ("Jetpack Tether / Harness") for every fragment, so a BOM built
-    # from names only repeats the same string N times and hides which idea produced which part — a
-    # content facade. Tying each line to its fragment's source_idea makes the bill genuinely reflect the
-    # input (different ideas -> different lines), while the length still tracks the fragment count.
-    bom = [f"{f.cad_artifact.spec.name} — aus Idee: {f.source_idea}" for f in fragments]
+    # C5: structured BOM is assembled after electronics (mech + elec); placeholder until then.
+    bom: dict | list = []
     # costs stub
     costs = "Estimated TBD based on material/size from specs and assembly manifest"
     # testplan from safety/physiker
@@ -564,8 +560,20 @@ Real package dir: {pkg_root}
 """
     (pkg_root / "SUMMARY.md").write_text(summary, encoding="utf-8")
 
-    # Realisierungspaket complete stone: non-stub drawings, schaltplan, montage, enhanced regulatorik + costs (PLAN §1)
-    _generate_drawings_stub(pkg_root, fragments, asm, run_id)
+    # C7 drawings + schaltplan/montage/regulatorik (PLAN §1)
+    from .realization_package import (
+        assemble_package_bom,
+        build_drawings_section,
+        build_harness_section,
+        write_drawings_section,
+        write_harness_section,
+        write_package_bom,
+    )
+
+    drawings_section = build_drawings_section(
+        fragments, asm, run_id=run_id, pkg_name=package_name
+    )
+    write_drawings_section(pkg_root, drawings_section)
     _generate_schaltplan_stub(pkg_root, fragments, run_id)
     _generate_montage_stub(pkg_root, fragments, run_id)
     _generate_regulatorik_stub(pkg_root, fragments, dfm_reports, run_id)
@@ -573,6 +581,7 @@ Real package dir: {pkg_root}
 
     # Electronics full layer from agent deliverable (circuits, chips, sim, Einbau)
     # Integrated here for complete Realisierungspaket (mech + elec + co-sim)
+    elec_pieces: dict = {}
     try:
         elec_spec = map_to_elektriker_spec(
             last_concept, last_ingenieur, run_id=run_id
@@ -756,19 +765,51 @@ Real package dir: {pkg_root}
         manifest["electronics"] = (
             "stub (see Elektriker first stone; full layer in electronics.py)"
         )
+        elec_pieces = elec_pieces if isinstance(elec_pieces, dict) else {}
+
+    # C5 structured BOM (mech fragments + elec lines) + write bom.json / BOM.md
+    bom = assemble_package_bom(
+        fragments,
+        (elec_pieces or {}).get("electronic_bom"),
+        run_id=run_id,
+    )
+    write_package_bom(pkg_root, bom)
+    manifest["bom"] = bom
+    # Legacy string lines for older consumers
+    manifest["bom_legacy"] = [
+        f"{ln['name']} — aus Idee: {ln.get('source_idea')}"
+        for ln in bom.get("mechanical") or []
+    ]
+
+    # C6 harness / netlist / placement package section
+    harness_section = build_harness_section(elec_pieces or {}, run_id=run_id)
+    write_harness_section(pkg_root, harness_section)
+    manifest["harness_package"] = "harness_package.json"
+    manifest["harness_gaps"] = harness_section.get("gaps", [])
 
     # Enrich manifest with more artifacts
     manifest["drawings"] = "DRAWINGS.md"
+    manifest["drawings_json"] = "drawings.json"
+    manifest["drawing_gap"] = drawings_section.get("drawing_gap", True)
+    manifest["drawings_section"] = {
+        "schema": drawings_section.get("schema"),
+        "parts": len(drawings_section.get("parts") or []),
+        "drawing_gap": drawings_section.get("drawing_gap"),
+        "gaps": drawings_section.get("gaps"),
+    }
+    manifest["bom_file"] = "bom.json"
     manifest["schaltplan"] = "SCHALTPLAN.md"
     manifest["montage"] = "MONTAGEANLEITUNG.md"
     manifest["regulatorik"] = "REGULATORIK.md"
     manifest["software"] = "SOFTWARE_SPEC.md"
     manifest["open_gaps"] = [
         item for f in fragments for item in getattr(f, "open_luecken", [])
-    ] + ["full live costs from Wissensbasis (stubbed for now per user)"]
+    ] + list(bom.get("gaps") or []) + list(harness_section.get("gaps") or []) + list(
+        drawings_section.get("gaps") or []
+    ) + ["full live costs from Wissensbasis (stubbed for now per user)"]
 
     (pkg_root / "manifest.json").write_text(
-        json.dumps(manifest, indent=2), encoding="utf-8"
+        json.dumps(manifest, indent=2, default=str), encoding="utf-8"
     )
 
     # Persist full package summary to existing Wissensbasis (light use, not full deepening)
@@ -1292,38 +1333,11 @@ function exportSceneGLTF(){{ const g={{asset:{{version:'2.0',generator:'Genesis-
 
 
 def _generate_drawings_stub(pkg_root, fragments, asm, run_id):
-    """Deterministic package drawings sheet from real fragment geometry + STL refs.
+    """Backward-compatible wrapper — C7 uses realization_package.write_drawings_section."""
+    from .realization_package import build_drawings_section, write_drawings_section
 
-    Not full GD&T/PDF — honest package documentation derived from CAD fragments.
-    """
-    lines = ["# Drawings / Zeichnungen (Realisierungspaket)", ""]
-    lines.append("## Overview")
-    lines.append(f"Package: {pkg_root.name} | Run: {run_id}")
-    lines.append("See assembly_combined.stl and part STLs for geometry.")
-    lines.append("")
-    for i, f in enumerate(fragments):
-        cad = f.cad_artifact
-        lines.append(f"### Part {i}: {cad.spec.name}")
-        lines.append(f"- Description: {cad.spec.description}")
-        lines.append(f"- Bounding box hint (mm): {cad.spec.bounding_box_hint_mm}")
-        lines.append(f"- Min wall: {cad.spec.min_wall_thickness_mm} mm")
-        lines.append(f"- Volume est: {cad.volume_estimate_cm3} cm³")
-        lines.append(f"- STL: part_{i}_*.stl (see package)")
-        lines.append(
-            "Views: Isometric, Front, Top, Right (derive from STL in CAD tool)"
-        )
-        lines.append("Dimensions: See manifest BOM + DFM reports for critical.")
-        lines.append("")
-    lines.append("## Assembly Views")
-    lines.append("Main assembly: assembly_combined.stl")
-    lines.append("Tether/Recovery focus per Jetpack canon.")
-    lines.append("")
-    lines.append(
-        "**Scope:** this is a machine-generated package drawing index from CAD "
-        "fragments (bounding boxes, walls, volumes). Full 2D GD&T / DXF / PDF "
-        "drawings still require a CAD drafting step (export/ + build123d views)."
-    )
-    (pkg_root / "DRAWINGS.md").write_text("\n".join(lines), encoding="utf-8")
+    section = build_drawings_section(fragments, asm, run_id=run_id)
+    write_drawings_section(pkg_root, section)
 
 
 def _generate_regulatorik_stub(pkg_root, fragments, dfm_reports, run_id):
