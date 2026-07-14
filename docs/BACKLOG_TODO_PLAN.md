@@ -53,8 +53,8 @@
 
 ## Active sprint
 
-**Phase A complete (H1–H5).**  
-**Now:** Phase B **C1** — CNC ProcessDFM rules in `manufacturing_check`
+**Phase A complete (H1–H5). Phase B complete (C1–C4).**  
+**Now:** Phase C **C5** — structured BOM (mech+elec) in realize package
 
 ## Definition of Done (every sprint)
 
