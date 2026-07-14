@@ -61,6 +61,42 @@ def test_selects_applicable_checks_and_passes_the_gate():
     assert result["gate"].passed and len(result["checks"]) == 2 and result["gaps"] == []
 
 
+def test_plate_bending_and_contact_recipes_auto_select():
+    """Self-improve 2026-07-14: plate_bending + contact left MANUAL_ONLY → recipes."""
+    qs = [
+        _q("q", 0.1, "MPa", "plate.pressure"),
+        _q("R", 100.0, "mm", "plate.radius"),
+        _q("t", 5.0, "mm", "plate.thickness"),
+        _q("E", 210_000.0, "MPa", "material.elastic_modulus"),
+        _q("nu", 0.3, "1", "material.poisson_ratio"),
+        _q("sig_all", 100.0, "MPa", "material.allowable_stress"),
+        _q("pmax", 50.0, "MPa", "contact.max_pressure"),
+        _q("pall", 100.0, "MPa", "contact.allowable_pressure"),
+    ]
+    checks, gaps = select_physics_checks(_spec(qs))
+    assert gaps == []
+    assert {c.validator for c in checks} == {"plate_bending", "contact"}
+    result = evaluate_spec_physics(_spec(qs))
+    assert result["gate"].passed
+
+
+def test_thermal_mismatch_recipe_auto_selects():
+    qs = [
+        _q("e1", 70_000.0, "MPa", "bimaterial.e1"),
+        _q("a1", 100.0, "mm^2", "bimaterial.area1"),
+        _q("c1", 23e-6, "1/K", "bimaterial.cte1"),
+        _q("e2", 3500.0, "MPa", "bimaterial.e2"),
+        _q("a2", 100.0, "mm^2", "bimaterial.area2"),
+        _q("c2", 70e-6, "1/K", "bimaterial.cte2"),
+        _q("dt", 30.0, "K", "thermal.delta_t"),
+        _q("s1", 95.0, "MPa", "bimaterial.strength1"),
+        _q("s2", 50.0, "MPa", "bimaterial.strength2"),
+    ]
+    checks, gaps = select_physics_checks(_spec(qs))
+    assert gaps == []
+    assert {c.validator for c in checks} == {"thermal_mismatch"}
+
+
 def test_units_are_converted_soundly():
     # torque declared in N*m must reach the torsion validator as N*mm (x1000)
     checks, _ = select_physics_checks(_spec(_shaft_quantities()))

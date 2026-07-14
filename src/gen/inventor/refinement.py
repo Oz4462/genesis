@@ -108,4 +108,30 @@ def strengthening_schedule(*, start_hz: float = 30.0, step_hz: float = 40.0) -> 
     return schedule
 
 
-__all__ = ["InventionRefinement", "refine_invention", "strengthening_schedule", "ArchitectForRound"]
+def thermal_strengthening_schedule(
+    *,
+    start_k: float = 20.0,
+    step_k: float = 80.0,
+    chip_power_w: float = 1000.0,
+) -> ArchitectForRound:
+    """Offline regeneration for the thermal overtemperature gate: each round raises cold-plate k
+    (W/m·K) toward copper-class conductivity. A low start (e.g. steel/Ti order) fails δ; steps
+    clear the conduction margin. ``step_k=0`` models an unrepairable regenerator (stuck)."""
+    from .domains.thermal import scripted_thermal_architect
+
+    def schedule(rnd: int, _prev: Optional[Invention]) -> LLMClient:
+        return scripted_thermal_architect(
+            chip_power_w=chip_power_w,
+            plate_conductivity_w_mk=start_k + step_k * rnd,
+        )
+
+    return schedule
+
+
+__all__ = [
+    "InventionRefinement",
+    "refine_invention",
+    "strengthening_schedule",
+    "thermal_strengthening_schedule",
+    "ArchitectForRound",
+]

@@ -42,3 +42,14 @@ def test_steel_density_si_matches_handbook_midband():
 
     assert density_kg_m3("STEEL") == pytest.approx(7850.0)
     assert get_material("carbon_steel").name == "STEEL"
+
+
+def test_metals_have_grounded_thermal_conductivity():
+    """Self-improve 2026-07-14: k (W/m·K) for cold-plate / thermal invent path."""
+    from gen.materials import thermal_conductivity_w_mk
+
+    assert thermal_conductivity_w_mk("COPPER") == pytest.approx(401.0)
+    assert thermal_conductivity_w_mk("ALUMINUM") == pytest.approx(205.0)
+    assert thermal_conductivity_w_mk("STEEL") == pytest.approx(50.0)
+    assert get_material("PLA").thermal_conductivity_w_mk is not None
+    assert get_material("PLA").thermal_conductivity_w_mk < 1.0

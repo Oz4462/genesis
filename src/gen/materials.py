@@ -17,12 +17,17 @@ and is external. An unknown material RAISES — never a silently guessed propert
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass(frozen=True)
 class Material:
     """A material's nominal engineering properties WITH provenance. ``source`` is mandatory — a material
-    property without a citation is exactly the kind of anonymous constant this registry replaces."""
+    property without a citation is exactly the kind of anonymous constant this registry replaces.
+
+    ``thermal_conductivity_w_mk`` is optional (None = not claimed). When set, it is a nominal handbook
+    band for pure/typical grades — alloy and temperature dependence require a TDS (self-improve 2026-07-14).
+    """
 
     name: str
     youngs_modulus_mpa: float
@@ -30,17 +35,19 @@ class Material:
     yield_strength_mpa: float
     source: str
     note: str = "typical FDM value; confirm against the filament TDS for the actual print profile"
+    thermal_conductivity_w_mk: Optional[float] = None
 
 
 _TDS = "typical FDM datasheet range (printed-plastics references); nominal, not part-specific"
+_K_NOTE = "nominal handbook k (W/m·K) at ~room temp; alloy/temperature TDS required"
 
 #: Curated registry of common FDM materials. Values are widely-published typical ranges, each sourced.
 _FDM: dict[str, Material] = {
-    "PLA": Material("PLA", 3500.0, 1.24, 50.0, _TDS),
-    "PETG": Material("PETG", 2100.0, 1.27, 50.0, _TDS),
-    "ABS": Material("ABS", 2300.0, 1.04, 40.0, _TDS),
-    "PA": Material("PA", 2000.0, 1.14, 50.0, _TDS),         # nylon
-    "TPU": Material("TPU", 80.0, 1.21, 8.0, _TDS),          # flexible
+    "PLA": Material("PLA", 3500.0, 1.24, 50.0, _TDS, thermal_conductivity_w_mk=0.13),
+    "PETG": Material("PETG", 2100.0, 1.27, 50.0, _TDS, thermal_conductivity_w_mk=0.20),
+    "ABS": Material("ABS", 2300.0, 1.04, 40.0, _TDS, thermal_conductivity_w_mk=0.17),
+    "PA": Material("PA", 2000.0, 1.14, 50.0, _TDS, thermal_conductivity_w_mk=0.25),
+    "TPU": Material("TPU", 80.0, 1.21, 8.0, _TDS, thermal_conductivity_w_mk=0.19),
 }
 
 # Structural metals — nominal engineering handbook band (not part-specific).
@@ -60,6 +67,7 @@ _METALS: dict[str, Material] = {
         yield_strength_mpa=250.0,
         source=_METAL_SRC,
         note="nominal mild/structural steel; alloy-specific TDS required for certified design",
+        thermal_conductivity_w_mk=50.0,  # carbon steel ~45–60
     ),
     "MILD_STEEL": Material(
         "MILD_STEEL",
@@ -68,6 +76,7 @@ _METALS: dict[str, Material] = {
         yield_strength_mpa=250.0,
         source=_METAL_SRC,
         note="alias of STEEL (mild/structural)",
+        thermal_conductivity_w_mk=50.0,
     ),
     "ALUMINUM": Material(
         "ALUMINUM",
@@ -76,6 +85,7 @@ _METALS: dict[str, Material] = {
         yield_strength_mpa=95.0,  # 6061-T6 order of magnitude; TDS required
         source="nominal Al alloy handbook band (ρ≈2.70 g/cm³; E≈70 GPa); alloy TDS required",
         note="nominal aluminum alloy; grade-specific TDS required",
+        thermal_conductivity_w_mk=205.0,  # 6000-series order; pure Al higher
     ),
     "ALUMINIUM": Material(  # spelling alias
         "ALUMINIUM",
@@ -84,6 +94,7 @@ _METALS: dict[str, Material] = {
         yield_strength_mpa=95.0,
         source="nominal Al alloy handbook band (ρ≈2.70 g/cm³; E≈70 GPa); alloy TDS required",
         note="alias of ALUMINUM",
+        thermal_conductivity_w_mk=205.0,
     ),
     "COPPER": Material(
         "COPPER",
@@ -92,6 +103,7 @@ _METALS: dict[str, Material] = {
         yield_strength_mpa=70.0,  # annealed order; hard-drawn much higher — TDS required
         source="nominal pure copper handbook band (ρ≈8.96 g/cm³; E≈110 GPa); temper TDS required",
         note="nominal copper; temper-specific TDS required",
+        thermal_conductivity_w_mk=401.0,  # pure Cu ~400 W/m·K
     ),
     "TITANIUM": Material(
         "TITANIUM",
@@ -100,6 +112,7 @@ _METALS: dict[str, Material] = {
         yield_strength_mpa=140.0,  # commercially pure order; Ti-6Al-4V much higher
         source="nominal commercially pure Ti handbook band (ρ≈4.51 g/cm³); alloy TDS required",
         note="nominal CP titanium; alloy grade TDS required",
+        thermal_conductivity_w_mk=22.0,  # CP Ti low k
     ),
     "IRON": Material(
         "IRON",
@@ -108,6 +121,7 @@ _METALS: dict[str, Material] = {
         yield_strength_mpa=50.0,  # pure iron soft; structural uses steel grades
         source="nominal pure iron handbook band (ρ≈7.87 g/cm³; E≈200 GPa); grade TDS required",
         note="nominal pure iron — prefer STEEL for structural design",
+        thermal_conductivity_w_mk=80.0,
     ),
 }
 
@@ -138,3 +152,13 @@ def get_material(name: str) -> Material:
 def density_kg_m3(material_name: str) -> float:
     """Density in SI kg/m³ from the grounded registry (g/cm³ × 1000)."""
     return get_material(material_name).density_g_cm3 * 1000.0
+
+
+def thermal_conductivity_w_mk(material_name: str) -> float:
+    """Thermal conductivity in W/(m·K) from the registry. Raises if the material has no grounded k."""
+    mat = get_material(material_name)
+    if mat.thermal_conductivity_w_mk is None:
+        raise ValueError(
+            f"material {material_name!r} has no grounded thermal_conductivity_w_mk in the registry"
+        )
+    return float(mat.thermal_conductivity_w_mk)

@@ -62,6 +62,11 @@ class MaterialsBackend:
                 "streck",
                 "modulus",
                 "young",
+                "thermal",
+                "conductivity",
+                "wärmeleit",
+                "waermeleit",
+                "heat",
                 "material",
                 "steel",
                 "stahl",
@@ -101,6 +106,11 @@ class MaterialsBackend:
         out: list[SourceCandidate] = []
         for key in found[:limit]:
             mat = MATERIALS[key]
+            k_note = (
+                f"; k={mat.thermal_conductivity_w_mk:g} W/m·K"
+                if mat.thermal_conductivity_w_mk is not None
+                else ""
+            )
             out.append(
                 SourceCandidate(
                     url_or_id=f"gen-materials://{key}",
@@ -108,7 +118,7 @@ class MaterialsBackend:
                     backend=self.name,
                     relevance_note=(
                         f"Grounded handbook entry for {mat.name} "
-                        f"(ρ={mat.density_g_cm3} g/cm³); {mat.source[:80]}"
+                        f"(ρ={mat.density_g_cm3} g/cm³{k_note}); {mat.source[:80]}"
                     ),
                     fetched_ok=False,
                 )
@@ -127,16 +137,28 @@ def materials_claim_text(key: str, *, language: str = "en") -> tuple[str, str]:
     quote = mat.source.strip()
     if len(quote) < 12:
         quote = f"{mat.name} density_g_cm3={mat.density_g_cm3} source={mat.source}"
+    k_part_en = (
+        f" Nominal thermal conductivity is {mat.thermal_conductivity_w_mk:g} W/(m·K)."
+        if mat.thermal_conductivity_w_mk is not None
+        else ""
+    )
+    k_part_de = (
+        f" Nominelle Wärmeleitfähigkeit {mat.thermal_conductivity_w_mk:g} W/(m·K)."
+        if mat.thermal_conductivity_w_mk is not None
+        else ""
+    )
     if language == "de":
         text = (
             f"Die nominelle Dichte von {mat.name} im GENESIS-Materialregister "
-            f"beträgt {rho_kg:.0f} kg/m³ ({mat.density_g_cm3} g/cm³); "
+            f"beträgt {rho_kg:.0f} kg/m³ ({mat.density_g_cm3} g/cm³)."
+            f"{k_part_de} "
             f"Quelle: Registereintrag (nicht messwert-spezifisch)."
         )
     else:
         text = (
             f"The nominal density of {mat.name} in the GENESIS materials registry "
-            f"is {rho_kg:.0f} kg/m³ ({mat.density_g_cm3} g/cm³); "
+            f"is {rho_kg:.0f} kg/m³ ({mat.density_g_cm3} g/cm³)."
+            f"{k_part_en} "
             f"source: registry entry (handbook band, not part-specific)."
         )
     return text, quote[:200]

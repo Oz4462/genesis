@@ -46,12 +46,15 @@ def _materials_prior_art_docs() -> list[Document]:
     for key in ("STEEL", "ALUMINUM", "COPPER", "PLA", "PETG", "ABS"):
         m = MATERIALS[key]
         rho = density_kg_m3(key)
+        k = m.thermal_conductivity_w_mk
+        k_txt = f"; k={k:g} W/m·K" if k is not None else ""
         docs.append(
             Document(
                 url_or_id=f"gen-materials://{key}",
                 title=f"GENESIS materials registry: {m.name}",
                 text=(
-                    f"{m.name} nominal density {rho:.0f} kg/m3 ({m.density_g_cm3} g/cm3); "
+                    f"{m.name} nominal density {rho:.0f} kg/m3 ({m.density_g_cm3} g/cm3)"
+                    f"{k_txt}; "
                     f"Young modulus {m.youngs_modulus_mpa:g} MPa; yield {m.yield_strength_mpa:g} MPa. "
                     f"Source: {m.source}. Note: {m.note}"
                 ),

@@ -2668,8 +2668,15 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 live_note = "--live angefordert, aber 'claude' CLI nicht gefunden — Fallback offline (BLOCKED)"
 
+        # TE2 refine schedules: first ground uses a sound architect; on δ-fail the schedule
+        # strengthens the design (mechatronics: modal freq; thermal: plate k).
+        from .inventor.refinement import strengthening_schedule, thermal_strengthening_schedule
+
+        refine_schedule = None
+        max_refine = 3  # bounded; no-op when first ground already passes
         if is_thermal:
             architect = scripted_thermal_architect()
+            refine_schedule = thermal_strengthening_schedule(start_k=15.0, step_k=100.0)
             # Offline: RAG cooling + materials. Live: same + keyless OpenAlex (parity with mechatronics).
             if args.live:
                 from .tools.http import default_http_get
@@ -2682,6 +2689,7 @@ def main(argv: list[str] | None = None) -> int:
                 domain = ThermalDomain()
         else:
             architect = scripted_mechatronics_architect(first_natural_hz=150.0)
+            refine_schedule = strengthening_schedule(start_hz=30.0, step_hz=40.0)
             # Offline: RAG + materials. Live: same + keyless OpenAlex for real prior art.
             if args.live:
                 from .tools.http import default_http_get
@@ -2695,15 +2703,20 @@ def main(argv: list[str] | None = None) -> int:
         # Self-improve 2026-07-14: wire domain prior-art backends into novelty gate
         # (was never connected on CLI — materials/RAG search did nothing for invent).
         novelty_gate = build_novelty_gate(domain.prior_art_sources())
+        _invent_kw = dict(
+            domain=domain,
+            architect=architect,
+            safety_screen=safety_gate,
+            novelty_gate=novelty_gate,
+            architect_for_round=refine_schedule,
+            max_refine_rounds=max_refine,
+        )
         try:
             result = _asyncio.run(
                 run_invention(
                     brief,
-                    domain=domain,
                     council=council,
-                    architect=architect,
-                    safety_screen=safety_gate,
-                    novelty_gate=novelty_gate,
+                    **_invent_kw,
                 )
             )
         except GenesisError as exc:
@@ -2713,11 +2726,8 @@ def main(argv: list[str] | None = None) -> int:
             result = _asyncio.run(
                 run_invention(
                     brief,
-                    domain=domain,
                     council=scripted,
-                    architect=architect,
-                    safety_screen=safety_gate,
-                    novelty_gate=novelty_gate,
+                    **_invent_kw,
                 )
             )
 

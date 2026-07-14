@@ -60,22 +60,23 @@ def _materials_thermal_prior_art_docs() -> list[Document]:
     """Offline prior-art cards for cold-plate / heat-spreader materials (self-improve 2026-07-14).
 
     Thermal invent used RAG cooling papers only; mechatronics already had materials cards.
-    Copper/aluminum density + modulus anchors conduction-plate design without network.
+    Copper/aluminum density + modulus + k (W/m·K) anchor conduction-plate design without network.
     """
     docs: list[Document] = []
     for key in ("COPPER", "ALUMINUM", "STEEL", "TITANIUM"):
         m = MATERIALS[key]
         rho = density_kg_m3(key)
+        k = m.thermal_conductivity_w_mk
+        k_txt = f"thermal conductivity k={k:g} W/m·K (nominal handbook); " if k is not None else ""
         docs.append(
             Document(
                 url_or_id=f"gen-materials://{key}",
                 title=f"GENESIS materials registry (thermal): {m.name}",
                 text=(
                     f"{m.name} cold-plate / spreader material: density {rho:.0f} kg/m3 "
-                    f"({m.density_g_cm3} g/cm3); Young modulus {m.youngs_modulus_mpa:g} MPa; "
-                    f"yield {m.yield_strength_mpa:g} MPa. Source: {m.source}. Note: {m.note}. "
-                    f"Thermal conductivity k is NOT in this registry — conduction checks use "
-                    f"explicit architect quantities (plate_conductivity_w_mk), not invented k."
+                    f"({m.density_g_cm3} g/cm3); {k_txt}"
+                    f"Young modulus {m.youngs_modulus_mpa:g} MPa; "
+                    f"yield {m.yield_strength_mpa:g} MPa. Source: {m.source}. Note: {m.note}."
                 ),
             )
         )
@@ -117,7 +118,7 @@ class ThermalDomain:
 def scripted_thermal_architect(
     *,
     chip_power_w: float = 1000.0,
-    plate_conductivity_w_mk: float = 400.0,   # copper cold-plate base
+    plate_conductivity_w_mk: Optional[float] = None,  # default: registry COPPER k
     plate_area_mm2: float = 2500.0,           # 50 x 50 mm contact under the die spreader
     plate_thickness_mm: float = 3.0,          # conduction length, socket -> coolant channel
     coolant_temp_k: float = 323.15,           # 50 C high-temperature warm-water supply (the dry-rejection enabler)
@@ -130,15 +131,20 @@ def scripted_thermal_architect(
     coolant) keeps the junction far below its limit and PASSES; a too-thin/too-small plate (or too-low service
     limit) pushes the junction over the limit and the gate FAILS honestly — same machinery, two honest verdicts.
 
-    Honest gaps are declared on the spec: the loop heat balance, dry-cooler approach, heat-pump COP and water
-    balance are SYSTEM-level and have no validator — they are computed from cited sources, not δ-gated.
+    Default ``plate_conductivity_w_mk`` is the grounded COPPER registry k (self-improve 2026-07-14), not a
+    magic number. Honest gaps are declared on the spec: the loop heat balance, dry-cooler approach, heat-pump
+    COP and water balance are SYSTEM-level and have no validator — they are computed from cited sources, not δ-gated.
     """
+    if plate_conductivity_w_mk is None:
+        k_reg = MATERIALS["COPPER"].thermal_conductivity_w_mk
+        plate_conductivity_w_mk = float(k_reg) if k_reg is not None else 401.0
     quantities = [
         {"id": "q_power", "name": "Chip-Verlustleistung pro Cold-Plate", "value": chip_power_w, "unit": "W",
          "measurand": "thermal.power_dissipation", "grounding": list(grounding),
          "rationale": "TDP eines KI-Beschleuniger-Packages (Wärmelast am Cold-Plate)"},
         {"id": "q_k", "name": "Cold-Plate-Wärmeleitfähigkeit (Kupfer)", "value": plate_conductivity_w_mk,
-         "unit": "W/m/K", "measurand": "material.thermal_conductivity", "grounding": list(grounding)},
+         "unit": "W/m/K", "measurand": "material.thermal_conductivity",
+         "grounding": list(grounding) + ["gen-materials://COPPER"]},
         {"id": "q_area", "name": "Cold-Plate-Kontaktfläche", "value": plate_area_mm2, "unit": "mm^2",
          "measurand": "thermal.conduction_area", "rationale": "Grundfläche unter dem Die-Spreader"},
         {"id": "q_len", "name": "Cold-Plate-Basisdicke (Leitweg)", "value": plate_thickness_mm, "unit": "mm",

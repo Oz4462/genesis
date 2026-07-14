@@ -388,6 +388,49 @@ RECIPES: list[CheckRecipe] = [
             "max_service_temp": ("material.max_service_temp", "K"),
         },
     ),
+    # ---- plate bending (Kirchhoff circular) — self-improve 2026-07-14 left MANUAL_ONLY ----
+    # N-mm-MPa consistent with plate_bending.py (q, stress in MPa; R,t in mm; E in MPa).
+    CheckRecipe(
+        name="plate bending (circular Kirchhoff)",
+        validator="plate_bending",
+        trigger="plate.pressure",
+        inputs={
+            "pressure_q": ("plate.pressure", "MPa"),
+            "radius_R": ("plate.radius", "mm"),
+            "thickness_t": ("plate.thickness", "mm"),
+            "e_modulus": ("material.elastic_modulus", "MPa"),
+            "nu": ("material.poisson_ratio", "1"),
+            "allowable_stress": ("material.allowable_stress", "MPa"),
+        },
+        extra={"edge": "clamped"},
+    ),
+    # ---- Hertz/contact pressure screen ----
+    CheckRecipe(
+        name="contact pressure",
+        validator="contact",
+        trigger="contact.max_pressure",
+        inputs={
+            "max_pressure": ("contact.max_pressure", "MPa"),
+            "allowable_pressure": ("contact.allowable_pressure", "MPa"),
+        },
+    ),
+    # ---- thermal expansion mismatch (bonded parallel bars) ----
+    CheckRecipe(
+        name="thermal expansion mismatch (bonded bars)",
+        validator="thermal_mismatch",
+        trigger="thermal.delta_t",
+        inputs={
+            "e1": ("bimaterial.e1", "MPa"),
+            "area1": ("bimaterial.area1", "mm^2"),
+            "cte1": ("bimaterial.cte1", "1/K"),
+            "e2": ("bimaterial.e2", "MPa"),
+            "area2": ("bimaterial.area2", "mm^2"),
+            "cte2": ("bimaterial.cte2", "1/K"),
+            "delta_t": ("thermal.delta_t", "K"),
+            "strength1": ("bimaterial.strength1", "MPa"),
+            "strength2": ("bimaterial.strength2", "MPa"),
+        },
+    ),
     # ---- space multi-physics (vacuum radiation dominant, for habitats/radiators/TPS) ----
     CheckRecipe(
         name="vacuum radiation balance (space thermal)", validator="vacuum_radiation_balance",
@@ -446,16 +489,12 @@ RECIPES: list[CheckRecipe] = [
 #: WORK_QUEUE follow-up; remove an entry here the moment its recipe lands.
 MANUAL_ONLY_VALIDATORS: frozenset[str] = frozenset({
     "bolted_joint",
-    "contact",
+    # contact, plate_bending, thermal_mismatch: recipes landed 2026-07-14 (full-power self-improve)
     "creep",
-    "fracture",
-    # overtemperature: recipe landed 2026-07-14 (thermal invent / cold-plate conduction)
-    "plate_bending",
-    "thermal_mismatch",
+    "fracture",  # K_IC unit MPa*sqrt(mm) not yet in units.py parse table
     # Monte Carlo uncertainty is formula-driven (not a single measurand recipe)
     "montecarlo_uncertainty",
 })
-
 
 def _measurand_map(spec: Specification) -> dict[str, Quantity]:
     """Index a spec's quantities by their declared measurand (first wins; GATE γ C-17

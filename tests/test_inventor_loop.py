@@ -80,6 +80,28 @@ def test_checkpoint_hook_is_called_per_concept():
     assert seen == ["M1-c1", "M1-c2"]
 
 
+def test_refine_on_delta_fail_can_recover_mechatronics():
+    """Self-improve: TE2 refine_invention is wired into the loop — over-bold first
+    architect fails δ; strengthening schedule raises fn until the gate passes."""
+    from gen.inventor.refinement import strengthening_schedule
+
+    # First architect fails resonance (30 Hz < 50 Hz excitation)
+    result = run(
+        run_invention(
+            _brief(),
+            domain=MechatronicsDomain(),
+            council=scripted_council(_COUNCIL[:1]),  # one concept
+            architect=scripted_mechatronics_architect(first_natural_hz=30.0),
+            architect_for_round=strengthening_schedule(start_hz=30.0, step_hz=40.0),
+            max_refine_rounds=4,
+        )
+    )
+    assert result.grounded_count >= 1
+    assert result.front
+    assert result.front[0].physics_verified
+    assert any("refine converged" in g for g in result.front[0].gaps)
+
+
 def test_a_known_prior_art_concept_is_never_grounded_M2_dod():
     """M2 DoD: a concept that the novelty gate judges nicht_neu (a verbatim duplicate of retrieved prior art)
     is recorded with its verdict + evidence but NEVER grounded; only the novel concept reaches the front."""

@@ -2,6 +2,22 @@
 
 Causal log (self-improvement protocol). Newest first.
 
+## 2026-07-14 — full-power invent/thermal + MANUAL_ONLY recipes + TE2 wire
+
+- **Verdict:** VERIFIED
+- **Worked:**
+  - Registry `thermal_conductivity_w_mk` ends magic `400` in thermal architect
+  - `overtemperature` / `plate_bending` / `contact` / `thermal_mismatch` recipes auto-select from measurands
+  - TE2 `refine_invention` only helps when **wired into the invent loop** (tests alone ≠ product)
+  - Thermal invent: 0→2 grounded after overtemperature recipe; γ+ score_proxy attached
+- **Failed / friction:**
+  - fracture stays MANUAL_ONLY: `MPa*sqrt(mm)` not in units parse table
+  - First invent ground can pass while refine schedule never runs (OK — refine is fail-path only)
+- **Root cause:** Validators existed without CheckRecipe (same class as overtemperature vacuous δ); TE2 module orphaned from `run_invention`
+- **Mitigation:** recipe + remove from MANUAL_ONLY; loop hook `architect_for_round` + CLI schedules
+- **Lesson:** A validator without a measurand recipe is invisible to invent/spec δ — product looks "vacuous" while the math is fine. Optional modules (refine, novelty, materials backends) must be **CLI-wired** or they are dead code.
+- **Operators:** recipe-or-manual-only, wire-to-edge, registry-over-magic-number
+
 ## 2026-07-13 — full module sweep + live α grounding + self-improve
 
 - **Verdict:** VERIFIED (confidence 8/10) for crash/demo/live-verify path; PARTIAL for print/cadquery

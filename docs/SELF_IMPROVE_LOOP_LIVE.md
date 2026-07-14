@@ -301,3 +301,23 @@ e984d5c feat(self-improve loop): materials backend, α progress, print STL fallb
 **Verify:** SMOKE PASS — 71 pytest + 12 demos + invent-thermal OK
 
 ---
+
+## Iteration 17–18 — full-power: materials k + δ recipes + TE2 refine in loop (2026-07-14)
+
+**Friction:**
+1. Thermal k was a magic `400` in architect; registry had no thermal conductivity
+2. `plate_bending`, `contact`, `thermal_mismatch` still MANUAL_ONLY despite closed-form validators
+3. `refine_invention` (TE2) tested in evolve tests but **never wired** into `run_invention` / invent CLI
+
+**Done:**
+- `Material.thermal_conductivity_w_mk` (Cu 401, Al 205, steel 50, FDM ~0.1–0.25) + `thermal_conductivity_w_mk()`
+- Thermal architect defaults to registry COPPER k; prior-art cards include k
+- MaterialsBackend: conductivity tokens + k in relevance / claim text
+- CheckRecipes: plate bending, contact pressure, thermal mismatch (bonded bars)
+- `run_invention(..., architect_for_round=, max_refine_rounds=)` on δ-fail
+- `thermal_strengthening_schedule`; invent CLI max_refine=3 mechatronics+thermal
+- Tests: materials k, plate/contact/mismatch select, loop refine recovery
+
+**Verify:** 86 focused pytest; SMOKE PASS (73+ demos + invent-thermal)
+
+---

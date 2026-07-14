@@ -29,11 +29,13 @@ from .brief import Invention, InventionBrief
 from .domains.base import InventionDomain
 from .generate import generate_concepts
 from .novelty import NICHT_NEU, NoveltyVerdict
+from .refinement import ArchitectForRound, refine_invention
 from .score import inventions_to_pareto_front, pareto_inventions
 
 #: Optional hooks the later phases wire in. SafetyScreen runs on the brief BEFORE generation; NoveltyGate runs
 #: on each CONCEPT before grounding (a nicht_neu concept is never grounded); NoveltyCheck annotates a grounded
 #: invention; Checkpoint is called after each concept is processed (resume/audit).
+#: architect_for_round + max_refine_rounds: on δ-fail, bounded refine_invention (TE2) — never fakes pass.
 SafetyScreen = Callable[[InventionBrief], bool]
 NoveltyGate = Callable[[Possibility], Awaitable[NoveltyVerdict]]
 NoveltyCheck = Callable[[Invention], Invention]
@@ -75,10 +77,14 @@ async def run_invention(
     novelty_gate: Optional[NoveltyGate] = None,
     novelty_check: Optional[NoveltyCheck] = None,
     checkpoint: Optional[Checkpoint] = None,
+    architect_for_round: Optional[ArchitectForRound] = None,
+    max_refine_rounds: int = 0,
 ) -> InventionRun:
     """Run the loop end to end. Returns an :class:`InventionRun`. If ``safety_screen`` rejects the brief, the
     run is ``refused`` and the proposer is NEVER called (safety-first). If ``novelty_gate`` judges a concept
     ``nicht_neu``, it is recorded but NEVER grounded — known prior art does not become an invention (M2 DoD).
+    If first ground fails δ and ``architect_for_round`` + ``max_refine_rounds>=1`` are set, runs bounded
+    :func:`refine_invention` (self-improve 2026-07-14 — TE2 was tested but not wired into the loop).
     Deterministic given deterministic inputs — re-running yields an identical front. ``out_dir`` emits a bundle
     per front member under ``out_dir/<concept-id>/``."""
     if safety_screen is not None and not safety_screen(brief):
@@ -101,6 +107,27 @@ async def run_invention(
                 continue
 
         invention = await domain.ground(concept, brief, architect)
+        # Bounded TE2 refine on δ-fail (only when a regenerator schedule is injected).
+        if (
+            not invention.physics_verified
+            and architect_for_round is not None
+            and max_refine_rounds >= 1
+        ):
+            ref = await refine_invention(
+                concept,
+                brief,
+                domain,
+                architect_for_round,
+                max_rounds=max_refine_rounds,
+            )
+            invention = ref.invention
+            if ref.converged:
+                extra = (f"refine converged in {ref.rounds} round(s)",)
+            elif ref.stuck:
+                extra = (f"refine stuck after {ref.rounds} round(s) — identical δ failures",)
+            else:
+                extra = (f"refine exhausted budget ({ref.rounds} rounds) without δ pass",)
+            invention = dataclasses.replace(invention, gaps=tuple(dict.fromkeys((*invention.gaps, *extra))))
         if verdict is not None:
             merged = tuple(dict.fromkeys((*invention.prior_art,
                                           *( (verdict.nearest_prior_art,) if verdict.nearest_prior_art else () ))))

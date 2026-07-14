@@ -66,9 +66,16 @@ def test_thermal_invention_scores_conduction_margin_not_neutral_one():
     inv = run(dom.ground(concept, brief, scripted_thermal_architect()))
     assert inv.physics_verified
     sv = score_invention(inv)
-    # default copper plate: ΔT = 1000*0.003/(400*0.0025) = 3 K; peak=326.15; ratio≈1.144
+    # default copper plate: k from registry (~401); ΔT = P·L/(k·A); peak = amb+ΔT
+    from gen.materials import get_material
+    from gen.thermal import overtemperature_check
+
+    k = float(get_material("COPPER").thermal_conductivity_w_mk or 401.0)
+    ot = overtemperature_check(
+        1000.0, k, 0.0025, 0.003, ambient=323.15, max_service_temp=373.15
+    )
     assert sv.performance > 1.0
-    assert abs(sv.performance - 373.15 / 326.15) < 1e-6
+    assert abs(sv.performance - 373.15 / ot["peak_temp"]) < 1e-6
 
 
 def test_novelty_verdict_maps_into_the_score_when_present():
