@@ -137,6 +137,10 @@ _KNOWN_UNITS: dict[str, Dimension] = {
     # absorbed dose into an equivalent dose. Prefixes (mSv, µSv, kGy) now resolve
     # via the standard prefix branch instead of collapsing to opaque dimensions.
     "Sv": _DOSE_EQUIVALENT, "Gy": _DOSE_ABSORBED,
+    # Fracture toughness K_IC numeric values are MPa·√mm in GENESIS fracture.py.
+    # Integer exponent dimensions cannot represent √L, so KIc is a dedicated opaque
+    # atom (self-improve 2026-07-14): comparable only to itself — never laundered into Pa.
+    "KIc": _base("<KIc>"),
 }
 
 # SI prefixes -> (kept only to RECOGNIZE a prefixed unit; scale is irrelevant to
@@ -230,6 +234,8 @@ _ATOM_SCALE: dict[str, float] = {
     "m": 1.0, "g": 1e-3, "s": 1.0, "A": 1.0, "K": 1.0, "mol": 1.0, "cd": 1.0,
     "metre": 1.0, "meter": 1.0,
     "Sv": 1.0, "Gy": 1.0,  # radiation dose units (scale 1; for RADIATION domain mapping)
+    # KIc = MPa·√mm numerically in fracture.py; identity scale (opaque dim, no SI base)
+    "KIc": 1.0,
     "min": 60.0, "h": 3600.0, "hr": 3600.0, "day": 86400.0,
     "t": 1e3,                                   # tonne = 1000 kg
     "L_vol": 1e-3,                              # litre = 1e-3 m³

@@ -2740,6 +2740,16 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"  Pareto-Front (proxy):  {len(result.front)} nicht-dominierte Erfindung(en)"
         )
+        refined = [
+            inv
+            for inv in result.inventions
+            if any("refine" in g for g in inv.gaps)
+        ]
+        if refined:
+            print(
+                f"  TE2-Refine:    {len(refined)} Konzept(e) mit bounded δ-Feedback "
+                f"(max_rounds={max_refine})"
+            )
         for inv in result.front:
             nov = inv.novelty_verdict or "—"
             print(

@@ -97,6 +97,28 @@ def test_thermal_mismatch_recipe_auto_selects():
     assert {c.validator for c in checks} == {"thermal_mismatch"}
 
 
+def test_bolted_joint_and_fracture_recipes_auto_select():
+    """Self-improve: bolted_joint + fracture left MANUAL_ONLY → recipes (KIc opaque unit)."""
+    qs = [
+        _q("T", 10_000.0, "N*mm", "bolt.torque"),
+        _q("d", 10.0, "mm", "bolt.diameter"),
+        _q("At", 58.0, "mm^2", "bolt.tensile_area"),
+        _q("P", 2000.0, "N", "bolt.external_load"),
+        _q("kb", 200_000.0, "N/mm", "bolt.stiffness"),
+        _q("km", 200_000.0, "N/mm", "joint.member_stiffness"),
+        _q("Sp", 600.0, "MPa", "bolt.proof_strength"),
+        _q("sig", 100.0, "MPa", "fracture.applied_stress"),
+        _q("a", 1.0, "mm", "fracture.crack_length"),
+        # K_IC = 200 MPa·√mm → safe vs K = 1.12*100*sqrt(pi)≈198.5
+        _q("KIc", 400.0, "KIc", "material.fracture_toughness"),
+    ]
+    checks, gaps = select_physics_checks(_spec(qs))
+    assert gaps == []
+    assert {c.validator for c in checks} == {"bolted_joint", "fracture"}
+    result = evaluate_spec_physics(_spec(qs))
+    assert result["gate"].passed
+
+
 def test_units_are_converted_soundly():
     # torque declared in N*m must reach the torsion validator as N*mm (x1000)
     checks, _ = select_physics_checks(_spec(_shaft_quantities()))

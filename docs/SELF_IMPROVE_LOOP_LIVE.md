@@ -321,3 +321,15 @@ e984d5c feat(self-improve loop): materials backend, α progress, print STL fallb
 **Verify:** 86 focused pytest; SMOKE PASS (73+ demos + invent-thermal)
 
 ---
+
+## Iteration 19 — bolted_joint + fracture recipes + KIc unit (2026-07-14)
+
+**Done:**
+- CheckRecipes: `bolted_joint`, `fracture` (LEFM)
+- units: opaque atom `KIc` (MPa·√mm numerically) + scale 1.0 — integer exponents cannot express √L
+- invent CLI prints TE2-Refine line when any concept was refined
+- MANUAL_ONLY now only: `creep`, `montecarlo_uncertainty`
+
+**Verify:** physics_selection gate pass for bolt+fracture specs; SMOKE PASS
+
+---

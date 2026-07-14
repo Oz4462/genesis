@@ -431,6 +431,37 @@ RECIPES: list[CheckRecipe] = [
             "strength2": ("bimaterial.strength2", "MPa"),
         },
     ),
+    # ---- bolted joint preload / separation (Shigley / VDI 2230) ----
+    # N-mm-MPa consistent with bolted_joint.py. k_factor default 0.2 (as-received steel).
+    CheckRecipe(
+        name="bolted joint preload",
+        validator="bolted_joint",
+        trigger="bolt.torque",
+        inputs={
+            "torque": ("bolt.torque", "N*mm"),
+            "nominal_diameter": ("bolt.diameter", "mm"),
+            "tensile_stress_area": ("bolt.tensile_area", "mm^2"),
+            "external_load_P": ("bolt.external_load", "N"),
+            "bolt_stiffness_kb": ("bolt.stiffness", "N/mm"),
+            "member_stiffness_km": ("joint.member_stiffness", "N/mm"),
+            "proof_strength": ("bolt.proof_strength", "MPa"),
+        },
+        extra={"k_factor": 0.2},
+    ),
+    # ---- LEFM fracture (K = Y·σ·√(πa)); K_IC unit is opaque "KIc" (= MPa·√mm numerically) ----
+    # units.py integer exponents cannot express √mm; KIc is a dedicated opaque atom so
+    # values pass through without fake SI conversion (self-improve 2026-07-14).
+    CheckRecipe(
+        name="fracture (LEFM)",
+        validator="fracture",
+        trigger="fracture.applied_stress",
+        inputs={
+            "stress": ("fracture.applied_stress", "MPa"),
+            "crack_length_a": ("fracture.crack_length", "mm"),
+            "fracture_toughness_kic": ("material.fracture_toughness", "KIc"),
+        },
+        extra={"geometry_factor_y": 1.12},  # edge-crack default
+    ),
     # ---- space multi-physics (vacuum radiation dominant, for habitats/radiators/TPS) ----
     CheckRecipe(
         name="vacuum radiation balance (space thermal)", validator="vacuum_radiation_balance",
@@ -488,10 +519,8 @@ RECIPES: list[CheckRecipe] = [
 #: (Schritt-7-Review F2, 2026-07-04). Designing honest recipes for these is an open
 #: WORK_QUEUE follow-up; remove an entry here the moment its recipe lands.
 MANUAL_ONLY_VALIDATORS: frozenset[str] = frozenset({
-    "bolted_joint",
-    # contact, plate_bending, thermal_mismatch: recipes landed 2026-07-14 (full-power self-improve)
-    "creep",
-    "fracture",  # K_IC unit MPa*sqrt(mm) not yet in units.py parse table
+    # bolted_joint, contact, plate_bending, thermal_mismatch, fracture: recipes 2026-07-14
+    "creep",  # needs Larson-Miller parameter tables — no honest single-measurand set yet
     # Monte Carlo uncertainty is formula-driven (not a single measurand recipe)
     "montecarlo_uncertainty",
 })
