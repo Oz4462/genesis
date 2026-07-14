@@ -13,10 +13,13 @@ class GenesisError(Exception):
 
 
 class OmegaGateNotPassed(GenesisError):
-    """Raised when the Ω completion gate fails AND enforcement was requested
-    (``process_dream(..., enforce_omega=True)``). "Completion cannot hide a failed
-    gate" (HORIZON Ω / OM-4) — so an enforced Ω failure BLOCKS, it does not just log
-    (STATUS.md §1 #4)."""
+    """Raised when the Ω completion gate fails under enforcement.
+
+    Default: ``process_dream`` enforces Ω (``enforce_omega=True``). Opt out only for
+    partial demos via ``enforce_omega=False``. "Completion cannot hide a failed gate"
+    (HORIZON Ω / OM-4) — enforced Ω failure BLOCKS, it does not just log
+    (STATUS.md §1 #4 / HORIZON-COMPLETION).
+    """
 
     def __init__(self, run_id: str, failure_codes: list[str]) -> None:
         super().__init__(

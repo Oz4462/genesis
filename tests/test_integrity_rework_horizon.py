@@ -1,7 +1,8 @@
 """Integrity watchlist re-proof (REWORK 2026-07-11) — §1 #3 + #4.
 
 #3 lumen provenance claim is deterministic VERIFIED@1.0 (not fuzzy 0.92).
-#4 enforce_omega=True raises OmegaGateNotPassed when Ω fails/absent.
+#4 enforce_omega (default True) raises OmegaGateNotPassed when Ω fails/absent.
+   Opt-out enforce_omega=False remains for partial demos.
 """
 
 from __future__ import annotations
@@ -33,17 +34,7 @@ def test_enforce_omega_raises_when_omega_gate_fails(tmp_path, monkeypatch):
     lc = LumenCrucible()
     failed = SimpleNamespace(passed=False, failures=[SimpleNamespace(code="OMEGA_FAKE_FAIL")])
 
-    # Force the post-certs omega path to report a failed gate result.
-
-    real_process = lc.process_dream
-
-    def _wrap(*args, **kwargs):
-        kwargs = dict(kwargs)
-        kwargs.setdefault("work_queue_path", str(tmp_path / "wq.md"))
-        # Inject after normal flow by patching gate_omega inside process_dream's import path
-        return real_process(*args, **kwargs)
-
-    # Patch build path: make gate_omega return failed when enforce_omega True
+    # Patch build path: make gate_omega return failed under default enforcement
     import gen.omega as omega_mod
 
     monkeypatch.setattr(
@@ -66,16 +57,30 @@ def test_enforce_omega_raises_when_omega_gate_fails(tmp_path, monkeypatch):
             "steel bracket",
             run_id="int4-enforce",
             work_queue_path=str(tmp_path / "wq.md"),
-            enforce_omega=True,
+            # default enforce_omega=True
         )
     assert "OMEGA" in str(ei.value) or "int4-enforce" in str(ei.value)
 
 
-def test_enforce_omega_default_off_does_not_raise_on_weak_run(tmp_path):
-    # Default enforce_omega=False must never block weak-mode demos.
+def test_enforce_omega_default_on_succeeds_when_omega_passes(tmp_path):
+    """HORIZON-COMPLETION: default enforce_omega=True; normal dreams already pass Ω."""
     out = LumenCrucible().process_dream(
         "tiny idea",
-        run_id="int4-default",
+        run_id="int4-default-on",
+        work_queue_path=str(tmp_path / "wq.md"),
+    )
+    assert "hammer" in out
+    assert out.get("omega_gate") is None or out["omega_gate"].passed
+    assert out.get("teacher_notes") is not None
+    assert out.get("community_evidence") is not None
+    assert out["community_evidence"].get("user_data_required") is False
+
+
+def test_enforce_omega_opt_out_does_not_raise(tmp_path):
+    """Escape hatch for partial demos — explicit False must not block."""
+    out = LumenCrucible().process_dream(
+        "tiny idea",
+        run_id="int4-opt-out",
         work_queue_path=str(tmp_path / "wq.md"),
         enforce_omega=False,
     )

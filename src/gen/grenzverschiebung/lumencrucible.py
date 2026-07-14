@@ -4,8 +4,12 @@ Ergänzt das grenzverschiebung-Modul und den HORIZON-Bogen.
 Respektiert strikt GENESIS-Prinzipien: Gates (deterministisch, LLM-frei), Claims mit Provenance,
 OmegaCertificate + LearningNotes, keine reinen LLM-Urteile, 4 Linsen, reale Artefakte.
 
-Einstieg: process_dream(raw_dream) → erster "Hammer" (kleinster falsifizierbarer Teststand-Schritt)
-+ Omega-Zertifikat + Claim + verifizierbare Self-Improvement (WORK_QUEUE-Append).
+Einstieg: process_dream(raw_dream) → erster \"Hammer\" + Omega-Zertifikat + Claim
++ verifizierbare Self-Improvement (WORK_QUEUE-Append).
+
+HORIZON-COMPLETION: ``enforce_omega=True`` by default — failed/absent Ω blocks completion
+(OM-4: completion cannot hide a failed gate). Opt out only for partial demos via
+``enforce_omega=False``.
 
 Baut direkt auf:
 - grenzverschiebung.development_front.map_development_front
@@ -13,6 +17,10 @@ Baut direkt auf:
 - omega (OmegaCertificate, GateReceipt, LearningNote)
 - verification.gates (GateResult-ähnliche Strukturen)
 - reality (Phase δ⁺ Falsifikations-Experiment-Skizze als Hammer-Output)
+- readiness_ladder (TeacherMode + agent-sourced community_evidence)
+
+Council note (autonomous hardening): Ω enforcement default on; Teacher/Community caps
+attached; no pure LLM verdicts; full original return surface preserved.
 """
 
 from __future__ import annotations
@@ -167,7 +175,7 @@ class LumenCrucible:
         run_id: str | None = None,
         context: dict[str, Any] | None = None,
         work_queue_path: str = "WORK_QUEUE.md",
-        enforce_omega: bool = False,
+        enforce_omega: bool = True,  # HORIZON-COMPLETION: default on + mandatory
     ) -> dict[str, Any]:
         """Haupt-Einstieg. Respektiert HORIZON + bestehende Gates/Frontier/Omega/Claim.
 
@@ -178,6 +186,8 @@ class LumenCrucible:
         5. Self-Improvement (realer Append an WORK_QUEUE.md mit Provenance).
         6. Claim (Ledger-kompatibel).
         7. E2E HORIZON certs: guarded evaluate_reality + δ coverage (reviewed_failure_modes) + ε/ζ/Ω attach + subgates (smallest elaboration beyond skeleton).
+        8. HONEST Ω ENFORCEMENT (default): absent/failed Ω raises OmegaGateNotPassed.
+        9. TeacherMode + community_evidence (agent-sourced; user supplies no data).
         """
         if run_id is None:
             run_id = f"lumen-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
@@ -809,17 +819,20 @@ class LumenCrucible:
                 run_state.log.append("lumencrucible: Ω build/gate skipped (guarded)")
                 pass
 
-        # HONEST Ω ENFORCEMENT (STATUS.md §1 #4), opt-in via enforce_omega=True. Ω is the completion
-        # gate ("completion cannot hide a failed gate", OM-4): when asked to enforce, a failed/absent
-        # Ω must BLOCK, not just log. Placed OUTSIDE the guarded try so it actually propagates. Default
-        # off so the many process_dream callers are unaffected until reviewed-mode inputs (γ⁺ front,
-        # ζ recall) are rich enough to enforce by default.
+        # HONEST Ω ENFORCEMENT (STATUS.md §1 #4 / HORIZON-COMPLETION).
+        # Ω is the completion gate (OM-4: "completion cannot hide a failed gate").
+        # Default ON: failed/absent Ω must BLOCK, not just log. Placed OUTSIDE the guarded
+        # try so it actually propagates. Opt out only for partial demos: enforce_omega=False.
         if enforce_omega:
             _ores = locals().get("omega_res")
             if _ores is None or not getattr(_ores, "passed", False):
                 from ..core.errors import OmegaGateNotPassed
 
-                codes = [f.code for f in _ores.failures] if _ores is not None else ["OMEGA_NOT_RUN"]
+                codes = (
+                    [f.code for f in _ores.failures]
+                    if _ores is not None and getattr(_ores, "failures", None)
+                    else ["OMEGA_NOT_RUN"]
+                )
                 raise OmegaGateNotPassed(run_id or "?", codes)
 
         # Platform Caps deepen (autonom, no stop): TeacherMode + CommunityEvidence attached for Platform-Demo-Path
