@@ -115,10 +115,17 @@ def test_advanced_dfm_generic_fallback_honest_gaps():
 # — never a silent printable=True. Sources: Protolabs / Xometry / Fictiv CNC DFM.
 # These build a BuildArtifact directly: no CAD kernel needed, so they always run.
 
-def _artifact(name: str, bbox, wall: float, vol: float = 50.0):
+def _artifact(name: str, bbox, wall: float, vol: float = 50.0, *, material_hint: str = "unspecified alloy"):
+    """BuildArtifact helper. Default material_hint does NOT resolve to plastic/metal
+    (C1: default PrototypeSpec PLA would otherwise always take plastic CNC walls)."""
     from gen.cad.prototype_cad_builder import PrototypeSpec, BuildArtifact
-    spec = PrototypeSpec(name=name, description="cnc dfm test part",
-                         bounding_box_hint_mm=bbox, min_wall_thickness_mm=wall)
+    spec = PrototypeSpec(
+        name=name,
+        description="cnc dfm test part",
+        bounding_box_hint_mm=bbox,
+        min_wall_thickness_mm=wall,
+        material_hint=material_hint,
+    )
     return BuildArtifact(spec=spec, generated_code="", exports={}, dfm_report=[],
                          volume_estimate_cm3=vol)
 
@@ -218,6 +225,57 @@ def test_cnc_material_ambiguity_gap_only_where_material_changes_the_verdict():
     cnc2 = next(p for p in sub.processes if p.process == "CNC")
     assert cnc2.issues                                      # metal blocker present
     assert not any("passes metal" in g for g in cnc2.gaps)
+
+
+def test_c1_cnc_material_hint_selects_plastic_or_metal_wall_rules():
+    """C1: known material_hint picks plastic vs metal min-wall thresholds."""
+    from gen.cad.manufacturing_check import check_advanced_dfm
+    from gen.dfm import CNC_MIN_WALL_PLASTIC_MM, CNC_MIN_WALL_METAL_MM
+
+    # 1.2mm plastic → issue (needs 1.5)
+    pla = check_advanced_dfm(
+        _artifact("CNC PLA", (60, 50, 15), 1.2, material_hint="PLA filament stock")
+    )
+    cnc_pla = next(p for p in pla.processes if p.process == "CNC")
+    assert cnc_pla.details.get("material_class") == "plastic"
+    assert any(str(CNC_MIN_WALL_PLASTIC_MM) in i for i in cnc_pla.issues)
+    assert not any("material unspecified" in g for g in cnc_pla.gaps)
+
+    # 1.2mm aluminum → passes metal min 0.8, no plastic issue
+    alu = check_advanced_dfm(
+        _artifact("CNC Alu", (60, 50, 15), 1.2, material_hint="aluminum 6061")
+    )
+    cnc_alu = next(p for p in alu.processes if p.process == "CNC")
+    assert cnc_alu.details.get("material_class") == "metal"
+    assert cnc_alu.issues == []
+    assert not any("material unspecified" in g for g in cnc_alu.gaps)
+    assert CNC_MIN_WALL_METAL_MM  # sanity sourced constant
+
+
+def test_c2_pcb_layout_evaluates_real_rules():
+    """C2: pcb_layout summary can pass or fail standard-tier fab rules."""
+    from gen.cad.manufacturing_check import check_advanced_dfm
+
+    good = {
+        "min_trace_mm": 0.15,
+        "min_spacing_mm": 0.15,
+        "via_drill_mm": 0.3,
+        "annular_ring_mm": 0.15,
+        "copper_to_edge_mm": 0.35,
+        "board_thickness_mm": 1.6,
+    }
+    rep = check_advanced_dfm(_artifact("Board", (50, 40, 1.6), 1.6), pcb_layout=good)
+    pcb = next(p for p in rep.processes if p.process == "PCB")
+    assert pcb.details.get("evaluated") is True
+    assert pcb.issues == []
+    assert pcb.gaps == []
+    assert pcb.printable is True
+
+    bad = dict(good, min_trace_mm=0.05)
+    rep2 = check_advanced_dfm(_artifact("Board2", (50, 40, 1.6), 1.6), pcb_layout=bad)
+    pcb2 = next(p for p in rep2.processes if p.process == "PCB")
+    assert pcb2.issues
+    assert pcb2.printable is False
 
 
 # === Laser/sheet-DFM honesty stone (Teil 2, Stein 2, sourced rules) ===

@@ -26,6 +26,8 @@ Sources (FDM / FFF, verified 2026-06-11):
 
 from __future__ import annotations
 
+import math
+
 #: Standard FDM/FFF nozzle diameter [mm].
 FDM_NOZZLE_DIAMETER_MM = 0.4
 
@@ -113,6 +115,94 @@ def cnc_geometric_gaps() -> list[str]:
         f"≤ {CNC_HOLE_DEPTH_DIAMETER_MAX:.0f}:1 max) not evaluable — spec carries no "
         f"hole geometry",
     ]
+
+
+def resolve_cnc_material_class(hint: str | None) -> str | None:
+    """C1: map a free-text material hint to ``metal`` | ``plastic`` | None.
+
+    Used so CNC min-wall rules can pick the correct threshold instead of always
+    assuming metal and leaving a material-ambiguity gap. Returns None when the
+    hint does not name a known class (honest — no silent default class).
+    """
+    h = (hint or "").upper()
+    if not h.strip():
+        return None
+    metal_tokens = (
+        "STEEL", "STAINLESS", "ALUMINUM", "ALUMINIUM", "AL7075", "AL6061",
+        "TITANIUM", "TI6AL4V", "BRASS", "COPPER", "METAL", "IRON", "INCONEL",
+    )
+    plastic_tokens = (
+        "PLA", "PETG", "ABS", "ASA", "NYLON", "PA6", "PA12", "POM", "DELRIN",
+        "PEEK", "PC ", " POLYCARB", "PLASTIC", "POLYMER", "RESIN", "TPU",
+    )
+    if any(t in h for t in metal_tokens):
+        return "metal"
+    if any(t in h for t in plastic_tokens):
+        return "plastic"
+    return None
+
+
+def evaluate_cnc_wall(
+    wall_mm: float,
+    *,
+    material_class: str | None = None,
+) -> tuple[list[str], list[str], dict[str, object]]:
+    """C1: evaluate CNC min-wall rules with optional material class.
+
+    Returns ``(issues, gaps, details)``. Geometric rules remain gaps via
+    ``cnc_geometric_gaps()`` (caller merges). When material is known, the
+    material-ambiguity gap is NOT emitted.
+    """
+    issues: list[str] = []
+    gaps: list[str] = []
+    details: dict[str, object] = {
+        "material_class": material_class,
+        "min_wall_metal_mm": CNC_MIN_WALL_METAL_MM,
+        "min_wall_plastic_mm": CNC_MIN_WALL_PLASTIC_MM,
+        "source": CNC_DFM_SOURCE,
+    }
+    if not math.isfinite(wall_mm) or wall_mm <= 0:
+        gaps.append("CNC: wall thickness not specified or non-finite — min-wall rule not evaluable")
+        return issues, gaps, details
+
+    if material_class == "plastic":
+        floor = CNC_MIN_WALL_PLASTIC_MM
+        if wall_mm < floor:
+            issues.append(
+                f"CNC: wall {wall_mm}mm < {floor}mm recommended for plastic "
+                f"({CNC_DFM_SOURCE})"
+            )
+    elif material_class == "metal":
+        if wall_mm < CNC_MIN_WALL_METAL_FLOOR_MM:
+            issues.append(
+                f"CNC: wall {wall_mm}mm below vendor minimum feature "
+                f"~{CNC_MIN_WALL_METAL_FLOOR_MM}mm — needs EDM or special tooling "
+                f"({CNC_DFM_SOURCE})"
+            )
+        elif wall_mm < CNC_MIN_WALL_METAL_MM:
+            issues.append(
+                f"CNC: wall {wall_mm}mm < {CNC_MIN_WALL_METAL_MM}mm recommended for metal "
+                f"(conservative advisory) ({CNC_DFM_SOURCE})"
+            )
+    else:
+        # Unknown material: most-permissive metal floor as hard fail; plastic ambiguity gap.
+        if wall_mm < CNC_MIN_WALL_METAL_FLOOR_MM:
+            issues.append(
+                f"CNC: wall {wall_mm}mm below vendor minimum feature "
+                f"~{CNC_MIN_WALL_METAL_FLOOR_MM}mm — needs EDM or special tooling "
+                f"({CNC_DFM_SOURCE})"
+            )
+        elif wall_mm < CNC_MIN_WALL_METAL_MM:
+            issues.append(
+                f"CNC: wall {wall_mm}mm < {CNC_MIN_WALL_METAL_MM}mm recommended for metal "
+                f"(conservative advisory) ({CNC_DFM_SOURCE})"
+            )
+        elif wall_mm < CNC_MIN_WALL_PLASTIC_MM:
+            gaps.append(
+                f"CNC: material unspecified — wall {wall_mm}mm passes metal but a plastic "
+                f"part needs ≥ {CNC_MIN_WALL_PLASTIC_MM}mm; verdict assumes metal"
+            )
+    return issues, gaps, details
 
 
 # === Laser / sheet cutting DFM reference data ===
@@ -264,3 +354,110 @@ def pcb_dfm_gaps() -> list[str]:
         "PCB: trace width from current (IPC-2221) not evaluable — spec carries no "
         "net currents; real DRC needs a Gerber/KiCad layout (electronics-layer seam)",
     ]
+
+
+def evaluate_pcb_layout(layout: dict) -> tuple[list[str], list[str], dict[str, object]]:
+    """C2: evaluate PCB fab rules when a copper layout summary is provided.
+
+    Expected keys (all optional; missing keys stay as gaps):
+      min_trace_mm, min_spacing_mm, via_drill_mm, annular_ring_mm,
+      copper_to_edge_mm, board_thickness_mm, max_via_aspect
+
+    Returns ``(issues, gaps, details)``. With a full layout and all rules met,
+    issues and geometric gaps can be empty (printable candidate for standard tier).
+    """
+    issues: list[str] = []
+    gaps: list[str] = []
+    details: dict[str, object] = {
+        "evaluated": True,
+        "capability_tier": PCB_CAPABILITY_TIER,
+        "source": PCB_DFM_SOURCE,
+    }
+    if not isinstance(layout, dict) or not layout:
+        return [], pcb_dfm_gaps(), {"evaluated": False, "source": PCB_DFM_SOURCE}
+
+    def _num(key: str) -> float | None:
+        v = layout.get(key)
+        if v is None:
+            return None
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            gaps.append(f"PCB: {key} not a finite number")
+            return None
+        if not math.isfinite(f):
+            gaps.append(f"PCB: {key} not finite")
+            return None
+        return f
+
+    min_trace = _num("min_trace_mm")
+    min_spacing = _num("min_spacing_mm")
+    via_drill = _num("via_drill_mm")
+    annular = _num("annular_ring_mm")
+    cu_edge = _num("copper_to_edge_mm")
+    board_t = _num("board_thickness_mm")
+
+    if min_trace is None:
+        gaps.append(f"PCB: min_trace_mm not provided — cannot check ≥ {PCB_MIN_TRACE_MM}mm")
+    elif min_trace < PCB_MIN_TRACE_MM:
+        issues.append(
+            f"PCB: min trace {min_trace}mm < fab min {PCB_MIN_TRACE_MM}mm "
+            f"({PCB_CAPABILITY_TIER}; {PCB_DFM_SOURCE})"
+        )
+    details["min_trace_mm"] = min_trace
+
+    if min_spacing is None:
+        gaps.append(f"PCB: min_spacing_mm not provided — cannot check ≥ {PCB_MIN_SPACING_MM}mm")
+    elif min_spacing < PCB_MIN_SPACING_MM:
+        issues.append(
+            f"PCB: min spacing {min_spacing}mm < fab min {PCB_MIN_SPACING_MM}mm "
+            f"({PCB_DFM_SOURCE})"
+        )
+    details["min_spacing_mm"] = min_spacing
+
+    if via_drill is None:
+        gaps.append(f"PCB: via_drill_mm not provided — cannot check ≥ {PCB_MIN_VIA_DRILL_MM}mm")
+    else:
+        if via_drill < PCB_MIN_VIA_DRILL_MM:
+            issues.append(
+                f"PCB: via drill {via_drill}mm < technical min {PCB_MIN_VIA_DRILL_MM}mm "
+                f"({PCB_DFM_SOURCE})"
+            )
+        elif via_drill < PCB_RECOMMENDED_VIA_DRILL_MM:
+            gaps.append(
+                f"PCB: via drill {via_drill}mm < recommended {PCB_RECOMMENDED_VIA_DRILL_MM}mm "
+                f"(may incur surcharge)"
+            )
+        if board_t is not None and via_drill > 0:
+            aspect = board_t / via_drill
+            details["via_aspect_ratio"] = round(aspect, 3)
+            if aspect > PCB_MAX_VIA_ASPECT_RATIO:
+                issues.append(
+                    f"PCB: via aspect {aspect:.2f}:1 > max {PCB_MAX_VIA_ASPECT_RATIO:.0f}:1 "
+                    f"({PCB_DFM_SOURCE})"
+                )
+    details["via_drill_mm"] = via_drill
+
+    if annular is None:
+        gaps.append(
+            f"PCB: annular_ring_mm not provided — cannot check ≥ {PCB_MIN_ANNULAR_RING_MM}mm/side"
+        )
+    elif annular < PCB_MIN_ANNULAR_RING_MM:
+        issues.append(
+            f"PCB: annular ring {annular}mm < min {PCB_MIN_ANNULAR_RING_MM}mm/side "
+            f"({PCB_DFM_SOURCE})"
+        )
+    details["annular_ring_mm"] = annular
+
+    if cu_edge is None:
+        gaps.append(
+            f"PCB: copper_to_edge_mm not provided — cannot check ≥ {PCB_MIN_COPPER_TO_EDGE_MM}mm"
+        )
+    elif cu_edge < PCB_MIN_COPPER_TO_EDGE_MM:
+        issues.append(
+            f"PCB: copper-to-edge {cu_edge}mm < min {PCB_MIN_COPPER_TO_EDGE_MM}mm "
+            f"({PCB_DFM_SOURCE})"
+        )
+    details["copper_to_edge_mm"] = cu_edge
+
+    return issues, gaps, details

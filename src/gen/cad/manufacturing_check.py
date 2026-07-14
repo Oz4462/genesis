@@ -29,12 +29,13 @@ from gen.dfm import (
     FDM_MIN_WALL_MM,
     FDM_MIN_HOLE_DIAMETER_MM,
     CNC_MIN_WALL_METAL_MM,
-    CNC_MIN_WALL_METAL_FLOOR_MM,
     CNC_MIN_WALL_PLASTIC_MM,
     CNC_GENERAL_TOLERANCE_ISO2768,
     CNC_MAX_MILL_DEPTH_MM,
     CNC_DFM_SOURCE,
     cnc_geometric_gaps,
+    resolve_cnc_material_class,
+    evaluate_cnc_wall,
     LASER_MAX_THICKNESS_STEEL_MM,
     LASER_MAX_THICKNESS_STAINLESS_MM,
     LASER_MAX_THICKNESS_ALUMINUM_MM,
@@ -54,6 +55,7 @@ from gen.dfm import (
     PCB_DFM_SOURCE,
     ipc2221_trace_width_mm,
     pcb_dfm_gaps,
+    evaluate_pcb_layout,
 )
 
 
@@ -200,11 +202,15 @@ def check_advanced_dfm(
     *,
     run_id: str | None = None,
     max_printer_dim_mm: tuple[float, float, float] = (220.0, 220.0, 250.0),
+    pcb_layout: dict | None = None,
 ) -> AdvancedDFMReport:
     """
     Advanced DFM / Fertigungs depth.
-    Runs base manufacturing_check + dfm/printability rules + multi-process stubs.
+    Runs base manufacturing_check + dfm/printability rules + multi-process DFM.
     Real STL on disk used where possible.
+
+    C1: CNC wall rules use ``spec.material_hint`` when resolvable (metal/plastic).
+    C2: optional ``pcb_layout`` dict enables real PCB rule evaluation (else gaps).
     """
     base = check_manufacturing(artifact, run_id=run_id, max_printer_dim_mm=max_printer_dim_mm)
     name = artifact.spec.name
@@ -267,35 +273,13 @@ def check_advanced_dfm(
         qa_hints=["Visual + caliper on critical dims", "Pull test sample for layer strength"],
     ))
 
-    # CNC (subtractive milling) — sourced DFM rules (dfm.py). Only wall thickness
-    # is evaluable from the spec; the geometric rules (corner radius, pocket
-    # aspect, hole depth), the machine envelope (per-axis + material/machine-
-    # specific — Protolabs caps 3-axis depth at ~50.8mm/side, so a single
-    # bounding-box threshold would be dishonest), the unspecified material, and
-    # per-dimension tolerances are NOT evaluable here and are declared as gaps,
-    # never silently passed (necessary, not sufficient — same stance as FDM).
-    cnc_issues: list[str] = []
-    cnc_gaps: list[str] = []
-    if wall <= 0:
-        cnc_gaps.append("CNC: wall thickness not specified — min-wall rule not evaluable")
-    else:
-        if wall < CNC_MIN_WALL_METAL_FLOOR_MM:
-            cnc_issues.append(
-                f"CNC: wall {wall}mm below vendor minimum feature "
-                f"~{CNC_MIN_WALL_METAL_FLOOR_MM}mm — needs EDM or special tooling "
-                f"({CNC_DFM_SOURCE})")
-        elif wall < CNC_MIN_WALL_METAL_MM:
-            cnc_issues.append(
-                f"CNC: wall {wall}mm < {CNC_MIN_WALL_METAL_MM}mm recommended for metal "
-                f"(conservative advisory) ({CNC_DFM_SOURCE})")
-        # material is unspecified: the thresholds above use the most permissive
-        # material (metal). Only where a wall actually PASSES metal but would fail
-        # plastic does the material ambiguity change the verdict — declare it there
-        # (below 0.8mm the wall already fails metal, so 'passes metal' would be false).
-        elif wall < CNC_MIN_WALL_PLASTIC_MM:
-            cnc_gaps.append(
-                f"CNC: material unspecified — wall {wall}mm passes metal but a plastic "
-                f"part needs ≥ {CNC_MIN_WALL_PLASTIC_MM}mm; verdict assumes metal")
+    # CNC (subtractive milling) — C1 material-aware wall rules + geometric gaps.
+    # material_class from spec.material_hint when resolvable (metal/plastic).
+    mat_class = resolve_cnc_material_class(getattr(artifact.spec, "material_hint", None))
+    cnc_issues, cnc_wall_gaps, cnc_wall_details = evaluate_cnc_wall(
+        wall, material_class=mat_class
+    )
+    cnc_gaps: list[str] = list(cnc_wall_gaps)
     # envelope fit is per-axis + machine/material-specific — un-evaluable from the
     # bounding box alone; surfaced as a gap stating the part's extents + depth cap.
     bx, by, bz = artifact.spec.bounding_box_hint_mm
@@ -317,15 +301,16 @@ def check_advanced_dfm(
         issues=cnc_issues,
         gaps=cnc_gaps,
         details={
+            **cnc_wall_details,
             "min_wall_metal_mm": CNC_MIN_WALL_METAL_MM,
             "min_wall_plastic_mm": CNC_MIN_WALL_PLASTIC_MM,
             "general_tolerance_assumed": CNC_GENERAL_TOLERANCE_ISO2768,
+            "material_hint": getattr(artifact.spec, "material_hint", None),
             "source": CNC_DFM_SOURCE,
         },
-        cost_hint=None,  # no CNC cost model yet — separate stone (DOC_CODE_DRIFT §8)
+        cost_hint=None,  # C3 cost models
         qa_hints=["CMM on toleranced dims", "Surface-finish (Ra) check"],
     ))
-
     # Laser / sheet cutting — a 2D process on constant-thickness stock (dfm.py).
     # The governing quantity is the sheet thickness = the part's smallest extent.
     # Only thickness-vs-max is evaluable; the in-plane form, feature sizes vs
@@ -373,20 +358,14 @@ def check_advanced_dfm(
         cost_hint=None,  # no laser cost model yet — separate stone (DOC_CODE_DRIFT §8)
     ))
 
-    # PCB — a 2D COPPER layout, NOT a mechanical solid (dfm.py). The mechanical CAD
-    # artifact carries no copper geometry (traces/vias/nets), so NO PCB fab rule is
-    # evaluable from it: a real PCB DRC needs a routed layout (Gerber/KiCad) — the
-    # electronics-layer seam (electronics.py netlist/DRC). All rules are declared as
-    # gaps with sourced fab-capability references; never a silent/name-based pass.
-    pcb_gaps = pcb_dfm_gaps()
-    processes.append(ProcessDFM(
-        process="PCB",
-        printable=False,  # a PCB cannot be certified from a mechanical solid
-        issues=[],
-        gaps=pcb_gaps,
-        details={
-            # nothing here is measured from this artifact — these are reference fab
-            # capabilities, nested so a flat scan cannot misread them as board values.
+    # PCB — C2: with optional pcb_layout summary evaluate real fab rules; else all gaps.
+    if pcb_layout is not None:
+        pcb_issues, pcb_gaps, pcb_details = evaluate_pcb_layout(pcb_layout)
+        pcb_printable = not pcb_issues and not pcb_gaps
+        pcb_note = "PCB DFM from provided layout summary (C2)"
+    else:
+        pcb_issues, pcb_gaps = [], pcb_dfm_gaps()
+        pcb_details = {
             "evaluated": False,
             "capability_tier": PCB_CAPABILITY_TIER,
             "reference_capabilities": {
@@ -397,15 +376,22 @@ def check_advanced_dfm(
                 "recommended_via_drill_mm": PCB_RECOMMENDED_VIA_DRILL_MM,
                 "min_annular_ring_mm": PCB_MIN_ANNULAR_RING_MM,
                 "max_via_aspect_ratio": PCB_MAX_VIA_ASPECT_RATIO,
-                # a concrete IPC-2221 reference point (computed, sourced) — a guide,
-                # NOT this artifact's value (the spec carries no net currents).
                 "ipc2221_trace_1A_10C_1oz_mm": round(
                     ipc2221_trace_width_mm(1.0, 10.0, 1.0, external=True), 3),
             },
-            "note": "PCB DFM needs a routed layout (Gerber/KiCad); board path is electronics.py",
+            "note": "PCB DFM needs a routed layout (Gerber/KiCad) or pcb_layout=…",
             "source": PCB_DFM_SOURCE,
-        },
-        cost_hint=None,  # no PCB cost model yet — separate stone (DOC_CODE_DRIFT §8)
+        }
+        pcb_printable = False
+        pcb_note = "PCB DFM needs layout; board path is electronics.py or pcb_layout"
+    pcb_details.setdefault("note", pcb_note)
+    processes.append(ProcessDFM(
+        process="PCB",
+        printable=pcb_printable,
+        issues=pcb_issues,
+        gaps=pcb_gaps,
+        details=pcb_details,
+        cost_hint=None,
         qa_hints=["ERC/DRC on the real netlist", "impedance control if high-speed"],
     ))
 
