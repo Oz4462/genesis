@@ -2,7 +2,10 @@
 
 **Started:** 2026-07-13  
 **Stop condition:** user says stop  
-**Running tip:** see `git log -1`
+**Status:** **STOPPED** 2026-07-14 (user: loop stopp)  
+**Freeze tip:** `607b6bf`  
+**Freeze report:** `docs/SELF_IMPROVE_FREEZE_2026-07-14.md`  
+**Final smoke:** PASS (121 pytest + 12 demos + invent-thermal + invent-thermal-al)
 
 This file is the **living report**. When the loop stops, it is the source for the final detailed report.
 
