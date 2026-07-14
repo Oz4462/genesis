@@ -37,10 +37,10 @@
 
 ## Phase E — Simulation & Caps (P1/P2)
 
-- [ ] **S1** Caps surface matrix across CLI modes
-- [ ] **S2** Mini multi-physics co-sim receipt
-- [ ] **S3** mesh_convergence + more reference cases
-- [ ] **S4** Bundle MANIFEST caps honesty
+- [x] **S1** Caps matrix CLI `--mode caps` (`platform_caps.py`)
+- [x] **S2** Mini multi-physics receipt CLI `--mode multi-physics`
+- [x] **S3** More reference cases + synthetic mesh_series fixture
+- [x] **S4** Bundle MANIFEST caps fields (proof/readiness/teacher/community)
 
 ## Phase F — Cleanup (P2, continuous)
 

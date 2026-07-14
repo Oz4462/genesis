@@ -108,6 +108,15 @@ class BundleManifest:
     bought_parts: list[str]
     printed_share: float
     spec_gaps: list[str]
+    # S4: platform caps honesty (present/absent — never silent omit)
+    proof_package: str | None = None
+    readiness_level: str | None = None
+    teacher_notes_present: bool = False
+    community_score: float | None = None
+    community_agent_sourced: bool | None = None
+    user_data_required: bool | None = None
+    caps_present: dict | None = None
+    caps_gaps: list[str] | None = None
 
     @property
     def files_complete(self) -> bool:
@@ -271,6 +280,29 @@ def emit_bundle(spec: Specification, out_dir: str | Path, *, tolerance: float = 
     }, indent=2, ensure_ascii=False), encoding="utf-8")
     written.append("bom.json")
 
+    # S4: surface platform caps on MANIFEST (honest present/absent)
+    try:
+        from .platform_caps import extract_caps_snapshot
+
+        caps_snap = extract_caps_snapshot(assessment=assessment)
+        caps_dict = caps_snap.to_dict()
+    except Exception:  # noqa: BLE001
+        caps_dict = {
+            "proof_package": getattr(assessment, "proof_package", None),
+            "readiness_level": getattr(assessment, "readiness_level", None),
+            "teacher_present": bool(getattr(assessment, "teacher_notes", None)),
+            "community_score": None,
+            "community_agent_sourced": None,
+            "user_data_required": None,
+            "present": {},
+            "gaps": ["caps extract skipped"],
+        }
+        ce = getattr(assessment, "community_evidence", None) or {}
+        if isinstance(ce, dict):
+            caps_dict["community_score"] = ce.get("community_score")
+            caps_dict["community_agent_sourced"] = ce.get("agent_sourced")
+            caps_dict["user_data_required"] = ce.get("user_data_required")
+
     manifest = BundleManifest(
         out_dir=str(out),
         run_id=spec.run_id,
@@ -291,6 +323,14 @@ def emit_bundle(spec: Specification, out_dir: str | Path, *, tolerance: float = 
         bought_parts=split.bought,
         printed_share=round(split.printed_share, 4),
         spec_gaps=list(spec.gaps),
+        proof_package=caps_dict.get("proof_package"),
+        readiness_level=caps_dict.get("readiness_level"),
+        teacher_notes_present=bool(caps_dict.get("teacher_present")),
+        community_score=caps_dict.get("community_score"),
+        community_agent_sourced=caps_dict.get("community_agent_sourced"),
+        user_data_required=caps_dict.get("user_data_required"),
+        caps_present=caps_dict.get("present") or {},
+        caps_gaps=list(caps_dict.get("gaps") or []),
     )
     (out / "MANIFEST.json").write_text(
         json.dumps(asdict(manifest), indent=2, ensure_ascii=False), encoding="utf-8")

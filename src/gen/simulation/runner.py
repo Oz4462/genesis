@@ -701,6 +701,7 @@ def get_reference_cases() -> list[dict[str, Any]]:
 
     Deterministic, offline, no network. Each entry is a *reference*, not a measured
     run — callers that claim a design is verified must still pass independent δ gates.
+    S3: expanded set (structural + thermal + electrical order-of-magnitude).
     """
     return [
         {
@@ -721,7 +722,52 @@ def get_reference_cases() -> list[dict[str, Any]]:
             "formula": "T = 2π √(L/g)",
             "quelle": "Small-angle pendulum linearization",
         },
+        {
+            "name": "lumped_thermal_rc",
+            "domain": "thermal_steady",
+            "formula": "ΔT = P · R_th",
+            "quelle": "Lumped thermal resistance (electronics cooling order-of-magnitude)",
+        },
+        {
+            "name": "ohmic_power",
+            "domain": "electrical",
+            "formula": "P = I² · R",
+            "quelle": "Joule heating (circuit / trace loss order-of-magnitude)",
+        },
+        {
+            "name": "plate_bending_center_load",
+            "domain": "structural_linear",
+            "formula": "δ ∝ F·a² / (E·t³) (simply supported plate, center load — shape factor)",
+            "quelle": "Thin plate theory (Timoshenko / Roark order-of-magnitude)",
+        },
     ]
+
+
+def analytical_mesh_series_case(
+    *,
+    domain: str = "structural_linear",
+    predicted_value: float = 1.0,
+    relative_tol: float = 0.05,
+) -> SimulationCase:
+    """S3: synthetic multi-level mesh series that *converges* (for gate demos/tests).
+
+    Values approach ``predicted_value`` so relative change between last two levels
+    is below ``relative_tol``. Not a physical mesh study — a deterministic fixture.
+    """
+    # three levels: coarse → mid → fine; last two within relative_tol by construction
+    v_fine = float(predicted_value)
+    v_mid = float(predicted_value) * (1.0 + relative_tol * 0.5)  # rel change 0.5*tol
+    v_coarse = float(predicted_value) * (1.0 + relative_tol * 3.0)
+    return SimulationCase(
+        domain=domain,
+        description="S3 synthetic converging mesh_series fixture",
+        predicted_value=float(predicted_value),
+        predicted_unit="1",
+        tolerance=abs(predicted_value) * relative_tol + 1e-9,
+        inputs_summary={"mesh_series": [v_coarse, v_mid, v_fine]},
+        solver="synthetic_mesh_series",
+        quelle="simulation.runner.analytical_mesh_series_case",
+    )
 
 
 def mesh_convergence_gate(
@@ -812,6 +858,62 @@ try:
     from ..electronics import electronics_to_thermal_loads as _elec_to_thermal
 except Exception:  # noqa: BLE001
     _elec_to_thermal = None
+
+
+def multi_physics_receipt(
+    *,
+    power_w: float = 10.0,
+    r_th_k_per_w: float = 5.0,
+    force_n: float = 100.0,
+    length_m: float = 0.1,
+    e_pa: float = 70e9,
+    i_m4: float = 1e-8,
+    run_id: str | None = None,
+) -> dict[str, Any]:
+    """S2: mini multi-physics closed-loop *receipt* (elec power → thermal ΔT + beam tip).
+
+    Fully offline, deterministic, no LLM. Proves the co-design data flow with
+    closed-form physics (not a full FEM/SPICE stack). Returns provenance + values.
+    """
+    if not all(map(lambda x: x == x and x > 0, (power_w, r_th_k_per_w, length_m, e_pa, i_m4))):
+        raise ValueError("multi_physics_receipt: power, R_th, L, E, I must be finite > 0")
+    if force_n <= 0 or force_n != force_n:
+        raise ValueError("multi_physics_receipt: force_n must be finite > 0")
+
+    delta_t_k = power_w * r_th_k_per_w  # lumped thermal
+    tip_m = force_n * (length_m ** 3) / (3.0 * e_pa * i_m4)  # Euler–Bernoulli cantilever
+    return {
+        "schema": "genesis-multi-physics-receipt-v1",
+        "run_id": run_id or "multi-physics",
+        "electrical": {
+            "power_w": power_w,
+            "note": "dissipation treated as heat source (electronics→thermal seam)",
+        },
+        "thermal": {
+            "r_th_k_per_w": r_th_k_per_w,
+            "delta_t_k": delta_t_k,
+            "formula": "ΔT = P · R_th",
+            "reference": "lumped_thermal_rc",
+        },
+        "structural": {
+            "force_n": force_n,
+            "length_m": length_m,
+            "e_pa": e_pa,
+            "i_m4": i_m4,
+            "tip_deflection_m": tip_m,
+            "formula": "δ = F·L³ / (3·E·I)",
+            "reference": "euler_bernoulli_cantilever_tip",
+        },
+        "closed_loop": {
+            "note": "same run_id binds elec dissipation to thermal rise and a mechanical tip check",
+            "domains": ["electrical", "thermal", "structural"],
+        },
+        "gaps": [
+            "not a coupled multiphysics FEM; closed forms only",
+            "no control loop dynamics in this receipt",
+        ],
+        "quelle": "simulation.runner.multi_physics_receipt (S2)",
+    }
 
 
 def co_sim_with_electronics(

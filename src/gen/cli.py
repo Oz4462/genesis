@@ -1108,6 +1108,8 @@ def main(argv: list[str] | None = None) -> int:
             "surface",
             "well-probe",
             "sources",
+            "caps",
+            "multi-physics",
         ),
         default="report",
         help="report = Phase α facts; solution = Phase β solution space; "
@@ -1262,6 +1264,33 @@ def main(argv: list[str] | None = None) -> int:
         if getattr(args, "format", None) == "md" or os.environ.get("GENESIS_SOURCES_JSON") == "1":
             print("")
             print(_json.dumps(rep.to_dict(), indent=2, ensure_ascii=False))
+        return 0
+
+    if getattr(args, "mode", None) == "caps":
+        # S1: Platform caps surface matrix (proof / readiness / teacher / community)
+        import json as _json
+
+        from .platform_caps import caps_matrix_report, caps_matrix_text
+
+        print(caps_matrix_text())
+        if getattr(args, "format", None) == "md" or os.environ.get("GENESIS_CAPS_JSON") == "1":
+            print("")
+            print(_json.dumps(caps_matrix_report(), indent=2, ensure_ascii=False))
+        return 0
+
+    if getattr(args, "mode", None) == "multi-physics":
+        # S2: mini multi-physics receipt (elec→thermal + beam tip)
+        import json as _json
+
+        from .simulation.runner import multi_physics_receipt
+
+        rec = multi_physics_receipt(run_id="cli-multi-physics")
+        print("═══ GENESIS MULTI-PHYSICS RECEIPT ═══")
+        print(f"ΔT = {rec['thermal']['delta_t_k']:.4g} K  (P·R_th)")
+        print(f"tip = {rec['structural']['tip_deflection_m']:.4g} m  (F L³ / 3EI)")
+        print(f"domains: {rec['closed_loop']['domains']}")
+        print(f"gaps: {rec['gaps']}")
+        print(_json.dumps(rec, indent=2, ensure_ascii=False))
         return 0
 
     if getattr(args, "mode", None) == "goldset":
