@@ -14,6 +14,8 @@ python3 -m pytest \
   tests/test_inventor_score.py \
   tests/test_inventor_loop.py \
   tests/test_inventor_domains.py \
+  tests/test_physics_selection.py \
+  tests/test_physics_validation.py \
   -q
 echo "== CLI demos =="
 for m in research invent solve council structural humanoid aethon print bundle ideas dream well-probe; do

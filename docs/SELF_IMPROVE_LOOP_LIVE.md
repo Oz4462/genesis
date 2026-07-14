@@ -333,3 +333,14 @@ e984d5c feat(self-improve loop): materials backend, α progress, print STL fallb
 **Verify:** physics_selection gate pass for bolt+fracture specs; SMOKE PASS
 
 ---
+
+## Iteration 20 — smoke expands physics suite; MANUAL_ONLY near-empty (2026-07-14)
+
+**Done:**
+- Smoke pytest includes `test_physics_selection` + `test_physics_validation` (**119** passed)
+- Validator coverage: **44 recipes**, MANUAL_ONLY only `creep` + `montecarlo_uncertainty`
+- Copper hybrid anchors: ρ=8960 kg/m³, k=401 W/m·K via MaterialsBackend
+
+**Verify:** SMOKE PASS
+
+---

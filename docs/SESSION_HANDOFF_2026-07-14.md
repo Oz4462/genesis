@@ -1,20 +1,19 @@
-# Session Handoff — 2026-07-14 (self-improve continue)
+# Session Handoff — 2026-07-14 (full-power self-improve)
 
-**main tip:** see `git rev-parse HEAD`
+**main tip:** `git rev-parse HEAD` (see `49d24d4` … latest)
 
-## Done this session (continue)
+## Full-power batch (iters 14–20)
 
-- Invent CLI: **novelty_gate** wired (iter 13)
-- Invent **γ+ ParetoFront** attached via `inventor.score_proxy` (iter 14)
-- Thermal invent: **overtemperature** CheckRecipe (δ no longer vacuous)
-- Thermal prior-art: materials cards + MaterialsBackend + live OpenAlex
-- MaterialsBackend: metal name tokens in property gate
-- Full offline smoke green
-
-## The Well
-
-- Package not installed → catalog / fixture only (no tensors) — intentional
-- Docs: `docs/THE_WELL_PROBE.md`
+| Area | Result |
+|------|--------|
+| Invent γ+ | `pareto_front` via `inventor.score_proxy` |
+| Thermal δ | `overtemperature` recipe — invent Kühlung 2 grounded |
+| Thermal score | max_service/peak Fourier margin |
+| Materials k | Cu 401, Al 205, steel 50, FDM ~0.1–0.25 |
+| TE2 refine | wired into `run_invention` + invent CLI |
+| δ recipes | plate, contact, mismatch, bolt, fracture (+ overtemp) |
+| MANUAL_ONLY | only `creep`, `montecarlo_uncertainty` |
+| Smoke | 119 pytest + 12 demos + invent-thermal |
 
 ## Smoke
 
@@ -27,7 +26,9 @@ bash scripts/self_improve_smoke.sh
 
 `docs/SELF_IMPROVE_LOOP_LIVE.md`
 
-## Evidence (iter 14)
+## Still open (next friction)
 
-- invent --demo: γ+ `cands=2 evaluated=2 by=inventor.score_proxy`
-- invent thermal Kühlung: 2 grounded, δ overtemperature real
+- Creep recipe needs Larson-Miller tables (honest MANUAL_ONLY)
+- Monte Carlo remains formula-driven MANUAL_ONLY
+- Live α copper density (network) optional budget
+- CadQuery system install still blocked (PEP 668)
