@@ -57,13 +57,71 @@ def _measurand_value(spec: Specification, suffix: str, default: float) -> float:
     return default
 
 
-def _modal_margin(spec: Specification) -> float:
-    """Performance proxy for a mechatronic part: first_natural / excitation (a modal safety margin). 1.0 when
-    the resonance quantities are absent — neutral, not a claimed margin."""
+def _modal_margin(spec: Specification) -> Optional[float]:
+    """Performance proxy for a mechatronic part: first_natural / excitation. None when resonance
+    quantities are absent (so thermal scoring can take over — not a fake margin of 1.0)."""
     fn = _measurand_value(spec, "first_natural_frequency", default=0.0)
     ex = _measurand_value(spec, "excitation_frequency", default=0.0)
     if fn > 0.0 and ex > 0.0:
         return fn / ex
+    return None
+
+
+def _quantity_si(spec: Specification, measurand: str, unit: str) -> Optional[float]:
+    """Resolve one measurand to ``unit`` via the same scale table as physics_selection (or None)."""
+    from ..core.errors import UnitError
+    from ..verification.units import parse_unit, unit_scale
+
+    for q in spec.quantities:
+        if q.measurand != measurand:
+            continue
+        try:
+            if parse_unit(q.unit) != parse_unit(unit):
+                return None
+            scale_from, scale_to = unit_scale(q.unit), unit_scale(unit)
+        except UnitError:
+            return None
+        if scale_from is None or scale_to is None:
+            return None
+        return float(q.value) * scale_from / scale_to
+    return None
+
+
+def _thermal_margin_ratio(spec: Specification) -> Optional[float]:
+    """Performance proxy for cold-plate / conduction designs (self-improve 2026-07-14).
+
+    Recomputes the same Fourier path as ``overtemperature_check`` (ΔT = P·L/(k·A), peak =
+    ambient + ΔT) and returns ``max_service / peak`` (>1 safe). None when the overtemperature
+    measurand set is incomplete — never invents a favourable thermal score.
+    """
+    power = _quantity_si(spec, "thermal.power_dissipation", "W")
+    k = _quantity_si(spec, "material.thermal_conductivity", "W/m/K")
+    area = _quantity_si(spec, "thermal.conduction_area", "m^2")
+    length = _quantity_si(spec, "thermal.conduction_length", "m")
+    ambient = _quantity_si(spec, "thermal.ambient_temp", "K")
+    tmax = _quantity_si(spec, "material.max_service_temp", "K")
+    if any(v is None for v in (power, k, area, length, ambient, tmax)):
+        return None
+    assert power is not None and k is not None and area is not None
+    assert length is not None and ambient is not None and tmax is not None
+    if k <= 0.0 or area <= 0.0 or length <= 0.0:
+        return None
+    delta_t = power * length / (k * area)
+    peak = ambient + delta_t
+    if peak <= 0.0:
+        return None
+    return tmax / peak
+
+
+def _performance(spec: Specification) -> float:
+    """Domain-aware performance: modal margin if resonance quantities exist, else thermal
+    conduction margin ratio if overtemperature quantities exist, else neutral 1.0."""
+    modal = _modal_margin(spec)
+    if modal is not None:
+        return modal
+    thermal = _thermal_margin_ratio(spec)
+    if thermal is not None:
+        return thermal
     return 1.0
 
 
@@ -73,7 +131,8 @@ _NOVELTY_MAP = {"neuer_mechanismus": 1.0, "neu": 0.8, "inkrementell": 0.4, "nich
 def score_invention(inv: Invention, *, novelty: Optional[float] = None) -> ScoreVector:
     """Score a grounded invention on the five axes, deterministically. ``cost`` is a structural buildability
     proxy (number of BOM items, else components, else quantities — an HONEST proxy, not a priced cost);
-    ``mass`` reads a '.mass' measurand (neutral 1.0 if absent); ``performance`` is the modal margin;
+    ``mass`` reads a '.mass' measurand (neutral 1.0 if absent); ``performance`` is modal margin (mechatronics)
+    or thermal margin ratio max_service/peak (cold-plate), else neutral 1.0;
     ``complexity`` is the quantity count (parsimony); ``novelty`` is the explicit arg, else the mapped
     ``novelty_verdict``, else 0.5 (neutral — Phase N has not run). Raises ValueError if not grounded."""
     spec = inv.specification
@@ -81,7 +140,7 @@ def score_invention(inv: Invention, *, novelty: Optional[float] = None) -> Score
         raise ValueError("cannot score an ungrounded invention (no specification)")
     cost = float(len(spec.bom) or len(spec.components) or len(spec.quantities))
     mass = _measurand_value(spec, ".mass", default=1.0)
-    performance = _modal_margin(spec)
+    performance = _performance(spec)
     complexity = float(len(spec.quantities))
     if novelty is None:
         novelty = _NOVELTY_MAP.get(inv.novelty_verdict or "", 0.5)

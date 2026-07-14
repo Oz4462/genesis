@@ -48,6 +48,29 @@ def test_score_is_deterministic_with_honest_neutral_fallbacks():
     assert sv.complexity == 2.0           # two quantities
 
 
+def test_thermal_invention_scores_conduction_margin_not_neutral_one():
+    """Self-improve: cold-plate specs use overtemperature ratio max_service/peak, not fake 1.0."""
+    from gen.inventor.domains import ThermalDomain, scripted_thermal_architect
+
+    dom = ThermalDomain()
+    brief = InventionBrief(field="cooling", run_id="th")
+    concept = Possibility(
+        id="t1",
+        statement="copper cold plate",
+        mechanism="conduction",
+        grounding=["https://openalex.org/W-direct-to-chip"],
+        produced_by="council",
+        model="m",
+        created_at=_T0,
+    )
+    inv = run(dom.ground(concept, brief, scripted_thermal_architect()))
+    assert inv.physics_verified
+    sv = score_invention(inv)
+    # default copper plate: ΔT = 1000*0.003/(400*0.0025) = 3 K; peak=326.15; ratio≈1.144
+    assert sv.performance > 1.0
+    assert abs(sv.performance - 373.15 / 326.15) < 1e-6
+
+
 def test_novelty_verdict_maps_into_the_score_when_present():
     inv = dataclasses.replace(_grounded(), novelty_verdict="neuer_mechanismus")
     assert score_invention(inv).novelty == 1.0

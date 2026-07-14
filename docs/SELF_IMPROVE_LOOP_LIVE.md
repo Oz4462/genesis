@@ -278,3 +278,16 @@ e984d5c feat(self-improve loop): materials backend, α progress, print STL fallb
 - SMOKE PASS (47 pytest + 12 CLI)
 
 ---
+
+## Iteration 15 — thermal performance axis on 5-score (2026-07-14)
+
+**Friction:** Thermal invents scored `performance=1.0` (neutral) because only modal margin existed — γ+/Pareto could not rank better cold-plates.
+
+**Done:**
+- `_thermal_margin_ratio`: Fourier ΔT = P·L/(k·A), performance = max_service/peak (same path as overtemperature_check)
+- `_performance`: modal if resonance present, else thermal ratio, else neutral 1.0
+- Test: default copper plate ratio ≈ 373.15/326.15
+
+**Verify:** invent thermal still 2 grounded; score test green; SMOKE PASS
+
+---
