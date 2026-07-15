@@ -1,396 +1,323 @@
 <div align="center">
 
-# 🜔 GENESIS
+# GENESIS
 
 ### *Generative Engine for Networked Ideation, Synthesis & Specification*
 
-**Ein Mensch liefert eine Idee. GENESIS recherchiert, verifiziert, berechnet, simuliert — und liefert eine umsetzbare, belegte Spezifikation. Ohne Halluzination.**
+**A human brings an idea. GENESIS researches, verifies, computes, and packages a buildable, sourced specification — without inventing facts.**
 
 <br/>
 
+[![CI](https://github.com/Oz4462/genesis/actions/workflows/ci.yml/badge.svg)](https://github.com/Oz4462/genesis/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB?logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-2494%20collected%20(2026--07--12)-2ea44f)
-![Determinism](https://img.shields.io/badge/runs-deterministisch%20%C2%B7%20reproduzierbar-blue)
-![Offline](https://img.shields.io/badge/läuft-100%25%20lokal%20%C2%B7%20kein%20Cloud--Zwang-555)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
-![Status](https://img.shields.io/badge/Anti--Halluzination-Gate%20statt%20Vorschlag-critical)
+![Determinism](https://img.shields.io/badge/runs-deterministic%20%C2%B7%20reproducible-blue)
+![Offline](https://img.shields.io/badge/offline--first-no%20cloud%20required-555)
+![Anti-hallucination](https://img.shields.io/badge/anti--hallucination-gates%20not%20vibes-critical)
 
 <br/>
 
-> **Quellen statt Behauptungen · nachgerechnete Physik statt geratener Zahlen · ehrliche Lücken statt erfundener Antworten.**
+> **Sources over claims · recomputed physics over guessed numbers · honest gaps over invented answers.**
 
 </div>
 
 ---
 
 ```
-                          ┌─────────────────────────────────────────────┐
-   💡  Idee / Problem ───▶ │   G E N E S I S   ·   Verifizierer-als-Kern   │ ───▶  ✅  Belegte Lösung
-       Feld / Frage        │   kein Output ohne Quelle · Gate ist Gesetz   │       STL · BOM · Beweis · Gesetz
-                          └─────────────────────────────────────────────┘
+                     ┌──────────────────────────────────────────────────┐
+  💡 Idea / problem  │  G E N E S I S  ·  verifier at the core          │  ✅ Sourced output
+     field / question│  no fact without provenance · gates are law      │     STL · BOM · proof
+                     └──────────────────────────────────────────────────┘
 ```
 
-GENESIS ist eine **Anti-Halluzinations-Maschine**. Der Kern ist nicht der Generator, sondern der **Verifizierer**: jeder faktische Claim lebt in einem Ledger mit Quelle, Confidence und Verifikations-Status; jede Zahl wird nachgerechnet; jede Phase endet erst, wenn ihr **Gate** als harte Code-Bedingung bestanden ist. „Ich weiß es nicht" ist ein gültiger, erwünschter Output.
+GENESIS is an **anti-hallucination engine**. The center of gravity is not the generator — it is the **verifier**: every factual claim lives in a ledger with sources and status; every number is recomputed; every phase ends only when its **gate** (hard code, not a prompt) passes. *“I don’t know”* is a valid, preferred outcome.
+
+**Living product truth:** [`docs/STATUS.md`](docs/STATUS.md) · **Backlog:** [`docs/BACKLOG_TODO_PLAN.md`](docs/BACKLOG_TODO_PLAN.md) · **Deep report:** [`docs/SYSTEMATIC_BACKLOG_REPORT_2026-07-15.md`](docs/SYSTEMATIC_BACKLOG_REPORT_2026-07-15.md)
 
 ---
 
-## 📑 Inhalt
+## Contents
 
-- [Die drei Fähigkeiten](#-die-drei-fähigkeiten)
-- [Die Garantie (6 Kernprinzipien)](#-die-garantie-6-kernprinzipien)
+- [What’s new (2026-07)](#-whats-new-2026-07)
+- [Three capabilities](#-three-capabilities)
+- [Six guarantees](#-six-guarantees)
 - [Quickstart](#-quickstart)
-- [Der Erfindungs-Loop](#️-der-erfindungs-loop)
-- [Der Forschungs-Kern](#-der-forschungs-kern-entdecken--zertifizieren)
-- [Die Physik-Engine (Phase δ)](#-die-physik-engine-phase-δ)
-- [HORIZONT (φ → Ω)](#-horizont-φ--ω)
-- [CLI-Modi](#️-cli-modi)
-- [Externe Integration](#-externe-integration-interface-first--lizenz-diszipliniert)
-- [Determinismus & ehrliche Grenzen](#-determinismus--ehrliche-grenzen)
-- [Projektstruktur](#-projektstruktur)
-- [Installation](#-installation)
-- [Tests](#-tests)
-- [Lizenz](#-lizenz)
+- [CLI modes](#️-cli-modes)
+- [HORIZON arc (φ → Ω)](#-horizon-arc-φ--ω)
+- [Manufacturing & realization](#-manufacturing--realization)
+- [Knowledge & live sources](#-knowledge--live-sources)
+- [Invention & discovery](#️-invention--discovery)
+- [Install](#-install)
+- [Tests & CI](#-tests--ci)
+- [Project layout](#-project-layout)
+- [Honest limits](#-honest-limits)
+- [License](#-license)
 
 ---
 
-## 🧭 Die drei Fähigkeiten
+## ✨ What’s new (2026-07)
 
-GENESIS kann aus einer Idee drei Dinge machen — und lügt in keinem davon:
+A full **A→F campaign** closed major product seams. Highlights:
+
+| Area | Improvements |
+|------|----------------|
+| **HORIZON** | Subgates ε / ζ / γ⁺ / coverage / Ω actually attach (import split fix). **`enforce_omega=True` by default.** Ω receipts include all subgates. δ⁺ measurement fixtures for real corroboration; no fake readings. |
+| **Manufacturing** | Material-aware **CNC DFM**; optional **PCB layout** checks; **CNC/Laser cost ranges**; **face-mill GCode** + profile/pocket; CadQuery via **isolated venv bridge** (CI-safe). |
+| **Realization package** | Structured **BOM** (`genesis-bom-v1`, mech + elec); **harness / netlist / placement** section; **drawing index** with explicit `drawing_gap`. |
+| **Live knowledge** | `genesis --mode sources` connector catalog; agent-sourced **OpenAlex** community evidence (no user ledger); PatentsView **key-gated honestly**; ledger/vector status without overclaim. |
+| **Platform caps** | `genesis --mode caps` matrix; multi-physics receipt; bundle **MANIFEST** surfaces proof / readiness / teacher / community. |
+| **Learning loop** | Safety stages + boundary revisions extracted into learning deltas; `revise_with_learning` closes the loop without fake Grenztyp upgrades. |
+| **CI** | GitHub Actions green on **Python 3.11 + 3.12** (ruff + full pytest). |
+
+---
+
+## 🧭 Three capabilities
 
 ```mermaid
 flowchart LR
-    IDEA([💡 Idee · Problem · Feld]) --> ROUTER{{GENESIS}}
-    ROUTER -->|spezifizieren| SPEC["🏗️ <b>SPEZIFIZIEREN</b><br/>α Recherche → β Lösungsraum<br/>→ γ Spezifikation → δ Physik"]
-    ROUTER -->|entdecken| DISC["🔬 <b>ENTDECKEN</b><br/>SINDy · Beweis-Loop<br/>· T-Optimalität"]
-    ROUTER -->|erfinden| INV["⚙️ <b>ERFINDEN</b><br/>Council → Gate → Pareto<br/>→ Novelty → Safety"]
-    SPEC --> O1([✅ belegte Spezifikation<br/>STL · BOM · Bauanleitung])
-    DISC --> O2([✅ Gesetz / DGL<br/>+ Unsicherheit + Beweis])
-    INV --> O3([✅ geerdete Erfindung<br/>+ Quellen + Artefakt])
+    IDEA([💡 Idea · problem · field]) --> ROUTER{{GENESIS}}
+    ROUTER -->|specify| SPEC["🏗️ <b>SPECIFY</b><br/>α research → β options<br/>→ γ spec → δ physics"]
+    ROUTER -->|discover| DISC["🔬 <b>DISCOVER</b><br/>SINDy · proof loop<br/>· frontier families"]
+    ROUTER -->|invent| INV["⚙️ <b>INVENT</b><br/>council → gates → Pareto<br/>→ novelty → safety"]
+    SPEC --> O1([✅ sourced specification<br/>STL · BOM · build package])
+    DISC --> O2([✅ law / ODE<br/>+ uncertainty + proof label])
+    INV --> O3([✅ grounded invention<br/>+ sources + artifact])
     style ROUTER fill:#1f2937,color:#fff,stroke:#10b981,stroke-width:2px
     style SPEC fill:#0f766e,color:#fff
     style DISC fill:#6d28d9,color:#fff
     style INV fill:#b45309,color:#fff
 ```
 
-| | **Spezifizieren** | **Entdecken** | **Erfinden** |
+| | **Specify** | **Discover** | **Invent** |
 |---|---|---|---|
-| **Eingabe** | eine konkrete Idee | Messdaten / eine Vermutung | ein Feld oder Problem |
-| **Ausgabe** | druckfertige Spezifikation | ein Gesetz/eine DGL + Unsicherheit | eine neue, geerdete Erfindung |
-| **Gate** | δ-Physik + γ-Quellen | z3-Kernel / SINDy-Hygiene | δ-Physik + Novelty + Safety |
-| **Halluzination?** | ehrliche Lücke statt Erfindung | „Kandidat" statt „Satz" | über-kühnes Konzept wird abgelehnt |
+| **Input** | a concrete idea | data / a conjecture | a field or problem |
+| **Output** | buildable specification | law / ODE + uncertainty | grounded invention |
+| **Gate** | δ physics + γ sources | z3 / SINDy hygiene | δ + novelty + safety |
+| **If stuck** | honest gap | “candidate”, not “theorem” | refuse over-bold concepts |
 
 ---
 
-## 🛡️ Die Garantie (6 Kernprinzipien)
+## 🛡️ Six guarantees
 
-> Diese Prinzipien sind als **harte Code-Bedingungen** implementiert, nicht als Stilrichtlinie.
+Implemented as **hard code**, not style guidelines:
 
-1. **Kein faktischer Output ohne Quelle.** Code, der einen Claim ohne Ledger-Eintrag erzeugt, ist ein Bug — `Claim` ohne Quelle ist nicht konstruierbar.
-2. **Verifikation ist ein Gate, kein Vorschlag.** Eine Phase endet erst, wenn ihr Gate als harte Bedingung besteht.
-3. **Cross-Model.** Der Verifizierer (`skeptic`) nutzt ein anderes Modell als der Generator. Self-Check zählt nicht.
-4. **„Ich weiß es nicht" ist erwünscht.** Refusal/Abstention wird gemessen, nicht bestraft.
-5. **Determinismus.** Jeder Lauf hat eine `run_id`, ist gecheckpointet und aus Ledger + Config exakt reproduzierbar.
-6. **Stack-Agnostik.** Code gegen Interfaces (`core/interfaces.py`), nie gegen ein Framework. Externes lebt hinter Adaptern.
-
----
-
-## 🛠️ Development Process: Rigorous Coding Workflow + 12-Agent Council
-
-Genesis is built and evolved using a **self-improving, auditable meta-process** (the Rigorous Coding Workflow) that embodies the same anti-hallucination, gate-first, first-principles spirit at the meta level.
-
-- **4 Fitness Functions** (Simplicity, Security, Verification, Blast Radius) — every change must pass.
-- **Living Decision Records** with full provenance, alternatives, risks, and revisit triggers.
-- **12-Agent High-Intelligence Council** with mandatory specialization + autonomous research from real user failure reports (Reddit, GitHub, X...).
-- **Execution Verification** before "done", loop restraint, context fidelity, anti-bloat.
-- All governed by the same strict phases and Harness reviews.
-
-See the living [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) (added in this integration) for the complete audit trail, decisions, and ongoing evolution of the harness that powers reliable Genesis development.
-
-This meta-layer ensures that the complex, high-stakes Genesis system itself is developed with the same uncompromising standards it enforces on generated specs.
-
-> The builders of Genesis use the rigorous process so that Genesis can help all builders.
+1. **No factual output without a source.** A `Claim` without provenance cannot be constructed.
+2. **Verification is a gate, not a suggestion.** A phase ends only when its gate passes.
+3. **Cross-model by default.** Generator and skeptic use different model families when live.
+4. **Abstention is success.** Refusal is measured and preferred over fabrication.
+5. **Determinism.** Runs carry `run_id`, checkpoints, and reproducible offline demos.
+6. **Stack-agnostic core.** Code against `core/interfaces.py`; externals live behind adapters.
 
 ---
 
 ## 🚀 Quickstart
 
 ```bash
-# 1. Installieren (Kern ist rein numpy/sympy/scipy/mpmath — keine Cloud, kein GPU nötig)
-pip install -e ".[dev]"
+# 1. Core install (numpy/sympy/scipy/mpmath — offline, no GPU required)
+git clone https://github.com/Oz4462/genesis.git
+cd genesis
+python3.11 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev,smt]"
 
-# 2. Ein Gesetz aus simulierten Daten ENTDECKEN (SINDy + Hygiene + Unsicherheitsband)
+# 2. Discover a law from simulated data (SINDy + hygiene)
 genesis --mode discover-ode
-#   → θ̈ = -3.086·θ̇ - 54.48·sin(θ)   R²=1.000000   Dummy ausgeschlossen ✓
 
-# 3. Etwas ERFINDEN (offline-deterministisch; --live schaltet echte LLMs frei)
-genesis --mode invent "ein nachgiebiger Greifer"
-#   → 2 Konzepte → 2 physik-verifiziert → Pareto-Front + STL/BOM-Bundle
+# 3. Invent (offline-deterministic; add --live for real LLMs)
+genesis --mode invent "a compliant gripper"
 
-# 4. Eine Idee SPEZIFIZIEREN (Phase α → γ, hinter dem γ-Gate)
-genesis --mode spec "Eine rotierende Antriebswelle gegen Torsion und Whirl-Resonanz"
+# 4. Full HORIZON arc (dream → hammer → subgates → Ω enforced)
+genesis --mode horizon-full "steel bracket for 100 N"
 
-# 5. Einen mathematischen Satz prüfen (mpmath → SymPy → z3-Kernel)
-genesis --mode research "(x+1)**2|x**2+2*x+1"
-#   → Status: Satz   (kernel-geschlossen via z3 QF_NRA)
+# 5. Source connector health (OpenAlex, arXiv, patents key, ledger, vector)
+genesis --mode sources
+
+# 6. Platform caps matrix (proof / readiness / teacher / community)
+genesis --mode caps
+
+# 7. Mini multi-physics receipt (elec power → thermal ΔT + beam tip)
+genesis --mode multi-physics
 ```
 
----
-
-## ⚙️ Der Erfindungs-Loop
-
-Der autonome Erfindungs-Loop trennt sauber den **Proposer** (kühn, fehlbar, ein LLM) vom **Gate** (deterministisch, unbestechlich). Das Gate erweitert, ordnet, verifiziert — **es entscheidet nie außer als Gate.**
-
-```mermaid
-flowchart TD
-    B[📥 InventionBrief<br/>Feld + Ziel + Constraints] --> SAFE{🛡️ Safety-Gate<br/>deterministische Regel-Tabelle}
-    SAFE -->|refused| STOP([⛔ ABGELEHNT<br/>Proposer wird NIE aufgerufen])
-    SAFE -->|allowed| GEN[🧠 Council / Proposer<br/>widert auf zu kühnen Konzepten<br/>· injizierbar · LLM]
-    GEN --> NOV{🔍 Novelty-Gate<br/>gemessene Prior-Art-Distanz<br/>OpenAlex + Patente}
-    NOV -->|nicht_neu| SKIP([📋 NIE geerdet<br/>nearest_prior_art zitiert])
-    NOV -->|neu / neuer Mechanismus| GROUND[🔧 Architekt → δ-Physik-Gate<br/>measurand-getaggte Quantities]
-    GROUND -->|physics_verified| SCORE[📊 5-Achsen-Pareto<br/>Kosten · Masse · Leistung<br/>· Komplexität · Neuheit]
-    GROUND -->|failed| REFINE[♻️ Refinement-Loop<br/>Gate-Feedback → Mutation]
-    REFINE -->|repariert| SCORE
-    REFINE -->|stuck| GAP([🕳️ EHRLICHE LÜCKE<br/>kein Fake-Erfolg])
-    SCORE --> ART([🛠️ STL + BOM + Bauanleitung<br/>+ Quellen + Gate-Verdikt])
-    style SAFE fill:#7f1d1d,color:#fff
-    style NOV fill:#1e3a8a,color:#fff
-    style GROUND fill:#065f46,color:#fff
-    style ART fill:#b45309,color:#fff
-    style STOP fill:#450a0a,color:#fff
-    style GAP fill:#374151,color:#fff
-```
-
-**Drei Meilensteine, je durch einen Test belegt:**
-
-| Meilenstein | Beweis |
-|---|---|
-| **M1** — geerdete Erfindung | freies Feld → ≥1 physik-verifizierte Erfindung mit Quellen + δ-Gate + STL/BOM, reproduzierbar; über-kühnes Konzept → ehrliche Lücke |
-| **M2** — rigorose Neuheit | gemessene Prior-Art-Distanz (3 Stufen, *„neuer Mechanismus zählt"*); `nicht_neu` wird **nie geerdet**, jeder Output trägt das Neuheits-Verdikt + Beleg |
-| **M3** — Selbst-Reparatur | physik-scheiterndes Konzept wird per Gate-Feedback repariert (30→70→110 Hz → besteht); unreparierbar → ehrlich `stuck=True` |
-| **Safety** — First-Class | Waffen-/Bio-Brief wird **vor jeder Konzept-Erzeugung** abgelehnt (mit Spy-Council bewiesen: 0 Proposer-Aufrufe) |
-
----
-
-## 🔬 Der Forschungs-Kern (Entdecken ≠ Zertifizieren)
-
-Der ehrliche Unterschied zwischen *entdeckt* und *bewiesen* ist in die Labels eingebaut.
-
-```mermaid
-flowchart LR
-    SIM[🌀 GENESIS-Simulator<br/>RK4 · saubere Trajektorie] --> SINDY[SINDy / STLSQ<br/>sparse DGL aus Daten]
-    SINDY --> HYG{SRBench-Hygiene<br/>Dummy-Test}
-    HYG --> UNC[Ensemble-Bootstrap<br/>Unsicherheitsband]
-    UNC --> LABEL([📈 Gesetz/DGL<br/>+ Band · ehrlich])
-
-    CLAIM[📐 Vermutete Identität] --> PRE[mpmath-Vorfilter<br/>~50 Stellen]
-    PRE -->|widerlegt| REF([❌ widerlegt<br/>+ Gegenbeispiel])
-    PRE -->|stimmt| Z3{z3 QF_NRA Kernel}
-    Z3 -->|proved| SATZ([✅ Satz<br/>kernel-geschlossen])
-    Z3 -->|kann nicht| KAND([🟡 Kandidat<br/>NICHT zertifiziert])
-    style SATZ fill:#065f46,color:#fff
-    style REF fill:#7f1d1d,color:#fff
-    style KAND fill:#92400e,color:#fff
-```
-
-- **SINDy** (`discovery/sindy.py`) — STLSQ über eine Funktions-Bibliothek, gespeist aus den eigenen RK4-Simulatoren. Recovered das gedämpfte Pendel `θ̈ = −(c/I)·θ̇ − (mgd/I)·sinθ` maschinengenau (R²=1.0, Dummy-Feature thresholded). *Quelle: Brunton/Proctor/Kutz, PNAS 2016.*
-- **Unsicherheit** (`ode_coefficient_bands`) — Ensemble-SINDy-Bootstrap: eng auf sauberen Daten, verbreitert unter Messrauschen. *Quelle: Fasel/Kaiser/Kutz/Brunton/Proctor 2022.* Ehrlich: misst statistische, nicht systematische (FD-Bias-)Unsicherheit.
-- **Beweis-Loop** (`discovery/proof_loop.py`) — `(x+1)²=x²+2x+1` → **Satz**; `sin(x)=x` → **widerlegt** (Vorfilter); `(x²+x)/x=x+1` → **widerlegt** (z3 findet `x=0`); `sin²+cos²=1` → **Kandidat** (z3 kann es nicht modellieren — ehrlich NICHT „Satz").
-- **T-Optimalität** (`active_resolution.propose_resolution_robust`) — die diskriminierende Messung überlebt den *optimal refitteten* Verlierer: ein Spread schlägt ihn (44.7× Rauschen), ein Einzelpunkt wird absorbiert (1.6×). Form schlägt Punkt.
-- **Frontier-Module** (`multiterm` · `transcendental` · `composition` · `multiplicative` · `blind_product` · `additive_argument`) — additive Gesetze mit Out-of-Sample-Validierung; `y = C·f(α·π)+D` über die π-Gruppe mit Power-Law-Rivalen-Gate; Minimal-Korrektur auf dem signierten Residuum (Leave-One-Out → keine Korrektur aus Rauschen); multiplikative Kopplungen `y = C·π1^a·f(α·π2)` (Wien `x³·e^(−x)` exakt rediscovered) + Ratio-Korrektur `y ≈ y_base·m(π)` (gedämpfte Schwingung: `cos(ωt)` exakt aus dem Verhältnis); **blinde Zwei-Transzendenten-Produkte** `y = C·f(α·π1)·g(β·π2)` OHNE Baseline (`4·e^(−0.3t)·cos(2t)` blind exakt rediscovered; exp·exp/sin·cos-Degenerationen kollabieren über die Occam-Leiter, OOS-Confirm-Gate); **additive π-Argumente** `y = C·f(α·π1+β·π2)+D` (`additive_argument`: Arrhenius `2·exp(−θ/T − 0.5·P/p0)` und Chirp `3·sin(1.5x+0.8√x+0.4)` exakt rediscovered; kanonische Heimat des in 6.7 ausgeschlossenen exp·exp, Vier-Rivalen-Occam-Leiter, Affine-Ridge-Wächter; echte Komposition `f(g(·))` nach Analyse ehrlich ABGELEHNT — Parameter-Grat/Kollaps/keine Kanonisierung). **Volle GP-Suche über offene Formräume** (`gp_search`, Tour 7): π-Scaffold macht jedes GP-Genom per Konstruktion dimensionslos (Partikulärlösung `A·p=b` = Dimensions-Träger, Nullraum-π-Basis = Baum-Variablen — dimensionale Typprüfung auf Baum-Ebene), Occam-Rivalen-Leiter über Power-Law + alle 6.x-Familien (Kollaps statt Baum-Monster: Kepler/Pendel → gate-bestätigtes Power-Law, `y=4x²` → power-of-π, `v=g·t+v0` → multiterm), GP bestätigt NIE selbst (δ-Fit/Dummy/OOS-Gates; Rauschen wird nie bestätigt, Seed-byte-identisch); Lorentz-Response `y = a·π/(1+π²)` wird als EINZIGE Familie exakt gefunden (alle 6.x < 0.999) — ein Gesetz außerhalb aller strukturierten Formräume; `ExplorationController(open_form_fallback=True)` gated das GP-Budget (Worst Case, Occam-Kollaps kostet nur die Leiter). Nächste ehrliche Grenze: `f(g(·))` bleibt ABGELEHNT; GP-Raum = gitter-darstellbare π-Gruppen in `GPConfig`-Tiefe. Insgesamt **39 Discovery-Module**.
-- **ProofKernel** (`proof_kernels.py`) — `Z3IdentityKernel` als echte QF_NRA-Entscheidungsprozedur (∀-Identität via UNSAT); `LeanKernelStub` ehrlich als Stub: Transzendentes bleibt **Kandidat**, nie „Satz".
-- **Wissensbasis-Quellen** (`tools/codata.py` · `tools/dlmf.py` · `tools/wikidata.py`) — Naturkonstanten (CODATA), mathematische Funktionen (DLMF) und Wikidata als geerdete, ledger-fähige Referenzen für Discovery und Formel-Anker.
-
----
-
-## 🧱 Die Physik-Engine (Phase δ)
-
-Ein deterministischer **GATE δ-Physik** wählt aus measurand-getaggten Größen automatisch die passenden Closed-Form-/FEM-Validatoren aus und prüft sie gegen geschlossene Formen und Research-Anker.
-
-```
-  Statik · Thermik · Modal · Knicken · Ermüdung (Goodman) · Bruch · Torsion · Kontakt · Druck
-  Kriechen · Platte · Schraube · Thermospannung · Kerb-Ermüdung
-  + 7 Druckbarkeits-Regeln (Überhang · Brücken · erste Lage · Wandstärke …)
-  + Flug-Achsen (Rotor-Schwebe · Akku-Flugzeit · ESC-Strombudget · PD-Lageregelung)
-  + Roboter-Achsen (Kinematik/IK · Aktuator/Getriebe · Compute-TOPS · Bus-Bandbreite/Latenz)
-  + Krypto-Achsen (Geburtstagsschranke · Schlüsselstärke NIST SP-800-57 · GCM-Limit)
-```
-
-Eine `Specification` mit measurand-getaggten Quantities feuert die zutreffenden Checks **automatisch** und liefert ein ehrliches Verdikt: **pass · fail · gap** — nie ein stiller Durchlass. Stand **2026-07-12 (gemessen):** **44 Validatoren, 38 Auto-Select-Recipes** (`len(physics_validation.VALIDATORS)` / `len(physics_selection.RECIPES)`). Zwei unabhängige Dynamik-Pfade: RK4-Vorwärts-Integrator (`simulation/multibody.py`) und optional PyBullet-Vollkontakt (`simulation/pybullet_sim.py`, KEEP_OPTIN).
-
----
-
-## 🌅 HORIZONT (φ → Ω)
-
-Über α–δ hinaus deckt GENESIS inzwischen den vollen Bogen einer Idee ab — jede Phase mit eigenem deterministischen Gate + Tests (Details: [`docs/HORIZON.md`](docs/HORIZON.md)):
-
-| Phase | Was sie beweist | Status |
-|---|---|---|
-| **φ · Der Funke** | geerdete Divergenz — keine `Possibility` ohne Ledger-Anker (`agents/forge.py` + `gate_phi`) | ✓ |
-| **χ · Die Frontkarte** | belegte Karte des Bekannten + ehrliche Kante des Unbekannten (`gate_chi`) | ✓ |
-| **δ⁺ · Realität + Deckung** | Falsifikations-Experiment + echte Messung (`reality.py`); undeklarierter Versagensmodus + Zertifikat (`coverage.py`) | ✓ |
-| **γ⁺ · Inverses Design** | Ziel → validierte Pareto-Front statt einer Spec (`inverse_design.py`) | ✓ |
-| **ε · Nähte** | verifizierte Kopplung mechanisch↔thermisch↔elektrisch↔Kosten (`seams.py`) | ✓ |
-| **ζ · Bindegewebe** | geteiltes, conformal-gegatetes Gedächtnis (`memory_fabric.py`) | ✓ |
-| **Ω · Exoskelett** | jeder Output macht den Menschen klüger; Nicht-Lügen als Querfaden (`omega.py`) | ✓ fortlaufend |
-
-Dazu der Grenzverschiebungs-Layer (`src/gen/grenzverschiebung/`, 14 Module — u. a. **LUMENCRUCIBLE**-Selbstverbesserung, Technology-Roadmapper, Experiment-Designer; CLI `--mode breakthrough`) und die App-Integrations-Schicht (`src/gen/integration/`: signierter `audited_run`, Drift-Monitor, Research-Hook). Ehrlich: dieser Layer ist explorativer als der α–δ-Kern.
-
----
-
-## 🖥️ CLI-Modi
+Optional: CadQuery for exact BREP (isolated venv — **not** in the main env):
 
 ```bash
-genesis --mode <modus> "<eingabe>"           # offline-deterministisch (Default)
-genesis --mode <modus> "<eingabe>" --live    # echte lokale LLMs / Connectoren (Bonus)
+# see docs/CADQUERY_VENV.md
+export GENESIS_CAD_PYTHON=/path/to/.venv-cad/bin/python
 ```
-
-| Modus | Was es tut |
-|---|---|
-| `invent` / `solve` | **Erfindungs-Loop**: Feld/Problem → geerdete, gegatete Erfindung + Artefakt |
-| `discover-ode` | **SINDy** aus Sim-Daten + Hygiene-Dummy-Test + Unsicherheitsband |
-| `research` | mathematische Identität/Ungleichung: mpmath → SymPy → z3-Kernel (Satz/widerlegt) |
-| `report` | Phase α — recherchierte, belegte Fakten zur Frage |
-| `solution` | Phase β — der Lösungsraum (Ansätze + Trade-offs) |
-| `spec` | Phase γ — vollständige Spezifikation hinter dem γ-Gate |
-| `assess` | das Quality-Engine-Verdikt (Klärung + δ-Physik + Constraints + Grounding) |
-| `print` | Druckbarkeits-Verdikt (Überhang/Brücken/erste Lage + STL-Mesh-Integrität) |
-| `bundle` | vollständiges Bau-Bundle (STL + BOM + Markdown-Bauanleitung) |
-| `capstone` | eine komplette γ-Tiefe-Spezifikation durch alle Gates (Demo) |
-| `humanoid` / `dream` / `ideas` | komplette Roboter / visionäre Konzepte / zukunftsorientierte Ideen, je gegated |
-| `chip` / `training` | Chip-Auswahl-nach-Anforderung · ehrlicher ML-Trainingsplan |
-| `feynman` / `campaign` | Rediscovery-Benchmark · Entdeckungs-Kampagne |
-| `realize` | volle Realisierungskette über 11 Fach-Pipelines (DFM · Zeichnungen · Regulatorik · Wirtschaft) |
-| `section` | Querschnitts-Optimierer (minimales Material unter Last) |
-| `council` | Cross-Model-Council (offline-deterministisch, `--live` real) |
-| `breakthrough` | HORIZON-Grenzverschiebung (LUMENCRUCIBLE-Layer) |
-| `eval` / `protocol` | Eval-Harness (Leaks/False-Alarms) · Protokoll |
 
 ---
 
-## 🌐 Externe Integration (interface-first · lizenz-diszipliniert)
+## ⌨️ CLI modes
 
-Jedes externe Modell/Werkzeug/jede freie API tritt durch **eine Naht** ein und trägt eine **ledger-belegte Lizenz**. Der Kern linkt nur **permissiv** (Apache/MIT/BSD/CC0/CC-BY); **Copyleft** nur als Separat-Prozess-Orakel; **Non-Commercial** ist im kommerziellen Kern **strukturell verboten** (nicht konstruierbar).
+Selected product modes (full list: `genesis --help`):
+
+| Mode | What it does |
+|------|----------------|
+| `report` / `research` | Phase α research / math identity checks |
+| `spec` / `assess` / `bundle` | Spec → assessment → deliverable package + MANIFEST caps |
+| `invent` / `council` | Invention loop with δ-physics + novelty |
+| `discover-ode` | SINDy-style discovery demos |
+| `dream` / `horizon-full` | LUMENCRUCIBLE + full HORIZON orchestration |
+| `realize` | Multi-fragment realization package (BOM, harness, drawings) |
+| `print` / `structural` / `humanoid` | Printability, structural, humanoid paths |
+| `sources` | Live/offline **source catalog** health |
+| `caps` | **Platform caps** surface matrix |
+| `multi-physics` | Deterministic **co-design receipt** |
+| `well-probe` | The Well stream-only probe (no bulk download) |
+
+Live research backends (when networked): Wikipedia, arXiv, OpenAlex (CC0), materials registry, Wikidata density (P2054), formula/CODATA. **PatentsView** only if `PATENTSVIEW_API_KEY` is set — never a silent empty “no patents” miss.
+
+---
+
+## 🌌 HORIZON arc (φ → Ω)
+
+End-to-end honesty stack for “idea → completion certificate”:
+
+| Layer | Role | Status |
+|-------|------|--------|
+| **ε Seams** | Cross-domain seam certificate | Wired in LUMEN |
+| **ζ Memory fabric** | VERIFIED claim deposits + gate_zeta | Wired |
+| **γ⁺ Pareto** | Inverse-design front on the dream | Wired |
+| **δ⁺ Reality** | Falsification experiment; measurement optional | Honest abstention / fixture corroboration |
+| **δ⁺ Coverage** | Reviewed failure modes | Wired |
+| **Ω Omega** | Cross-phase completion sheet | **Enforced by default** (`enforce_omega=True`) |
+
+```bash
+genesis --mode horizon-full "quiet indoor transport robot"
+# Optional live community literature:
+genesis --mode horizon-full --live "compliant gripper mount"
+```
+
+TeacherMode notes and **agent-sourced** community evidence (OpenAlex) attach without requiring user-supplied JSON ledgers. Private lab measurements are never invented.
+
+---
+
+## 🏭 Manufacturing & realization
+
+Native manufacturing competence (no external “PRINTFORGE” product required — see [`docs/integration/PRINTFORGE_INVENTORY.md`](docs/integration/PRINTFORGE_INVENTORY.md)):
+
+| Capability | Module | Notes |
+|------------|--------|--------|
+| Prototype CAD | `gen.cad.prototype_cad_builder` | Parametric build123d-style emit |
+| Exact BREP / STL | `gen.brep` + `cadquery_bridge` | Isolated cad-venv; CI-safe |
+| Advanced DFM | `check_advanced_dfm` | FDM + material-aware CNC + laser + PCB layout |
+| Cost bands | `estimate_fdm_cost` / CNC / laser | Ranges + gaps, not fake point prices |
+| G-code | profile · rect pocket · **face mill** | Verified RS-274 structure |
+| Realization package | `build_full_mini_realization_package` | **bom.json**, harness package, drawings index |
+
+Honest gaps remain: multi-axis CAM, full GD&T PDF (`drawing_gap: true`), production vector DB.
+
+---
+
+## 📚 Knowledge & live sources
+
+```bash
+genesis --mode sources
+# JSON: GENESIS_SOURCES_JSON=1 genesis --mode sources
+```
+
+- **OpenAlex** — CC0 scholarly graph (prior art, community literature)
+- **arXiv** — keyless preprints  
+- **Wikidata density** — independent P2054 path for materials α  
+- **Materials registry** — offline grounded cards  
+- **PatentsView** — key-gated; status `key_missing` until configured  
+- **Wissensbasis** — component recipes + improvement recipes (seeded offline)  
+- **Ledger** — in-memory default; Postgres via `GENESIS_PG_DSN` + `scripts/postgres_smoke.py`  
+- **Vector memory** — local anamnesis vendor path; production Qdrant/pgvector **not claimed**
+
+---
+
+## ⚙️ Invention & discovery
+
+**Invent** separates a bold proposer (LLM, optional) from uncompromising gates:
 
 ```mermaid
 flowchart TD
-    GATE["🔒 external/registry.py — Lizenz-Gate als Konstruktor-Invariante<br/>permissiv → Kern · copyleft → Prozess-Orakel · NC → VERBOTEN · unbekannt → Refusal"]
-    GATE --> ORACLE[🧬 external_oracle<br/>Foundation-Modell → UNVERIFIED-Claim<br/>Boltz-2 · ORB · Aurora]
-    GATE --> SEARCH[📚 SearchBackend<br/>OpenAlex CC0 · PatentsView]
-    GATE --> SIMB[🌀 SimulatorBackend<br/>RK4 · MuJoCo · ngspice]
-    GATE --> OPT[📈 Optimize / Evolve<br/>Pareto/pymoo · MAP-Elites/OpenEvolve]
-    style GATE fill:#1e293b,color:#fff,stroke:#ef4444,stroke-width:2px
+    B[InventionBrief] --> SAFE{Safety gate}
+    SAFE -->|refused| STOP([⛔ refused · proposer never called])
+    SAFE -->|ok| GEN[Council / proposer]
+    GEN --> NOV{Novelty · OpenAlex / patents}
+    NOV -->|not novel| SKIP([not grounded · prior art cited])
+    NOV -->|novel| GROUND[Architect → δ physics]
+    GROUND -->|verified| SCORE[5-axis Pareto]
+    GROUND -->|failed| REFINE[Refine or honest stuck]
+    SCORE --> ART([STL · BOM · package])
 ```
 
-| Naht | Offline-Default (Test-Rückgrat) | Externer Eintritt |
-|---|---|---|
-| **Lizenz-Ledger** | — (Pflicht für alle) | `external_binding()` → VERIFIED-Claim |
-| **Externes Orakel** | Fake-Orakel | `ExternalOracle.query()` → **UNVERIFIED**-Claim (nie Roh-Wahrheit) |
-| **Such-Backend** | RAG / arXiv | OpenAlex (**live ✓**), PatentsView |
-| **Simulator** | RK4-Pendel | MuJoCo (Apache, import-gegated) |
-| **Optimierer / Evolve** | Pareto · MAP-Elites | pymoo · OpenEvolve (import-gegated) |
-
-→ Vollständige Karte: [`docs/EXTERNAL_INTEGRATION.md`](docs/EXTERNAL_INTEGRATION.md) — ~80 Modelle/Tools/APIs, je Naht + Lizenz + Status.
+**Discover** keeps “found” ≠ “proved”: SINDy with hygiene, uncertainty bands, and a proof loop that labels **theorem / refuted / candidate** without laundering z3 limits into false theorems.
 
 ---
 
-## ✅ Determinismus & ehrliche Grenzen
+## 📦 Install
 
-GENESIS sagt nie „funktioniert", wenn es nicht verifizierbar ist. Was offline läuft, was opt-in ist, was wirklich BLOCKED ist:
+```bash
+pip install -e ".[dev,smt]"          # core + tests + z3
+pip install -e ".[web]"              # optional FastAPI UI
+# CadQuery: isolated venv only — docs/CADQUERY_VENV.md
+# Postgres: pip install -e ".[postgres]" + GENESIS_PG_DSN
+```
 
-| | Status | Bedeutung |
-|---|---|---|
-| 🟢 **Kern** | live | numpy/sympy/scipy/mpmath — offline-deterministisch; **2494 tests collected** (2026-07-12); CI 3.11+3.12 grün |
-| 🟢 **OpenAlex** | live ✓ | CC0-Literatur-Connector, gegen echten Endpoint verifiziert (HTTP 200) |
-| 🟡 **pip-opt-in** | nachrüstbar | PySINDy · pymoo · Ax/BoTorch · MuJoCo · OpenEvolve — Adapter gebaut, import-gegated |
-| 🔴 **Live-LLM-Council** | B1 BLOCKED | `claude -p` mit dem Council-Prompt > 300s-Timeout → `--live` degradiert *graceful* offline |
-| 🔴 **GPU / Julia / Lean / Keys** | Owner-Maschine | PySR · Lean/Goedel · GPU-Foundation-Orakel · paid-Key-APIs — je mit Offline-Zwilling, der die Verdrahtung beweist |
-
-**Determinismus konkret:** `run_clock()` (`core/state.py`) pinnt die Zeit pro Lauf als Context-Var — `now_utc()` liefert überall denselben Instant, Artefakte werden byte-stabil reproduzierbar. **Sicherheit konkret:** `tools/fetch.py`/`http.py` sind SSRF-/DoS-gehärtet (Scheme-Allowlist http/https, `max_bytes`-Cap auf untrusted Bodies — fail-loud statt silent-truncate).
-
-**Weitere ehrliche Grenzen (Stand 2026-07-04):**
-- Die Deep-Review-Kampagne (Zeile-für-Zeile, Claude×Grok) läuft noch — einzelne Grok-Cross-Reviews sind nachzuholen; Status-Ledger: `WORK_QUEUE.md`.
-- Live-LLM-Läufe (Council, gemessene Ollama-Runs) bleiben owner-gated — kein Real-Use-Ready-Claim ohne Messung.
-- Humanoid TP1/TP2 liegen im unmerged Worktree-Branch `worktree-claude-orchestrator`.
+Requirements: **Python ≥ 3.11**. Core deps: numpy, sympy, scipy, mpmath, pydantic.
 
 ---
 
-## 📂 Projektstruktur
+## 🧪 Tests & CI
+
+```bash
+export PYTHONPATH=src
+pytest -q
+ruff check .
+# Product smoke (offline):
+bash scripts/self_improve_smoke.sh
+```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs **ruff + full pytest** on **3.11 and 3.12**. Optional CAD/sim dependencies honest-skip when absent.
+
+---
+
+## 📁 Project layout
 
 ```
 src/gen/
-├── core/            Interfaces, State, Config, Errors (framework-frei)
-├── agents/          Agenten (scholar, architect, skeptic …) — je Agent-Protocol
-├── ledger/          Fakten-Ledger (mandatory provenance, 3-Schichten-Enforcement)
-├── verification/    Gates, Cross-Model-Judging, CEGIS, SMT
-├── discovery/       Forschungs-Kern: SINDy · proof_loop · transcendental
-│                    · active_resolution (T-Opt) · srbench_hygiene · uncertainty
-├── inventor/        Erfindungs-Loop: brief · generate · domains · score · loop
-│                    · novelty · archive · refinement · safety · optimize · evolve_engine
-├── external/        Lizenz-Ledger (registry) + external_oracle (oracle)
-├── tools/           Connectoren (openalex CC0 · patents · codata · dlmf · wikidata)
-│                    + fetch/http (SSRF-gehärtet) · RAG · arXiv
-├── simulation/      RK4 multibody · PyBullet · SimulatorBackend-Naht
-├── physics_*.py     δ-Physik-Engine: 44 Validatoren + 38 Auto-Select-Recipes (2026-07-12)
-├── grenzverschiebung/  HORIZON-Layer: LUMENCRUCIBLE · Roadmapper · Experiment-Designer
-├── integration/     App-Integration: signierter audited_run · Drift · Research-Hook
-├── proof_kernels.py z3-QF_NRA-Identitäts-Kernel (+ ehrlicher LeanKernelStub)
-├── pipelines/       11 Fach-Pipelines (--mode realize): Architekt … Wirtschaft
-├── bundle.py        Bau-Bundle-Emitter (STL + BOM + Bauanleitung)
-└── cli.py           der CLI-Einstiegspunkt (alle Modi)
-
-tests/               ~299 Test-Dateien · **2494 tests collected** (gemessen 2026-07-12; CI green on main)
-docs/                ARCHITECTURE · DATA_MODEL · PIPELINE · phases/ · HORIZON · CAPABILITIES
-                     · EXTERNAL_INTEGRATION
+  agents/           # scout · scholar · skeptic · architect · …
+  tools/            # OpenAlex, arXiv, materials, Wikidata, source_catalog
+  verification/     # gates, geometry, SMT, …
+  cad/              # DFM, G-code, cost, cadquery_bridge
+  grenzverschiebung/# LUMENCRUCIBLE, readiness, learning, boundary
+  inventor/         # brief · novelty · score · domains
+  discovery/        # SINDy · frontier families · proof loop
+  pipelines/        # realize · integrator · fach pipelines
+  simulation/       # runner · multi_physics_receipt · mesh gates
+  web/              # optional FastAPI surface
+docs/               # STATUS, HORIZON, backlog, CADQUERY_VENV, …
+tests/              # large offline suite
 ```
 
 ---
 
-## 📦 Installation
+## ⚖️ Honest limits
 
-```bash
-git clone <repo-url> genesis && cd genesis
+GENESIS will **not**:
 
-# Kern (reicht für discover-ode, research, invent offline, alle δ-Physik-Checks)
-pip install -e ".[dev]"
+- Invent private lab measurements or field replications  
+- Claim multi-axis CAM / production GD&T PDFs as finished  
+- Wire a production vector cluster by default  
+- Call PatentsView without an API key (loud miss, not a fake empty prior-art set)  
 
-# Optional-Erweiterungen (je nach Bedarf, isoliert)
-pip install -e ".[smt]"      # z3-Kernel für den Beweis-Loop
-pip install -e ".[sim]"      # PyBullet-Vollkontakt-Dynamik
-pip install -e ".[cad]"      # exakte BREP-Geometrie (cadquery/OCP)
-pip install -e ".[web]"      # lokale Web-UI (genesis-web)
-```
-
-**Voraussetzungen:** Python ≥ 3.11. Kein GPU, kein Cloud-Account, keine API-Keys für den Default-Pfad nötig — GENESIS läuft komplett lokal.
+Depth is tracked as **L0–L4** in STATUS. “Wired” ≠ “factory sign-off.”
 
 ---
 
-## 🧪 Tests
+## 📄 License
 
-```bash
-pytest -q                                      # volle Suite (CI: 3.11+3.12); collect-only ≈ 2494 (2026-07-12)
-pytest tests/test_inventor_loop.py -q          # der Erfindungs-Loop (M1)
-pytest tests/test_discovery_sindy.py -q        # SINDy-Entdeckung
-pytest tests/test_external_registry.py -q      # das Lizenz-Gate
-```
-
-Jeder Test pinnt **Verhalten** (nicht Implementierung) und enthält mindestens einen Negativtest: was passiert bei fehlender Quelle, Tool-Fehler oder Widerspruch. Ein Gate ohne Test existiert nicht.
+MIT — see [LICENSE](LICENSE).
 
 ---
-
-## 📜 Lizenz
-
-[MIT](LICENSE) — frei nutzbar, auch kommerziell. Externe Anbindungen tragen ihre eigene Lizenz (siehe [`docs/EXTERNAL_INTEGRATION.md`](docs/EXTERNAL_INTEGRATION.md)); der Kern bleibt strikt permissiv.
 
 <div align="center">
 
-<br/>
+**Sources · Gates · Gaps · Reproducibility**
 
-**GENESIS hält ein einfaches Versprechen:**
-### *kühn erfinden, niemals lügen.*
-
-<br/>
-
-*Built deterministically. Verified, not claimed.*
+*Build it. Verify it. Ship only what the ledger can defend.*
 
 </div>
