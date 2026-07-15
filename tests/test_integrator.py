@@ -78,7 +78,14 @@ def test_packager_produces_richer_package_with_bom_and_assembly():
     assert "REGULATORIK.md" in files
     assert "advanced_dfm" in manifest
     assert "drawings" in manifest
-    assert manifest.get("drawing_gap") is True
+    # G4: drawing_gap is honest — False only when REAL .dxf sections were
+    # generated into the package (kernel available), True otherwise.
+    dxf_files = [f for f in files if f.endswith(".dxf")]
+    if manifest.get("drawing_gap") is True:
+        assert dxf_files == []
+    else:
+        assert manifest.get("drawing_gap") is False
+        assert dxf_files, "drawing_gap=False requires real DXF files"
     assert "regulatorik" in manifest
     assert "open_gaps" in manifest
     # C6 harness package

@@ -19,6 +19,7 @@
 | D Live Knowledge | W1–W5 | ✅ `--mode sources`, seeds, patents key, ledger/vector honesty |
 | E Sim & Caps | S1–S4 | ✅ `--mode caps`, multi-physics, mesh refs, MANIFEST caps |
 | F Cleanup | X1–X4 | ✅ stale docs, learning extract, revise_with_learning, this STATUS |
+| G Integrity & CAD depth (Re-Audit 2026-07-15) | G1–G4 | ✅ no-0-byte-STL fix + real kernel STLs, Spec→CAD bridge (`cad/spec_to_cad.py`), parametric plates, real top/front DXF sections (`drawing_gap` honest-False) |
 
 ---
 
@@ -52,4 +53,4 @@
 4. Production Qdrant/pgvector **not wired** (anamnesis vendor only)  
 5. After each sprint: test + commit + push  
 
-**Next open product depth:** multi-axis CAM, GD&T PDF drawings, production vector DB, live lab ingest — see backlog report residual gaps.
+**Next open product depth:** multi-axis CAM, GD&T + dimension annotations on the (now real) DXF sections, isometric/right views, production vector DB, live lab ingest — see backlog report residual gaps.

@@ -303,3 +303,10 @@ Danach H2 ohne Pause, bis Phase A grün.
 ---
 
 *Dieser Report ist die SSOT für die sequenzielle Abarbeitung ab 2026-07-15. Nach jedem Sprint: Abschnitt 8 abhaken + Evidence-Commit.*
+
+## 12. Phase G — Integrity & CAD depth (Nachtrag Re-Audit 2026-07-15)
+
+- **G1** `fix(g1)` 14a3bd1 — 0-Byte-STL-Fakes eliminiert: assembly nutzt nur reale Dateien, Kernel-Union statt Kopie, Gaps explizit; Builder exportiert echte OCCT-STLs.
+- **G3** `feat(g3)` 64e1abb — Spec→CAD-Brücke `cad/spec_to_cad.py`: γ-Spec→BuildArtifact (real STL), PrototypeSpec aus echtem AssemblyConcept, parametrische Generic-Platte.
+- **G4** `feat(g4)` a097925 — Reale top/front-DXF-Sektionen im Paket (`drawing_gap` ehrlich False); Worker-Fix (stdout-Noise, XZ/YZ-Rotation).
+- **G2** Doc-Resync 2026-07-15 (dieser Commit): CLAUDE.md-Messblock (2594 collected · 45/46/1 · 334/266/25 · 51 Modi), STATUS Phase-G-Zeile.

@@ -67,6 +67,6 @@
 ## Phase G — Integrity & CAD depth (Re-Audit 2026-07-15)
 
 - [x] **G1 (P0-1)** assembly.py 0-byte-STL fake fix: real kernel STLs (builder CSG + bridge), real union, honest gaps — SHA in commit `fix(g1)`
-- [ ] **G2 (P0-2)** Doc re-sync measured block 2026-07-15 (tests/validators/recipes/islands)
+- [x] **G2 (P0-2)** Doc re-sync measured 2026-07-15: 2594 collected · 45 validators · 46 recipes · 1 manual-only · 334/266/25 · 51 CLI modes — commit `docs(g2)`
 - [x] **G3 (P1-1)** Spec→CAD bridge: `cad/spec_to_cad.py` (γ-Spec→BuildArtifact real kernel STL; PrototypeSpec from real AssemblyConcept; parametric generic plate) — commit `feat(g3)`
 - [x] **G4 (P1-3)** Drawings: real top/front DXF sections in packages via export/drawing worker (drawing_gap honest-False; worker stdout+rotation fix) — commit `feat(g4)`

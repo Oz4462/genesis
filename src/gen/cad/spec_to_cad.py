@@ -20,7 +20,6 @@ Reuses the existing export plumbing (``export.brep_stl``) — no parallel world.
 
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 

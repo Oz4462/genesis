@@ -19,6 +19,25 @@ from typing import Any, Optional, Union
 
 from gen.core.state import now_utc  # canonical run clock (D2 reproducibility); core.state has no internal imports → no cycle
 
+
+def _json_fallback(obj):
+    """Serialise dataclass payload leaves json can't encode natively.
+
+    Quantities inside CAD artifacts carry ``ValueOrigin`` enums and ``datetime``
+    stamps (G1: BuildArtifact.geometry_quantities) — persist them as their value
+    / ISO string instead of crashing the store. Anything else falls back to str
+    (provenance stays intact; nothing is silently dropped).
+    """
+    import datetime as _dt
+    import enum as _enum
+
+    if isinstance(obj, _enum.Enum):
+        return obj.value
+    if isinstance(obj, (_dt.datetime, _dt.date)):
+        return obj.isoformat()
+    return str(obj)
+
+
 # Import der relevanten Typen für Kompatibilität (lazy um Zirkel zu vermeiden)
 try:
     from gen.pipelines.integrator import RealizationFragment
@@ -88,7 +107,10 @@ class FragmentStore:
         }
         self._cache[key] = data
         path = self._get_path(key)
-        path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        path.write_text(
+            json.dumps(data, indent=2, ensure_ascii=False, default=_json_fallback),
+            encoding="utf-8",
+        )
 
     def save_formula(self, key: str, rec: "FormulaRecord", provenance: ProvenanceRecord):
         """Persist a verified FormulaRecord (CODATA/DLMF/Wikidata etc.) with provenance.

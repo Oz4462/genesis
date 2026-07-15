@@ -75,21 +75,23 @@ src/gen/<physik>.py         δ-Achsen · tests/
 scripts/find_islands.py · scripts/gen_status.py
 ```
 
-## Verifizierter Ist-Stand (gemessen 2026-07-12 — nicht fortschreiben ohne Messung)
+## Verifizierter Ist-Stand (gemessen 2026-07-15 — nicht fortschreiben ohne Messung)
 
-> Ältere Zeilen in AUDIT (2026-07-04: 1727p/61s) und CLAUDE-Stand 2026-07-04 (2079p/43s)
-> sind **historische Snapshots**, keine Live-Zahlen.
+> Ältere Zeilen in AUDIT (2026-07-04: 1727p/61s), CLAUDE-Stand 2026-07-04 (2079p/43s)
+> und 2026-07-12 (2494 collected · 44/38/8 · 327/258/26) sind **historische Snapshots**,
+> keine Live-Zahlen.
 
-| Messgröße | Wert (2026-07-12) | Quelle |
+| Messgröße | Wert (2026-07-15) | Quelle |
 |-----------|-------------------|--------|
-| Tests collected | **2494** | `pytest --collect-only -q` |
-| Validatoren | **44** | `len(physics_validation.VALIDATORS)` |
-| Recipes | **38** | `len(physics_selection.RECIPES)` |
-| MANUAL_ONLY-Validatoren | **8** (u. a. `montecarlo_uncertainty`) | `physics_selection.MANUAL_ONLY_VALIDATORS` |
+| Tests collected | **2594** | `pytest --collect-only -q` |
+| Voller Suite-Lauf | **2545 passed / 49 skipped / 0 failed** (Stand `ceb3c66`, 27:34 min; Re-Lauf auf `a097925` siehe BUILD_LOG) | `pytest tests -q` |
+| Validatoren | **45** | `len(physics_validation.VALIDATORS)` |
+| Recipes | **46** | `len(physics_selection.RECIPES)` |
+| MANUAL_ONLY-Validatoren | **1** (`montecarlo_product` auto-selektiert seit 2026-07-14) | `physics_selection.MANUAL_ONLY_VALIDATORS` |
 | Discovery-Module (`.py` exkl. `__init__`) | **39** | `src/gen/discovery/` |
-| Reachability | modules **327** · WIRED **258** · SCRIPT **9** · ISLAND **26** · INFRA **34** | `scripts/find_islands.py` |
+| Reachability | modules **334** · WIRED **266** · SCRIPT **9** · ISLAND **25** · INFRA **34** | `scripts/find_islands.py` |
 | REWORK-Module OPEN | **0** (~303 REWORKED) | `docs/REWORK_CAMPAIGN.md` |
-| CLI-Modi | **~46** (inkl. Fach-Familie + `aero-report` / `humanoid-report` / `surface`) | `gen.cli` choices |
+| CLI-Modi | **51** (inkl. `sources` / `caps` / `multi-physics` seit Phase D/E) | `gen.cli` choices |
 
 **Phasen (gebaut + getestet, nicht „fertig im Sinne von allwissend“):**
 
@@ -111,7 +113,14 @@ scripts/find_islands.py · scripts/gen_status.py
   Worktree-Stand und ist **nicht** der Live-Stand. Ungepushte/private Branches sind
   **owner-gated**, nicht stillschweigend „main“.
 
-## Aktueller Fokus (2026-07-12)
+## Aktueller Fokus (2026-07-15)
+
+0. **Backlog-Phasen A–G abgeschlossen** (H1–H5, C1–C8, W1–W5, S1–S4, X1–X4, G1–G4 —
+   siehe `docs/BACKLOG_TODO_PLAN.md` + STATUS). Re-Audit-Befund G1 (stille 0-Byte-STLs
+   in `cad/assembly.py`) ist behoben; CAD-Pfad liefert echte Kernel-STLs + top/front-DXF.
+   Offene Produkttiefe: multi-axis CAM, GD&T-Bemaßung, prod Vector-DB, live Lab-Ingest.
+
+## Fokus-Historie (2026-07-12)
 
 1. **FULL REWORK CAMPAIGN (2026-07-11):** Module-Inventory **REWORKED** (0 OPEN in
    `REWORK_CAMPAIGN.md`). Prior-DONE war nicht vertrauenswürdig bis Suite+Wiring re-proven.
