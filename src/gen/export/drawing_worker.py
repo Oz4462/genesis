@@ -118,8 +118,14 @@ def _plane(name: str, offset: float):
 
 
 def _section(node, values, plane_name, offset):
-    """Build the part and return its planar section as a build123d ``Sketch``."""
-    from build123d import section
+    """Build the part and return its planar section as a build123d ``Sketch``.
+
+    Non-XY sections are ROTATED into the XY plane before export: the DXF/SVG
+    exporters are 2-D (XY) writers, and an XZ/YZ-embedded sketch would trigger
+    ezdxf's "non-planar shape" path (points outside XY, warning noise on
+    stdout). The rotation is a rigid map of the true cut profile — no shape
+    change, just the drawing convention."""
+    from build123d import Axis, section
 
     part = build_part(node, values)
     sec = section(part, section_by=_plane(plane_name, offset))
@@ -128,6 +134,10 @@ def _section(node, values, plane_name, offset):
             f"section on plane {plane_name} (offset {offset}) is empty — the plane does "
             f"not cut the solid; pick a plane/offset that intersects the part"
         )
+    if plane_name == "XZ":
+        sec = sec.rotate(Axis.X, 90)
+    elif plane_name == "YZ":
+        sec = sec.rotate(Axis.Y, -90)
     return sec
 
 
@@ -189,8 +199,17 @@ def handle(req: dict) -> dict:
 def main() -> int:
     raw = sys.stdin.read()
     try:
+        import contextlib
+        import io
+
         req = json.loads(raw)
-        out = handle(req)
+        # Libraries (ezdxf/build123d) print warnings to stdout, which would
+        # corrupt the JSON protocol — capture and forward them to stderr.
+        noise = io.StringIO()
+        with contextlib.redirect_stdout(noise):
+            out = handle(req)
+        if noise.getvalue():
+            sys.stderr.write(noise.getvalue())
         sys.stdout.write(json.dumps({"ok": True, **out}))
         return 0
     except Exception as exc:  # noqa: BLE001 - any failure -> typed error string back

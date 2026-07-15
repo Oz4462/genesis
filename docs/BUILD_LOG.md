@@ -771,3 +771,20 @@ Ableitung (Jetpack-Kanon über "recovery"-Trigger weiter erreichbar).
 Smoke: Nicht-Jetpack-Idee ⇒ Teil "Main Structure" mit realem 646-KB-STL statt Jetpack-Template.
 **4 Linsen:** L1: Geometrie aus Spec, nicht Template · L2: "Idea→CAD"-Claim jetzt code-wahr für
 Spec-Pfad · L3: Naht Spec→Integrator/Assembly geschlossen · L4: Kernel-Tessellation druckbar.
+
+## 2026-07-15 — G4 (P1-3): Echte DXF-Schnittzeichnungen im Realisierungspaket
+
+**Problem (Re-Audit):** `export/drawing.py` (realer OCCT-Sektion→DXF-Pfad) existierte, war aber
+nie ans Paket angeschlossen — `build_drawings_section` hartkodierte `drawing_gap=True`.
+Zusätzlich: Worker-Protokoll brach bei ezdxf-Warnungen auf stdout; XZ/YZ-Schnitte wurden
+nicht in die XY-Ebene gedreht (non-planar DXF).
+**Fix:** (1) `realization_package.build_drawings_section` erzeugt für Teile mit CSG-Geometrie
+reale Top/Front-DXF-Sektionen (`part_<i>_top.dxf`/`_front.dxf`), `drawing_gap=False` nur bei
+mindestens einer echten Zeichnung; GD&T/Bemaßung bleibt expliziter Gap. (2) `write_drawings_section`
+schreibt Views als Dateien (nie leer). (3) Worker: stdout-Redirect für Library-Noise + Rotation
+XZ/YZ→XY vor Export.
+**Evidence:** E2E-Smoke: Paket mit `drawing_gap: false` + part_0_top.dxf (16.3 KB) +
+part_0_front.dxf (16.2 KB), 0 leere Dateien; alle 3 Ebenen exportieren (XY/XZ/YZ);
+tests/test_export_drawing_package.py neu — 15 passed über Drawing/Package-Suiten.
+**4 Linsen:** L1: echte Kernel-Sektionen · L2: drawing_gap-Flag jetzt messwahr · L3: Naht
+drawing.py→Paket geschlossen · L4: DXF ist CAM-übergabefähig (Kontur inkl. Bohrungen).

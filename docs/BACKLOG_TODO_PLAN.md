@@ -69,4 +69,4 @@
 - [x] **G1 (P0-1)** assembly.py 0-byte-STL fake fix: real kernel STLs (builder CSG + bridge), real union, honest gaps — SHA in commit `fix(g1)`
 - [ ] **G2 (P0-2)** Doc re-sync measured block 2026-07-15 (tests/validators/recipes/islands)
 - [x] **G3 (P1-1)** Spec→CAD bridge: `cad/spec_to_cad.py` (γ-Spec→BuildArtifact real kernel STL; PrototypeSpec from real AssemblyConcept; parametric generic plate) — commit `feat(g3)`
-- [ ] **G4 (P1-3)** Drawings: enable real DXF/SVG section path in packages (reduce drawing_gap for prism parts)
+- [x] **G4 (P1-3)** Drawings: real top/front DXF sections in packages via export/drawing worker (drawing_gap honest-False; worker stdout+rotation fix) — commit `feat(g4)`

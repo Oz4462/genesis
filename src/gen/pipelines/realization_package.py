@@ -248,6 +248,40 @@ def write_harness_section(pkg_root: Path, section: dict[str, Any]) -> Path:
     return path
 
 
+#: Section views generated for parts with real CSG geometry: name -> (plane, offset)
+_DRAWING_VIEWS: dict[str, tuple[str, float]] = {"top": ("XY", 0.0), "front": ("XZ", 0.0)}
+
+
+def _generate_part_views(cad: Any) -> tuple[dict[str, str], list[str]]:
+    """Real DXF section views from the artifact's CSG tree (G4).
+
+    Returns ({view_name: dxf_text}, notes). Empty dict when the artifact has no
+    geometry or the drawing worker (build123d venv) is unavailable — the caller
+    keeps drawing_gap=True then. Never a fabricated drawing.
+    """
+    geometry = getattr(cad, "geometry", None)
+    quantities = getattr(cad, "geometry_quantities", None) or {}
+    if geometry is None or not quantities:
+        return {}, []
+    try:
+        from gen.export.drawing import drawing_available, section_dxf
+    except Exception:  # pragma: no cover — export layer absent
+        return {}, []
+    if not drawing_available():
+        return {}, ["drawing worker (build123d venv) unavailable — no DXF generated"]
+    views: dict[str, str] = {}
+    notes: list[str] = []
+    for view_name, (plane, offset) in _DRAWING_VIEWS.items():
+        try:
+            dxf = section_dxf(geometry, quantities, plane=plane, offset=offset)
+        except Exception as exc:  # ExportError (plane misses solid) et al. — honest skip
+            notes.append(f"view {view_name!r} ({plane}) not generated: {exc}")
+            continue
+        if dxf and len(dxf) > 0:
+            views[view_name] = dxf
+    return views, notes
+
+
 def build_drawings_section(
     fragments: list[Any],
     asm: Any,
@@ -255,13 +289,25 @@ def build_drawings_section(
     run_id: str | None = None,
     pkg_name: str = "",
 ) -> dict[str, Any]:
-    """C7: structured drawings index + explicit drawing_gap (no silent empty PDF)."""
+    """C7+G4: structured drawings index + REAL DXF section views where the part
+    carries CSG geometry; explicit drawing_gap otherwise (no silent empty PDF).
+
+    DXF texts travel under the reserved ``_view_texts`` key ({(index, view): text})
+    and are written to files (and stripped) by ``write_drawings_section``.
+    """
     parts: list[dict[str, Any]] = []
+    view_texts: dict[tuple[int, str], str] = {}
+    any_real_drawing = False
     for i, frag in enumerate(fragments):
         cad = getattr(frag, "cad_artifact", None)
         if cad is None:
             continue
         spec = cad.spec
+        views, view_notes = _generate_part_views(cad)
+        for view_name, dxf in views.items():
+            view_texts[(i, view_name)] = dxf
+        if views:
+            any_real_drawing = True
         parts.append(
             {
                 "index": i,
@@ -272,13 +318,28 @@ def build_drawings_section(
                 "volume_cm3": getattr(cad, "volume_estimate_cm3", None),
                 "stl_ref": f"part_{i}_*.stl",
                 "views_requested": ["isometric", "front", "top", "right"],
+                "views_generated": sorted(views.keys()),
+                "view_files": {
+                    v: f"part_{i}_{v}.dxf" for v in sorted(views.keys())
+                },
+                "view_notes": view_notes,
             }
         )
     gaps = [
-        "full 2D GD&T / DXF / PDF drawings not generated — need CAD drafting "
-        "(build123d/export drawing views)",
-        "tolerance frames and surface finish symbols not applied",
+        "tolerance frames and surface finish symbols not applied (GD&T gap)",
     ]
+    if any_real_drawing:
+        gaps.insert(
+            0,
+            "isometric/right views + dimension annotations not generated "
+            "(only real top/front DXF sections)",
+        )
+    else:
+        gaps.insert(
+            0,
+            "full 2D GD&T / DXF / PDF drawings not generated — need CAD drafting "
+            "(build123d/export drawing views)",
+        )
     if not parts:
         gaps.insert(0, "no CAD fragments — drawing index empty")
     return {
@@ -290,13 +351,22 @@ def build_drawings_section(
             "combined_stl": bool(getattr(asm, "combined_stl", None)),
             "part_files": len(getattr(asm, "part_files", None) or []),
         },
-        "drawing_gap": True,
+        # honest: gap closes only when at least one REAL section drawing exists
+        "drawing_gap": not any_real_drawing,
         "gaps": gaps,
         "quelle": "gen.pipelines.realization_package.build_drawings_section",
+        "_view_texts": view_texts,
     }
 
 
 def write_drawings_section(pkg_root: Path, section: dict[str, Any]) -> Path:
+    # G4: materialise real DXF section views as files; never write empty files
+    view_texts = section.pop("_view_texts", {}) or {}
+    for (idx, view_name), dxf in view_texts.items():
+        if dxf:
+            (pkg_root / f"part_{idx}_{view_name}.dxf").write_text(
+                dxf, encoding="utf-8"
+            )
     path = pkg_root / "drawings.json"
     path.write_text(json.dumps(section, indent=2, ensure_ascii=False), encoding="utf-8")
     lines = [
@@ -315,6 +385,15 @@ def write_drawings_section(pkg_root: Path, section: dict[str, Any]) -> Path:
         lines.append(f"- Volume est: {p.get('volume_cm3')} cm³")
         lines.append(f"- STL: {p.get('stl_ref')}")
         lines.append(f"- Views requested: {', '.join(p.get('views_requested') or [])}")
+        generated = p.get("views_generated") or []
+        if generated:
+            files = p.get("view_files") or {}
+            lines.append(
+                "- Views generated (real DXF sections): "
+                + ", ".join(f"{v} → `{files.get(v)}`" for v in generated)
+            )
+        for note in p.get("view_notes") or []:
+            lines.append(f"- Note: {note}")
         lines.append("")
     lines.append("## Assembly")
     lines.append(f"- combined STL claimed: {section.get('assembly', {}).get('combined_stl')}")
