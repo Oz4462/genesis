@@ -68,9 +68,24 @@ def test_packager_produces_richer_package_with_bom_and_assembly():
     assert "costs" in manifest
     assert "test_plan" in manifest
     assert "assembly" in manifest
-    # at least the stls from the frags
+    # G1 honest contract: real STLs when the CAD kernel is available; without
+    # a kernel NO file is shipped (no placeholder) and the gap is explicit.
+    from gen.cad.cadquery_bridge import cad_available
     stl_files = [f for f in files if f.endswith(".stl")]
-    assert len(stl_files) >= 1
+    if cad_available():
+        assert len(stl_files) >= 1
+    else:
+        # no NEW placeholder may be shipped; the freshly written manifest must
+        # declare the missing STL as a gap. (The dir may hold real files from
+        # earlier kernel-enabled runs with the same run_id — not this run's.)
+        assert any(
+            "no real STL" in g or "kernel" in g.lower()
+            for g in manifest.get("open_gaps", [])
+        ), "missing STL must surface as an explicit gap"
+    assert not [
+        f.name for f in pkg_path.iterdir()
+        if f.suffix in (".stl", ".step") and f.stat().st_size == 0
+    ], "0-byte CAD artifact shipped"
 
     # Realisierungspaket enrichment: drawings + regulatorik stubs + richer manifest
     assert "DRAWINGS.md" in files
@@ -79,13 +94,19 @@ def test_packager_produces_richer_package_with_bom_and_assembly():
     assert "advanced_dfm" in manifest
     assert "drawings" in manifest
     # G4: drawing_gap is honest — False only when REAL .dxf sections were
-    # generated into the package (kernel available), True otherwise.
-    dxf_files = [f for f in files if f.endswith(".dxf")]
+    # generated THIS run (per fresh drawings.json), True otherwise. Dir contents
+    # may include stale files from earlier kernel-enabled runs with same run_id.
+    drawings = json.loads((pkg_path / "drawings.json").read_text())
+    generated = [v for part in drawings.get("parts", []) for v in part.get("views_generated", [])]
     if manifest.get("drawing_gap") is True:
-        assert dxf_files == []
+        assert generated == []
     else:
         assert manifest.get("drawing_gap") is False
-        assert dxf_files, "drawing_gap=False requires real DXF files"
+        assert generated, "drawing_gap=False requires generated views"
+        for part in drawings.get("parts", []):
+            for view_file in (part.get("view_files") or {}).values():
+                f = pkg_path / view_file
+                assert f.is_file() and f.stat().st_size > 0
     assert "regulatorik" in manifest
     assert "open_gaps" in manifest
     # C6 harness package

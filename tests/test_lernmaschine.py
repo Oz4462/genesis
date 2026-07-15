@@ -83,7 +83,17 @@ def test_e2e_full_chain_jetpack_with_lern_and_real_package():
         pkg_path = Path(pkg_dir)
         assert pkg_path.exists()
         files = [p.name for p in pkg_path.iterdir()]
-        assert any(f.endswith(".stl") for f in files), f"real STL missing for {idee[:30]}"
+        # G1 honest contract: real STL only with a CAD kernel; otherwise the
+        # package ships no placeholder file and declares the gap instead.
+        from gen.cad.cadquery_bridge import cad_available
+        if cad_available():
+            assert any(f.endswith(".stl") for f in files), f"real STL missing for {idee[:30]}"
+        # without a kernel no assertion on dir contents (stale real files from
+        # earlier kernel runs may exist); the no-placeholder guarantee is
+        # covered by test_assembly_no_empty_stl + the integrator gap check
+        for f in pkg_path.iterdir():
+            if f.suffix in (".stl", ".step"):
+                assert f.stat().st_size > 0, f"0-byte artifact: {f.name}"
         assert "manifest.json" in files or "SUMMARY.md" in files
 
         # Lern + Persistenz (Step 7+8)
