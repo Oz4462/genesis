@@ -84,7 +84,7 @@ scripts/find_islands.py · scripts/gen_status.py
 | Messgröße | Wert (2026-07-15) | Quelle |
 |-----------|-------------------|--------|
 | Tests collected | **2594** | `pytest --collect-only -q` |
-| Voller Suite-Lauf | **2545 passed / 49 skipped / 0 failed** (Stand `ceb3c66`, 27:34 min; Re-Lauf auf `a097925` siehe BUILD_LOG) | `pytest tests -q` |
+| Voller Suite-Lauf | **2557 passed / 49 skipped / 0 failed** (Stand `34dc771`, 34:25 min lokal mit cad-venv; CI 3.11+3.12 ohne Kernel ebenfalls grün) | `pytest tests -q` |
 | Validatoren | **45** | `len(physics_validation.VALIDATORS)` |
 | Recipes | **46** | `len(physics_selection.RECIPES)` |
 | MANUAL_ONLY-Validatoren | **1** (`montecarlo_product` auto-selektiert seit 2026-07-14) | `physics_selection.MANUAL_ONLY_VALIDATORS` |

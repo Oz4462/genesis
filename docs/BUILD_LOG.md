@@ -788,3 +788,17 @@ part_0_front.dxf (16.2 KB), 0 leere Dateien; alle 3 Ebenen exportieren (XY/XZ/YZ
 tests/test_export_drawing_package.py neu — 15 passed über Drawing/Package-Suiten.
 **4 Linsen:** L1: echte Kernel-Sektionen · L2: drawing_gap-Flag jetzt messwahr · L3: Naht
 drawing.py→Paket geschlossen · L4: DXF ist CAM-übergabefähig (Kontur inkl. Bohrungen).
+
+## 2026-07-15 — G2 (P0-2): Doc-Resync Messblock + Voll-Verify Phase G
+
+**Messlauf (2026-07-15, Stand `34dc771`):** Suite **2557 passed / 49 skipped / 0 failed**
+(34:25 min lokal mit cad-venv); **CI grün** (3.11+3.12, ohne Kernel — beweist die ehrlichen
+No-Kernel-Pfade). 2594 collected · 45 Validatoren · 46 Recipes · 1 manual-only ·
+Reachability 334/266/9/25/34 · 51 CLI-Modi.
+**Doc-Sync:** CLAUDE.md-Messblock auf 2026-07-15; STATUS Phase-G-Zeile + Produkttiefe-Rest;
+SYSTEMATIC_BACKLOG_REPORT §12 (G1–G4 mit SHAs); BACKLOG_TODO_PLAN Phase G komplett abgehakt.
+**Phase-G-Verlauf:** G1 `14a3bd1` → G3 `64e1abb` → G4 `a097925` → Fallout-Fixes `aba6d6b`,
+`34dc771` (Voll-Lauf + CI hatten 2 Alt-Contract-Tests + Store-Serialisierung gefangen — beide
+auf den ehrlichen Vertrag gehoben statt Symptom versteckt).
+**4 Linsen:** L1: Zahlen = Messwerte mit SHA · L2: Doku-Drift geschlossen · L3: lokale+CI-Naht
+beide bewiesen · L4: Paket liefert reale STL+DXF; Rest-Gaps benannt (CAM, GD&T, Vector-DB, Lab).
