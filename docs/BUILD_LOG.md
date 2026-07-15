@@ -739,3 +739,20 @@ SSOT pointers STATUS/CLAUDE; STATUS AUTO refreshed via gen_status.
 **Work:** test_cli_mode_matrix_rework reads cli.py choices; covers report/surface/discovery offline modes.
 AUDIT historical; CAPABILITIES metrics re-synced (47 modes, 44 validators, 2487 collected).
 **Evidence:** 29 passed matrix suite (~81s).
+
+## 2026-07-15 — P0-1 Integritäts-Fix: keine 0-Byte-STL-Platzhalter mehr (Audit-Befund)
+
+**Problem (Re-Audit 2026-07-15):** `cad/assembly.py` erzeugte stille leere Tempfiles als
+`part_files` (147 leere STLs in out/realization_packages/); Export-Bedingung prüfte
+`art.artifact` — Attribut existiert auf `BuildArtifact` nicht; `combined_stl` war Kopie von Teil 1.
+**Fix:** `prototype_cad_builder` modelliert die Teile jetzt als echten CSG-Baum
+(`GeometryNode` + DECISION-Quantities) und exportiert REALE Kernel-STLs über
+`cadquery_bridge.to_stl` (Jetpack-Platte 911 KB, Generic 131 KB). `assembly.py` nimmt nur
+nicht-leere Dateien in `part_files`, fehlende Geometrie ⇒ expliziter `gaps`-Eintrag;
+`combined_stl` ist eine ECHTE Kernel-Union der verschobenen CSG-Bäume (1.04 MB) oder None+Gap.
+Integrator kopiert nur Dateien >0 Byte und reicht Assembly-Gaps in `open_gaps` durch.
+**Evidence:** tests/test_assembly_no_empty_stl.py (5 Tests: Kernel-an/aus) + angepasster
+Honest-Contract in test_cad_assembly.py; 13 passed/1 skipped über die 4 betroffenen Suiten;
+`find out -name "*.stl" -size 0 | wc -l` ⇒ 0.
+**4 Linsen:** L1 Wahrheit: kein Fake-Artefakt mehr · L2 Drift: Doku-Claim "real part_files"
+stimmt jetzt · L3 Naht: Builder→Assembly→Integrator geschlossen · L4: STLs sind druckbare Kernel-Tessellation.

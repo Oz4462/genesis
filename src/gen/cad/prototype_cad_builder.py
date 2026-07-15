@@ -7,9 +7,16 @@ Gemäß GENESIS_PLATFORM_PLAN.md:
 - 4.7 Fertigungs-Pipeline + 8.4: prototype_cad_builder erzeugt Prototyp/Teststand-CAD.
 - 3.3/3.4 Moonshot + Fach-Pipelines: sichere, kleine, baubare Steine mit ehrlichen Gates.
 
-Real stack: build123d (Pythonic parametric BREP auf OpenCASCADE/OCCT).
-Der Builder erzeugt **echten, lauffähigen Code** (keine Halluzination der Geometrie).
-Zusätzlich: statische + (wenn lib verfügbar) echte Metriken + einfacher DFM/Printability-Report.
+Real stack (P0-1 2026-07-15): the part is modelled as a GENESIS CSG tree
+(``GeometryNode`` + DECISION ``Quantity`` dimensions) and exported to a REAL STL
+through the isolated CadQuery/OCCT kernel (``cadquery_bridge.to_stl``). The
+build123d code emission is kept as a copyable deliverable, but the on-disk
+artifact now comes from the kernel — no placeholder files, ever. When the
+kernel is unavailable the export is honestly absent (hint string, no file).
+
+Known simplification (documented, not hidden): the CSG vocabulary has no
+fillet/chamfer, so the kernel STL is the unfilleted solid; fillets exist only
+in the emitted build123d code.
 
 Erster Stein: Jetpack-Kanon (tethered / bench-sichere Komponente, abgeleitet aus prior
 Grenzverschiebung: Recovery, Energy, Safety-Ladder S0-S2).
@@ -18,7 +25,12 @@ Grenzverschiebung: Recovery, Energy, Safety-Ladder S0-S2).
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from ..core.errors import GeometryError
+from ..core.state import GeometryNode, Quantity, ValueOrigin
 
 
 @dataclass(frozen=True)
@@ -34,7 +46,12 @@ class PrototypeSpec:
 
 @dataclass(frozen=True)
 class BuildArtifact:
-    """Ergebnis des CAD-Builders (code + Artefakte + Gate-Output)."""
+    """Ergebnis des CAD-Builders (code + Artefakte + Gate-Output).
+
+    ``geometry`` / ``geometry_quantities`` carry the parametric CSG tree the STL
+    was (or would be) built from, so downstream consumers (assembly, drawings)
+    can operate on REAL geometry instead of re-parsing generated code.
+    """
     spec: PrototypeSpec
     generated_code: str                    # vollständiger, kopierbarer build123d-Code
     exports: dict[str, str]                # z.B. {"stl": "base64 or path hint", "step": "..."}
@@ -43,6 +60,143 @@ class BuildArtifact:
     is_buildable: bool = True
     run_id: str | None = None
     quelle: str | None = None
+    geometry: GeometryNode | None = None
+    geometry_quantities: dict[str, Quantity] = field(default_factory=dict)
+
+
+def _q(qid: str, value: float, *, unit: str = "mm") -> Quantity:
+    """A DECISION quantity for a template dimension (identifier-safe id, mm)."""
+    return Quantity(
+        id=qid,
+        name=qid.replace("_", " "),
+        value=float(value),
+        unit=unit,
+        origin=ValueOrigin.DECISION,
+        rationale=(
+            "template dimension chosen by prototype_cad_builder (first-stone "
+            "prototype geometry, GENESIS_PLATFORM_PLAN.md §3.6/§8.4)"
+        ),
+    )
+
+
+def _translated(child: GeometryNode, xq: str, yq: str, zq: str) -> GeometryNode:
+    return GeometryNode(
+        kind="translate", params={"x": xq, "y": yq, "z": zq}, children=[child]
+    )
+
+
+def _anchor_plate_geometry(
+    spec: PrototypeSpec,
+) -> tuple[GeometryNode, dict[str, Quantity]]:
+    """Real CSG tree of the tether/recovery anchor plate (worker convention:
+    box and cylinder are CENTERED at the origin)."""
+    quantities = {
+        q.id: q
+        for q in (
+            _q("plate_x", 120.0),
+            _q("plate_y", 80.0),
+            _q("plate_z", 6.0),
+            _q("mount_hole_r", 5.5 / 2.0),   # M5 clearance
+            _q("tether_hole_r", 8.0 / 2.0),  # Dyneema/Schäkel
+            _q("recovery_hole_r", 4.0 / 2.0),
+            _q("hole_h", 8.0),               # > plate_z → clean through-cut
+            _q("pocket_x", 60.0),
+            _q("pocket_y", 30.0),
+            _q("pocket_z", 2.0),
+            _q("pos_zero", 0.0),
+            _q("mount_dx_pos", 45.0),
+            _q("mount_dx_neg", -45.0),
+            _q("mount_dy_pos", 25.0),
+            _q("mount_dy_neg", -25.0),
+            _q("recovery_dx_pos", 30.0),
+            _q("recovery_dx_neg", -30.0),
+            _q("pocket_dz", 2.0),            # pocket centered so it cuts the top 2 mm
+        )
+    }
+
+    plate = GeometryNode(
+        kind="box", params={"size_x": "plate_x", "size_y": "plate_y", "size_z": "plate_z"}
+    )
+
+    def hole(radius_qid: str) -> GeometryNode:
+        return GeometryNode(
+            kind="cylinder", params={"radius": radius_qid, "height": "hole_h"}
+        )
+
+    cuts: list[GeometryNode] = [
+        _translated(hole("mount_hole_r"), "mount_dx_neg", "mount_dy_neg", "pos_zero"),
+        _translated(hole("mount_hole_r"), "mount_dx_pos", "mount_dy_neg", "pos_zero"),
+        _translated(hole("mount_hole_r"), "mount_dx_neg", "mount_dy_pos", "pos_zero"),
+        _translated(hole("mount_hole_r"), "mount_dx_pos", "mount_dy_pos", "pos_zero"),
+        _translated(hole("tether_hole_r"), "pos_zero", "pos_zero", "pos_zero"),
+        _translated(hole("recovery_hole_r"), "recovery_dx_neg", "pos_zero", "pos_zero"),
+        _translated(hole("recovery_hole_r"), "recovery_dx_pos", "pos_zero", "pos_zero"),
+        _translated(
+            GeometryNode(
+                kind="box",
+                params={"size_x": "pocket_x", "size_y": "pocket_y", "size_z": "pocket_z"},
+            ),
+            "pos_zero",
+            "pos_zero",
+            "pocket_dz",
+        ),
+    ]
+    node = GeometryNode(kind="difference", params={}, children=[plate, *cuts])
+    return node, quantities
+
+
+def _generic_plate_geometry(
+    spec: PrototypeSpec,
+) -> tuple[GeometryNode, dict[str, Quantity]]:
+    """Real CSG tree of the generic minimal plate (100×60×5, one Ø5 hole)."""
+    quantities = {
+        q.id: q
+        for q in (
+            _q("plate_x", 100.0),
+            _q("plate_y", 60.0),
+            _q("plate_z", 5.0),
+            _q("hole_r", 2.5),
+            _q("hole_h", 7.0),
+        )
+    }
+    plate = GeometryNode(
+        kind="box", params={"size_x": "plate_x", "size_y": "plate_y", "size_z": "plate_z"}
+    )
+    hole = GeometryNode(kind="cylinder", params={"radius": "hole_r", "height": "hole_h"})
+    node = GeometryNode(kind="difference", params={}, children=[plate, hole])
+    return node, quantities
+
+
+def _export_real_stl(
+    name: str,
+    node: GeometryNode,
+    quantities: dict[str, Quantity],
+    run_id: str | None,
+) -> str | None:
+    """Export the CSG through the OCCT kernel to a REAL, non-empty STL file.
+
+    Returns the file path, or None when the kernel is unavailable or export
+    fails — the caller then reports an honest gap. NEVER writes an empty file.
+    """
+    from .cadquery_bridge import cad_available, to_stl
+
+    if not cad_available():
+        return None
+    try:
+        stl_text = to_stl(node, quantities, name=name)
+    except GeometryError:
+        return None
+    if not stl_text or "facet" not in stl_text:
+        return None
+    safe = re.sub(r"[^A-Za-z0-9_-]+", "_", name).strip("_") or "part"
+    out_dir = Path("out") / "cad"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / f"{safe}_{run_id or 'proto'}.stl"
+    path.write_text(stl_text)
+    if path.stat().st_size == 0:  # defence in depth: no empty artifact, ever
+        path.unlink()
+        return None
+    return str(path)
 
 
 def build_prototype_cad(
@@ -51,15 +205,16 @@ def build_prototype_cad(
     run_id: str | None = None,
 ) -> BuildArtifact:
     """
-    Erzeugt einen realen, parametrischen build123d-Prototypen.
+    Erzeugt einen realen, parametrischen Prototypen: CSG-Baum + Kernel-STL
+    (wenn die cad-venv Bridge verfügbar ist) + kopierbaren build123d-Code.
 
     Für das Jetpack-Beispiel (abgeleitet aus Safety-Ladder + Recovery-Lessons):
     Eine "tether_anchor_plate" — flache, druckbare Platte mit Tether-Punkten,
     Mounting-Holes für Ducted-Fan-Test und Recovery-Hardware. Geeignet für S1 Prüfstand
     oder tethered unmanned (S2).
 
-    Der Code ist 1:1 aus den offiziellen build123d Patterns (BuildPart, BuildSketch,
-    Locations, extrude, fillet, etc.) und kann direkt ausgeführt werden.
+    Der build123d-Code ist 1:1 aus den offiziellen build123d Patterns (BuildPart,
+    BuildSketch, Locations, extrude, fillet, etc.) und kann direkt ausgeführt werden.
     """
     if "jetpack" in spec.name.lower() or "tether" in spec.name.lower() or "recovery" in spec.description.lower():
         # Real build123d code (Builder-Mode, wie in der offiziellen Doku)
@@ -128,19 +283,28 @@ except Exception as e:
             "Recovery-Befestigungen: zusätzliche Verstärkung (mehr Perimeter) um die 8 mm Löcher empfohlen.",
         ]
         volume = 42.0
-        real_stl_path = None
 
-        # Wenn build123d zur Build-Zeit verfügbar ist: echtes Part bauen + realen Export durchführen
+        node, quantities = _anchor_plate_geometry(spec)
+        real_stl_path = _export_real_stl(
+            "genesis_jetpack_tether_anchor", node, quantities, run_id
+        )
+
+        # Opportunistic in-process build123d path (only if someone installed it
+        # in the main venv): refines the volume estimate; never writes files here.
         try:
             g: dict = {}
             exec(code, g)
             live = g.get("anchor_plate")
             if live and hasattr(live, "part"):
-                live_part = live.part
-                volume = round(live_part.volume / 1000, 2)
-                real_stl_path = g.get("_genesis_stl_path")
-                if real_stl_path and not os.path.exists(real_stl_path):
-                    real_stl_path = None  # exported path not on disk → use fallback hint below
+                volume = round(live.part.volume / 1000, 2)
+                b123d_stl = g.get("_genesis_stl_path")
+                if (
+                    real_stl_path is None
+                    and b123d_stl
+                    and os.path.exists(b123d_stl)
+                    and os.path.getsize(b123d_stl) > 0
+                ):
+                    real_stl_path = b123d_stl
         except Exception:
             pass  # nur Code-Emission, kein Hard-Fail
 
@@ -148,18 +312,21 @@ except Exception as e:
             spec=spec,
             generated_code=code,
             exports={
-                "stl": real_stl_path or "genesis_jetpack_tether_anchor.stl (exported on execution)",
+                "stl": real_stl_path
+                or "genesis_jetpack_tether_anchor.stl (kernel unavailable — no file emitted, honest gap)",
                 "step": "anchor_plate.step (via .export_step)",
             },
             dfm_report=dfm,
             volume_estimate_cm3=volume,
             is_buildable=True,
             run_id=run_id,
-            quelle="build123d official docs (Builder mode patterns + export_stl) + GENESIS_PLATFORM_PLAN.md §3.6/3.7/8.4 + prior safety_ladder + learning_integrator (Recovery + Safety Gates)",
+            quelle="cadquery_bridge (OCCT kernel STL) + build123d official docs (Builder mode patterns + export_stl) + GENESIS_PLATFORM_PLAN.md §3.6/3.7/8.4 + prior safety_ladder + learning_integrator (Recovery + Safety Gates)",
+            geometry=node,
+            geometry_quantities=quantities,
         )
 
     else:
-        # Generic minimal viable plate (immer noch echtes build123d)
+        # Generic minimal viable plate (immer noch echtes CSG + build123d Code)
         code = f'''from build123d import *
 
 # Generic prototype plate — {spec.name}
@@ -172,13 +339,22 @@ with BuildPart() as plate:
         Hole(5, depth=6)
 '''
 
+        node, quantities = _generic_plate_geometry(spec)
+        safe = re.sub(r"[^A-Za-z0-9_-]+", "_", spec.name).strip("_") or "generic_plate"
+        real_stl_path = _export_real_stl(safe, node, quantities, run_id)
+
         return BuildArtifact(
             spec=spec,
             generated_code=code,
-            exports={"stl": "generic_plate.stl"},
+            exports={
+                "stl": real_stl_path
+                or "generic_plate.stl (kernel unavailable — no file emitted, honest gap)",
+            },
             dfm_report=["Einfache Platte — leicht zu drucken. Wand 5 mm > empfohlene min."],
             volume_estimate_cm3=30.0,
             is_buildable=True,
             run_id=run_id,
-            quelle="build123d docs + GENESIS generic fallback",
+            quelle="cadquery_bridge (OCCT kernel STL) + build123d docs + GENESIS generic fallback",
+            geometry=node,
+            geometry_quantities=quantities,
         )

@@ -168,7 +168,7 @@ def build_realization_fragment(
             if isinstance(cad_artifact.exports, dict)
             else None
         )
-        if stl_claim and os.path.exists(str(stl_claim)):
+        if stl_claim and os.path.isfile(str(stl_claim)) and os.path.getsize(str(stl_claim)) > 0:
             shutil.copy(str(stl_claim), pkg_root / "tether_anchor.stl")
         report = f"""# Genesis Mini Realisierungspaket Fragment (Jetpack {focus_assembly_name})
 
@@ -281,7 +281,7 @@ def build_full_mini_realization_package(
             if isinstance(f.cad_artifact.exports, dict)
             else None
         )
-        if stl and os.path.exists(str(stl)):
+        if stl and os.path.isfile(str(stl)) and os.path.getsize(str(stl)) > 0:
             safe_name = (
                 f.cad_artifact.spec.name.replace(" ", "_")
                 .replace("/", "_")
@@ -289,12 +289,16 @@ def build_full_mini_realization_package(
             )
             shutil.copy(str(stl), pkg_root / f"part_{frag_idx}_{safe_name}.stl")
 
-    # copy assembly parts/combined
+    # copy assembly parts/combined — only real, non-empty files (P0-1: no 0-byte artifacts)
     if asm.part_files:
         for part_idx, pf in enumerate(asm.part_files):
-            if os.path.exists(pf):
+            if os.path.isfile(pf) and os.path.getsize(pf) > 0:
                 shutil.copy(pf, pkg_root / f"assembly_part_{part_idx}.stl")
-    if asm.combined_stl and os.path.exists(asm.combined_stl):
+    if (
+        asm.combined_stl
+        and os.path.isfile(asm.combined_stl)
+        and os.path.getsize(asm.combined_stl) > 0
+    ):
         shutil.copy(asm.combined_stl, pkg_root / "assembly_combined.stl")
 
     # C5: structured BOM is assembled after electronics (mech + elec); placeholder until then.
@@ -806,7 +810,9 @@ Real package dir: {pkg_root}
         item for f in fragments for item in getattr(f, "open_luecken", [])
     ] + list(bom.get("gaps") or []) + list(harness_section.get("gaps") or []) + list(
         drawings_section.get("gaps") or []
-    ) + ["full live costs from Wissensbasis (stubbed for now per user)"]
+    ) + list(getattr(asm, "gaps", []) or []) + [
+        "full live costs from Wissensbasis (stubbed for now per user)"
+    ]
 
     (pkg_root / "manifest.json").write_text(
         json.dumps(manifest, indent=2, default=str), encoding="utf-8"

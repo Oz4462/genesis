@@ -63,3 +63,10 @@
 3. Commit message references sprint id (H1/C1/…)  
 4. Check box + SHA in this file  
 5. One-line update in SYSTEMATIC_BACKLOG_REPORT  
+
+## Phase G — Integrity & CAD depth (Re-Audit 2026-07-15)
+
+- [x] **G1 (P0-1)** assembly.py 0-byte-STL fake fix: real kernel STLs (builder CSG + bridge), real union, honest gaps — SHA in commit `fix(g1)`
+- [ ] **G2 (P0-2)** Doc re-sync measured block 2026-07-15 (tests/validators/recipes/islands)
+- [ ] **G3 (P1-1)** Spec→CAD bridge for realize path (Specification.components → CSG → kernel STL, template only as gap-noted fallback)
+- [ ] **G4 (P1-3)** Drawings: enable real DXF/SVG section path in packages (reduce drawing_gap for prism parts)

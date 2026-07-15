@@ -19,10 +19,18 @@ def test_jetpack_fragments_produce_real_assembly_with_manifest():
     asm = build_assembly([frag], name="Jetpack Tether Assembly", run_id="asm-test-001")
 
     assert asm.spec.name == "Jetpack Tether Assembly"
-    assert len(asm.part_files) >= 1
-    assert any("tether" in f.lower() or "stl" in f.lower() for f in asm.part_files)
+    # P0-1 honest contract: real non-empty files when the kernel is available,
+    # explicit gaps (and NO placeholder files) when it is not.
+    import os
+    from gen.cad.cadquery_bridge import cad_available
+    assert all(os.path.getsize(f) > 0 for f in asm.part_files)
+    if cad_available():
+        assert len(asm.part_files) >= 1
+        assert any("tether" in f.lower() or "stl" in f.lower() for f in asm.part_files)
+    else:
+        assert asm.gaps, "without kernel the missing STL must be an explicit gap"
     assert asm.manifest["num_parts"] >= 1
-    assert "combined" in asm.manifest or asm.combined_stl
+    assert "combined" in asm.manifest
     assert "assembly" in (asm.quelle or "").lower() or "integrator" in (asm.quelle or "").lower()
     assert asm.run_id == "asm-test-001"
 
@@ -36,5 +44,11 @@ def test_generic_produces_minimal_assembly():
 
     asm = build_assembly([frag], name="Generic Assembly")
 
-    assert len(asm.part_files) >= 1
+    import os
+    from gen.cad.cadquery_bridge import cad_available
+    assert all(os.path.getsize(f) > 0 for f in asm.part_files)
+    if cad_available():
+        assert len(asm.part_files) >= 1
+    else:
+        assert asm.gaps
     assert asm.manifest["num_parts"] >= 1
