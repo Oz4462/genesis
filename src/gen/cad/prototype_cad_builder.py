@@ -148,22 +148,50 @@ def _anchor_plate_geometry(
 def _generic_plate_geometry(
     spec: PrototypeSpec,
 ) -> tuple[GeometryNode, dict[str, Quantity]]:
-    """Real CSG tree of the generic minimal plate (100×60×5, one Ø5 hole)."""
+    """Real CSG tree of the generic plate — PARAMETRIC on the spec's
+    ``bounding_box_hint_mm`` (G3): plate = bbox footprint, one Ø5 center hole,
+    plus 4 corner mount holes when the footprint is large enough."""
+    bx, by, bz = spec.bounding_box_hint_mm
+    px = max(float(bx), 10.0)
+    py = max(float(by), 10.0)
+    pz = max(float(bz), float(spec.min_wall_thickness_mm))
     quantities = {
         q.id: q
         for q in (
-            _q("plate_x", 100.0),
-            _q("plate_y", 60.0),
-            _q("plate_z", 5.0),
+            _q("plate_x", px),
+            _q("plate_y", py),
+            _q("plate_z", pz),
             _q("hole_r", 2.5),
-            _q("hole_h", 7.0),
+            _q("hole_h", pz + 2.0),
+            _q("pos_zero", 0.0),
         )
     }
     plate = GeometryNode(
         kind="box", params={"size_x": "plate_x", "size_y": "plate_y", "size_z": "plate_z"}
     )
-    hole = GeometryNode(kind="cylinder", params={"radius": "hole_r", "height": "hole_h"})
-    node = GeometryNode(kind="difference", params={}, children=[plate, hole])
+
+    def hole() -> GeometryNode:
+        return GeometryNode(kind="cylinder", params={"radius": "hole_r", "height": "hole_h"})
+
+    cuts: list[GeometryNode] = [hole()]
+    # corner mount holes only when the plate is comfortably larger than the pattern
+    if px >= 40.0 and py >= 40.0:
+        inset = 8.0
+        quantities.update(
+            {
+                q.id: q
+                for q in (
+                    _q("mount_dx_pos", px / 2.0 - inset),
+                    _q("mount_dx_neg", -(px / 2.0 - inset)),
+                    _q("mount_dy_pos", py / 2.0 - inset),
+                    _q("mount_dy_neg", -(py / 2.0 - inset)),
+                )
+            }
+        )
+        for xq in ("mount_dx_neg", "mount_dx_pos"):
+            for yq in ("mount_dy_neg", "mount_dy_pos"):
+                cuts.append(_translated(hole(), xq, yq, "pos_zero"))
+    node = GeometryNode(kind="difference", params={}, children=[plate, *cuts])
     return node, quantities
 
 
@@ -326,17 +354,21 @@ except Exception as e:
         )
 
     else:
-        # Generic minimal viable plate (immer noch echtes CSG + build123d Code)
+        # Generic viable plate — PARAMETRIC on the bbox hint (G3), echtes CSG + build123d Code
+        gx = max(float(spec.bounding_box_hint_mm[0]), 10.0)
+        gy = max(float(spec.bounding_box_hint_mm[1]), 10.0)
+        gz = max(float(spec.bounding_box_hint_mm[2]), float(spec.min_wall_thickness_mm))
         code = f'''from build123d import *
 
 # Generic prototype plate — {spec.name}
+# Parametric footprint from bounding_box_hint_mm (DECISION default when unset)
 with BuildPart() as plate:
     with BuildSketch() as base:
-        Rectangle(100, 60)
-    extrude(amount=5)
+        Rectangle({gx}, {gy})
+    extrude(amount={gz})
     fillet(plate.edges().filter_by(GeomType.LINE), radius=3)
     with Locations((0, 0)):
-        Hole(5, depth=6)
+        Hole(5, depth={gz + 1})
 '''
 
         node, quantities = _generic_plate_geometry(spec)

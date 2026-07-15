@@ -122,15 +122,23 @@ def build_realization_fragment(
     if not target:
         target = concept.main_assemblies[0] if concept.main_assemblies else None
 
-    # Baue CAD-Spec aus den Daten (sehr pragmatisch für ersten Stein)
-    cad_spec = PrototypeSpec(
-        name=f"Jetpack {focus_assembly_name}",
-        description=f"Realisierung aus SystemConcept + IngenieurSpec für {focus_assembly_name}",
-        bounding_box_hint_mm=(120, 80, 10),
-        min_wall_thickness_mm=2.0,
-        material_hint="Alu 6061 oder CFK (siehe IngenieurSpec)",
-        quelle="integrator + Architekt + Ingenieur + prior Grenz",
-    )
+    # CAD-Spec aus den ECHTEN Pipeline-Daten (G3): Name/Purpose/Material aus
+    # AssemblyConcept + IngenieurSpec statt hartkodiertem "Jetpack …"-Template.
+    from gen.cad.spec_to_cad import prototype_spec_from_assembly
+
+    if target is not None:
+        cad_spec = prototype_spec_from_assembly(
+            target, ingenieur, source_idea=concept.source_idea
+        )
+    else:
+        cad_spec = PrototypeSpec(
+            name=focus_assembly_name,
+            description=f"Realisierung aus SystemConcept + IngenieurSpec für {focus_assembly_name}",
+            bounding_box_hint_mm=(120, 80, 10),
+            min_wall_thickness_mm=2.0,
+            material_hint="Alu 6061 oder CFK (siehe IngenieurSpec)",
+            quelle="integrator + Architekt + Ingenieur + prior Grenz (no assembly in concept)",
+        )
 
     # Echter CAD-Build (produziert reale Datei auf Platte)
     cad_artifact = build_prototype_cad(cad_spec, run_id=run_id)

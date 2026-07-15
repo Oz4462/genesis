@@ -756,3 +756,18 @@ Honest-Contract in test_cad_assembly.py; 13 passed/1 skipped über die 4 betroff
 `find out -name "*.stl" -size 0 | wc -l` ⇒ 0.
 **4 Linsen:** L1 Wahrheit: kein Fake-Artefakt mehr · L2 Drift: Doku-Claim "real part_files"
 stimmt jetzt · L3 Naht: Builder→Assembly→Integrator geschlossen · L4: STLs sind druckbare Kernel-Tessellation.
+
+## 2026-07-15 — G3 (P1-1): Spec→CAD-Brücke — realize-Pfad weg vom Template
+
+**Problem (Re-Audit):** realize-CAD kannte nur 2 hartkodierte Formen ("Jetpack …"-Platte +
+100×60-Generic); γ-Specification-Geometrie (Component.geometry CSG) floss nur durch bundle/print.
+**Fix:** Neues `cad/spec_to_cad.py`: (1) `specification_to_build_artifact` — γ-Spec → BuildArtifact
+mit echtem Kernel-STL (capstone: 131 KB), CSG-Baum + Quantities angehängt; ohne Geometrie ⇒ None
+(nichts erfunden). (2) `prototype_spec_from_assembly` — PrototypeSpec aus ECHTEM AssemblyConcept +
+IngenieurSpec (Name/Purpose/Material real; Maße = deklarierte DECISION-Defaults). Generic-Platte
+jetzt PARAMETRISCH nach bounding_box_hint (Eck-Bohrbild ab 40 mm); Integrator-Fragment nutzt die
+Ableitung (Jetpack-Kanon über "recovery"-Trigger weiter erreichbar).
+**Evidence:** tests/test_spec_to_cad.py (6 Tests) + CAD/Integrator/Package-Suiten: 24 passed/1 skipped.
+Smoke: Nicht-Jetpack-Idee ⇒ Teil "Main Structure" mit realem 646-KB-STL statt Jetpack-Template.
+**4 Linsen:** L1: Geometrie aus Spec, nicht Template · L2: "Idea→CAD"-Claim jetzt code-wahr für
+Spec-Pfad · L3: Naht Spec→Integrator/Assembly geschlossen · L4: Kernel-Tessellation druckbar.
