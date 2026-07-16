@@ -195,24 +195,161 @@ def write_package_bom(pkg_root: Path, bom: dict[str, Any]) -> Path:
     return path
 
 
+def _to_plain(obj: Any) -> Any:
+    """Best-effort plain data from dataclasses / objects (no private attrs)."""
+    if obj is None:
+        return None
+    if isinstance(obj, dict):
+        return obj
+    if hasattr(obj, "__dict__"):
+        return {k: v for k, v in vars(obj).items() if not k.startswith("_")}
+    return obj
+
+
+def extract_wire_runs(elec_pieces: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """H4: structured wire runs with effective lengths (mm) from routed harness or segments.
+
+    Prefers ``routed_harness.routed`` (slack-adjusted). Falls back to raw
+    ``HarnessSpec.segments`` length_mm. Never invents lengths when none exist.
+    """
+    ep = elec_pieces or {}
+    routed = ep.get("routed_harness") or {}
+    if isinstance(routed, dict) and routed.get("routed"):
+        wires: list[dict[str, Any]] = []
+        for i, seg in enumerate(routed["routed"]):
+            if not isinstance(seg, dict):
+                continue
+            wires.append(
+                {
+                    "id": f"W{i + 1}",
+                    "from": seg.get("from"),
+                    "to": seg.get("to"),
+                    "signals": list(seg.get("signals") or []),
+                    "length_mm": seg.get("eff_length_mm"),
+                    "length_basis": "routed_eff_with_slack",
+                    "gauge_mm2": seg.get("gauge_mm2"),
+                    "current_a": seg.get("current_a"),
+                    "voltage_v": seg.get("voltage_v"),
+                    "routing_note": seg.get("routing_note"),
+                    "quelle": seg.get("quelle") or "routed_harness",
+                }
+            )
+        return wires
+
+    harness = ep.get("harness")
+    segs = getattr(harness, "segments", None) if harness is not None else None
+    if segs is None and isinstance(harness, dict):
+        segs = harness.get("segments")
+    wires = []
+    for i, seg in enumerate(segs or []):
+        plain = _to_plain(seg) or {}
+        if not isinstance(plain, dict):
+            continue
+        wires.append(
+            {
+                "id": f"W{i + 1}",
+                "from": plain.get("from_ref") or plain.get("from"),
+                "to": plain.get("to_ref") or plain.get("to"),
+                "signals": list(plain.get("signals") or []),
+                "length_mm": plain.get("length_mm"),
+                "length_basis": "nominal_segment",
+                "gauge_mm2": plain.get("gauge_mm2"),
+                "current_a": plain.get("current_a"),
+                "voltage_v": plain.get("voltage_v"),
+                "routing_note": None,
+                "quelle": plain.get("quelle") or "harness.segments",
+            }
+        )
+    return wires
+
+
+def extract_connector_pinouts(elec_pieces: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """H4: connector/component pinouts from netlist pin refs ``REF.PIN`` + component pins.
+
+    Groups every net pin by component ref; adds ``pin_names`` from Component when
+    present. Empty list when no netlist — never a fabricated pin map.
+    """
+    ep = elec_pieces or {}
+    netlist = ep.get("netlist")
+    if netlist is None:
+        return []
+
+    nets = getattr(netlist, "nets", None)
+    if nets is None and isinstance(netlist, dict):
+        nets = netlist.get("nets")
+    nets = nets or []
+
+    # ref -> {pin -> net_name}
+    by_ref: dict[str, dict[str, str]] = {}
+    for n in nets:
+        plain = _to_plain(n) or {}
+        name = plain.get("name") if isinstance(plain, dict) else getattr(n, "name", None)
+        pins = plain.get("pins") if isinstance(plain, dict) else getattr(n, "pins", None)
+        for p in pins or []:
+            ref, sep, pin = str(p).partition(".")
+            if not sep or not ref or not pin:
+                continue
+            by_ref.setdefault(ref, {})[pin] = str(name or "")
+
+    # optional component pin_names / kind enrichment
+    comps = ep.get("components") or []
+    comp_meta: dict[str, dict[str, Any]] = {}
+    for c in comps:
+        plain = _to_plain(c) or {}
+        if not isinstance(plain, dict):
+            continue
+        cid = plain.get("id") or plain.get("ref_des")
+        if not cid:
+            continue
+        comp_meta[str(cid)] = {
+            "name": plain.get("name"),
+            "kind": plain.get("kind"),
+            "pin_names": list(plain.get("pin_names") or []),
+        }
+
+    pinouts: list[dict[str, Any]] = []
+    for ref in sorted(by_ref.keys()):
+        pins_map = by_ref[ref]
+        meta = comp_meta.get(ref, {})
+        pin_rows = [
+            {"pin": pin, "net": net, "signal": net}
+            for pin, net in sorted(pins_map.items(), key=lambda kv: kv[0])
+        ]
+        # declared pin names not seen on nets → still list as open
+        for pn in meta.get("pin_names") or []:
+            if pn not in pins_map:
+                pin_rows.append({"pin": pn, "net": None, "signal": None, "status": "unconnected"})
+        pinouts.append(
+            {
+                "ref": ref,
+                "name": meta.get("name"),
+                "kind": meta.get("kind"),
+                "pins": pin_rows,
+                "n_pins": len(pin_rows),
+            }
+        )
+    return pinouts
+
+
 def build_harness_section(
     elec_pieces: dict[str, Any] | None,
     *,
     run_id: str | None = None,
 ) -> dict[str, Any]:
-    """C6: structured harness + netlist + placement package section."""
+    """C6+H4: harness + netlist + placement + wire lengths + connector pinouts."""
     ep = elec_pieces or {}
     harness = ep.get("harness")
     netlist = ep.get("netlist")
     placement = ep.get("placement_hints") or ep.get("auto_placement") or []
     routed = ep.get("routed_harness") or {}
 
-    def _to_data(obj: Any) -> Any:
-        if obj is None:
-            return None
-        if hasattr(obj, "__dict__"):
-            return {k: v for k, v in vars(obj).items() if not k.startswith("_")}
-        return obj
+    wires = extract_wire_runs(ep)
+    pinouts = extract_connector_pinouts(ep)
+    total_len_mm = sum(
+        float(w["length_mm"])
+        for w in wires
+        if w.get("length_mm") is not None
+    )
 
     gaps: list[str] = []
     if harness is None and not routed:
@@ -221,16 +358,28 @@ def build_harness_section(
         gaps.append("no netlist — ERC/DRC needs electronics netlist")
     if not placement:
         gaps.append("no placement hints — board placement not computed")
+    if not wires:
+        gaps.append("no wire runs with lengths — cannot produce harness cut list")
+    if not pinouts:
+        gaps.append("no connector pinouts — netlist pins or components missing")
+    gaps.append(
+        "graphical wiring diagram / 3D cable routes not generated (H4 depth: tables only)"
+    )
 
     return {
         "schema": HARNESS_SCHEMA,
         "run_id": run_id,
-        "harness": _to_data(harness),
-        "routed_harness": _to_data(routed) if routed else None,
-        "netlist": _to_data(netlist),
+        "harness": _to_plain(harness),
+        "routed_harness": _to_plain(routed) if routed else None,
+        "netlist": _to_plain(netlist),
         "placement": [
-            _to_data(p) if not isinstance(p, dict) else p for p in placement
+            _to_plain(p) if not isinstance(p, dict) else p for p in placement
         ],
+        "wires": wires,
+        "wire_count": len(wires),
+        "total_wire_length_mm": round(total_len_mm, 1) if wires else 0.0,
+        "pinouts": pinouts,
+        "pinout_count": len(pinouts),
         "gaps": gaps,
         "quelle": "gen.pipelines.realization_package.build_harness_section",
     }
@@ -247,8 +396,37 @@ def write_harness_section(pkg_root: Path, section: dict[str, Any]) -> Path:
         f"- harness present: {section.get('harness') is not None}",
         f"- netlist present: {section.get('netlist') is not None}",
         f"- placement entries: {len(section.get('placement') or [])}",
+        f"- wire runs: {section.get('wire_count', 0)} "
+        f"(total length {section.get('total_wire_length_mm', 0)} mm)",
+        f"- connector pinouts: {section.get('pinout_count', 0)}",
         "",
     ]
+    wires = section.get("wires") or []
+    if wires:
+        md.append("## Wire cut list (lengths)")
+        md.append("| ID | From | To | Length mm | Gauge mm² | Current A | Signals |")
+        md.append("|----|------|-----|-----------|-----------|-----------|---------|")
+        for w in wires:
+            sigs = ",".join(w.get("signals") or []) or "—"
+            md.append(
+                f"| {w.get('id')} | {w.get('from')} | {w.get('to')} | "
+                f"{w.get('length_mm')} | {w.get('gauge_mm2')} | "
+                f"{w.get('current_a')} | {sigs} |"
+            )
+        md.append("")
+    pinouts = section.get("pinouts") or []
+    if pinouts:
+        md.append("## Connector pinouts")
+        for po in pinouts:
+            md.append(
+                f"### {po.get('ref')} — {po.get('name') or ''} ({po.get('kind') or 'part'})"
+            )
+            md.append("| Pin | Net / signal |")
+            md.append("|-----|--------------|")
+            for row in po.get("pins") or []:
+                net = row.get("net") if row.get("net") is not None else row.get("status", "—")
+                md.append(f"| {row.get('pin')} | {net} |")
+            md.append("")
     if section.get("gaps"):
         md.append("## Gaps")
         for g in section["gaps"]:
