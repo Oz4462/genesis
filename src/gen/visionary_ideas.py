@@ -1,5 +1,8 @@
 """visionary_ideas — grok-build (as visionary) dreamed concepts, then GENESIS grounded with full engine.
 
+**Content kind (audit B2):** ``vision_demo`` — catalogued in ``data/vision_catalog.yaml``.
+Dream product narratives are VISION/OPINION; only gated quantities/seams are GENESIS-verified HOW.
+
 The owner asked grok-build to be a visionary and dream up things that do not exist yet; GENESIS
 then builds each as a GATED ``Specification`` and runs it through the same δ-physics + epsilon-seam + 
 assess + bundle machinery as every other spec. grok decided the WHAT; GENESIS supplies the verified HOW.
@@ -20,6 +23,9 @@ on seam_certificate fallback for ISRU/LIFE obligations).
 """
 
 from __future__ import annotations
+
+CONTENT_KIND = "vision_demo"
+VISION_CATALOG = "data/vision_catalog.yaml"
 
 from .core.state import (
     BomDomain,

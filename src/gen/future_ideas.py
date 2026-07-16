@@ -1,5 +1,10 @@
 """future_ideas — five forward-looking engineering ideas run end-to-end through GENESIS.
 
+**Content kind (audit B2):** ``vision_demo`` — product narratives are authored VISION /
+OPINION demos, catalogued in ``data/vision_catalog.yaml``. They are **not** ledger-backed
+market claims. Numeric quantities still flow through gates; free-text product framing
+must not be treated as verified external facts.
+
 Each function returns a complete, GATED ``Specification`` for a different future-facing product, so
 ``pipeline.assess_specification`` fires the relevant δ-physics axes and ``bundle.emit_bundle`` writes
 real artifacts (printable STL parts, a build manual, a BOM split into printed vs bought). They are the
@@ -24,6 +29,10 @@ English ids/units/measurands). Reuses demo.py's quantity/claim helpers — the s
 """
 
 from __future__ import annotations
+
+#: Audit B2 — narrative product text is vision, not ClaimStatus.VERIFIED field data.
+CONTENT_KIND = "vision_demo"
+VISION_CATALOG = "data/vision_catalog.yaml"
 
 from .core.state import (
     BomDomain,

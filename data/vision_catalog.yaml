@@ -1,0 +1,46 @@
+# GENESIS vision / demo product catalog (audit B2 2026-07-16)
+# CONTENT KIND: vision_demo — authored product narratives for exercising the
+# gated pipeline. NOT ledger claims. Physics quantities inside each Spec still
+# pass through assess/gates; free-text product framing is opinion/vision.
+schema: genesis-vision-catalog-v1
+content_kind: vision_demo
+provenance_policy: |
+  Product story text is VISION/OPINION (authored demos).
+  Numeric quantities use ValueOrigin DECISION/DERIVED/GROUNDED per demo helpers.
+  Do not promote narrative strings to ClaimStatus.VERIFIED without a real source.
+modules:
+  - id: future_ideas
+    path: src/gen/future_ideas.py
+    kind: vision_demo
+    entries:
+      - id: delivery_drone_spec
+        domain: flight
+        note: last-mile eVTOL demo for FLIGHT axes
+      - id: home_battery_spec
+        domain: energy
+        note: modular storage wall demo
+      - id: harvest_arm_spec
+        domain: agri_robotics
+        note: vertical-farm arm kinematics demo
+      - id: hydraulic_boom_spec
+        domain: hydraulic
+        note: construction boom actuator demo
+      - id: exo_knee_spec
+        domain: wearables
+        note: assistive knee demo
+  - id: visionary_ideas
+    path: src/gen/visionary_ideas.py
+    kind: vision_demo
+    entries:
+      - id: skyclaw_spec
+        domain: aerial_manipulation
+        note: flying manipulator dream → gated HOW
+      - id: resostrider_spec
+        domain: planetary_mobility
+        note: resonance quadruped dream
+      - id: forgehydra_spec
+        domain: hydraulic
+        note: air-droppable hydraulic dream
+      - id: mars_isru_o2_plant_spec
+        domain: isru
+        note: Mars ISRU O2 plant multi-domain demo
