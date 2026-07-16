@@ -20,7 +20,7 @@
 | E Sim & Caps | S1–S4 | ✅ `--mode caps`, multi-physics, mesh refs, MANIFEST caps |
 | F Cleanup | X1–X4 | ✅ stale docs, learning extract, revise_with_learning, this STATUS |
 | G Integrity & CAD depth (Re-Audit 2026-07-15) | G1–G4 | ✅ no-0-byte-STL fix + real kernel STLs, Spec→CAD bridge (`cad/spec_to_cad.py`), parametric plates, real top/front DXF sections (`drawing_gap` honest-False) |
-| H Shop-floor depth (User gap matrix 2026-07-16) | H1–H8 | ✅ **H1–H8 done** (2026-07-16): drawings dims, CAM helical+nc, RTB ZIP, harness lengths/pinouts, assembly constraints, KiCad zones+clearance, montage torque, multi-physics depth. Residual L4: full GD&T PDF, FreeCAD mates, copper autoroute, real photos, full FEM |
+| H Shop-floor depth (User gap matrix 2026-07-16) | H1–H8 + residual | ✅ **H1–H8 + residual L4 stones** (2026-07-16): GD&T FCF+PDF, waterline CAM, FreeCAD mates macro, Manhattan copper, step diagrams, materials CTE/SN, interactive STL viewer. Honest: not PE-stamped / not 5-axis / not coupon-certified |
 
 ---
 
@@ -54,4 +54,4 @@
 4. Production Qdrant/pgvector **not wired** (anamnesis vendor only)  
 5. After each sprint: test + commit + push  
 
-**Next open product depth (after Phase H):** full GD&T feature-control frames + multi-sheet PDF, multi-axis freeform CAM, FreeCAD mate solver, full copper autoroute + KiCad DRC, graphical wiring diagrams, certified material SN/CTE, interactive 3D/exploded video, real montage photos, semiconductor pin-compat + thermal CFD — L4 factory sign-off, not L2–L3 first stones.
+**Next open product depth (true factory L4):** PE-stamped multi-sheet GD&T release, simultaneous 5-axis freeform CAM kernel, FreeCAD Assembly WB solver, production autorouter+DRC, coupon-certified SN/CTE, photographic build docs, semiconductor pin-compat + thermal CFD. Package now ships working first stones for each former residual.

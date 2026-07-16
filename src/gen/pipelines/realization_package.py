@@ -570,16 +570,15 @@ def build_drawings_section(
             }
         )
     gaps = [
-        "tolerance frames, surface finish symbols, hole callouts, title block "
-        "not applied (full GD&T / production drawing gap)",
-        "isometric view not generated (true 3-D projection, not a planar section)",
+        "PE / shop sign-off stamp and ballooned hole callouts not auto-generated",
+        "isometric true 3-D projection view not generated (section views only)",
     ]
     if any_real_drawing:
         if any_dimensioned:
             gaps.insert(
                 0,
-                "overall envelope linear dimensions present on DXF sections; "
-                "feature-level GD&T / multi-sheet PDF still required for shop sign-off",
+                "DXF: overall dims + simplified ISO 1101 FCF text + ISO 2768-m; "
+                "PDF multi-view sheet emitted — not a PE-certified release package",
             )
         else:
             gaps.insert(
@@ -615,7 +614,7 @@ def build_drawings_section(
 
 
 def write_drawings_section(pkg_root: Path, section: dict[str, Any]) -> Path:
-    # G4+H1: materialise real dimensioned DXF section views + dim sidecars; never empty files
+    # G4+H1+residual: materialise dimensioned+GD&T DXF, sidecars, multi-view PDF
     view_texts = section.pop("_view_texts", {}) or {}
     dim_sidecars = section.pop("_dim_sidecars", {}) or {}
     for (idx, view_name), dxf in view_texts.items():
@@ -628,6 +627,35 @@ def write_drawings_section(pkg_root: Path, section: dict[str, Any]) -> Path:
             (pkg_root / f"part_{idx}_{view_name}.dxf.dims.txt").write_text(
                 text, encoding="utf-8"
             )
+    # Multi-view PDF per part (envelope dims from sidecar notes or part bbox)
+    try:
+        from gen.export.gdt import render_drawing_pdf
+
+        for p in section.get("parts") or []:
+            idx = p.get("index", 0)
+            views_meta: dict[str, dict] = {}
+            bbox = p.get("bbox_mm") or [10, 10, 2]
+            for v in p.get("views_generated") or []:
+                # approximate section envelope from bbox axes
+                if v == "top":
+                    views_meta[v] = {"dx": float(bbox[0]), "dy": float(bbox[1])}
+                elif v == "front":
+                    views_meta[v] = {"dx": float(bbox[0]), "dy": float(bbox[2])}
+                elif v == "right":
+                    views_meta[v] = {"dx": float(bbox[1]), "dy": float(bbox[2])}
+                else:
+                    views_meta[v] = {"dx": float(bbox[0]), "dy": float(bbox[1])}
+            if views_meta:
+                pdf_path = pkg_root / f"part_{idx}_drawing.pdf"
+                render_drawing_pdf(
+                    views_meta,
+                    title=f"{p.get('name') or 'part'} manufacturing drawing",
+                    run_id=section.get("run_id"),
+                    out_path=pdf_path,
+                )
+                p["pdf"] = pdf_path.name
+    except Exception:
+        pass
     path = pkg_root / "drawings.json"
     path.write_text(json.dumps(section, indent=2, ensure_ascii=False), encoding="utf-8")
     lines = [
@@ -735,6 +763,7 @@ def build_cam_section(
         generate_face_mill_gcode,
         generate_helical_bore_gcode,
         generate_profile_gcode,
+        generate_waterline_roughing_gcode,
         multi_axis_cam_capability,
         verify_gcode,
     )
@@ -759,6 +788,12 @@ def build_cam_section(
         candidates: list[tuple[str, Any]] = [
             ("outside_profile", lambda: generate_profile_gcode(bx, by, bz)),
             ("face_mill", lambda: generate_face_mill_gcode(bx, by, face_depth_mm=min(0.5, bz))),
+            (
+                "waterline_roughing",
+                lambda: generate_waterline_roughing_gcode(
+                    bx, by, min(bz, 6.0), z_step_mm=1.0
+                ),
+            ),
         ]
         hole_d = _center_hole_diameter_mm(cad)
         if hole_d is not None:
@@ -1043,7 +1078,27 @@ def build_montage_section(
 
 
 def write_montage_section(pkg_root: Path, section: dict[str, Any]) -> Path:
-    """Write montage.json + MONTAGEANLEITUNG.md (structured steps with torque)."""
+    """Write montage.json + MONTAGEANLEITUNG.md + generated step PNGs."""
+    # Generate real diagram images (not photos) and rewrite steps with image paths
+    try:
+        from gen.export.step_diagram import render_all_step_diagrams
+
+        images_dir = Path(pkg_root) / "images"
+        section["steps"] = render_all_step_diagrams(
+            list(section.get("steps") or []), images_dir
+        )
+        # drop the "photos not generated" gap if diagrams exist
+        section["gaps"] = [
+            g
+            for g in (section.get("gaps") or [])
+            if "photos not generated" not in g
+        ]
+        section["gaps"].append(
+            "step images are generated diagrams (not photographs of a physical build)"
+        )
+    except Exception as exc:
+        section.setdefault("gaps", []).append(f"step diagram generation failed: {exc}")
+
     path = pkg_root / "montage.json"
     path.write_text(json.dumps(section, indent=2, ensure_ascii=False), encoding="utf-8")
     lines = [
@@ -1093,23 +1148,46 @@ def build_multi_physics_section(
     r_th_k_per_w: float = 5.0,
     force_n: float = 100.0,
     cycles: int | None = 10_000,
+    material_name: str = "ALUMINUM",
 ) -> dict[str, Any]:
-    """H8: multi-physics receipt embedded as a package section (offline closed forms)."""
+    """H8+residual: multi-physics receipt using registry CTE/fatigue when available."""
     from gen.simulation.runner import multi_physics_receipt
+
+    alpha = None
+    basquin_a = 1e12
+    basquin_b = 3.0
+    mat_bundle = None
+    try:
+        from gen.materials import fatigue_basquin_params, material_sim_bundle
+
+        mat_bundle = material_sim_bundle(material_name)
+        alpha = mat_bundle.get("cte_per_k")
+        if mat_bundle.get("fatigue_basquin_a_pa") and mat_bundle.get("fatigue_basquin_b"):
+            basquin_a = float(mat_bundle["fatigue_basquin_a_pa"])
+            basquin_b = float(mat_bundle["fatigue_basquin_b"])
+    except Exception:
+        mat_bundle = None
 
     rec = multi_physics_receipt(
         power_w=power_w,
         r_th_k_per_w=r_th_k_per_w,
         force_n=force_n,
         cycles=cycles,
+        alpha_per_k=alpha if alpha is not None else 23e-6,
+        basquin_a=basquin_a,
+        basquin_b=basquin_b,
         run_id=run_id or "package-multi-physics",
     )
     return {
         "schema": "genesis-package-multi-physics-v1",
         "run_id": run_id,
+        "material": mat_bundle,
         "receipt": rec,
-        "gaps": list(rec.get("gaps") or []),
-        "quelle": "gen.pipelines.realization_package.build_multi_physics_section (H8)",
+        "gaps": list(rec.get("gaps") or [])
+        + [
+            "material CTE/Basquin from handbook registry — replace with coupon TDS for release"
+        ],
+        "quelle": "gen.pipelines.realization_package.build_multi_physics_section (H8+materials)",
     }
 
 

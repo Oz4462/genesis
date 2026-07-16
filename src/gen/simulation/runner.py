@@ -997,10 +997,10 @@ def multi_physics_receipt(
         "gaps": [
             "not a coupled multiphysics FEM; closed forms only",
             "no control loop dynamics in this receipt",
-            "Basquin A/b and CTE defaults are ASSUMPTIONS unless caller supplies certified values",
+            "Basquin A/b and CTE: use gen.materials registry or coupon TDS — defaults are handbook bands",
             "Monte-Carlo uncertainty propagation not included in this receipt",
         ],
-        "quelle": "simulation.runner.multi_physics_receipt (S2+H8)",
+        "quelle": "simulation.runner.multi_physics_receipt (S2+H8+materials)",
     }
 
 

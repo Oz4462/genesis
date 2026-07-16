@@ -380,6 +380,7 @@ GCODE_SUPPORTED_OPS: tuple[str, ...] = (
     "rectangular_pocket",
     "face_mill",
     "helical_bore",
+    "waterline_roughing",
 )
 
 
@@ -402,6 +403,146 @@ def multi_axis_cam_capability() -> dict:
         ],
         "quelle": "gen.cad.gcode.multi_axis_cam_capability",
     }
+
+
+def generate_waterline_roughing_gcode(
+    width_mm: float,
+    height_mm: float,
+    depth_mm: float,
+    *,
+    z_step_mm: float = 1.0,
+    tool_diameter_mm: float = GCODE_DEFAULT_TOOL_DIAMETER_MM,
+    cut_feed_mm_min: float = GCODE_DEFAULT_CUT_FEED_MM_MIN,
+    plunge_feed_mm_min: float = GCODE_DEFAULT_PLUNGE_FEED_MM_MIN,
+    stepover_mm: float | None = None,
+    safe_z_mm: float = GCODE_DEFAULT_SAFE_Z_MM,
+    spindle_rpm: int = GCODE_DEFAULT_SPINDLE_RPM,
+) -> GCodeProgram:
+    """3-axis waterline / Z-level roughing of a rectangular pocket volume (residual freeform).
+
+    At each Z level from 0 down to ``-depth_mm``, raster-clears the XY rectangle
+    (tool inset by radius). This is the honest first stone for "3D freeform CAM":
+    stepped waterlines on a prismatic stock — **not** simultaneous 5-axis sculpting.
+
+    Multi-axis freeform remains ``refuse_multi_axis_toolpath``. Every program must
+    pass ``verify_gcode``.
+    """
+    for name, v in (
+        ("width", width_mm),
+        ("height", height_mm),
+        ("depth", depth_mm),
+        ("z_step", z_step_mm),
+        ("tool_diameter", tool_diameter_mm),
+        ("safe_z", safe_z_mm),
+    ):
+        if not math.isfinite(v) or v <= 0:
+            raise ValueError(
+                f"generate_waterline_roughing_gcode: {name} must be a finite value > 0"
+            )
+    for name, v in (
+        ("cut_feed", cut_feed_mm_min),
+        ("plunge_feed", plunge_feed_mm_min),
+        ("spindle_rpm", spindle_rpm),
+    ):
+        if not math.isfinite(v) or v < 1:
+            raise ValueError(
+                f"generate_waterline_roughing_gcode: {name} must be a finite value >= 1"
+            )
+    r = tool_diameter_mm / 2.0
+    so = stepover_mm if stepover_mm is not None else tool_diameter_mm * 0.5
+    if not math.isfinite(so) or so <= 0:
+        raise ValueError("generate_waterline_roughing_gcode: stepover_mm must be > 0")
+    if width_mm <= tool_diameter_mm or height_mm <= tool_diameter_mm:
+        raise ValueError(
+            "generate_waterline_roughing_gcode: pocket must exceed tool diameter"
+        )
+
+    def fmt(v: float) -> str:
+        return f"{v:.3f}".rstrip("0").rstrip(".")
+
+    def q3(v: float) -> float:
+        s = fmt(v)
+        return float(s) if s not in ("", "-", "+") else 0.0
+
+    x0, x1 = q3(r), q3(width_mm - r)
+    y0, y1 = q3(r), q3(height_mm - r)
+    z_safe = q3(safe_z_mm)
+    so_q = q3(min(so, max(y1 - y0, so)))
+
+    # Z levels
+    levels: list[float] = []
+    z = 0.0
+    while z > -depth_mm + 1e-9:
+        z = max(z - z_step_mm, -depth_mm)
+        levels.append(q3(z))
+    if not levels or levels[-1] != q3(-depth_mm):
+        levels.append(q3(-depth_mm))
+
+    y_lines: list[float] = []
+    y = y0
+    while y < y1 - 1e-9:
+        y_lines.append(q3(y))
+        y += so_q
+    if not y_lines or abs(y_lines[-1] - y1) > 1e-6:
+        y_lines.append(y1)
+
+    lines = [
+        f"( waterline-rough {fmt(width_mm)}x{fmt(height_mm)}x{fmt(depth_mm)}mm "
+        f"z_step={fmt(z_step_mm)} tool d={fmt(tool_diameter_mm)}mm; {GCODE_SOURCE} )",
+        "G21 ( units: millimeters )",
+        "G90 ( absolute positioning )",
+        "G17 ( XY plane )",
+        f"M3 S{int(spindle_rpm)} ( spindle on, clockwise )",
+        f"G0 Z{fmt(z_safe)} ( retract )",
+    ]
+    xs: list[float] = []
+    ys: list[float] = []
+    zs: list[float] = [z_safe]
+
+    for zi, zlev in enumerate(levels):
+        lines.append(f"G0 X{fmt(x0)} Y{fmt(y0)} ( level {zi + 1} start )")
+        xs.append(x0)
+        ys.append(y0)
+        lines.append(f"G1 Z{fmt(zlev)} F{fmt(plunge_feed_mm_min)} ( plunge waterline )")
+        zs.append(zlev)
+        for i, y in enumerate(y_lines):
+            lines.append(f"G1 Y{fmt(y)} F{fmt(cut_feed_mm_min)}")
+            ys.append(y)
+            if i % 2 == 0:
+                lines.append(f"G1 X{fmt(x1)}")
+                xs.append(x1)
+            else:
+                lines.append(f"G1 X{fmt(x0)}")
+                xs.append(x0)
+        lines.append(f"G0 Z{fmt(z_safe)} ( retract between levels )")
+        zs.append(z_safe)
+
+    lines += [
+        "M5 ( spindle off )",
+        "M30 ( program end )",
+    ]
+    return GCodeProgram(
+        operation="waterline_roughing",
+        lines=lines,
+        bounds_mm={
+            "x": (min(xs), max(xs)),
+            "y": (min(ys + [y0, y1]), max(ys + [y0, y1])),
+            "z": (min(zs), max(zs)),
+        },
+        safe_z_mm=safe_z_mm,
+        assumptions=[
+            f"Z-level waterline roughing step={fmt(z_step_mm)}mm, stepover={fmt(so_q)}mm",
+            "prismatic rectangular stock only — not freeform surface following",
+            f"feeds cut {fmt(cut_feed_mm_min)} / plunge {fmt(plunge_feed_mm_min)}; "
+            f"spindle {int(spindle_rpm)} rpm — GENERIC defaults",
+        ],
+        gaps=[
+            "simultaneous 4/5-axis freeform sculpting not generated",
+            "true 3D surface finishing / geodesic toolpaths need a CAM kernel",
+            "feeds & speeds material-specific",
+        ],
+        source=GCODE_SOURCE,
+    )
 
 
 def refuse_multi_axis_toolpath(*, context: str = "") -> None:

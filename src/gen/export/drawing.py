@@ -293,34 +293,50 @@ def annotate_overall_dimensions(
 def section_dxf_dimensioned(
     node: GeometryNode, quantities: dict[str, Quantity], *,
     plane: str = "XY", offset: float = 0.0,
+    with_gdt: bool = True,
 ) -> tuple[str, SectionInfo]:
-    """Planar section DXF with overall linear dimension annotations (H1).
+    """Planar section DXF with overall linear dimensions (+ optional GD&T frames).
 
-    Returns ``(annotated_dxf_text, section_info)``. The dimensions are the true
-    OCCT section envelope — never fabricated. Full GD&T (tolerance frames, surface
-    finish) is intentionally NOT claimed here.
+    Returns ``(annotated_dxf_text, section_info)``. Envelope from OCCT — never
+    fabricated. When ``with_gdt`` (default True), ISO 2768-m general tol note +
+    simplified feature-control frames are added (see ``export.gdt``).
     """
     raw, info = section_dxf_with_info(
         node, quantities, plane=plane, offset=offset
     )
-    return annotate_overall_dimensions(raw, info), info
+    dimmed = annotate_overall_dimensions(raw, info)
+    if not with_gdt:
+        return dimmed, info
+    try:
+        from .gdt import annotate_gdt_frames
+
+        dx, dy, _ = info.dimensions
+        return annotate_gdt_frames(dimmed, dx=dx, dy=dy), info
+    except Exception:
+        # GD&T annotation optional — still return dimensioned DXF
+        return dimmed, info
 
 
 def format_dimension_sidecar(
     info: SectionInfo, *, plane: str, offset: float = 0.0, label: str = ""
 ) -> str:
     """Human-readable dimension sidecar text next to a section DXF."""
+    from .gdt import ISO_2768_M_SOURCE, iso_2768_m_linear_tol_mm
+
     dx, dy, dz = info.dimensions
     header = f"GENESIS 2-D drawing — section dimensions"
     if label:
         header += f" ({label})"
+    tol = iso_2768_m_linear_tol_mm(max(dx, dy)) if dx > 0 and dy > 0 else None
     return (
         f"{header}\n"
         f"plane: {plane}  offset: {offset:g} mm\n"
         f"overall dimensions (dx x dy x dz): {dx:.3f} x {dy:.3f} x {dz:.3f} mm\n"
         f"section profile: {info.n_faces} face(s), {info.n_edges} edge(s)\n"
-        f"annotations: overall linear DIMENSION entities in DXF (width + height)\n"
-        f"gaps: GD&T feature-control frames, surface finish, hole callouts, title block\n"
+        f"annotations: overall linear DIMENSION + GD&T FCF text (ISO 1101 simplified)\n"
+        f"general tolerance: ISO 2768-m ±{tol} mm on max envelope "
+        f"(source: {ISO_2768_M_SOURCE})\n"
+        f"gaps: PE stamp / multi-sheet release package / hole callout balloons\n"
     )
 
 

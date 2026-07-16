@@ -261,6 +261,9 @@ def to_kicad_pcb(
     thickness_mm: float = 1.6,
     copper_zones: bool = True,
     zone_nets: tuple[str, ...] = ("GND", "PWR"),
+    netlist=None,
+    autoroute: bool = True,
+    track_width_mm: float = 0.25,
 ) -> str:
     """Export a KiCad PCB (`.kicad_pcb`) placement SKELETON (v20231120): every placement
     as a ``(footprint ...)`` at its ``(at x y z-rotation)``, the footprint id resolved by
@@ -268,10 +271,12 @@ def to_kicad_pcb(
     positional ``zip`` that mis-paired and silently dropped the tail.
 
     H6: optional rectangular F.Cu **copper zones** (fill pours) for named nets (default
-    GND/PWR) covering the placement envelope — structural copper for import inspection,
-    NOT an autorouted trace set. Full interactive DRC still requires KiCad.
+    GND/PWR) covering the placement envelope.
 
-    Traces / autorouter remain a declared external step. Strings escaped; deterministic.
+    Residual copper autoroute: when ``autoroute`` and ``netlist`` are set, emits
+    Manhattan ``(segment ...)`` tracks between placed components (simple L-paths).
+    Not a production autorouter — real segments for package handoff. Full interactive
+    DRC still requires KiCad. Strings escaped; deterministic.
     """
     comp_by_ref = {c.id: c for c in components}
     lines = [
@@ -303,8 +308,76 @@ def to_kicad_pcb(
                 f"(xy {xmax - inset:g} {ymax - inset:g}) "
                 f"(xy {xmin + inset:g} {ymax - inset:g}))))"
             )
+    if autoroute and netlist is not None and placements:
+        tracks = manhattan_autoroute(
+            placements, netlist, track_width_mm=track_width_mm
+        )
+        lines.extend(tracks_to_kicad_sexpr(tracks))
     lines.append(")")
     return "\n".join(lines)
+
+
+def manhattan_autoroute(
+    placements,
+    netlist,
+    *,
+    track_width_mm: float = 0.25,
+    layer: str = "F.Cu",
+) -> list[dict]:
+    """Simple Manhattan (orthogonal) copper tracks between nets with ≥2 placed pins.
+
+    Algorithm: for each net, take the first two components that appear in
+    ``placements`` and connect their centres with an L-shaped track
+    (horizontal then vertical). Not a production autorouter — closes the
+    "no copper routing" gap with real track segments verifiable in the PCB text.
+
+    Returns list of {net, points: [(x,y),...], width_mm, layer}.
+    """
+    if track_width_mm <= 0 or track_width_mm != track_width_mm:
+        raise ValueError("manhattan_autoroute: track_width_mm must be finite > 0")
+    pos = {p.ref_des: (float(p.pos_mm[0]), float(p.pos_mm[1])) for p in placements}
+    nets = getattr(netlist, "nets", None) or []
+    tracks: list[dict] = []
+    for n in nets:
+        name = getattr(n, "name", None) or (n.get("name") if isinstance(n, dict) else None)
+        pins = getattr(n, "pins", None) or (n.get("pins") if isinstance(n, dict) else None) or []
+        refs: list[str] = []
+        for pin in pins:
+            ref = str(pin).split(".", 1)[0]
+            if ref in pos and ref not in refs:
+                refs.append(ref)
+        if len(refs) < 2:
+            continue
+        (x0, y0), (x1, y1) = pos[refs[0]], pos[refs[1]]
+        # L-path: (x0,y0) → (x1,y0) → (x1,y1)
+        points = [(x0, y0), (x1, y0), (x1, y1)]
+        tracks.append(
+            {
+                "net": str(name or ""),
+                "from": refs[0],
+                "to": refs[1],
+                "points": points,
+                "width_mm": track_width_mm,
+                "layer": layer,
+            }
+        )
+    return tracks
+
+
+def tracks_to_kicad_sexpr(tracks: list[dict]) -> list[str]:
+    """Serialize Manhattan tracks as KiCad ``(segment ...)`` lines (v20231120-ish)."""
+    lines: list[str] = []
+    for t in tracks:
+        pts = t.get("points") or []
+        w = float(t.get("width_mm") or 0.25)
+        layer = t.get("layer") or "F.Cu"
+        for a, b in zip(pts, pts[1:]):
+            lines.append(
+                f'  (segment (start {a[0]:g} {a[1]:g}) (end {b[0]:g} {b[1]:g}) '
+                f'(width {w:g}) (layer "{_esc(layer)}") '
+                f'(net 0) (tstamp "genesis-route"))'
+            )
+    return lines
 
 
 def placement_clearance_drc(

@@ -309,6 +309,55 @@ def build_full_mini_realization_package(
     ):
         shutil.copy(asm.combined_stl, pkg_root / "assembly_combined.stl")
 
+    # Residual: FreeCAD mates export + interactive 3D viewer
+    try:
+        from gen.cad.freecad_export import build_mates_document, write_freecad_export
+
+        parts_meta = []
+        for ap in getattr(asm.spec, "parts", []) or []:
+            bbox = list(getattr(ap.spec, "bounding_box_hint_mm", (20, 20, 5)))
+            parts_meta.append(
+                {
+                    "label": ap.label,
+                    "pos": list(ap.position),
+                    "bbox_mm": bbox,
+                    "stl": None,
+                }
+            )
+        # attach copied package STL names when present
+        for i, pm in enumerate(parts_meta):
+            cand = pkg_root / f"assembly_part_{i}.stl"
+            if cand.is_file():
+                pm["stl"] = str(cand.resolve())
+        cons = [
+            {
+                "kind": c.kind,
+                "fixed": c.fixed,
+                "moving": c.moving,
+                "offset_mm": list(c.offset_mm),
+                "gap_mm": c.gap_mm,
+                "note": c.note,
+            }
+            for c in (getattr(asm.spec, "constraints", None) or [])
+        ]
+        if parts_meta:
+            mates_doc = build_mates_document(
+                parts_meta, cons, name=package_name, run_id=run_id
+            )
+            write_freecad_export(pkg_root, mates_doc)
+    except Exception as e:
+        print("FreeCAD mates export skipped:", e)
+    try:
+        from gen.export.viewer_3d import write_stl_viewer
+
+        stls = sorted(str(p.name) for p in pkg_root.glob("*.stl"))
+        if stls:
+            write_stl_viewer(
+                pkg_root, stls, title=f"{package_name} viewer", run_id=run_id
+            )
+    except Exception as e:
+        print("3D viewer skipped:", e)
+
     # C5: structured BOM is assembled after electronics (mech + elec); placeholder until then.
     bom: dict | list = []
     # costs stub

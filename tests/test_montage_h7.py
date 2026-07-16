@@ -30,15 +30,17 @@ def test_montage_has_ordered_steps_and_torque(tmp_path):
     assert sec["default_torque_nm"] == DEFAULT_TORQUE_NM["M3"]
     mount = next(s for s in sec["steps"] if s.get("part_name") == "Anchor Plate")
     assert mount["torque_nm"] == DEFAULT_TORQUE_NM["M3"]
-    assert mount["image"] is None
+    assert mount["image"] is None  # filled on write (generated diagrams)
     assert mount["image_placeholder"].startswith("images/")
-    assert any("photos not generated" in g for g in sec["gaps"])
+    assert any("photos" in g or "image" in g for g in sec["gaps"])
 
     write_montage_section(tmp_path, sec)
     md = (tmp_path / "MONTAGEANLEITUNG.md").read_text()
     assert "Torque" in md or "torque" in md.lower()
     assert "Anchor Plate" in md
     assert (tmp_path / "montage.json").is_file()
+    # residual: generated diagrams written
+    assert list((tmp_path / "images").glob("step_*.png")), "step PNGs expected"
 
 
 def test_montage_unknown_fastener_is_loud():

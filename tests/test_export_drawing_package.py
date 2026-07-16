@@ -88,8 +88,8 @@ def test_fragment_with_geometry_gets_real_dxf_views(tmp_path):
         assert sc.is_file()
         assert "overall dimensions" in sc.read_text()
         assert "GD&T" in sc.read_text() or "gaps:" in sc.read_text()
-    # Full GD&T + isometric honesty stays; overall dims are no longer the gap
-    assert any("GD&T" in g or "tolerance frames" in g for g in section["gaps"])
+    # Residual honesty: PE stamp / isometric still open; dims+GD&T are present
+    assert any("PE" in g or "isometric" in g or "sign-off" in g for g in section["gaps"])
     assert any("isometric" in g for g in section["gaps"])
     assert not any(
         "dimension annotations not generated" in g for g in section["gaps"]

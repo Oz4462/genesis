@@ -772,7 +772,22 @@ Smoke: Nicht-Jetpack-Idee ⇒ Teil "Main Structure" mit realem 646-KB-STL statt 
 **4 Linsen:** L1: Geometrie aus Spec, nicht Template · L2: "Idea→CAD"-Claim jetzt code-wahr für
 Spec-Pfad · L3: Naht Spec→Integrator/Assembly geschlossen · L4: Kernel-Tessellation druckbar.
 
+## 2026-07-16 — Residual L4 gap stones (post Phase H)
+
+**Closed as L3 first stones (honest, not PE/factory):**
+1. **GD&T** — `export/gdt.py`: ISO 2768-m, FCF text on DXF, multi-view PDF (matplotlib)
+2. **3D CAM** — `waterline_roughing` Z-level G-code (3-axis; multi-axis still refused)
+3. **FreeCAD** — `assembly_mates.json` + `assembly_freecad.py` macro
+4. **Copper** — Manhattan `(segment)` autoroute in `to_kicad_pcb`
+5. **Montage images** — PIL-generated step PNGs (not photos)
+6. **Materials** — CTE + Basquin SN bands in registry with provenance
+7. **3D viz** — `viewer_3d.html` Three.js STL + explode slider
+**Evidence:** tests/test_residual_gaps_l4.py + related suites green.
+**4 Linsen:** L1 sourced ISO/handbook · L2 no PE/5-axis overclaim · L3 package wired ·
+L4 factory cert still external.
+
 ## 2026-07-16 — Phase H complete (H4–H8)
+
 
 **H4** Harness: wire cut list (eff lengths) + connector pinouts → HARNESS.md tables.  
 **H5** Assembly: `AssemblyConstraint` offset/stack_z/align_xy + default spacing as constraints.  

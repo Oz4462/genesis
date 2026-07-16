@@ -94,3 +94,10 @@ Priority order from manufacturability impact (not existence of modules).
 - [x] **H6** KiCad copper zones + placement_clearance_drc — not full track DRC
 - [x] **H7** Montage steps + torque table + image placeholders — montage.json
 - [x] **H8** Multi-physics depth — thermoelastic + Basquin screen; package multi_physics.json
+
+## Residual L4 stones (post-H, 2026-07-16)
+
+- [x] **R1** GD&T FCF + ISO 2768-m + multi-view PDF (`export/gdt.py`)
+- [x] **R2** Waterline 3-axis roughing G-code + FreeCAD mates macro export
+- [x] **R3** Manhattan copper autoroute segments in KiCad PCB
+- [x] **R4** Montage step PNG diagrams + materials CTE/Basquin + `viewer_3d.html`
