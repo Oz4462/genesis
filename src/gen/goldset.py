@@ -298,14 +298,27 @@ def mock_perfect_runner(case: GoldCase) -> RunOutcome:
 
 
 def run_goldset_dry(cases: list[GoldCase] | None = None) -> tuple[GoldsetScore, dict]:
-    """Run the gold set with perfect mock runner. Always succeeds. Returns (score, meta)."""
+    """Run the gold set with perfect mock runner. Always succeeds. Returns (score, meta).
+
+    Audit C2: dry scores are **mechanism-only** — they do NOT measure real
+    abstention/trap rates. ``metrics_guarded`` is always False so CI/STATUS
+    cannot treat dry 100% as a live anti-hallucination KPI.
+    """
     if cases is None:
         cases = load_goldset()
     outcomes, errors = run_goldset(cases, mock_perfect_runner)
     s = score(cases, outcomes)
     meta = {
         "mode": "dry-perfect",
-        "note": "Mechanism verified. For real hallucination rate use live pipeline via --mode goldset with GENESIS_ALLOW_LIVE.",
+        "metrics_guarded": False,
+        "kpi_status": "mechanism_only_not_live_kpi",
+        "note": (
+            "Mechanism verified only (mock-perfect outcomes → near-100% score). "
+            "This is NOT a live anti-hallucination KPI. "
+            "For real rates: GENESIS_ALLOW_LIVE=1 + backends, or "
+            "scripts/nightly_goldset_live.sh / workflow goldset-live.yml."
+        ),
         "errors": errors,
+        "n_cases": len(cases),
     }
     return s, meta
