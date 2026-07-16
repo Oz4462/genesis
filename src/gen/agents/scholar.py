@@ -152,12 +152,12 @@ class Scholar:
             key = cand.url_or_id.split("://", 1)[-1].strip().upper()
             try:
                 claim_rows = materials_claims(key, language=q_lang)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 # fallback single density claim for unknown/legacy keys
                 try:
                     text, quote = materials_claim_text(key, language=q_lang)
                     claim_rows = [(text, quote, key)]
-                except Exception as exc2:  # noqa: BLE001
+                except Exception as exc2:
                     state.log.append(f"scholar: materials registry skip {key}: {exc2}")
                     continue
             for text, quote, span_tag in claim_rows:
@@ -218,7 +218,7 @@ class Scholar:
                     continue
             try:
                 row = density_claims_for_material(mat_key, language=q_lang)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 state.log.append(f"scholar: wikidata density skip {mat_key}: {exc}")
                 continue
             if row is None:
@@ -312,7 +312,7 @@ class Scholar:
                         await self._ledger.add_claims(run_id, formula_claims)
                         state.claims.extend(formula_claims)
                         state.log.append(f"scholar: formula-aware registered {len(formula_claims)} claims from {cand.url_or_id}")
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     state.log.append(f"scholar: formula path error for {cand.url_or_id}: {exc}")
 
             try:

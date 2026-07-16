@@ -99,7 +99,7 @@ class SemanticScholarBackend:
         url = f"{self._BASE}?query={quote_plus(query)}&limit={limit}&fields={self._FIELDS}"
         try:
             resp = await self._http_get(url)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise SearchBackendError(self.name, str(exc)) from exc
         if not (200 <= resp.status < 300):
             raise SearchBackendError(self.name, f"HTTP {resp.status}")
@@ -221,7 +221,7 @@ class WikipediaBackend:
         )
         try:
             resp = await self._http_get(url)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise SearchBackendError(self.name, str(exc)) from exc
         if not (200 <= resp.status < 300):
             raise SearchBackendError(self.name, f"HTTP {resp.status}")
@@ -300,7 +300,7 @@ class WebSearchBackend:
         url = self._endpoint_template.format(query=quote_plus(query), limit=limit)
         try:
             resp = await self._http_get(url)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise SearchBackendError(self.name, str(exc)) from exc
         if not (200 <= resp.status < 300):
             raise SearchBackendError(self.name, f"HTTP {resp.status}")

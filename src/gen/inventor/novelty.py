@@ -81,7 +81,7 @@ async def assess_novelty(
     for backend in backends:
         try:
             candidates.extend(await backend.search(query, limit))
-        except Exception:  # noqa: BLE001 - a failing prior-art source must not invent a novelty verdict
+        except Exception:
             continue
 
     embedder_name = getattr(embed, "__name__", "embed")
@@ -128,7 +128,7 @@ async def obviousness_flag(concept: Possibility, judges: Sequence[LLMClient]) ->
         response = await judge.complete(system=_OBVIOUS_SYSTEM, user=user)
         try:
             data = extract_json(response.text, agent="inventor.obviousness")
-        except Exception:  # noqa: BLE001 - an unparseable judge does not get to flag
+        except Exception:
             return False
         if not (isinstance(data, dict) and data.get("obvious") is True):
             return False

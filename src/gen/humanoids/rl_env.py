@@ -34,7 +34,7 @@ from gen.humanoids.balance_env import BalanceEnv, BalanceEnvConfig, recommended_
 
 def gymnasium_available() -> bool:
     try:
-        import gymnasium  # noqa: F401
+        import gymnasium
         return True
     except Exception:
         return False

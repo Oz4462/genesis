@@ -856,7 +856,7 @@ def mesh_convergence_gate(
 
 try:
     from ..electronics import electronics_to_thermal_loads as _elec_to_thermal
-except Exception:  # noqa: BLE001
+except Exception:
     _elec_to_thermal = None
 
 

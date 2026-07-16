@@ -10,7 +10,7 @@ This allows:
     from gen.humanoid_research import HumanoidResearchModule
 """
 
-from .humanoids.humanoid_research import (  # noqa: F401
+from .humanoids.humanoid_research import (
     HUMANOID_TAXONOMY,
     HumanoidResearchModule,
     build_taxonomy,

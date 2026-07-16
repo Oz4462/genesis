@@ -47,7 +47,7 @@ def default_sync_post(url: str, payload: dict, *, timeout: float = 300.0) -> Htt
         body = ""
         try:
             body = exc.read().decode("utf-8", errors="replace")
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
         return HttpResponse(status=exc.code, body=body, final_url=url)
 
@@ -76,7 +76,7 @@ class OllamaEmbedder:
         silent zero vector)."""
         try:
             resp = self._post(self._url, {"model": self.model, "prompt": text})
-        except Exception as exc:  # noqa: BLE001 - transport failure becomes a loud, typed error
+        except Exception as exc:
             raise LLMTransportError(self.model, f"ollama embeddings transport: {exc}") from exc
         if not (200 <= resp.status < 300):
             raise LLMTransportError(self.model, f"ollama embeddings HTTP {resp.status}")
@@ -86,7 +86,7 @@ class OllamaEmbedder:
             if vector is None:
                 embeddings = payload.get("embeddings") or []
                 vector = embeddings[0] if embeddings else None
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise LLMTransportError(self.model, f"ollama embeddings parse: {exc}") from exc
         if not vector:
             raise LLMTransportError(self.model, "ollama returned an empty embedding")

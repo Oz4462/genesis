@@ -37,7 +37,7 @@ from pathlib import Path
 def coacd_available() -> bool:
     """True iff the ``coacd`` convex-decomposition package can be imported (optional dependency)."""
     try:
-        import coacd  # noqa: F401
+        import coacd
         return True
     except Exception:
         return False

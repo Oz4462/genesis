@@ -115,13 +115,13 @@ def candidate_term_exponents(
     for combo in itertools.product(grid, repeat=len(names)):
         p = np.array(combo, dtype=float)
         if np.linalg.norm(a_matrix @ p - b_vec) < _DIM_TOL:
-            valid.append({n: float(e) for n, e in zip(names, combo)})
+            valid.append({n: float(e) for n, e in zip(names, combo, strict=True)})
     return valid
 
 
 def _term_vector(exps: dict[str, float], names: list[str], arrs: list[np.ndarray]) -> np.ndarray:
     pred = np.ones_like(arrs[0]) if arrs else np.ones(1)
-    for name, arr in zip(names, arrs):
+    for name, arr in zip(names, arrs, strict=True):
         e = exps.get(name, 0.0)
         if e != 0.0:
             pred = pred * np.power(arr, e)
@@ -216,16 +216,16 @@ def discover_multiterm(
 
     # prune terms the final lstsq nulled out (greedy can pick a locally-good term the exact fit
     # then zeroes): drop any term contributing < prune_rel_tol of the dominant term, then refit.
-    contributions = [abs(float(c)) * float(np.mean(np.abs(s[2]))) for c, s in zip(coefs, selected)]
+    contributions = [abs(float(c)) * float(np.mean(np.abs(s[2]))) for c, s in zip(coefs, selected, strict=True)]
     if contributions:
         cutoff = prune_rel_tol * max(contributions)
-        kept = [s for s, contrib in zip(selected, contributions) if contrib >= cutoff]
+        kept = [s for s, contrib in zip(selected, contributions, strict=True) if contrib >= cutoff]
         if kept and len(kept) < len(selected):
             selected = kept
             coefs, best_pred = _fit([s[2] for s in selected], y)
 
     terms = tuple(Term(coefficient=float(c), exponents=dict(exps), is_intercept=is_int)
-                  for c, (exps, is_int, _v) in zip(coefs, selected))
+                  for c, (exps, is_int, _v) in zip(coefs, selected, strict=True))
     expr = f"{problem.target.name} = " + " + ".join(
         _format_term(t.coefficient, t.exponents, t.is_intercept) for t in terms)
     return MultiTermLaw(

@@ -196,7 +196,7 @@ def _fit_product(
         return form.model(x[0], x[1], *params)
 
     def in_bounds(popt) -> bool:
-        return all(lo <= v <= hi for v, lo, hi in zip(popt, lower, upper))
+        return all(lo <= v <= hi for v, lo, hi in zip(popt, lower, upper, strict=True))
 
     for p0 in (*form.p0_list, *extra_p0):
         try:
@@ -208,7 +208,7 @@ def _fit_product(
                 popt, _ = curve_fit(wrapped, xdata, y, p0=list(p0), maxfev=5000)
                 if not in_bounds(popt):
                     clipped = [float(np.clip(v, lo, hi))
-                               for v, lo, hi in zip(p0, lower, upper)]
+                               for v, lo, hi in zip(p0, lower, upper, strict=True)]
                     popt, _ = curve_fit(wrapped, xdata, y, p0=clipped,
                                         bounds=(lower, upper), maxfev=5000)
             pred = form.model(pi1, pi2, *popt)
@@ -342,7 +342,7 @@ def discover_product_law(
             expression=f"{problem.target.name} = (keine Form passt)")
 
     r2, form, base_group, mod_group, popt = best
-    params = {n: float(v) for n, v in zip(form.param_names, popt)}
+    params = {n: float(v) for n, v in zip(form.param_names, popt, strict=True)}
 
     if r2 >= r2_threshold and powerlaw_r2 < r2_threshold:
         verdict = "bestaetigt"          # product essentially exact; the power-law rival is not
@@ -399,7 +399,7 @@ def _to_product_rival(
         return None
     r2, form, g1, g2, popt = best
     return ProductRival(form_name=form.name, base_group=dict(g1), mod_group=dict(g2),
-                        params={n: float(v) for n, v in zip(form.param_names, popt)}, r_squared=r2)
+                        params={n: float(v) for n, v in zip(form.param_names, popt, strict=True)}, r_squared=r2)
 
 
 def discover_product_rivals(
@@ -457,7 +457,7 @@ def refit_product_rival(rival: ProductRival, problem: DiscoveryProblem) -> Produ
     r2, popt = fit
     return ProductRival(form_name=rival.form_name, base_group=dict(rival.base_group),
                         mod_group=dict(rival.mod_group),
-                        params={n: float(v) for n, v in zip(form.param_names, popt)}, r_squared=r2)
+                        params={n: float(v) for n, v in zip(form.param_names, popt, strict=True)}, r_squared=r2)
 
 
 # ---------------------------------------------------------------------------
@@ -709,7 +709,7 @@ def discover_multiplicative_correction(
                    and (loo_r2 >= loo_bar))
 
     if significant:
-        params = {n: float(v) for n, v in zip(form.param_names, popt)}
+        params = {n: float(v) for n, v in zip(form.param_names, popt, strict=True)}
         expression = (f"{problem.target.name} = (y_base) * "
                       f"[{_format_modulation(form.name, group, params)}]")
         return MultiplicativeCorrection(

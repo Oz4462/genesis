@@ -50,7 +50,7 @@ import math
 # Suppress the equivalent finding for every scanner: ruff/flake8-bandit (S405), bandit
 # (B405) and semgrep (use-defused-xml) all flag this serialise-only import as a reviewed
 # false positive.
-import xml.etree.ElementTree as ET  # noqa: S405  # nosec B405  # nosemgrep: use-defused-xml
+import xml.etree.ElementTree as ET  # nosec B405  # nosemgrep: use-defused-xml
 from dataclasses import dataclass, field
 
 

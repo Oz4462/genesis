@@ -48,7 +48,7 @@ try:
         run_bio_molecular,
         BioMolecularParams,
     )
-except Exception:  # noqa: BLE001
+except Exception:
     bio_molecular = None  # type: ignore[assignment]
     run_molecular_dynamics = run_temporal_gene_circuit = run_molecular_actuator = None  # type: ignore[assignment]
     run_synthetic_bio_swarm = generate_temporal_bio_recipe = run_bio_molecular = None  # type: ignore[assignment]

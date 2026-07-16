@@ -20,7 +20,7 @@ import os
 import sys
 
 # Anchor product-surface modules for reachability (drawing, aero, MC, …).
-from . import product_surface as _product_surface  # noqa: F401
+from . import product_surface as _product_surface
 
 from .config import Config, default_config
 from .completeness import completeness_warnings
@@ -880,7 +880,7 @@ def _volume_line(comp, quantities) -> str:
     """A δ volume line: exact volume or an honest upper bound, with unit³ if known."""
     try:
         vol = volume_of(comp.geometry, quantities)
-    except Exception:  # noqa: BLE001 - a bad geometry is already a δ failure
+    except Exception:
         return "      Volumen: nicht berechenbar"
     unit = geometry_length_unit(comp.geometry, quantities)
     unit_str = f" {unit}³" if unit else ""
@@ -1039,7 +1039,7 @@ def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         try:
             sys.stdout.reconfigure(encoding="utf-8")
-        except Exception:  # noqa: BLE001 - never let console setup abort a run
+        except Exception:
             pass
 
     parser = argparse.ArgumentParser(
@@ -1657,7 +1657,7 @@ def main(argv: list[str] | None = None) -> int:
                 f"WIRED={totals.get('WIRED')} SCRIPT={totals.get('SCRIPT')} "
                 f"ISLAND={totals.get('ISLAND')} INFRA={totals.get('INFRA')}"
             )
-        except Exception as exc:  # noqa: BLE001 — optional analysis script
+        except Exception as exc:
             print(f"\n  reachability: unavailable ({type(exc).__name__}: {exc})")
         return 0
 
@@ -2535,7 +2535,7 @@ def main(argv: list[str] | None = None) -> int:
                 art = _ir.assess_inequality(
                     "cli-research", lhs, rhs, relation, manifest, register=False
                 )
-        except Exception as exc:  # noqa: BLE001 - surface the gate failure honestly, never a fake pass
+        except Exception as exc:
             print(f"assessment failed: {exc}")
             return 3
 

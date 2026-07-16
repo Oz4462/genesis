@@ -74,7 +74,7 @@ def numeric_prefilter(claim: IdentityClaim, *, n_samples: int = 40, prec_dps: in
         rhs = sp.sympify(claim.rhs)
         f_lhs = sp.lambdify(syms, lhs, "mpmath")
         f_rhs = sp.lambdify(syms, rhs, "mpmath")
-    except Exception:  # noqa: BLE001 - a parse failure is handled by prove_identity
+    except Exception:
         return True, 0.0
     rng = np.random.default_rng(seed)
     worst = mp.mpf(0)
@@ -86,7 +86,7 @@ def numeric_prefilter(claim: IdentityClaim, *, n_samples: int = 40, prec_dps: in
             point.append(mp.mpf(float(rng.uniform(lo, claim.sample_hi))))
         try:
             diff = abs(f_lhs(*point) - f_rhs(*point))
-        except Exception:  # noqa: BLE001 - skip a sampled pole / undefined point
+        except Exception:
             continue
         evaluated += 1
         if diff > worst:
@@ -104,7 +104,7 @@ def prove_identity(claim: IdentityClaim, *, kernels: Sequence[ProofKernel] = (Z3
     try:
         lhs = sp.sympify(claim.lhs)
         rhs = sp.sympify(claim.rhs)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return ProofVerdict("unsupported", False, "parse", f"cannot parse the claim: {exc}")
 
     agrees, worst = numeric_prefilter(claim, n_samples=n_samples, prec_dps=prec_dps, seed=seed)

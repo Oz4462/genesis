@@ -120,9 +120,9 @@ def _greedy_correction(
         return [], np.zeros_like(residual)
 
     coefs, pred = _fit([s[2] for s in selected], residual)
-    contributions = [abs(float(c)) * float(np.mean(np.abs(s[2]))) for c, s in zip(coefs, selected)]
+    contributions = [abs(float(c)) * float(np.mean(np.abs(s[2]))) for c, s in zip(coefs, selected, strict=True)]
     cutoff = prune_rel_tol * max(contributions) if contributions else 0.0
-    kept = [s for s, contrib in zip(selected, contributions) if contrib >= cutoff]
+    kept = [s for s, contrib in zip(selected, contributions, strict=True) if contrib >= cutoff]
     if kept and len(kept) < len(selected):
         selected = kept
         coefs, pred = _fit([s[2] for s in selected], residual)
@@ -207,7 +207,7 @@ def discover_correction(
     if significant and selected:
         coefs, _ = _fit(term_vectors, residual)
         terms = tuple(Term(coefficient=float(c), exponents=dict(exps), is_intercept=is_int)
-                      for c, (exps, is_int) in zip(coefs, selected))
+                      for c, (exps, is_int) in zip(coefs, selected, strict=True))
         expr = "Korrektur = " + " + ".join(
             _format_term(t.coefficient, t.exponents, t.is_intercept) for t in terms)
         verdict = "korrektur_noetig"

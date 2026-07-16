@@ -16,55 +16,55 @@ KEEP_OPTIN modules that require private/GPU stacks and must not break import
 from __future__ import annotations
 
 # ── Manufacturing / export (product deliverables) ───────────────────────────
-from .export import drawing as export_drawing  # noqa: F401
-from .export.ros2_package import export_ros2_package  # noqa: F401
+from .export import drawing as export_drawing
+from .export.ros2_package import export_ros2_package
 
 # ── Aero fleet calibration (feeds flight.min_thrust_weight_for_class path) ──
-from .aero import calibration as aero_calibration  # noqa: F401
-from .aero import drone_catalog as aero_drone_catalog  # noqa: F401
-from .aero import model_parser as aero_model_parser  # noqa: F401
-from .aero import scaling_laws as aero_scaling_laws  # noqa: F401
+from .aero import calibration as aero_calibration
+from .aero import drone_catalog as aero_drone_catalog
+from .aero import model_parser as aero_model_parser
+from .aero import scaling_laws as aero_scaling_laws
 
 # ── Physics satellites used as optional engineering screens ─────────────────
-from . import montecarlo as montecarlo_mod  # noqa: F401
-from . import plate_hole as plate_hole_mod  # noqa: F401
-from . import bracket_fem as bracket_fem_mod  # noqa: F401
-from . import calibration as sensor_calibration  # noqa: F401
-from . import urdf_bridge as urdf_bridge_mod  # noqa: F401
+from . import montecarlo as montecarlo_mod
+from . import plate_hole as plate_hole_mod
+from . import bracket_fem as bracket_fem_mod
+from . import calibration as sensor_calibration
+from . import urdf_bridge as urdf_bridge_mod
 
 # ── Tools / discovery / inventor (product research surface) ─────────────────
-from .tools import wikidata as wikidata_mod  # noqa: F401
-from .tools import materials_backend as materials_backend_mod  # noqa: F401
-from .tools import the_well_probe as the_well_probe_mod  # noqa: F401
-from . import materials as materials_registry_mod  # noqa: F401
-from .discovery import first_principles as discovery_first_principles  # noqa: F401
-from .discovery import proof_loop as discovery_proof_loop  # noqa: F401
-from .discovery import uncertainty as discovery_uncertainty  # noqa: F401
-from .discovery import active_resolution as discovery_active_resolution  # noqa: F401
-from .discovery import assumption_annihilator as discovery_assumption_annihilator  # noqa: F401
-from .discovery import cosmic_insight as discovery_cosmic_insight  # noqa: F401
-from .discovery import reality_fork as discovery_reality_fork  # noqa: F401
-from .discovery import surrogate as discovery_surrogate  # noqa: F401
-from .discovery import universe_bridge as discovery_universe_bridge  # noqa: F401
-from .inventor import archive as inventor_archive  # noqa: F401
-from .inventor import evolve_engine as inventor_evolve  # noqa: F401
-from .inventor import refinement as inventor_refinement  # noqa: F401
-from .humanoids import balance_controller as humanoids_balance_controller  # noqa: F401
-from .wissensbasis import evidence as wissensbasis_evidence  # noqa: F401
+from .tools import wikidata as wikidata_mod
+from .tools import materials_backend as materials_backend_mod
+from .tools import the_well_probe as the_well_probe_mod
+from . import materials as materials_registry_mod
+from .discovery import first_principles as discovery_first_principles
+from .discovery import proof_loop as discovery_proof_loop
+from .discovery import uncertainty as discovery_uncertainty
+from .discovery import active_resolution as discovery_active_resolution
+from .discovery import assumption_annihilator as discovery_assumption_annihilator
+from .discovery import cosmic_insight as discovery_cosmic_insight
+from .discovery import reality_fork as discovery_reality_fork
+from .discovery import surrogate as discovery_surrogate
+from .discovery import universe_bridge as discovery_universe_bridge
+from .inventor import archive as inventor_archive
+from .inventor import evolve_engine as inventor_evolve
+from .inventor import refinement as inventor_refinement
+from .humanoids import balance_controller as humanoids_balance_controller
+from .wissensbasis import evidence as wissensbasis_evidence
 
 # ── Optional integration seams (AST-wired; runtime may lack trust-core) ─────
 try:
-    from .integration.audited_run import audited_run  # noqa: F401
+    from .integration.audited_run import audited_run
 except ImportError:  # pragma: no cover - optional verify extra
     audited_run = None  # type: ignore[assignment]
 
 try:
-    from .integration.drift import detect_run_drift  # noqa: F401
+    from .integration.drift import detect_run_drift
 except ImportError:  # pragma: no cover - needs private trust-core
     detect_run_drift = None  # type: ignore[assignment]
 
 try:
-    from .verification import trustcore_adapter as trustcore_adapter_mod  # noqa: F401
+    from .verification import trustcore_adapter as trustcore_adapter_mod
 except ImportError:  # pragma: no cover - optional verify extra
     trustcore_adapter_mod = None  # type: ignore[assignment]
 

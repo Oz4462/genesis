@@ -182,7 +182,7 @@ def dimensional_power_law(
     b_vec = _exponent_vector(target_dim, bases)
     p, *_ = np.linalg.lstsq(a_matrix, b_vec, rcond=None)
     residual = float(np.linalg.norm(a_matrix @ p - b_vec))
-    return {name: float(pi) for name, pi in zip(source_names, p)}, residual
+    return {name: float(pi) for name, pi in zip(source_names, p, strict=True)}, residual
 
 
 def _rationalise(x: float, max_denominator: int = EXPONENT_MAX_DENOMINATOR) -> float:
@@ -233,7 +233,7 @@ def _fit_coefficient(arrays: list[np.ndarray], exponents: dict[str, float],
     """Least-squares scalar ``C`` for ``y = C · ∏ source^exp`` (the only free parameter once
     the exponents are dimensionally fixed). Returns ``(C, y_hat)``."""
     pred = np.ones_like(y)
-    for name, arr in zip(names, arrays):
+    for name, arr in zip(names, arrays, strict=True):
         pred = pred * np.power(arr, exponents[name])
     denom = float(np.dot(pred, pred))
     coefficient = float(np.dot(pred, y) / denom) if denom > 0 else 0.0
@@ -358,7 +358,7 @@ def _judge(candidate: Candidate, y: np.ndarray, y_hat: np.ndarray, *, r2_thresho
     rel_err = np.abs(y - y_hat) / np.abs(y)
     max_rel_err = float(np.max(rel_err)) if rel_err.size else math.inf
     recompute_ok = bool(np.all([within_tolerance(float(o), float(p), tolerance=max(1e-6, 1.0 - r2_threshold))
-                                for o, p in zip(y, y_hat)]))
+                                for o, p in zip(y, y_hat, strict=True)]))
     fit_ok = candidate.r_squared >= effective_threshold
     gates = {
         "dimensional_check": {"passed": candidate.dimension_ok, "residual": candidate.dimension_residual},
@@ -463,7 +463,7 @@ def discover_new_formulas(
         best_sr = max(records, key=lambda r: r.candidate.r_squared)
         start = {name: float(best_sr.candidate.exponents.get(name, 0.0)) for name in names}
         for node in directed_search(problem, start).passing:
-            rescued = candidate_from_exponents(problem, dict(zip(names, node.state)))
+            rescued = candidate_from_exponents(problem, dict(zip(names, node.state, strict=True)))
             records.append(judge_candidate(problem, rescued, known_laws=known, r2_threshold=r2_threshold))
         validated = tuple(sorted((r for r in records if r.passed), key=_key))
 

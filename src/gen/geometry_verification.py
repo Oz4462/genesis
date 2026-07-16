@@ -44,7 +44,7 @@ def _kernel_call(solid, method: str, node_kind: str):
     never with a raw OCCT exception (consistent with brep.py's error contract)."""
     try:
         return getattr(solid, method)()
-    except Exception as exc:  # noqa: BLE001 - OCCT raises various Standard_* errors
+    except Exception as exc:
         raise GeometryError(
             f"OCCT kernel call {method}() failed for geometry {node_kind!r}: {exc}"
         ) from exc
@@ -62,7 +62,7 @@ def _brep_measures(
     if not _in_process_cadquery():
         try:
             from .cad.cadquery_bridge import cad_available, bounding_box, exact_volume, is_valid
-        except Exception:  # noqa: BLE001
+        except Exception:
             cad_available = None  # type: ignore
         if cad_available is not None and cad_available():
             valid = is_valid(node, quantities)

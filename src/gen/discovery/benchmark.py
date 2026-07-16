@@ -183,8 +183,8 @@ def rediscovery_benchmark(cases: list[BenchmarkCase] | None = None) -> Benchmark
     recovered) and the red-team catch rate (false ideas rejected). Deterministic."""
     cases = cases if cases is not None else default_cases()
     results = tuple(_run_case(c) for c in cases)
-    real = [r for r, c in zip(results, cases) if not c.is_redteam]
-    red = [r for r, c in zip(results, cases) if c.is_redteam]
+    real = [r for r, c in zip(results, cases, strict=True) if not c.is_redteam]
+    red = [r for r, c in zip(results, cases, strict=True) if c.is_redteam]
     n_pass = sum(1 for r in results if r.success)
     return BenchmarkReport(
         results=results,

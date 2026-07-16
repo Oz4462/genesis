@@ -115,7 +115,7 @@ def directed_search(problem, start_exponents: dict[str, float], *, step: float =
         return tuple(round(e, 6) for e in exps)
 
     def _score(exps: tuple[float, ...]) -> tuple[float, bool]:
-        mapping = {n: float(e) for n, e in zip(names, exps)}
+        mapping = {n: float(e) for n, e in zip(names, exps, strict=True)}
         verdict = judge_candidate(problem, candidate_from_exponents(problem, mapping))
         return (verdict.candidate.r_squared, verdict.passed)
 

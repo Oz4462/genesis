@@ -54,7 +54,7 @@ _SOLVER_ITERS = 80
 def pybullet_available() -> bool:
     """True if PyBullet can be imported in this environment (callers/tests skip cleanly otherwise)."""
     try:
-        import pybullet  # noqa: F401
+        import pybullet
         return True
     except Exception:
         return False
@@ -145,7 +145,7 @@ def load_structure(robot: str, urdf_path: str) -> LoadResult:
     naive fixed-base mass read look ~5 kg light. This is the in-engine cross-check of the parser's
     DOF + mass. Raises if PyBullet is unavailable (call :func:`pybullet_available` first) or the URDF
     is missing."""
-    import pybullet  # noqa: F401 — engine binds client as p
+    import pybullet
     with _engine() as (p, c):
         # fixed base: enumerate joints + fixed-base mass (base inertial welded out of the dynamics)
         bid = _load_urdf(p, c, urdf_path, fixed_base=True)
@@ -327,7 +327,7 @@ def drop_test(robot: str, urdf_path: str, *, drop_height: float = 0.02, seconds:
     explosion) and the base did not tunnel through the floor. The standing pose can be set via
     ``joint_positions`` (defaults to the model's zero pose). Deterministic (fixed step + solver iters).
     Raises if PyBullet is unavailable."""
-    import pybullet  # noqa: F401
+    import pybullet
     import pybullet_data
     with _engine() as (p, c):
         p.setAdditionalSearchPath(pybullet_data.getDataPath(), physicsClientId=c)
@@ -416,7 +416,7 @@ def pd_balance(robot: str, urdf_path: str, *, seconds: float = 3.0, kp: float = 
     tilt exceeds ``fall_tilt_deg``. Reports ``upright_seconds`` (how long it stayed up) and whether it
     ultimately fell within the window. Not a tuned controller — a usability proof. Raises if PyBullet
     is unavailable."""
-    import pybullet  # noqa: F401
+    import pybullet
     import pybullet_data
     with _engine() as (p, c):
         p.setAdditionalSearchPath(pybullet_data.getDataPath(), physicsClientId=c)

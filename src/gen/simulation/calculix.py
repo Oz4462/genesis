@@ -64,7 +64,7 @@ def calculix_available() -> bool:
             capture_output=True, text=True, timeout=30,
         )
         return proc.returncode == 0
-    except Exception:  # noqa: BLE001
+    except Exception:
         return False
 
 

@@ -46,7 +46,7 @@ from gen.wissensbasis.store import (
 # Fallback for advanced DFM if deeper function exposed
 try:
     from gen.cad.manufacturing_check import check_advanced_dfm, AdvancedDFMReport  # type: ignore
-except Exception:  # noqa: BLE001
+except Exception:
     check_advanced_dfm = None  # type: ignore
     AdvancedDFMReport = None  # type: ignore
 

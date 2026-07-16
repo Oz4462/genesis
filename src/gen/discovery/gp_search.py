@@ -142,7 +142,7 @@ def build_pi_scaffold(
     particular, *_ = np.linalg.lstsq(a_matrix, b_vec, rcond=None)
     residual = float(np.linalg.norm(a_matrix @ particular - b_vec))
     reachable = residual < _DIM_TOL
-    base = {name: float(p) for name, p in zip(names, particular)}
+    base = {name: float(p) for name, p in zip(names, particular, strict=True)}
 
     groups: list[dict[str, float]] = dimensionless_groups(problem, max_abs_exp=max_abs_exp, step=step) if reachable else []
     nullity = len(names) - int(np.linalg.matrix_rank(a_matrix, tol=1e-9)) if reachable else 0
@@ -328,7 +328,7 @@ def _gp_expression(problem: DiscoveryProblem, scaffold: PiScaffold, verdict: GPV
     else:
         expr = f"{problem.target.name} = ({scaffold.base_expression}) * ({rhs})"
     defs = "; ".join(f"{name} = {_render_product(group)}"
-                     for name, group in zip(scaffold.pi_names, scaffold.pi_groups))
+                     for name, group in zip(scaffold.pi_names, scaffold.pi_groups, strict=True))
     return f"{expr}  mit {defs}" if defs else expr
 
 
@@ -336,7 +336,7 @@ def gp_occam_discover(
     problem: DiscoveryProblem,
     *,
     seed: int = 0,
-    cfg: GPConfig = GPConfig(),
+    cfg: GPConfig | None = None,
     r2_threshold: float = DEFAULT_R2_THRESHOLD,
     oos_r2: float = DEFAULT_OOS_R2,
     rungs: tuple[str, ...] = DEFAULT_RUNGS,
@@ -352,6 +352,8 @@ def gp_occam_discover(
     does the GP evolve over the dimensionless π-columns of the scaffold; its candidate is judged
     by ``gp_discover``'s fit/dummy/out-of-sample gates — GP itself never confirms. Deterministic
     in ``seed``. Raises ValueError on unusable data or an unknown rung name."""
+    if cfg is None:
+        cfg = GPConfig()
     unknown = [r for r in rungs if r not in _RUNG_RUNNERS]
     if unknown:
         raise ValueError(f"unknown Occam rung(s) {unknown!r}; choose from {sorted(_RUNG_RUNNERS)}")
@@ -400,7 +402,7 @@ def gp_occam_discover(
         idea=problem.idea,
         target=Variable(f"{problem.target.name}_pi", "1", tuple(y_scaled)),
         inputs=tuple(Variable(name, "1", tuple(_pi_values(problem, group)))
-                     for name, group in zip(scaffold.pi_names, scaffold.pi_groups)),
+                     for name, group in zip(scaffold.pi_names, scaffold.pi_groups, strict=True)),
         run_id=problem.run_id,
     )
     gv = gp_discover(scaled_problem, seed=seed, cfg=cfg, r2_threshold=r2_threshold, oos_r2=oos_r2)
@@ -413,7 +415,7 @@ def gp_occam_discover(
         gates={"occam": ladder_gates,
                "scaffold": {"reachable": True, "base": scaffold.base_expression,
                             "pi": {n: _render_product(g)
-                                   for n, g in zip(scaffold.pi_names, scaffold.pi_groups)}},
+                                   for n, g in zip(scaffold.pi_names, scaffold.pi_groups, strict=True)}},
                "gp": gv.gates})
 
 

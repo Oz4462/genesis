@@ -59,20 +59,20 @@ from .readiness_ladder import TeacherMode, community_evidence
 # coverage always None and horizon_subgates all None. Independent imports fix that.
 try:
     from ..seams import build_seam_certificate, detect_cross_domain_seams, gate_epsilon  # ε
-except Exception:  # noqa: BLE001
+except Exception:
     build_seam_certificate = None  # type: ignore
     detect_cross_domain_seams = None  # type: ignore
     gate_epsilon = None  # type: ignore
 
 try:
     from ..memory_fabric import build_memory_fabric_certificate, gate_zeta  # ζ
-except Exception:  # noqa: BLE001
+except Exception:
     build_memory_fabric_certificate = None  # type: ignore
     gate_zeta = None  # type: ignore
 
 try:
     from ..omega import gate_omega  # Ω (also imported inside process_dream path)
-except Exception:  # noqa: BLE001
+except Exception:
     gate_omega = None  # type: ignore
 
 try:
@@ -80,13 +80,13 @@ try:
         build_coverage_certificate,
         gate_delta_plus_coverage,
     )  # δ+ coverage
-except Exception:  # noqa: BLE001
+except Exception:
     build_coverage_certificate = None  # type: ignore
     gate_delta_plus_coverage = None  # type: ignore
 
 try:
     from ..inverse_design import build_pareto_front, gate_gamma_plus  # γ+
-except Exception:  # noqa: BLE001
+except Exception:
     build_pareto_front = None  # type: ignore
     gate_gamma_plus = None  # type: ignore
 
@@ -97,14 +97,14 @@ derive_goal_from_spec = None  # type: ignore
 # New hardened simulation layer (Punkt 4 complete)
 try:
     from ..simulation.runner import run_simulations_for_hammer, SimulationResult
-except Exception:  # noqa: BLE001
+except Exception:
     run_simulations_for_hammer = None  # type: ignore
     SimulationResult = None  # type: ignore
 
 # Quantum-inspired optimizer for the multi-component emergence path (else-branch below)
 try:
     from ..simulation.quantum_opt import optimize_params
-except Exception:  # noqa: BLE001
+except Exception:
     optimize_params = None  # type: ignore
 
 # Full Electronics layer (agent-delivered, concrete for circuits/chips/simulation/Einbau)
@@ -120,7 +120,7 @@ try:
         generate_falsification_experiments_for_electronics,
         electronics_to_thermal_loads,
     )
-except Exception:  # noqa: BLE001
+except Exception:
     map_to_elektriker_spec = None
     build_rich_electronics_pieces = None
     generate_falsification_experiments_for_electronics = None
@@ -135,7 +135,7 @@ try:
         evaluate_reality,
         gate_delta_plus,
     )  # type: ignore
-except Exception:  # noqa: BLE001
+except Exception:
     FalsificationExperiment = None  # type: ignore
     Measurement = None  # type: ignore
     evaluate_reality = None  # type: ignore
@@ -143,7 +143,7 @@ except Exception:  # noqa: BLE001
 
 try:
     from .learning_integrator import apply_learning_cycle, LearningDelta
-except Exception:  # noqa: BLE001
+except Exception:
     apply_learning_cycle = None  # type: ignore
     LearningDelta = None  # type: ignore
 
@@ -306,7 +306,7 @@ class LumenCrucible:
                     frontier_snapshot=hammer.frontier_snapshot,
                     quelle=hammer.quelle + " + dream_to_hammer_gate",
                 )
-        except Exception as exc:  # noqa: BLE001 — optional gate
+        except Exception as exc:
             optional_skips.append(
                 f"dream_to_hammer_gate ({type(exc).__name__}: {exc})"
             )
@@ -330,7 +330,7 @@ class LumenCrucible:
                         frontier_snapshot=hammer.frontier_snapshot,
                         quelle=hammer.quelle + " + simulation.runner",
                     )
-            except Exception as exc:  # noqa: BLE001 — optional sim
+            except Exception as exc:
                 optional_skips.append(
                     f"simulation.runner ({type(exc).__name__}: {exc})"
                 )
@@ -375,7 +375,7 @@ class LumenCrucible:
                     "software": s,
                     "regulatorik": r,
                 }
-            except Exception as exc:  # noqa: BLE001 — recorded as skip
+            except Exception as exc:
                 skipped.append(
                     {
                         "stage": "multi_domain_pipelines",
@@ -402,7 +402,7 @@ class LumenCrucible:
                         )
                     ]
                     multi_domain_data["subsystem_modules"] = modules
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     skipped.append(
                         {
                             "stage": "subsystem_modules",
@@ -433,7 +433,7 @@ class LumenCrucible:
                                     elec_pieces["simulation_result"]
                                 )
                             )
-                    except Exception as exc:  # noqa: BLE001
+                    except Exception as exc:
                         skipped.append(
                             {
                                 "stage": "electronics",
@@ -459,7 +459,7 @@ class LumenCrucible:
                         multi_domain_data["inverse_component_suggestions"] = [
                             s.id for s in inv_suggestions[:3]
                         ]
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     skipped.append(
                         {
                             "stage": "inverse_design",
@@ -503,7 +503,7 @@ class LumenCrucible:
                 seeded += seed_from_package_results(multi_domain_data, run_id=run_id) or []
                 seeded += seed_general_subsystems(run_id=run_id)
                 multi_domain_data["wissensbasis_seeded"] = seeded
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 skipped.append(
                     {
                         "stage": "wissensbasis_seeding",
@@ -523,7 +523,7 @@ class LumenCrucible:
                             quelle="B2 Subsystem-Abstraktion general for all ideas",
                         ),
                     ]
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 skipped.append(
                     {
                         "stage": "b2_subsystem_modules",
@@ -811,11 +811,11 @@ class LumenCrucible:
                                         delta_plus_result["gate_passed"] = (
                                             delta_plus_gate.passed
                                         )
-                                    except Exception as ge:  # noqa: BLE001
+                                    except Exception as ge:
                                         delta_plus_result["gate_error"] = (
                                             f"{type(ge).__name__}: {ge}"
                                         )
-                            except Exception as me:  # noqa: BLE001
+                            except Exception as me:
                                 optional_skips.append(
                                     f"delta_plus_fixture_skipped ({type(me).__name__}: {me})"
                                 )
@@ -868,7 +868,7 @@ class LumenCrucible:
                                 coverage_gate = f"error: {type(e).__name__}: {e}"
                     except Exception:
                         pass
-            except Exception as exc:  # noqa: BLE001 — record, never silent facade success
+            except Exception as exc:
                 # honest skip for any partial data (guarded spirit, like pipeline.py:150)
                 optional_skips.append(
                     f"horizon_cert_block_skipped ({type(exc).__name__}: {exc})"
@@ -1228,7 +1228,7 @@ class LumenCrucible:
                 )
             with open(work_queue_path, "a", encoding="utf-8") as f:
                 f.write("\n" + note + "\n")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             # Ehrliche Fehlermeldung statt stillem Versagen
             note += f" [APPEND_FAILED: {exc}]"
 
@@ -1427,7 +1427,7 @@ def reflect_and_evolve(hive: HiveState, *, run_id: str | None = None) -> HiveSta
                     "run_id": run_id,
                 }
             )
-        except Exception:  # noqa: BLE001
+        except Exception:
             mem_fb.append({"error": "learning_cycle_unavailable", "run_id": run_id})
 
     new_prov = (
@@ -1801,12 +1801,12 @@ def forge_research(
                 quelle=study.quelle,
             )
             new_recipe_id = key
-        except Exception as exc:  # noqa: BLE001 — honest seed_failed
+        except Exception as exc:
             seed_failed = f"{type(exc).__name__}: {exc}"
             emergence_notes.append(
                 f"Wissensbasis-Seeding fehlgeschlagen (ehrlich, kein Rezept geseedet): {seed_failed}"
             )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         seed_failed = f"{type(e).__name__}: {e}"
         emergence_notes.append(f"Seeding skipped (honest): {seed_failed}")
 

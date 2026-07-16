@@ -93,7 +93,7 @@ class WellProbeResult:
 def the_well_package_available() -> bool:
     """True iff the optional ``the_well`` package imports."""
     try:
-        import the_well  # noqa: F401
+        import the_well
         return True
     except ImportError:
         return False
@@ -313,7 +313,7 @@ def probe_well_dataset(
             n += 1
             if n >= max_batches:
                 break
-    except Exception as exc:  # noqa: BLE001 — network/auth/schema; never invent data
+    except Exception as exc:
         gaps = [
             f"stream failed: {type(exc).__name__}: {exc}",
             "check network, Hugging Face access, and dataset name",

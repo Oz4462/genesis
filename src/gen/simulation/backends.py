@@ -99,7 +99,7 @@ class MujocoPendulumBackend:
     def simulate(self, spec: PendulumSpec) -> Trajectory:
         if not self.available():
             raise SimulatorUnavailable("mujoco")
-        import mujoco  # noqa: PLC0415 - deferred, import-guarded opt-in dependency
+        import mujoco
 
         length = 2.0 * spec.com_distance  # com at half-length of a uniform rod
         xml = (

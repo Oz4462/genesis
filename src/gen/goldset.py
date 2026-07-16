@@ -252,7 +252,7 @@ def run_goldset(
     for case in cases:
         try:
             outcomes[case.id] = run_one(case)
-        except Exception as e:  # noqa: BLE001 — recorded in `errors`, never hidden
+        except Exception as e:
             errors[case.id] = f"{type(e).__name__}: {e}"
             outcomes[case.id] = RunOutcome(abstained=True, text="")  # no answer ≠ fabrication
     return outcomes, errors

@@ -108,7 +108,7 @@ class Conductor:
             # extract/judge calls under outer time budgets (self-improve loop).
             cap = 3 if self._max_refine_rounds == 0 else _MAX_SUB_QUESTIONS
             subs = [str(s).strip() for s in value if str(s).strip()][:cap]
-        except Exception:  # noqa: BLE001 - decomposition is best-effort
+        except Exception:
             subs = []
         if not subs:
             subs = [question.raw]

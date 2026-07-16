@@ -142,10 +142,10 @@ def _redirect_handler(allow_private_hosts: bool):
     as the initial request. A blocked hop raises ``ValueError`` (the caller turns
     it into an honest ``ok=False``).
     """
-    import urllib.request  # noqa: PLC0415
+    import urllib.request
 
     class _GuardedRedirects(urllib.request.HTTPRedirectHandler):
-        def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: PLR0913
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
             if urlsplit(newurl).scheme.lower() not in _SSRF_SCHEMES:
                 raise ValueError(f"blocked redirect to non-http(s) URL {newurl!r}")
             if not allow_private_hosts:
@@ -159,7 +159,7 @@ def _redirect_handler(allow_private_hosts: bool):
 
 def _guarded_urlopen(req, *, timeout: float, allow_private_hosts: bool = False):
     """Open a request through an opener whose redirect hops are SSRF-checked."""
-    import urllib.request  # noqa: PLC0415
+    import urllib.request
 
     opener = urllib.request.build_opener(_redirect_handler(allow_private_hosts))
     return opener.open(req, timeout=timeout)
@@ -200,8 +200,8 @@ async def default_http_get(
     ``allow_private_hosts=True`` is the explicit operator opt-in for local
     targets (e.g. a self-hosted service); the research path never sets it.
     """
-    import urllib.error  # noqa: PLC0415
-    import urllib.request  # noqa: PLC0415
+    import urllib.error
+    import urllib.request
 
     hdrs = {"User-Agent": _USER_AGENT}
     if headers:
@@ -236,7 +236,7 @@ async def default_http_get(
             body = ""
             try:
                 body = _read_capped(exc).decode("utf-8", errors="replace")
-            except Exception:  # noqa: BLE001 - body is best-effort only
+            except Exception:
                 pass
             retry_after = exc.headers.get("Retry-After") if exc.headers else None
             return HttpResponse(status=exc.code, body=body, final_url=url), retry_after

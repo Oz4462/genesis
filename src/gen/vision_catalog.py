@@ -21,7 +21,7 @@ def load_vision_catalog() -> dict[str, Any]:
     if not _CATALOG.is_file():
         raise FileNotFoundError(f"vision catalog missing at {_CATALOG}")
     try:
-        import yaml  # noqa: PLC0415
+        import yaml
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError("load_vision_catalog requires PyYAML") from exc
     data = yaml.safe_load(_CATALOG.read_text(encoding="utf-8")) or {}

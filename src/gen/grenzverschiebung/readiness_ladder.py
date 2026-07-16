@@ -211,7 +211,7 @@ def discover_community_literature(
         url,
         headers={"User-Agent": "GENESIS/0.1 (agent-sourced community evidence; mailto:genesis@local)"},
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 — fixed https host
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
         data = json.loads(resp.read().decode("utf-8"))
 
     hits: list[dict] = []
@@ -297,7 +297,7 @@ def community_evidence(
                 f"agent OpenAlex discovery failed ({live_error}) — "
                 "retry with network; user need not supply data"
             )
-        except Exception as exc:  # noqa: BLE001 — discovery must not crash TRL path
+        except Exception as exc:
             live_error = f"{type(exc).__name__}: {exc}"
             gaps.append(
                 f"agent community discovery error ({live_error}) — "

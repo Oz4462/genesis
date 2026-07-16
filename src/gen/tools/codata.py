@@ -150,11 +150,11 @@ def fetch_allascii(url: str = DEFAULT_URL, timeout: float = 15.0) -> str:
     """Fetch the raw table. Raises CodataError on any transport error (honest gap)."""
     try:
         req = Request(url, headers={"User-Agent": "GENESIS-research/0.1 (+https://github.com/genesis)"})
-        with urlopen(req, timeout=timeout) as resp:  # noqa: S310 (fixed trusted host)
+        with urlopen(req, timeout=timeout) as resp:
             if resp.status != 200:
                 raise CodataError(f"HTTP {resp.status} for {url}")
             return resp.read().decode("utf-8", errors="replace")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise CodataError(f"failed to fetch CODATA table from {url}: {exc}") from exc
 
 

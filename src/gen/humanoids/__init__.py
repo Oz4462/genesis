@@ -46,5 +46,5 @@ Neues Modul für Next-Gen Forschung & Evolution (PHASE 2 – Humanoid Flagship):
 """
 
 # Explicit re-export so "from gen.humanoids import humanoid_research" works cleanly.
-from . import humanoid_research as humanoid_research  # noqa: F401
+from . import humanoid_research as humanoid_research
 

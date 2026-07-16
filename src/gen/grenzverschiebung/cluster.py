@@ -69,7 +69,7 @@ def run_capability_cluster(idea: str, *, run_id: str | None = None) -> Capabilit
             value, detail = fn()
             out[name] = value
             res.stages.append(ClusterStage(name, "ok", detail))
-        except Exception as e:  # noqa: BLE001 — recorded + surfaced, never hidden
+        except Exception as e:
             res.stages.append(ClusterStage(name, "error", "engine raised", error=f"{type(e).__name__}: {e}"))
 
     def _n(obj: Any, attr: str) -> int:

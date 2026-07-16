@@ -123,7 +123,7 @@ def vector_status() -> dict[str, Any]:
     # Detect optional deps without importing heavy stacks if missing
     has_numpy = False
     try:
-        import numpy  # noqa: F401
+        import numpy
 
         has_numpy = True
     except ImportError:
@@ -131,7 +131,7 @@ def vector_status() -> dict[str, Any]:
 
     anamnesis = False
     try:
-        from gen.memory._vendor.anamnesis_mem import storage  # noqa: F401
+        from gen.memory._vendor.anamnesis_mem import storage
 
         anamnesis = True
     except Exception:

@@ -50,7 +50,7 @@ def _foot_footprint(mesh_path: str) -> tuple[float, float, float]:
 
 def trimesh_available() -> bool:
     try:
-        import trimesh  # noqa: F401
+        import trimesh
         return True
     except Exception:
         return False

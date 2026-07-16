@@ -35,7 +35,7 @@ def parse_proposals(text: str, *, agent: str = "proposer") -> list[ProposalModel
     never trusted. Mirrors ``llm.parsing.extract_json`` noise-tolerance, then adds schema validation."""
     try:
         data = extract_json(text, agent=agent)
-    except Exception:  # noqa: BLE001 - any extraction failure is an honest empty result, not a crash
+    except Exception:
         return []
     items = data if isinstance(data, list) else [data]
     out: list[ProposalModel] = []

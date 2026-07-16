@@ -65,8 +65,8 @@ class RealMaterialsOracle:
 
     async def query(self, spec: Any) -> OracleClaim:
         try:
-            import orb_models  # noqa: F401  (presence probe only)
-        except Exception as exc:  # noqa: BLE001 - any import failure is an honest "unavailable"
+            import orb_models
+        except Exception as exc:
             raise MaterialsOracleUnavailable(
                 "orb-models not installed — the real universal potential runs on the owner's GPU machine; "
                 "use OfflineMaterialsTwin for the deterministic wiring proof") from exc

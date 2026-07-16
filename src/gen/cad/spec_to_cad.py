@@ -83,7 +83,7 @@ def specification_to_build_artifact(
                 stl_path = str(path)
             else:  # never ship an empty artifact
                 path.unlink()
-    except (GeometryError, Exception):  # noqa: BLE001 — kernel absent/import guard
+    except (GeometryError, Exception):
         stl_path = None
 
     proto = PrototypeSpec(

@@ -135,7 +135,7 @@ def discover_ode(
     ss_tot = float(np.sum((y - np.mean(y)) ** 2))
     r_squared = 1.0 - ss_res / ss_tot if ss_tot > 0.0 else 0.0
 
-    coefficients = {n: float(c) for n, c in zip(names, xi) if c != 0.0}
+    coefficients = {n: float(c) for n, c in zip(names, xi, strict=True) if c != 0.0}
     expression = f"{target} = " + (
         " + ".join(f"{c:.4g}*{n}" for n, c in coefficients.items()) if coefficients else "0"
     )
@@ -188,7 +188,7 @@ def ode_coefficient_bands(
         raise ValueError("n_resamples must be >= 2 for a band")
     names, library, y = _assemble_library(traj, target=target, drop_edges=drop_edges, extra_terms=extra_terms)
     full = stlsq(library, y, threshold=threshold)
-    active = {n for n, c in zip(names, full) if c != 0.0}
+    active = {n for n, c in zip(names, full, strict=True) if c != 0.0}
 
     rng = np.random.default_rng(seed)
     n_rows = library.shape[0]
@@ -196,7 +196,7 @@ def ode_coefficient_bands(
     for _ in range(n_resamples):
         idx = rng.integers(0, n_rows, size=n_rows)
         xi = stlsq(library[idx], y[idx], threshold=threshold)
-        for n, c in zip(names, xi):
+        for n, c in zip(names, xi, strict=True):
             if n in active and c != 0.0:
                 samples[n].append(float(c))
 

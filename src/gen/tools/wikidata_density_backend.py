@@ -17,7 +17,7 @@ class WikidataDensityBackend:
 
     name = "wikidata_density"
 
-    def __init__(self, http_get=None) -> None:  # noqa: ANN001 — protocol compat
+    def __init__(self, http_get=None) -> None:
         self._http_get = http_get
 
     async def search(self, query: str, limit: int) -> list[SourceCandidate]:

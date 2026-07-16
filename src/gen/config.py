@@ -152,7 +152,7 @@ def config_hash(config: Config) -> str:
 def load_yaml(path: str) -> Config:
     """Load config from YAML (lazy PyYAML import). Raises if PyYAML is missing."""
     try:
-        import yaml  # noqa: PLC0415
+        import yaml
     except ImportError as exc:  # pragma: no cover - environment-dependent
         raise RuntimeError(
             "load_yaml requires PyYAML. Install it, or use default_config()/from_dict()."

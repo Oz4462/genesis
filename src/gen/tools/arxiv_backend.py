@@ -45,7 +45,7 @@ class ArxivBackend:
         )
         try:
             resp = await self._http_get(url)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise SearchBackendError(self.name, str(exc)) from exc
         if not (200 <= resp.status < 300):
             raise SearchBackendError(self.name, f"HTTP {resp.status}")

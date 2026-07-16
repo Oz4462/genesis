@@ -31,7 +31,7 @@ except Exception:
 
 # Product surface: 2-D drawing export is part of the deliverable stack (optional runtime).
 try:
-    from ..export import drawing as _export_drawing  # noqa: F401
+    from ..export import drawing as _export_drawing
 except Exception:  # pragma: no cover - optional build123d venv
     _export_drawing = None
 
@@ -257,7 +257,7 @@ class ProfessionalPackage:
             pdf_path = out_dir / "DELIVERABLE.pdf"
             weasyprint.HTML(string=html_text).write_pdf(str(pdf_path))
             return (str(pdf_path), None)
-        except Exception as e:  # noqa: BLE001 — surfaced, not hidden
+        except Exception as e:
             return (None, f"weasyprint present but failed: {type(e).__name__}: {e}")
 
     def forge(self, out_dir: str | Path | None = None) -> dict:

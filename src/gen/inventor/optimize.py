@@ -72,8 +72,8 @@ class PymooOptimizer:
     def select(self, items: Sequence[Any], values_of: ValuesOf, goal: InverseDesignGoal) -> list[Any]:
         if not self.available():
             raise OptimizerUnavailable("pymoo")
-        import numpy as np  # noqa: PLC0415
-        from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting  # noqa: PLC0415
+        import numpy as np
+        from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
 
         items = list(items)
         if not items:

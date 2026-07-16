@@ -233,7 +233,7 @@ def main() -> int:
             sys.stderr.write(noise.getvalue())
         sys.stdout.write(json.dumps({"ok": True, **out}))
         return 0
-    except Exception as exc:  # noqa: BLE001 - any failure -> typed error string back
+    except Exception as exc:
         sys.stdout.write(
             json.dumps({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
         )

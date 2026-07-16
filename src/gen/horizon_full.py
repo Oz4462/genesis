@@ -25,7 +25,7 @@ from typing import Callable
 
 # Static import for product reachability (find_islands / island triage). Call sites
 # still use the function body; this keeps gen.grenzverschiebung.cluster WIRED from CLI.
-from .grenzverschiebung.cluster import run_capability_cluster as _run_capability_cluster  # noqa: F401
+from .grenzverschiebung.cluster import run_capability_cluster as _run_capability_cluster
 
 #: A neutral, generalist default idea (used when the CLI is invoked without a question).
 DEFAULT_IDEA = "Ein leiser, energieautarker Innenraum-Transportroboter."
@@ -110,7 +110,7 @@ def _step(result: HorizonFullResult, name: str, fn: Callable[[], str]) -> None:
     """
     try:
         result.steps.append(StepResult(name, "ok", fn()))
-    except Exception as e:  # noqa: BLE001 — recorded + surfaced, never hidden
+    except Exception as e:
         result.steps.append(StepResult(name, "error", "engine raised", error=f"{type(e).__name__}: {e}"))
 
 

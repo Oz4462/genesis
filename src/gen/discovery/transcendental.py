@@ -171,13 +171,13 @@ def dimensionless_groups(
         if np.allclose(p, 0.0):
             continue
         if np.linalg.norm(a_matrix @ p) < _DIM_TOL:
-            groups.append({n: float(e) for n, e in zip(names, combo)})
+            groups.append({n: float(e) for n, e in zip(names, combo, strict=True)})
     return groups
 
 
 def _group_values(group: dict[str, float], names: list[str], arrs: list[np.ndarray]) -> np.ndarray:
     pi = np.ones_like(arrs[0])
-    for name, arr in zip(names, arrs):
+    for name, arr in zip(names, arrs, strict=True):
         e = group.get(name, 0.0)
         if e != 0.0:
             pi = pi * np.power(arr, e)
@@ -274,7 +274,7 @@ def discover_transcendental(
             expression=f"{problem.target.name} = (keine Form passt)")
 
     r2, form, group, popt = best
-    params = {name: float(v) for name, v in zip(form.param_names, popt)}
+    params = {name: float(v) for name, v in zip(form.param_names, popt, strict=True)}
 
     if r2 >= r2_threshold and powerlaw_r2 < r2_threshold:
         verdict = "bestaetigt"          # transcendental essentially exact; the power-of-group rival is not
@@ -326,7 +326,7 @@ def _to_rival(best: tuple[float, TranscendentalForm, dict[str, float], tuple[flo
         return None
     r2, form, group, popt = best
     return RivalForm(form_name=form.name, group=dict(group),
-                     params={n: float(v) for n, v in zip(form.param_names, popt)}, r_squared=r2)
+                     params={n: float(v) for n, v in zip(form.param_names, popt, strict=True)}, r_squared=r2)
 
 
 def discover_rivals(
@@ -376,4 +376,4 @@ def refit_rival(rival: RivalForm, problem: DiscoveryProblem) -> RivalForm | None
         return None
     r2, popt = fit
     return RivalForm(form_name=rival.form_name, group=dict(rival.group),
-                     params={n: float(v) for n, v in zip(form.param_names, popt)}, r_squared=r2)
+                     params={n: float(v) for n, v in zip(form.param_names, popt, strict=True)}, r_squared=r2)

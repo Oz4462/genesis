@@ -283,9 +283,11 @@ def _score(r2: float, size: int, cfg: GPConfig) -> float:
 
 
 def gp_fit(target: np.ndarray, columns: dict[str, np.ndarray], *, seed: int = 0,
-           cfg: GPConfig = GPConfig()) -> SymbolicModel:
+           cfg: GPConfig | None = None) -> SymbolicModel:
     """Evolve an open-form law ``y ≈ a·f(x)+b`` for ``target`` over the input ``columns``. Deterministic in
     ``seed``: identical seed + data → identical model. Raises ValueError on empty/mismatched data."""
+    if cfg is None:
+        cfg = GPConfig()
     y = np.asarray(target, dtype=float)
     n = y.shape[0]
     if n == 0:
@@ -408,7 +410,7 @@ DEFAULT_GP_OOS_R2 = 0.99
 DUMMY_UNIT = "kg"
 
 
-def gp_discover(problem: DiscoveryProblem, *, seed: int = 0, cfg: GPConfig = GPConfig(),
+def gp_discover(problem: DiscoveryProblem, *, seed: int = 0, cfg: GPConfig | None = None,
                 r2_threshold: float = DEFAULT_GP_R2_THRESHOLD,
                 oos_r2: float = DEFAULT_GP_OOS_R2) -> GPVerdict:
     """Discover an open-form law for ``problem`` and JUDGE it through the same honesty gates as the rest of
@@ -421,6 +423,8 @@ def gp_discover(problem: DiscoveryProblem, *, seed: int = 0, cfg: GPConfig = GPC
 
     Verdict: ``bestaetigt`` (fit ∧ hygiene), ``widerlegt`` (anti-correlated, R² < 0), else
     ``unentschieden`` (an honest "I don't know"). Deterministic in ``seed``."""
+    if cfg is None:
+        cfg = GPConfig()
     cols, n = _columns(problem)
     y = np.asarray(problem.target.values, float)
     model = gp_fit(y, cols, seed=seed, cfg=cfg)

@@ -71,7 +71,7 @@ _SCENE_TEMPLATE = """<mujoco model="{name}_stand_scene">
 def mujoco_available() -> bool:
     """True if MuJoCo can be imported (callers/tests skip cleanly otherwise)."""
     try:
-        import mujoco  # noqa: F401
+        import mujoco
         return True
     except Exception:
         return False

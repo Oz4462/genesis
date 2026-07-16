@@ -37,7 +37,7 @@ def openmodelica_available() -> bool:
     surfaces that, loudly.
     """
     try:
-        import OMPython  # noqa: F401
+        import OMPython
         return True
     except Exception:
         return False
@@ -93,7 +93,7 @@ class ModelicaSimulation:
         try:
             self._omc = OMCSessionZMQ()
             version = self._omc.sendExpression("getVersion()")
-        except Exception as exc:  # noqa: BLE001 - compiler not reachable etc.
+        except Exception as exc:
             raise GenesisError(
                 f"could not start an OpenModelica session (is 'omc' on PATH?): {exc}"
             ) from exc
@@ -107,7 +107,7 @@ class ModelicaSimulation:
         if omc is not None:
             try:
                 omc.sendExpression("quit()")
-            except Exception:  # noqa: BLE001 - quitting may close the socket first
+            except Exception:
                 pass
 
     def __enter__(self) -> "ModelicaSimulation":
@@ -130,7 +130,7 @@ class ModelicaSimulation:
         GenesisError (so a broken session never bubbles up as an opaque OMC exception)."""
         try:
             return self._require().sendExpression(expr)
-        except Exception as exc:  # noqa: BLE001 - OMCSessionException etc. surfaced
+        except Exception as exc:
             raise GenesisError(f"OpenModelica call failed for {expr[:80]!r}: {exc}") from exc
 
     def version(self) -> str:

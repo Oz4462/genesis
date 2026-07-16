@@ -31,7 +31,7 @@ from gen.humanoids.step_env import StepEnv, StepEnvConfig
 
 def gymnasium_available() -> bool:
     try:
-        import gymnasium  # noqa: F401
+        import gymnasium
         return True
     except Exception:
         return False
@@ -39,7 +39,7 @@ def gymnasium_available() -> bool:
 
 def sb3_available() -> bool:
     try:
-        import stable_baselines3  # noqa: F401
+        import stable_baselines3
         return True
     except Exception:
         return False

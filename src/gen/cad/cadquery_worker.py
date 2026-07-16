@@ -167,7 +167,7 @@ def handle(req: dict) -> dict:
         inter = a.intersect(b)
         try:
             vol = float(inter.Volume())
-        except Exception:  # noqa: BLE001 - empty intersection can be a null shape
+        except Exception:
             return {"result": False}
         return {"result": vol > tol}
     if op == "stl":
@@ -215,7 +215,7 @@ def main() -> int:
         out = handle(req)
         sys.stdout.write(json.dumps({"ok": True, **out}))
         return 0
-    except Exception as exc:  # noqa: BLE001 - any failure -> typed error string back
+    except Exception as exc:
         sys.stdout.write(
             json.dumps({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
         )

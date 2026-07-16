@@ -97,7 +97,7 @@ def stand_with_push(urdf_path: str, target_pose: dict[str, float],
     reproducible base linear-velocity kick ``push_xy`` [m/s] at ``push_at_s`` to probe the stability
     basin direction-by-direction (sagittal +x vs lateral +y). Returns the honest upright-seconds + tilt;
     never asserts success. Raises if PyBullet is unavailable."""
-    import pybullet  # noqa: F401
+    import pybullet
     import pybullet_data
     from gen.humanoids.insim import _engine, _load_urdf, _world_com, _FIXED_TIMESTEP, _JTYPE
 

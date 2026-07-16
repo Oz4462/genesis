@@ -257,7 +257,7 @@ def emit_bundle(spec: Specification, out_dir: str | Path, *, tolerance: float = 
                         "(der OpenSCAD-Quellcode ist die Druckquelle, bis der "
                         "OCCT-Kernel installiert ist)"
                     )
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     missing.append(
                         f"{fname}: unerwarteter Fehler — {type(exc).__name__}: {exc}"
                     )
@@ -286,7 +286,7 @@ def emit_bundle(spec: Specification, out_dir: str | Path, *, tolerance: float = 
 
         caps_snap = extract_caps_snapshot(assessment=assessment)
         caps_dict = caps_snap.to_dict()
-    except Exception:  # noqa: BLE001
+    except Exception:
         caps_dict = {
             "proof_package": getattr(assessment, "proof_package", None),
             "readiness_level": getattr(assessment, "readiness_level", None),

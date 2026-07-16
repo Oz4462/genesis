@@ -40,8 +40,8 @@ async def default_http_post_json(
     propagate as exceptions — the adapter wraps both into ``LLMTransportError``.
     The generous default timeout covers local model cold-loads.
     """
-    import urllib.error  # noqa: PLC0415
-    import urllib.request  # noqa: PLC0415
+    import urllib.error
+    import urllib.request
 
     data = json.dumps(payload).encode("utf-8")
 
@@ -61,7 +61,7 @@ async def default_http_post_json(
             body = ""
             try:
                 body = exc.read().decode("utf-8", errors="replace")
-            except Exception:  # noqa: BLE001 - body is best-effort only
+            except Exception:
                 pass
             return HttpResponse(status=exc.code, body=body, final_url=url)
 

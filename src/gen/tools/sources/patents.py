@@ -67,7 +67,7 @@ class PatentsViewBackend:
         url = f"{_API}?q={quote(q)}&f={quote(_FIELDS)}&o={quote(o)}"
         try:
             resp = await self._http_get(url)
-        except Exception as exc:  # noqa: BLE001 - transport failure is a loud backend error, not a fake miss
+        except Exception as exc:
             raise SearchBackendError(self.name, str(exc)) from exc
         if not (200 <= resp.status < 300):
             raise SearchBackendError(self.name, f"HTTP {resp.status}")

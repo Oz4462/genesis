@@ -89,7 +89,7 @@ class Scout:
         try:
             resp = await self._llm.complete(system=system, user=focus)
             value = extract_json(resp.text, agent="scout")
-        except Exception as exc:  # noqa: BLE001 - query gen is best-effort, never fatal
+        except Exception as exc:
             state.log.append(
                 f"scout: query generation failed for {focus!r} "
                 f"({type(exc).__name__}: {exc}); using focus query only"

@@ -51,14 +51,14 @@ except ImportError:
 # All new paths carry explicit provenance and feed ComponentRecipe + internal_actuator_sim.
 try:
     from . import bio_molecular
-except Exception:  # noqa: BLE001
+except Exception:
     bio_molecular = None  # type: ignore[assignment]
 
 # Formula / Law support (Phase 1+)
 # Allows persisting FormulaRecord (from codata/dlmf/wikidata + verified) with provenance.
 try:
     from ..formulas.registry import FormulaRecord
-except Exception:  # noqa: BLE001
+except Exception:
     FormulaRecord = None  # type: ignore[assignment]
 
 

@@ -129,7 +129,7 @@ def _geometry_cross_check(spec: Specification) -> tuple[str, list[dict]]:
     # orientation/brep_stl (see docs/CADQUERY_VENV.md). Opt-in bridge here:
     # GENESIS_BREP_CROSSCHECK=1.
     try:
-        import cadquery  # noqa: F401  (optional CAD kernel — probe only)
+        import cadquery
         in_process = True
     except ImportError:
         in_process = False
@@ -140,7 +140,7 @@ def _geometry_cross_check(spec: Specification) -> tuple[str, list[dict]]:
             return "unavailable", []
         try:
             from .cad.cadquery_bridge import cad_available
-        except Exception:  # noqa: BLE001
+        except Exception:
             return "unavailable", []
         if not cad_available():
             return "unavailable", []
@@ -268,7 +268,7 @@ def assess_specification(
                 claims = claims
                 question = _MinQ()
             memory_fabric = build_memory_fabric_certificate(_MinState())
-    except Exception as exc:  # noqa: BLE001 — optional path; recorded below
+    except Exception as exc:
         optional_notes.append(
             f"optional_horizon_certs_skipped ({type(exc).__name__}: {exc})"
         )
@@ -325,7 +325,7 @@ def assess_specification(
             'idea': getattr(spec, 'idea', None) or str(spec)[:120],
             'gates': ['assess', 'delta'] if gate.passed else ['assess'],
         })
-    except Exception as exc:  # noqa: BLE001 — optional platform caps; recorded below
+    except Exception as exc:
         optional_notes.append(
             f"optional_platform_caps_skipped ({type(exc).__name__}: {exc})"
         )
@@ -430,7 +430,7 @@ def assess_printability(spec: Specification) -> PrintabilityAssessment:
             try:
                 from .geometry_verification import verify_geometry
                 geo_verification = verify_geometry(comp.geometry, quantities)
-            except Exception as exc:  # noqa: BLE001 — Tier-3 optional; never silent
+            except Exception as exc:
                 geo_verification = {
                     "ok": False,
                     "status": "unavailable",

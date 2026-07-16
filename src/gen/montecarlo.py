@@ -60,7 +60,7 @@ def montecarlo_uncertainty(
         out = np.asarray(out, dtype=float)
         if out.shape != (n_samples,):
             out = np.full(n_samples, float(out))
-    except Exception:  # noqa: BLE001 - e.g. min/max over arrays: evaluate per sample
+    except Exception:
         out = np.array([
             evaluate_formula(formula, {k: columns[k][i] for k in names})
             for i in range(n_samples)
@@ -115,7 +115,7 @@ def montecarlo_correlated(
         out = np.asarray(evaluate_formula(formula, columns), dtype=float)
         if out.shape != (n_samples,):
             out = np.full(n_samples, float(out))
-    except Exception:  # noqa: BLE001 - min/max fall back to per-sample
+    except Exception:
         out = np.array([
             evaluate_formula(formula, {k: columns[k][i] for k in names})
             for i in range(n_samples)

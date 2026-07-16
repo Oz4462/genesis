@@ -28,7 +28,7 @@ def opencv_available() -> bool:
     cleanly. A False is a definitive 'no OpenCV'.
     """
     try:
-        import cv2  # noqa: F401
+        import cv2
         return True
     except Exception:
         return False

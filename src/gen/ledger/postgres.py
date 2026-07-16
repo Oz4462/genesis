@@ -74,7 +74,7 @@ class PostgresLedgerStore:
     async def connect(self) -> None:
         """Open the connection pool. Imports asyncpg lazily (optional dep)."""
         try:
-            import asyncpg  # noqa: PLC0415 — intentional lazy/optional import
+            import asyncpg
         except ImportError as exc:  # pragma: no cover - environment-dependent
             raise GenesisError(
                 "PostgresLedgerStore requires 'asyncpg'. Install it, or use "

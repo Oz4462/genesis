@@ -193,7 +193,7 @@ def _files_dict(spec: Specification) -> dict:
                      ("modell_build123d.py", "b123d"), ("modell.stl", "stl")):
         try:
             out[key] = render_spec(spec, fmt)
-        except Exception as exc:  # noqa: BLE001 - surfaced per file, never a crash
+        except Exception as exc:
             out[key] = f"# Export nicht möglich: {type(exc).__name__}: {exc}"
     return out
 
@@ -253,11 +253,11 @@ def _invention_dict(inv) -> dict:
     if spec is not None:
         try:
             assessment = _assessment_dict(assess_specification(spec))
-        except Exception as exc:  # noqa: BLE001 - surface the gate failure, never crash the route
+        except Exception as exc:
             assessment = {"error": f"{type(exc).__name__}: {exc}"}
         try:
             printability = _printability_dict(spec) if inv.grounded else None
-        except Exception:  # noqa: BLE001 - printability is advisory; never crash the route
+        except Exception:
             printability = None
     else:
         assessment = None
@@ -589,7 +589,7 @@ def create_app() -> FastAPI:
             else:
                 art = ir.assess_inequality("web-research", body.lhs, body.rhs, relation, manifest,
                                            register=False)
-        except Exception as exc:  # noqa: BLE001 - surface the gate failure honestly, never a fake pass
+        except Exception as exc:
             raise HTTPException(status_code=422, detail=f"assessment failed: {exc}")
         return _research_dict(art, free, relation)
 

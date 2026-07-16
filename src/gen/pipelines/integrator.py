@@ -574,7 +574,7 @@ def build_full_mini_realization_package(
         teacher = tm.apply(readiness_input)
         # Agent-sourced community (OpenAlex when GENESIS_ALLOW_LIVE=1) — user supplies no data
         community = community_evidence(readiness_input)
-    except Exception as e:  # noqa
+    except Exception as e:
         pass
 
     manifest = {

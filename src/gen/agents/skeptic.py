@@ -363,7 +363,7 @@ class Skeptic:
             return False
         try:
             row = density_claims_for_material(mat_key)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             state.log.append(f"skeptic: wikidata density check failed: {exc}")
             return False
         if row is None:
@@ -449,7 +449,7 @@ class Skeptic:
                         "skeptic: query reformulation returned non-array JSON; "
                         "falling back to verbatim claim text"
                     )
-            except Exception as exc:  # noqa: BLE001 - reformulation is best-effort, never fatal
+            except Exception as exc:
                 state.log.append(
                     f"skeptic: query reformulation failed "
                     f"({type(exc).__name__}: {exc}); falling back to verbatim claim text"
@@ -482,7 +482,7 @@ class Skeptic:
             if relation not in {"supports", "contradicts", "irrelevant"}:
                 relation = "irrelevant"
             conf = float(value.get("confidence", 0.0))  # type: ignore[union-attr]
-        except Exception as exc:  # noqa: BLE001 - never fabricate support on error
+        except Exception as exc:
             # Degrading to 'irrelevant' is the honest verdict, but the failure
             # itself must stay auditable (D11) — an unlogged judge outage would
             # make an UNSUPPORTED run irreproducible in hindsight.

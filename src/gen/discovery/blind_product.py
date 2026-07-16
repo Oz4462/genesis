@@ -259,7 +259,7 @@ def _occam_winner(powerlaw_r2: float, single_r2: float, product_power_r2: float,
                   threshold: float) -> str:
     """The SIMPLEST rival family that is essentially exact (guard (b) — the Occam ladder), or
     ``""`` if none is. A tie with any of these collapses the two-transcendental claim."""
-    scores = dict(zip(_OCCAM_FAMILIES, (powerlaw_r2, single_r2, product_power_r2)))
+    scores = dict(zip(_OCCAM_FAMILIES, (powerlaw_r2, single_r2, product_power_r2), strict=True))
     for family in _OCCAM_FAMILIES:
         if scores[family] >= threshold:
             return family
@@ -354,7 +354,7 @@ def discover_blind_product(
                        single_r2=single_r2, product_power_r2=product_power_r2, occam=occam)
 
     r2, form, group_f, group_g, popt = best
-    params = _canonicalise(form.name, {n: float(v) for n, v in zip(form.param_names, popt)})
+    params = _canonicalise(form.name, {n: float(v) for n, v in zip(form.param_names, popt, strict=True)})
 
     oos_confirm_r2 = math.nan
     if r2 < r2_threshold:
@@ -411,7 +411,7 @@ def discover_blind_rivals(
         r2, form, group_f, group_g, popt = blind
         blind_rival = BlindRival(
             pair_name=form.name, group_f=dict(group_f), group_g=dict(group_g),
-            params=_canonicalise(form.name, {n: float(v) for n, v in zip(form.param_names, popt)}),
+            params=_canonicalise(form.name, {n: float(v) for n, v in zip(form.param_names, popt, strict=True)}),
             r_squared=r2)
     return blind_rival, _to_product_rival(simpler)
 
@@ -449,7 +449,7 @@ def refit_blind_rival(rival: BlindRival, problem: DiscoveryProblem) -> BlindRiva
     r2, popt = fit
     return BlindRival(
         pair_name=rival.pair_name, group_f=dict(rival.group_f), group_g=dict(rival.group_g),
-        params=_canonicalise(form.name, {n: float(v) for n, v in zip(form.param_names, popt)}),
+        params=_canonicalise(form.name, {n: float(v) for n, v in zip(form.param_names, popt, strict=True)}),
         r_squared=r2)
 
 

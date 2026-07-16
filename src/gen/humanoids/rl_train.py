@@ -28,7 +28,7 @@ from gen.humanoids.rl_env import gymnasium_available, make_balance_gym_env
 
 def sb3_available() -> bool:
     try:
-        import stable_baselines3  # noqa: F401
+        import stable_baselines3
         return True
     except Exception:
         return False

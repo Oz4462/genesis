@@ -35,7 +35,7 @@ import sympy as sp
 
 try:
     import scipy.special as scispecial  # for special function numeric verification
-except Exception:  # noqa: BLE001
+except Exception:
     scispecial = None
 
 DomainId = Literal["R", "R+", "C", "Z", "N"]
@@ -301,7 +301,7 @@ def openalex_fetch(query_text: str, *, max_hits: int = 5, timeout: float = 8.0) 
     url = ("https://api.openalex.org/works?per-page=" + str(max_hits)
            + "&search=" + urllib.parse.quote_plus(query_text))
     req = urllib.request.Request(url, headers={"User-Agent": "genesis-research/0.1 (mailto:research@genesis.local)"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 (https, fixed host)
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
         data = _json.loads(resp.read().decode("utf-8"))
     return [(w.get("title") or "") for w in data.get("results", [])]
 

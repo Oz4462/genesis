@@ -44,7 +44,7 @@ def _in_process_cadquery() -> bool:
     (default ``/home/genesis/.venv-cad``, override ``GENESIS_CAD_PYTHON``).
     """
     try:
-        import cadquery  # noqa: F401
+        import cadquery
         return True
     except ImportError:
         return False
@@ -184,7 +184,7 @@ def _prefer_cad_bridge() -> bool:
         from .cad.cadquery_bridge import cad_available
 
         return cad_available()
-    except Exception:  # noqa: BLE001
+    except Exception:
         return False
 
 
@@ -236,14 +236,14 @@ def interferes(
     solid_b = csg_to_solid(node_b, quantities)
     try:
         inter = solid_a.intersect(solid_b)
-    except Exception as exc:  # noqa: BLE001 - raw OCCT error, translated
+    except Exception as exc:
         raise GeometryError(f"OCCT boolean intersection failed: {exc}") from exc
     wrapped = getattr(inter, "wrapped", None)
     if inter is None or wrapped is None or (hasattr(wrapped, "IsNull") and wrapped.IsNull()):
         return False  # empty intersection IS the proof of no overlap
     try:
         vol = float(inter.Volume())
-    except Exception as exc:  # noqa: BLE001 - raw OCCT error, translated
+    except Exception as exc:
         raise GeometryError(
             f"OCCT could not measure the intersection volume: {exc}"
         ) from exc

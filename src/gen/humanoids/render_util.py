@@ -17,7 +17,7 @@ from pathlib import Path
 
 def pillow_available() -> bool:
     try:
-        import PIL  # noqa: F401
+        import PIL
         return True
     except Exception:
         return False

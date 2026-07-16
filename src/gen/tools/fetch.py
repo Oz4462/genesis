@@ -165,7 +165,7 @@ class WebFetchTool:
             )
         try:
             resp = await self._http_get(url)
-        except Exception as exc:  # noqa: BLE001 - any transport failure => not ok
+        except Exception as exc:
             return await self._finish(url, ok=False, content=None, reason=str(exc), status=None)
 
         if not (200 <= resp.status < 300):
