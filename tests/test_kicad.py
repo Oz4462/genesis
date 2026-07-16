@@ -143,9 +143,11 @@ def test_verifier_recovers_an_escaped_quote_in_a_ref():
 
 # === .kicad_pcb placement export (Teil 2 Rest-Risiko: replaces the old (module ...) stub) ===
 
-def _placement(ref, x, y, rot=(0.0, 0.0, 90.0)):
+def _placement(ref, x, y, rot=(0.0, 0.0, 90.0), keepout=(10.0, 10.0, 2.0)):
     from gen.electronics import PlacementHint
-    return PlacementHint(ref_des=ref, pos_mm=(x, y, 0.0), rot_deg=rot)
+    return PlacementHint(
+        ref_des=ref, pos_mm=(x, y, 0.0), rot_deg=rot, keepout_mm=keepout
+    )
 
 
 def test_kicad_pcb_uses_footprint_keyword_zrotation_and_verifies():
@@ -205,3 +207,38 @@ def test_export_placement_wrapper_gates_its_output():
     text = export_placement_to_kicad_pcb([_placement("U1", 1.0, 1.0)], comps)
     assert text.lstrip().startswith("(kicad_pcb") and 'reference "U1"' in text
     assert "(module " not in text
+
+
+def test_h6_pcb_includes_copper_zones_and_clearance_drc():
+    """H6: PCB skeleton carries copper zone pours; placement clearance DRC is non-vacuous."""
+    from gen.cad.kicad import (
+        placement_clearance_drc,
+        to_kicad_pcb,
+        verify_kicad_pcb,
+    )
+
+    comps = [
+        Component(id="U1", name="a", kind="mcu", v_nom=0, i_max=0, p_max_dissip=0,
+                  footprint_mm=(10, 10, 1)),
+        Component(id="U2", name="b", kind="mcu", v_nom=0, i_max=0, p_max_dissip=0,
+                  footprint_mm=(10, 10, 1)),
+    ]
+    far = [
+        _placement("U1", 0.0, 0.0, keepout=(10, 10, 2)),
+        _placement("U2", 40.0, 0.0, keepout=(10, 10, 2)),
+    ]
+    text = to_kicad_pcb(far, comps, copper_zones=True)
+    chk = verify_kicad_pcb(text, placements=far, require_copper_zones=True)
+    assert chk.ok, chk.issues
+    assert "(zone" in text and 'net_name "GND"' in text
+
+    ok_drc = placement_clearance_drc(far, min_clearance_mm=0.2)
+    assert ok_drc["ok"] is True
+
+    overlap = [
+        _placement("U1", 0.0, 0.0, keepout=(20, 20, 2)),
+        _placement("U2", 5.0, 0.0, keepout=(20, 20, 2)),
+    ]
+    bad = placement_clearance_drc(overlap, min_clearance_mm=0.2)
+    assert bad["ok"] is False
+    assert any(v["type"] == "placement_clearance" for v in bad["violations"])

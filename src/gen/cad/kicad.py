@@ -237,17 +237,42 @@ def _is_number(token: str) -> bool:
         return False
 
 
-def to_kicad_pcb(placements, components, *, thickness_mm: float = 1.6) -> str:
+def _placement_envelope_mm(placements) -> tuple[float, float, float, float]:
+    """Axis-aligned envelope (xmin, ymin, xmax, ymax) of placement centres + keepouts."""
+    if not placements:
+        return (0.0, 0.0, 100.0, 80.0)
+    xs: list[float] = []
+    ys: list[float] = []
+    for p in placements:
+        x, y = float(p.pos_mm[0]), float(p.pos_mm[1])
+        ko = getattr(p, "keepout_mm", None) or (10.0, 10.0, 0.0)
+        hx = float(ko[0]) / 2.0 if ko else 5.0
+        hy = float(ko[1]) / 2.0 if ko else 5.0
+        xs.extend([x - hx, x + hx])
+        ys.extend([y - hy, y + hy])
+    margin = 5.0
+    return (min(xs) - margin, min(ys) - margin, max(xs) + margin, max(ys) + margin)
+
+
+def to_kicad_pcb(
+    placements,
+    components,
+    *,
+    thickness_mm: float = 1.6,
+    copper_zones: bool = True,
+    zone_nets: tuple[str, ...] = ("GND", "PWR"),
+) -> str:
     """Export a KiCad PCB (`.kicad_pcb`) placement SKELETON (v20231120): every placement
     as a ``(footprint ...)`` at its ``(at x y z-rotation)``, the footprint id resolved by
     ``ref_des`` from the matching component's package (generic fallback) — NOT by the old
     positional ``zip`` that mis-paired and silently dropped the tail.
 
-    Three correctness fixes over the old stub: the modern ``(footprint ...)`` keyword (not
-    KiCad-5 ``(module ...)``), only the Z component of the 3-tuple rotation in ``(at ...)``
-    (the old code stringified the whole tuple into a broken S-expr), and a typed layer
-    stack. Traces are NOT generated — an autorouter is a declared external step. Strings
-    are escaped; output is deterministic (input order)."""
+    H6: optional rectangular F.Cu **copper zones** (fill pours) for named nets (default
+    GND/PWR) covering the placement envelope — structural copper for import inspection,
+    NOT an autorouted trace set. Full interactive DRC still requires KiCad.
+
+    Traces / autorouter remain a declared external step. Strings escaped; deterministic.
+    """
     comp_by_ref = {c.id: c for c in components}
     lines = [
         '(kicad_pcb (version 20231120) (generator "genesis_cad_kicad")',
@@ -263,15 +288,85 @@ def to_kicad_pcb(placements, components, *, thickness_mm: float = 1.6) -> str:
         lines.append(
             f'  (footprint "{_esc(fp)}" (layer "F.Cu") (at {x:g} {y:g} {rot:g}) '
             f'(fp_text reference "{_esc(p.ref_des)}" (at 0 0 {rot:g}) (layer "F.SilkS")))')
+    if copper_zones and placements:
+        xmin, ymin, xmax, ymax = _placement_envelope_mm(placements)
+        for i, net in enumerate(zone_nets):
+            # slight inset so zones don't claim identical polygons (layer separation)
+            inset = float(i) * 0.5
+            lines.append(
+                f'  (zone (net 0) (net_name "{_esc(net)}") (layer "F.Cu") '
+                f"(hatch edge 0.5) (connect_pads (clearance 0.2)) "
+                f"(fill yes (thermal_gap 0.3) (thermal_bridge_width 0.3)) "
+                f"(polygon (pts "
+                f"(xy {xmin + inset:g} {ymin + inset:g}) "
+                f"(xy {xmax - inset:g} {ymin + inset:g}) "
+                f"(xy {xmax - inset:g} {ymax - inset:g}) "
+                f"(xy {xmin + inset:g} {ymax - inset:g}))))"
+            )
     lines.append(")")
     return "\n".join(lines)
 
 
-def verify_kicad_pcb(text: str, *, placements) -> KiCadCheck:
+def placement_clearance_drc(
+    placements,
+    *,
+    min_clearance_mm: float = 0.2,
+) -> dict:
+    """H6: internal placement clearance DRC (AABB keepouts), not full copper DRC.
+
+    Returns ``{ok, violations, n_checked, min_clearance_mm, gaps}``. Overlapping
+    keepout boxes produce violations. Does **not** claim KiCad copper-to-copper DRC.
+    """
+    if min_clearance_mm < 0 or min_clearance_mm != min_clearance_mm:
+        raise ValueError("placement_clearance_drc: min_clearance_mm must be finite >= 0")
+    violations: list[dict] = []
+    items = list(placements or [])
+    for i, a in enumerate(items):
+        ax, ay = float(a.pos_mm[0]), float(a.pos_mm[1])
+        ako = getattr(a, "keepout_mm", None) or (5.0, 5.0, 0.0)
+        ahx, ahy = float(ako[0]) / 2.0, float(ako[1]) / 2.0
+        for b in items[i + 1 :]:
+            bx, by = float(b.pos_mm[0]), float(b.pos_mm[1])
+            bko = getattr(b, "keepout_mm", None) or (5.0, 5.0, 0.0)
+            bhx, bhy = float(bko[0]) / 2.0, float(bko[1]) / 2.0
+            # gap between boxes along each axis (negative = overlap)
+            dx = abs(ax - bx) - (ahx + bhx)
+            dy = abs(ay - by) - (ahy + bhy)
+            if dx < min_clearance_mm and dy < min_clearance_mm:
+                violations.append(
+                    {
+                        "type": "placement_clearance",
+                        "severity": "fail" if dx < 0 or dy < 0 else "warn",
+                        "a": getattr(a, "ref_des", "?"),
+                        "b": getattr(b, "ref_des", "?"),
+                        "gap_x_mm": round(dx, 3),
+                        "gap_y_mm": round(dy, 3),
+                        "min_clearance_mm": min_clearance_mm,
+                    }
+                )
+    return {
+        "ok": not any(v["severity"] == "fail" for v in violations),
+        "violations": violations,
+        "n_checked": len(items),
+        "min_clearance_mm": min_clearance_mm,
+        "gaps": [
+            "full copper pour / track DRC requires KiCad or an external DRC engine",
+            "this check is keepout AABB only (placement clearance)",
+        ],
+        "quelle": "gen.cad.kicad.placement_clearance_drc (H6)",
+    }
+
+
+def verify_kicad_pcb(
+    text: str, *, placements, require_copper_zones: bool = False
+) -> KiCadCheck:
     """Verify a KiCad PCB skeleton: balanced S-expr, kicad_pcb header, the (layers) and
     (footprint) sections, EVERY placement's ref_des emitted as a footprint reference
     (catches the old positional-zip drop), and every ``(at ...)`` numeric (catches the
-    old rot-tuple leak ``(at 1 1 (0.0, 0.0, 90.0))``). Non-vacuous."""
+    old rot-tuple leak ``(at 1 1 (0.0, 0.0, 90.0))``). Non-vacuous.
+
+    H6: when ``require_copper_zones`` is True, at least one ``(zone`` block must exist.
+    """
     issues = _paren_issues(text)
     if not text.lstrip().startswith("(kicad_pcb"):
         issues.append("missing (kicad_pcb ...) header")
@@ -287,5 +382,8 @@ def verify_kicad_pcb(text: str, *, placements) -> KiCadCheck:
     for at in re.findall(r"\(at ([^)]*)\)", text):
         if not at.split() or not all(_is_number(t) for t in at.split()):
             issues.append(f"malformed (at {at}) — non-numeric placement coordinate")
+
+    if require_copper_zones and "(zone" not in text:
+        issues.append("missing (zone ...) copper pour blocks (H6 require_copper_zones)")
 
     return KiCadCheck(ok=not issues, issues=issues, n_components=len(refs), n_nets=0)
