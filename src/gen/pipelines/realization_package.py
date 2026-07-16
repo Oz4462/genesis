@@ -18,6 +18,20 @@ HARNESS_SCHEMA = "genesis-harness-v1"
 DRAWINGS_SCHEMA = "genesis-drawings-v1"
 CAM_SCHEMA = "genesis-cam-v1"
 READY_TO_BUILD_SCHEMA = "genesis-ready-to-build-v1"
+MONTAGE_SCHEMA = "genesis-montage-v1"
+
+#: Default fastener torque table (Nm) — stated assumptions for common metric bolts.
+#: Source: typical steel property class 8.8 dry assembly rule-of-thumb ranges
+#: (not a substitute for manufacturer torque specs).
+DEFAULT_TORQUE_NM: dict[str, float] = {
+    "M2": 0.4,
+    "M2.5": 0.8,
+    "M3": 1.5,
+    "M4": 3.0,
+    "M5": 6.0,
+    "M6": 10.0,
+    "M8": 25.0,
+}
 
 #: Suffixes included in the Ready-to-Build manufacturer archive (H3).
 _RTB_INCLUDE_SUFFIXES = frozenset({
@@ -899,6 +913,177 @@ def _rtb_category(path: Path) -> str:
     if "electronics" in name or suf in (".kicad_pcb", ".kicad_sch", ".net"):
         return "electronics"
     return "other"
+
+
+def build_montage_section(
+    fragments: list[Any],
+    *,
+    run_id: str | None = None,
+    pkg_name: str = "",
+    fastener: str = "M3",
+) -> dict[str, Any]:
+    """H7: structured assembly steps with torque fields + image placeholders.
+
+    Steps are derived from CAD fragments (order = package order). Photos are
+    **never** fabricated — each step has ``image: null`` + placeholder path.
+    Torque uses ``DEFAULT_TORQUE_NM`` for the chosen fastener (assumption table).
+    """
+    if fastener not in DEFAULT_TORQUE_NM:
+        raise ValueError(
+            f"build_montage_section: unknown fastener {fastener!r}; "
+            f"known: {sorted(DEFAULT_TORQUE_NM)}"
+        )
+    torque = DEFAULT_TORQUE_NM[fastener]
+    steps: list[dict[str, Any]] = []
+    tools = [
+        "torque wrench (calibrated)",
+        f"hex drivers for {fastener}",
+        "wire strippers / crimper (if harness present)",
+        "multimeter (continuity / insulation)",
+    ]
+    # Step 0: prepare
+    steps.append(
+        {
+            "n": 1,
+            "title": "Prepare workspace and tools",
+            "action": "Clear bench, lay out BOM parts, verify torque wrench calibration",
+            "torque_nm": None,
+            "fastener": None,
+            "image": None,
+            "image_placeholder": "images/step_01_prepare.jpg",
+            "checks": ["all BOM lines present", "torque wrench within calibration date"],
+        }
+    )
+    n = 2
+    for i, frag in enumerate(fragments):
+        cad = getattr(frag, "cad_artifact", None)
+        name = "part"
+        if cad is not None and getattr(cad, "spec", None) is not None:
+            name = getattr(cad.spec, "name", name) or name
+        elif hasattr(frag, "concept") and frag.concept is not None:
+            name = getattr(frag.concept, "name", name) or name
+        steps.append(
+            {
+                "n": n,
+                "title": f"Mount {name}",
+                "action": (
+                    f"Position {name} per assembly constraints / DRAWING views; "
+                    f"fasten with {fastener} bolts to specified torque"
+                ),
+                "torque_nm": torque,
+                "fastener": fastener,
+                "part_index": i,
+                "part_name": name,
+                "image": None,
+                "image_placeholder": f"images/step_{n:02d}_mount_part_{i}.jpg",
+                "checks": [
+                    f"orientation matches front/top DXF for part {i}",
+                    f"all {fastener} fasteners at {torque} Nm",
+                    "no fretting surfaces left dry if greasing required",
+                ],
+            }
+        )
+        n += 1
+
+    steps.append(
+        {
+            "n": n,
+            "title": "Route harness and connect pinouts",
+            "action": "Install wires per HARNESS.md cut list and connector pinout tables",
+            "torque_nm": None,
+            "fastener": None,
+            "image": None,
+            "image_placeholder": f"images/step_{n:02d}_harness.jpg",
+            "checks": [
+                "wire IDs match cut list",
+                "pinouts match net names",
+                "strain relief on high-current leads",
+            ],
+        }
+    )
+    n += 1
+    steps.append(
+        {
+            "n": n,
+            "title": "Final inspection",
+            "action": "Visual + electrical checks; record serial / run_id on label",
+            "torque_nm": None,
+            "fastener": None,
+            "image": None,
+            "image_placeholder": f"images/step_{n:02d}_final.jpg",
+            "checks": [
+                "continuity on power paths",
+                "no shorts to chassis",
+                "all image placeholders still empty unless real photos added",
+            ],
+        }
+    )
+
+    gaps = [
+        "step photos not generated — image fields are null placeholders only",
+        "torque values are generic metric table assumptions, not drawing callouts",
+        "no exploded-view animation / video",
+    ]
+    if not fragments:
+        gaps.insert(0, "no CAD fragments — montage steps are generic only")
+
+    return {
+        "schema": MONTAGE_SCHEMA,
+        "run_id": run_id,
+        "package": pkg_name,
+        "tools": tools,
+        "default_fastener": fastener,
+        "default_torque_nm": torque,
+        "torque_table_nm": dict(DEFAULT_TORQUE_NM),
+        "steps": steps,
+        "n_steps": len(steps),
+        "gaps": gaps,
+        "quelle": "gen.pipelines.realization_package.build_montage_section (H7)",
+    }
+
+
+def write_montage_section(pkg_root: Path, section: dict[str, Any]) -> Path:
+    """Write montage.json + MONTAGEANLEITUNG.md (structured steps with torque)."""
+    path = pkg_root / "montage.json"
+    path.write_text(json.dumps(section, indent=2, ensure_ascii=False), encoding="utf-8")
+    lines = [
+        "# Montageanleitung (Realisierungspaket)",
+        "",
+        f"Run: {section.get('run_id')} | Package: {section.get('package')}",
+        f"Default fastener: **{section.get('default_fastener')}** @ "
+        f"**{section.get('default_torque_nm')} Nm** "
+        "(assumption table — verify against drawing/BOM)",
+        "",
+        "## Tools",
+    ]
+    for t in section.get("tools") or []:
+        lines.append(f"- {t}")
+    lines += ["", "## Torque table (assumption, Nm)", ""]
+    lines.append("| Fastener | Torque Nm |")
+    lines.append("|----------|-----------|")
+    for k, v in sorted((section.get("torque_table_nm") or {}).items()):
+        lines.append(f"| {k} | {v} |")
+    lines += ["", "## Steps"]
+    for s in section.get("steps") or []:
+        lines.append(f"### Step {s['n']}: {s['title']}")
+        lines.append(f"- Action: {s.get('action')}")
+        if s.get("torque_nm") is not None:
+            lines.append(
+                f"- Torque: **{s['torque_nm']} Nm** ({s.get('fastener')})"
+            )
+        lines.append(
+            f"- Image: {s.get('image') or '*(not provided)*'} "
+            f"— placeholder `{s.get('image_placeholder')}`"
+        )
+        for c in s.get("checks") or []:
+            lines.append(f"- Check: {c}")
+        lines.append("")
+    lines.append("## Gaps")
+    for g in section.get("gaps") or []:
+        lines.append(f"- {g}")
+    lines.append("")
+    (pkg_root / "MONTAGEANLEITUNG.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
 
 
 def collect_ready_to_build_files(pkg_root: Path) -> list[Path]:

@@ -578,9 +578,11 @@ Real package dir: {pkg_root}
         build_cam_section,
         build_drawings_section,
         build_harness_section,
+        build_montage_section,
         write_cam_section,
         write_drawings_section,
         write_harness_section,
+        write_montage_section,
         write_package_bom,
     )
 
@@ -594,7 +596,11 @@ Real package dir: {pkg_root}
     )
     write_cam_section(pkg_root, cam_section)
     _generate_schaltplan_stub(pkg_root, fragments, run_id)
-    _generate_montage_stub(pkg_root, fragments, run_id)
+    # H7: structured montage with torque + image placeholders (replaces prose-only stub)
+    montage_section = build_montage_section(
+        fragments, run_id=run_id, pkg_name=package_name
+    )
+    write_montage_section(pkg_root, montage_section)
     _generate_regulatorik_stub(pkg_root, fragments, dfm_reports, run_id)
     _generate_software_stub(pkg_root, software_report, run_id)
 
@@ -829,6 +835,13 @@ Real package dir: {pkg_root}
     manifest["bom_file"] = "bom.json"
     manifest["schaltplan"] = "SCHALTPLAN.md"
     manifest["montage"] = "MONTAGEANLEITUNG.md"
+    manifest["montage_json"] = "montage.json"
+    manifest["montage_section"] = {
+        "schema": montage_section.get("schema"),
+        "n_steps": montage_section.get("n_steps"),
+        "default_torque_nm": montage_section.get("default_torque_nm"),
+        "gaps": montage_section.get("gaps"),
+    }
     manifest["regulatorik"] = "REGULATORIK.md"
     manifest["software"] = "SOFTWARE_SPEC.md"
     manifest["open_gaps"] = [
