@@ -40,7 +40,8 @@ On disk under `out/realization_packages/…`:
 |------|--------|---------|
 | `bom.json` / `BOM.md` | C5 | Structured mech+elec BOM (`genesis-bom-v1`) |
 | `harness_package.json` / `HARNESS.md` | C6 | Harness + netlist + placement + gaps |
-| `drawings.json` / `DRAWINGS.md` | C7 | Drawing index; **`drawing_gap: true`** until GD&T/PDF |
+| `drawings.json` / `DRAWINGS.md` | C7+G4+H1 | Drawing index; real top/front/right DXF + envelope dims when CSG exists; `drawing_gap: false` then |
+| `part_*_{top,front,right}.dxf` (+ `.dims.txt`) | G4+H1 | Kernel section drawings with overall linear DIMENSION entities |
 | `manifest.json` | — | Includes `bom`, `drawing_gap`, `harness_package`, DFM, fertigungs |
 | `part_*.stl`, assembly STLs | — | Geometry |
 | `electronics_*.json` | — | Elektriker layer when available |
@@ -50,10 +51,12 @@ On disk under `out/realization_packages/…`:
 ## Honest gaps (still open)
 
 1. Full multi-axis / freeform CAM toolpaths  
-2. Production STEP/GD&T PDF drawings (drawing_gap remains true)  
+2. Full GD&T feature-control frames, surface finish, multi-sheet PDF (H1 closed overall envelope dims + right view)  
 3. Full KiCad ERC/DRC sign-off on real copper  
 4. Supplier-backed BOM prices (requires claim-grounded `Sourcing`)  
 5. Live print farm / machine queue integration  
+6. Ready-to-Build single ZIP with all manufacturer artifacts  
+
 
 ---
 

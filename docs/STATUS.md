@@ -1,15 +1,15 @@
 # GENESIS — STATUS (single source of truth)
 
-**Updated:** 2026-07-15 (Phase F complete)  
+**Updated:** 2026-07-16 (Phase H started — H1 drawings depth)  
 **main tip:** see `git log -1`  
 **Backlog SSOT:** `docs/SYSTEMATIC_BACKLOG_REPORT_2026-07-15.md`  
-**TODO plan:** `docs/BACKLOG_TODO_PLAN.md` (Phases A–F done)
+**TODO plan:** `docs/BACKLOG_TODO_PLAN.md` (Phases A–G done; Phase H in progress)
 
 > **Law:** depth claims use L0–L4. Never mark “complete” without evidence.
 
 ---
 
-## Backlog campaign (2026-07-15)
+## Backlog campaign (2026-07-15 → 2026-07-16)
 
 | Phase | Sprints | Status |
 |-------|---------|--------|
@@ -20,6 +20,7 @@
 | E Sim & Caps | S1–S4 | ✅ `--mode caps`, multi-physics, mesh refs, MANIFEST caps |
 | F Cleanup | X1–X4 | ✅ stale docs, learning extract, revise_with_learning, this STATUS |
 | G Integrity & CAD depth (Re-Audit 2026-07-15) | G1–G4 | ✅ no-0-byte-STL fix + real kernel STLs, Spec→CAD bridge (`cad/spec_to_cad.py`), parametric plates, real top/front DXF sections (`drawing_gap` honest-False) |
+| H Shop-floor depth (User gap matrix 2026-07-16) | H1… | 🔄 **H1 done:** overall envelope dims + right (YZ) view on package DXFs; residual: full GD&T frames, multi-axis CAM, PCB copper, harness routes, Ready-to-Build ZIP |
 
 ---
 
@@ -53,4 +54,4 @@
 4. Production Qdrant/pgvector **not wired** (anamnesis vendor only)  
 5. After each sprint: test + commit + push  
 
-**Next open product depth:** multi-axis CAM, GD&T + dimension annotations on the (now real) DXF sections, isometric/right views, production vector DB, live lab ingest — see backlog report residual gaps.
+**Next open product depth (after H1):** full GD&T feature-control frames + multi-sheet PDF, multi-axis CAM, assembly constraints / FreeCAD seam, KiCad copper+DRC, harness lengths/pinouts/wiring diagrams, semiconductor selection + thermal, multi-physics FEM closed-loop, interactive 3D/exploded, photo step montage, Ready-to-Build ZIP — see backlog report residual gaps + user gap matrix.

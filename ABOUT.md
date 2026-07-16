@@ -45,7 +45,7 @@ GENESIS is **not** a chatbot that drafts a design and hopes. The core is a **ver
 |------|------------|
 | **HORIZON φ→Ω** | Seams (ε), memory fabric (ζ), Pareto (γ⁺), reality (δ⁺), coverage, **Ω enforced by default** |
 | **Manufacturing** | Advanced DFM (FDM/CNC/laser/PCB), cost bands, G-code (profile/pocket/face), CadQuery via isolated venv |
-| **Realization packages** | Structured BOM (mech+elec), harness/netlist section, drawing index with explicit `drawing_gap` |
+| **Realization packages** | Structured BOM (mech+elec), harness/netlist, dimensioned top/front/right DXF sections when CSG exists (`drawing_gap` honest; full GD&T still open) |
 | **Live knowledge** | OpenAlex, arXiv, Wikidata density, materials; PatentsView key-gated; `genesis --mode sources` |
 | **Platform caps** | Proof package, readiness ladder, teacher notes, community evidence on assess/bundle/realize |
 | **CI** | GitHub Actions green on Python **3.11** and **3.12** (ruff + full pytest) |
@@ -72,7 +72,7 @@ Full narrative: **[README.md](README.md)** · Living truth: **[docs/STATUS.md](d
 GENESIS does **not** claim:
 
 - Multi-axis freeform CAM as production-ready  
-- Full GD&T PDF / DXF sign-off packages (drawings remain an index with `drawing_gap`)  
+- Full GD&T feature-control frames / multi-sheet PDF sign-off (H1 delivers envelope dims + right view on real DXF sections; not factory-certified drawings)  
 - A production vector DB (Qdrant/pgvector) as default  
 - Invented private lab replications or 15 TB bulk “The Well” downloads  
 

@@ -100,7 +100,7 @@ A full **Phase A→F** product campaign closed major seams. Everything below is 
 |----------|------------------|
 | `bom.json` / `BOM.md` | `genesis-bom-v1` — mechanical + electronic lines, counts, gaps |
 | `harness_package.json` / `HARNESS.md` | Harness + netlist + placement + honest gaps |
-| `drawings.json` / `DRAWINGS.md` | Drawing **index** with **`drawing_gap: true`** until GD&T/PDF exists |
+| `drawings.json` / `DRAWINGS.md` | Drawing index + real top/front/right DXF sections with overall envelope dimensions when CSG exists; **`drawing_gap: false`** then — full GD&T frames/PDF still an explicit gap |
 | Module | `gen.pipelines.realization_package` wired into `build_full_mini_realization_package` |
 
 ### Phase D — Live knowledge
@@ -445,7 +445,7 @@ Feeds/speeds are **stated assumptions**, not material-specific CAM. Multi-axis f
 | `manifest.json` | Package metadata, DFM, fertigungs, **structured BOM**, caps, physics_gate honesty |
 | `bom.json` / `BOM.md` | Mechanical + electronic lines (`genesis-bom-v1`) |
 | `harness_package.json` / `HARNESS.md` | Harness + netlist + placement + gaps |
-| `drawings.json` / `DRAWINGS.md` | Drawing index; **`drawing_gap: true`** until full GD&T/PDF |
+| `drawings.json` / `DRAWINGS.md` | Drawing index; real dimensioned DXF sections when geometry exists (`drawing_gap` honest) |
 | `part_*.stl`, assembly STLs | Geometry when CAD path succeeds |
 | `electronics_*.json` | Elektriker layer when available |
 | `SUMMARY.md`, `REGULATORIK.md`, `SCHALTPLAN.md`, `MONTAGEANLEITUNG.md` | Human-readable package docs |
@@ -621,7 +621,7 @@ CI has no laptop `.venv-cad` — tests that stub OCCT force the offline path.
 | Topic | Status |
 |-------|--------|
 | Multi-axis freeform CAM | Open |
-| Full GD&T PDF / DXF production drawings | `drawing_gap: true` |
+| Full GD&T feature-control frames / multi-sheet PDF | Open (H1: overall envelope dims + right view on DXF sections; `drawing_gap` false when sections exist) |
 | Production Qdrant / pgvector cluster | Not wired |
 | Private lab field replications | Cannot invent |
 | The Well 15 TB bulk | Stream/probe only |

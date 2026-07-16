@@ -53,8 +53,8 @@
 
 ## Active sprint
 
-**Phases A–F COMPLETE** (H1–X4).  
-**Residual product depth:** multi-axis CAM, GD&T PDF, prod vector DB, live lab ingest — see SYSTEMATIC_BACKLOG_REPORT.
+**Phases A–G COMPLETE.** Phase **H (Shop-floor depth)** started 2026-07-16 from user gap matrix.  
+**Residual after H1:** full GD&T frames/PDF, multi-axis CAM, assembly constraints, PCB copper+DRC, harness routes, semiconductor/thermal, multi-physics closed-loop, interactive viz, photo montage, Ready-to-Build ZIP.
 
 ## Definition of Done (every sprint)
 
@@ -70,3 +70,27 @@
 - [x] **G2 (P0-2)** Doc re-sync measured 2026-07-15: 2594 collected · 45 validators · 46 recipes · 1 manual-only · 334/266/25 · 51 CLI modes — commit `docs(g2)`
 - [x] **G3 (P1-1)** Spec→CAD bridge: `cad/spec_to_cad.py` (γ-Spec→BuildArtifact real kernel STL; PrototypeSpec from real AssemblyConcept; parametric generic plate) — commit `feat(g3)`
 - [x] **G4 (P1-3)** Drawings: real top/front DXF sections in packages via export/drawing worker (drawing_gap honest-False; worker stdout+rotation fix) — commit `feat(g4)`
+
+## Phase H — Shop-floor depth (User gap matrix 2026-07-16)
+
+Priority order from manufacturability impact (not existence of modules).
+
+| Sprint | Gap area | Done-Kriterium |
+|--------|----------|----------------|
+| **H1** | Produktionszeichnungen — overall dims + right view | top/front/right DXF with envelope linear DIMENSION + `.dims.txt`; full GD&T frames still gap |
+| **H2** | CAM — 3rd real op or multi-pass freeform honesty | new verified G-code path OR explicit multi-axis gap with one 3D roughing stub that verifies |
+| **H3** | Ready-to-Build package ZIP | single archive: BOM+STL+DXF+harness+gcode+MANIFEST; CLI mode or integrator flag |
+| **H4** | Harness depth | wire lengths + connector pinouts structured; wiring diagram gap honest |
+| **H5** | Assembly constraints first stone | mate/offset constraints on AssemblyPart beyond free position; FreeCAD optional |
+| **H6** | KiCad copper path | minimal copper pour or zone OR external DRC handoff doc + test |
+| **H7** | Montage visual steps | step list with torque fields + image placeholders; no fake photos |
+| **H8** | Multi-physics receipt depth | one FEM/therm/dyn chain with provenance beyond closed-form |
+
+- [x] **H1** Overall envelope dimensions + right (YZ) view on package DXFs — `export/drawing.py` (`section_dxf_dimensioned`, `annotate_overall_dimensions`), worker `section_dxf_with_info`, package top/front/right + sidecars; tests `test_drawing_dimensions.py` + package suite
+- [ ] **H2** CAM depth
+- [ ] **H3** Ready-to-Build ZIP
+- [ ] **H4** Harness lengths/pinouts
+- [ ] **H5** Assembly constraints
+- [ ] **H6** KiCad copper/DRC
+- [ ] **H7** Montage steps structure
+- [ ] **H8** Multi-physics depth

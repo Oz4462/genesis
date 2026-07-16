@@ -9,7 +9,7 @@ results (the DXF/SVG text + a few section metrics) cross back.
 
 Protocol (stdin -> stdout, both JSON, one request per invocation):
 
-  request  = {"op": "section_dxf"|"section_svg"|"section_info",
+  request  = {"op": "section_dxf"|"section_svg"|"section_info"|"section_dxf_with_info",
               "node": <csg>, "values": {qid: float},
               "plane": "XY"|"XZ"|"YZ", "offset": <float>}
   csg      = {"kind": <str>, "params": {name: qid}, "children": [csg, ...]}
@@ -20,6 +20,8 @@ Ops:
   "section_dxf"  -> result: str   (the DXF text of the planar section)
   "section_svg"  -> result: str   (the SVG text of the planar section)
   "section_info" -> result: dict  (n_faces, n_edges, bbox) of the section sketch
+  "section_dxf_with_info" -> result: dict with dxf + metrics in ONE call
+                             (avoids a second cold OCCT round-trip for dimensions)
 
 Geometry convention matches the rest of GENESIS: build123d primitives are CENTERED at
 the origin (verified: ``Box(l,w,h)`` spans −l/2..l/2 etc.), like export/openscad.py and
@@ -187,6 +189,18 @@ def handle(req: dict) -> dict:
         bb = sec.bounding_box()
         return {
             "result": {
+                "n_faces": len(sec.faces()),
+                "n_edges": len(sec.edges()),
+                "bbox_min": [bb.min.X, bb.min.Y, bb.min.Z],
+                "bbox_max": [bb.max.X, bb.max.Y, bb.max.Z],
+            }
+        }
+    if op == "section_dxf_with_info":
+        # H1: one OCCT section → DXF + bbox metrics (for overall dimension annotation)
+        bb = sec.bounding_box()
+        return {
+            "result": {
+                "dxf": _write_dxf(sec),
                 "n_faces": len(sec.faces()),
                 "n_edges": len(sec.edges()),
                 "bbox_min": [bb.min.X, bb.min.Y, bb.min.Z],

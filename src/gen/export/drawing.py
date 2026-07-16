@@ -4,8 +4,12 @@ GENESIS exports 3-D geometry (OpenSCAD source, build123d source, STL, STEP). A s
 also needs a 2-D drawing — a planar SECTION through the part with the cut profile (outline
 + holes) and overall dimensions. This module produces exactly that: it takes a GATE-γ
 GeometryNode CSG tree, cuts it with a named plane, and writes a real DXF (the CAD/CAM
-interchange) or SVG (a viewable drawing), with the section's bounding-box dimensions
-annotated as a sidecar.
+interchange) or SVG (a viewable drawing).
+
+H1 (2026-07-16): overall envelope linear DIMENSION entities are injected into the DXF
+via ezdxf (``section_dxf_dimensioned`` / ``annotate_overall_dimensions``), and a human
+sidecar (``.dims.txt``) records the same numbers. Full GD&T feature-control frames,
+surface finish, hole callouts, and title blocks remain explicit gaps — never claimed.
 
 build123d (the OCCT-backed parametric library that provides ``section`` + ``ExportDXF`` /
 ``ExportSVG``) is kept OUT of the main ``.venv`` for the same reason as cadquery — its
@@ -193,6 +197,133 @@ def section_info(
     )
 
 
+def section_dxf_with_info(
+    node: GeometryNode, quantities: dict[str, Quantity], *,
+    plane: str = "XY", offset: float = 0.0,
+) -> tuple[str, SectionInfo]:
+    """DXF section + metrics in **one** worker call (H1 — avoids a second OCCT round-trip).
+
+    Used by the dimensioned drawing path so overall linear dimensions can be annotated
+    without paying cold-start cost twice per view.
+    """
+    _check_plane(plane)
+    r = _run({
+        "op": "section_dxf_with_info",
+        "node": _serialize(node),
+        "values": _resolved_values(quantities),
+        "plane": plane,
+        "offset": float(offset),
+    })
+    info = SectionInfo(
+        n_faces=int(r["n_faces"]),
+        n_edges=int(r["n_edges"]),
+        bbox_min=tuple(float(x) for x in r["bbox_min"]),  # type: ignore[arg-type]
+        bbox_max=tuple(float(x) for x in r["bbox_max"]),  # type: ignore[arg-type]
+    )
+    return str(r["dxf"]), info
+
+
+def annotate_overall_dimensions(
+    dxf_text: str,
+    info: SectionInfo,
+    *,
+    standoff_frac: float = 0.12,
+    min_standoff_mm: float = 4.0,
+) -> str:
+    """Inject overall width/height linear DIMENSION entities into a section DXF (H1).
+
+    Uses the section's OCCT bounding box (from ``section_info`` / ``section_dxf_with_info``)
+    — never invents dimensions. Requires ``ezdxf`` in the main venv. Raises ExportError
+    if the DXF cannot be parsed or annotated (loud, no silent half-drawing).
+
+    Scope honesty: overall envelope only (two linear dims). Hole sizes, feature control
+    frames (GD&T), surface finish, and title blocks remain explicit gaps.
+    """
+    try:
+        import ezdxf
+        from io import StringIO
+    except ImportError as exc:  # pragma: no cover — ezdxf is a declared main dep
+        raise ExportError(
+            "annotate_overall_dimensions requires ezdxf in the main venv"
+        ) from exc
+
+    dx, dy, _ = info.dimensions
+    if not (dx > 0 and dy > 0):
+        raise ExportError(
+            f"annotate_overall_dimensions: section envelope must be positive "
+            f"(got dx={dx}, dy={dy}) — empty or degenerate section"
+        )
+    try:
+        doc = ezdxf.read(StringIO(dxf_text))
+    except Exception as exc:
+        raise ExportError(
+            f"annotate_overall_dimensions: cannot parse section DXF: {exc}"
+        ) from exc
+
+    msp = doc.modelspace()
+    xmin, ymin = float(info.bbox_min[0]), float(info.bbox_min[1])
+    xmax, ymax = float(info.bbox_max[0]), float(info.bbox_max[1])
+    standoff = max(min_standoff_mm, max(dx, dy) * standoff_frac)
+    dimtxt = max(2.0, max(dx, dy) * 0.04)
+    override = {"dimtxt": dimtxt, "dimdec": 2, "dimzin": 8}
+    try:
+        msp.add_linear_dim(
+            base=((xmin + xmax) / 2.0, ymin - standoff),
+            p1=(xmin, ymin),
+            p2=(xmax, ymin),
+            override=override,
+        ).render()
+        msp.add_linear_dim(
+            base=(xmin - standoff, (ymin + ymax) / 2.0),
+            p1=(xmin, ymin),
+            p2=(xmin, ymax),
+            angle=90,
+            override=override,
+        ).render()
+    except Exception as exc:
+        raise ExportError(
+            f"annotate_overall_dimensions: failed to add linear dims: {exc}"
+        ) from exc
+
+    buf = StringIO()
+    doc.write(buf)
+    return buf.getvalue()
+
+
+def section_dxf_dimensioned(
+    node: GeometryNode, quantities: dict[str, Quantity], *,
+    plane: str = "XY", offset: float = 0.0,
+) -> tuple[str, SectionInfo]:
+    """Planar section DXF with overall linear dimension annotations (H1).
+
+    Returns ``(annotated_dxf_text, section_info)``. The dimensions are the true
+    OCCT section envelope — never fabricated. Full GD&T (tolerance frames, surface
+    finish) is intentionally NOT claimed here.
+    """
+    raw, info = section_dxf_with_info(
+        node, quantities, plane=plane, offset=offset
+    )
+    return annotate_overall_dimensions(raw, info), info
+
+
+def format_dimension_sidecar(
+    info: SectionInfo, *, plane: str, offset: float = 0.0, label: str = ""
+) -> str:
+    """Human-readable dimension sidecar text next to a section DXF."""
+    dx, dy, dz = info.dimensions
+    header = f"GENESIS 2-D drawing — section dimensions"
+    if label:
+        header += f" ({label})"
+    return (
+        f"{header}\n"
+        f"plane: {plane}  offset: {offset:g} mm\n"
+        f"overall dimensions (dx x dy x dz): {dx:.3f} x {dy:.3f} x {dz:.3f} mm\n"
+        f"section profile: {info.n_faces} face(s), {info.n_edges} edge(s)\n"
+        f"annotations: overall linear DIMENSION entities in DXF (width + height)\n"
+        f"gaps: GD&T feature-control frames, surface finish, hole callouts, title block\n"
+    )
+
+
 # --- component / spec convenience --------------------------------------------------
 
 def component_section_dxf(
@@ -224,13 +355,14 @@ def write_section_dxf(
     out_path.write_text(dxf, encoding="utf-8")
     if write_dimension_sidecar:
         info = section_info(component.geometry, quantities, plane=plane, offset=offset)
-        dx, dy, dz = info.dimensions
         sidecar = out_path.with_suffix(out_path.suffix + ".dims.txt")
         sidecar.write_text(
-            f"GENESIS 2-D drawing — section of component {component.id!r} ({component.name})\n"
-            f"plane: {plane}  offset: {offset:g} mm\n"
-            f"overall dimensions (dx x dy x dz): {dx:.3f} x {dy:.3f} x {dz:.3f} mm\n"
-            f"section profile: {info.n_faces} face(s), {info.n_edges} edge(s)\n",
+            format_dimension_sidecar(
+                info,
+                plane=plane,
+                offset=offset,
+                label=f"component {component.id!r} ({component.name})",
+            ),
             encoding="utf-8",
         )
     return str(out_path)
@@ -263,6 +395,10 @@ __all__ = [
     "section_dxf",
     "section_svg",
     "section_info",
+    "section_dxf_with_info",
+    "annotate_overall_dimensions",
+    "section_dxf_dimensioned",
+    "format_dimension_sidecar",
     "SectionInfo",
     "component_section_dxf",
     "write_section_dxf",

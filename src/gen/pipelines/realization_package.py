@@ -249,37 +249,69 @@ def write_harness_section(pkg_root: Path, section: dict[str, Any]) -> Path:
 
 
 #: Section views generated for parts with real CSG geometry: name -> (plane, offset)
-_DRAWING_VIEWS: dict[str, tuple[str, float]] = {"top": ("XY", 0.0), "front": ("XZ", 0.0)}
+#: H1: top + front + right (YZ). Isometric is a true 3-D projection, not a section — gap.
+_DRAWING_VIEWS: dict[str, tuple[str, float]] = {
+    "top": ("XY", 0.0),
+    "front": ("XZ", 0.0),
+    "right": ("YZ", 0.0),
+}
 
 
-def _generate_part_views(cad: Any) -> tuple[dict[str, str], list[str]]:
-    """Real DXF section views from the artifact's CSG tree (G4).
+def _generate_part_views(
+    cad: Any,
+) -> tuple[dict[str, str], dict[str, str], list[str], bool]:
+    """Real dimensioned DXF section views from the artifact's CSG tree (G4+H1).
 
-    Returns ({view_name: dxf_text}, notes). Empty dict when the artifact has no
-    geometry or the drawing worker (build123d venv) is unavailable — the caller
-    keeps drawing_gap=True then. Never a fabricated drawing.
+    Returns
+    -------
+    views : dict[str, str]
+        view_name → DXF text (overall linear dimensions annotated when possible)
+    sidecars : dict[str, str]
+        view_name → human-readable ``.dims.txt`` content
+    notes : list[str]
+        per-view skip reasons / annotation notes
+    dims_ok : bool
+        True if at least one view carries overall dimension annotations
     """
     geometry = getattr(cad, "geometry", None)
     quantities = getattr(cad, "geometry_quantities", None) or {}
     if geometry is None or not quantities:
-        return {}, []
+        return {}, {}, [], False
     try:
-        from gen.export.drawing import drawing_available, section_dxf
+        from gen.export.drawing import (
+            drawing_available,
+            format_dimension_sidecar,
+            section_dxf_dimensioned,
+        )
     except Exception:  # pragma: no cover — export layer absent
-        return {}, []
+        return {}, {}, [], False
     if not drawing_available():
-        return {}, ["drawing worker (build123d venv) unavailable — no DXF generated"]
+        return {}, {}, [
+            "drawing worker (build123d venv) unavailable — no DXF generated"
+        ], False
     views: dict[str, str] = {}
+    sidecars: dict[str, str] = {}
     notes: list[str] = []
+    dims_ok = False
     for view_name, (plane, offset) in _DRAWING_VIEWS.items():
         try:
-            dxf = section_dxf(geometry, quantities, plane=plane, offset=offset)
+            dxf, info = section_dxf_dimensioned(
+                geometry, quantities, plane=plane, offset=offset
+            )
         except Exception as exc:  # ExportError (plane misses solid) et al. — honest skip
             notes.append(f"view {view_name!r} ({plane}) not generated: {exc}")
             continue
         if dxf and len(dxf) > 0:
             views[view_name] = dxf
-    return views, notes
+            sidecars[view_name] = format_dimension_sidecar(
+                info, plane=plane, offset=offset, label=f"view {view_name!r}"
+            )
+            dims_ok = True
+            notes.append(
+                f"view {view_name!r}: overall linear dimensions "
+                f"{info.dimensions[0]:.3f} x {info.dimensions[1]:.3f} mm (envelope)"
+            )
+    return views, sidecars, notes, dims_ok
 
 
 def build_drawings_section(
@@ -289,25 +321,32 @@ def build_drawings_section(
     run_id: str | None = None,
     pkg_name: str = "",
 ) -> dict[str, Any]:
-    """C7+G4: structured drawings index + REAL DXF section views where the part
-    carries CSG geometry; explicit drawing_gap otherwise (no silent empty PDF).
+    """C7+G4+H1: drawings index + REAL dimensioned DXF section views (top/front/right)
+    where the part carries CSG geometry; explicit drawing_gap otherwise.
 
-    DXF texts travel under the reserved ``_view_texts`` key ({(index, view): text})
-    and are written to files (and stripped) by ``write_drawings_section``.
+    DXF texts travel under ``_view_texts`` ({(index, view): text}); dimension sidecars
+    under ``_dim_sidecars`` ({(index, view): text}). Both are materialised and stripped
+    by ``write_drawings_section``. Never a silent empty PDF/DXF.
     """
     parts: list[dict[str, Any]] = []
     view_texts: dict[tuple[int, str], str] = {}
+    dim_sidecars: dict[tuple[int, str], str] = {}
     any_real_drawing = False
+    any_dimensioned = False
     for i, frag in enumerate(fragments):
         cad = getattr(frag, "cad_artifact", None)
         if cad is None:
             continue
         spec = cad.spec
-        views, view_notes = _generate_part_views(cad)
+        views, sidecars, view_notes, dims_ok = _generate_part_views(cad)
         for view_name, dxf in views.items():
             view_texts[(i, view_name)] = dxf
+        for view_name, text in sidecars.items():
+            dim_sidecars[(i, view_name)] = text
         if views:
             any_real_drawing = True
+        if dims_ok:
+            any_dimensioned = True
         parts.append(
             {
                 "index": i,
@@ -322,18 +361,31 @@ def build_drawings_section(
                 "view_files": {
                     v: f"part_{i}_{v}.dxf" for v in sorted(views.keys())
                 },
+                "dimension_sidecars": {
+                    v: f"part_{i}_{v}.dxf.dims.txt" for v in sorted(sidecars.keys())
+                },
+                "dimensions_annotated": dims_ok,
                 "view_notes": view_notes,
             }
         )
     gaps = [
-        "tolerance frames and surface finish symbols not applied (GD&T gap)",
+        "tolerance frames, surface finish symbols, hole callouts, title block "
+        "not applied (full GD&T / production drawing gap)",
+        "isometric view not generated (true 3-D projection, not a planar section)",
     ]
     if any_real_drawing:
-        gaps.insert(
-            0,
-            "isometric/right views + dimension annotations not generated "
-            "(only real top/front DXF sections)",
-        )
+        if any_dimensioned:
+            gaps.insert(
+                0,
+                "overall envelope linear dimensions present on DXF sections; "
+                "feature-level GD&T / multi-sheet PDF still required for shop sign-off",
+            )
+        else:
+            gaps.insert(
+                0,
+                "DXF sections present but overall dimension annotation failed "
+                "(ezdxf or bbox envelope issue) — geometry only",
+            )
     else:
         gaps.insert(
             0,
@@ -353,19 +405,27 @@ def build_drawings_section(
         },
         # honest: gap closes only when at least one REAL section drawing exists
         "drawing_gap": not any_real_drawing,
+        "dimensions_annotated": any_dimensioned,
         "gaps": gaps,
         "quelle": "gen.pipelines.realization_package.build_drawings_section",
         "_view_texts": view_texts,
+        "_dim_sidecars": dim_sidecars,
     }
 
 
 def write_drawings_section(pkg_root: Path, section: dict[str, Any]) -> Path:
-    # G4: materialise real DXF section views as files; never write empty files
+    # G4+H1: materialise real dimensioned DXF section views + dim sidecars; never empty files
     view_texts = section.pop("_view_texts", {}) or {}
+    dim_sidecars = section.pop("_dim_sidecars", {}) or {}
     for (idx, view_name), dxf in view_texts.items():
         if dxf:
             (pkg_root / f"part_{idx}_{view_name}.dxf").write_text(
                 dxf, encoding="utf-8"
+            )
+    for (idx, view_name), text in dim_sidecars.items():
+        if text:
+            (pkg_root / f"part_{idx}_{view_name}.dxf.dims.txt").write_text(
+                text, encoding="utf-8"
             )
     path = pkg_root / "drawings.json"
     path.write_text(json.dumps(section, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -374,6 +434,8 @@ def write_drawings_section(pkg_root: Path, section: dict[str, Any]) -> Path:
         "",
         f"Package: {section.get('package')} | Run: {section.get('run_id')}",
         f"**drawing_gap:** {section.get('drawing_gap')} (honest — no fabricated PDF)",
+        f"**dimensions_annotated:** {section.get('dimensions_annotated')} "
+        "(overall envelope linear dims on DXF when True)",
         "",
         "## Parts",
     ]
@@ -389,9 +451,16 @@ def write_drawings_section(pkg_root: Path, section: dict[str, Any]) -> Path:
         if generated:
             files = p.get("view_files") or {}
             lines.append(
-                "- Views generated (real DXF sections): "
+                "- Views generated (real dimensioned DXF sections): "
                 + ", ".join(f"{v} → `{files.get(v)}`" for v in generated)
             )
+        sc = p.get("dimension_sidecars") or {}
+        if sc:
+            lines.append(
+                "- Dimension sidecars: "
+                + ", ".join(f"{v} → `{fn}`" for v, fn in sorted(sc.items()))
+            )
+        lines.append(f"- Dimensions annotated: {p.get('dimensions_annotated')}")
         for note in p.get("view_notes") or []:
             lines.append(f"- Note: {note}")
         lines.append("")
@@ -403,8 +472,9 @@ def write_drawings_section(pkg_root: Path, section: dict[str, Any]) -> Path:
         lines.append(f"- {g}")
     lines.append("")
     lines.append(
-        "**Scope:** machine-generated package drawing *index* from CAD fragments. "
-        "Full 2D GD&T / DXF / PDF still requires a CAD drafting step."
+        "**Scope (H1):** machine-generated top/front/right DXF *sections* with overall "
+        "envelope linear dimensions from the CAD kernel. Full production GD&T (feature "
+        "control frames, surface finish, multi-sheet PDF) still requires a drafting step."
     )
     (pkg_root / "DRAWINGS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path

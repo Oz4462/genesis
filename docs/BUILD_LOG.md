@@ -772,7 +772,24 @@ Smoke: Nicht-Jetpack-Idee ⇒ Teil "Main Structure" mit realem 646-KB-STL statt 
 **4 Linsen:** L1: Geometrie aus Spec, nicht Template · L2: "Idea→CAD"-Claim jetzt code-wahr für
 Spec-Pfad · L3: Naht Spec→Integrator/Assembly geschlossen · L4: Kernel-Tessellation druckbar.
 
+## 2026-07-16 — H1 (Shop-floor): Overall-Bemaßung + Right-View auf Paket-DXF
+
+**Problem (User gap matrix):** „Keine GD&T, keine vollständigen PDF/DXF-Zeichnungen mit
+Toleranzen“ — G4 lieferte echte top/front-Sektionen ohne Bemaßung und ohne right-view.
+**Fix:** (1) Worker-Op `section_dxf_with_info` (ein OCCT-Call → DXF + BBox). (2) Main-venv
+`annotate_overall_dimensions` injiziert 2 lineare DIMENSION-Entities via ezdxf (Envelope
+width+height, nie erfunden). (3) `section_dxf_dimensioned` = komponierter Pfad.
+(4) Package: top/front/**right** (YZ) + `.dxf.dims.txt`-Sidecars; `dimensions_annotated`
+Flag; Gaps ehrlich: volle GD&T-Rahmen / Isometrie / Title-Block bleiben offen.
+**Evidence:** `tests/test_drawing_dimensions.py` + package suite — 16 passed (drawing);
+realization+integrator 10 passed / 1 skipped. E2E: part_0_{top,front,right}.dxf mit
+DIMENSION entities + dims.txt.
+**4 Linsen:** L1: Maße = OCCT-Envelope · L2: Gap-Text nicht mehr „dimension annotations
+not generated“ · L3: drawing→package verdrahtet · L4: Shop kann Envelope-Maße lesen; Sign-off
+GD&T noch nicht.
+
 ## 2026-07-15 — G4 (P1-3): Echte DXF-Schnittzeichnungen im Realisierungspaket
+
 
 **Problem (Re-Audit):** `export/drawing.py` (realer OCCT-Sektion→DXF-Pfad) existierte, war aber
 nie ans Paket angeschlossen — `build_drawings_section` hartkodierte `drawing_gap=True`.
