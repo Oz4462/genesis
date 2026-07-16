@@ -14,6 +14,8 @@ Two modes:
 
 from __future__ import annotations
 
+from .core.honest_except import note_exception
+
 import argparse
 import asyncio
 import os
@@ -1039,8 +1041,8 @@ def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         try:
             sys.stdout.reconfigure(encoding="utf-8")
-        except Exception:
-            pass
+        except Exception as _exc:
+            note_exception('cli.py', _exc)
 
     parser = argparse.ArgumentParser(
         prog="gen",
@@ -2023,8 +2025,8 @@ def main(argv: list[str] | None = None) -> int:
                     from gen.humanoids import model_parser
                     model = model_parser.parse_urdf(str(urdf_p))
                     sim_receipt["model_num_links"] = len(getattr(model, "links", []))
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    note_exception('cli.py', _exc)
             for ext in (full_dir / "shells", full_dir / "shells_v2", full_dir / "dxf"):
                 if ext.exists():
                     for f in ext.rglob("*"):
@@ -2044,8 +2046,8 @@ def main(argv: list[str] | None = None) -> int:
                     "urdf": "aethon.urdf"
                 }
                 sim_receipt["stand"] = stand_receipt
-            except Exception:
-                pass
+            except Exception as _exc:
+                note_exception('cli.py', _exc)
 
             richer = generate_proof_package(run_id="aethon-assets", idea=dream, cad_files=cad_files[:20], sim_receipts=[sim_receipt, urdf_stats])
             (full_dir / "sim_receipt.json").write_text(json.dumps(sim_receipt, indent=2), encoding="utf-8")
@@ -2090,8 +2092,8 @@ def main(argv: list[str] | None = None) -> int:
                     proof_dir = Path("out/proof_packages") / "aethon-assets_proof"
                     if proof_dir.exists():
                         shutil.copy2(full_dir / gcode_name, proof_dir / gcode_name)
-            except Exception:
-                pass
+            except Exception as _exc:
+                note_exception('cli.py', _exc)
             mf = full_dir / "AETHON_PIPELINE_REPORT.md"
             if mf.exists():
                 mf.write_text(mf.read_text() + "\ncam_gcode_sample: example_joint_bore_pocket.ngc (dxf reference)\n", encoding="utf-8")
@@ -2102,8 +2104,8 @@ def main(argv: list[str] | None = None) -> int:
                     rec["cam_sample_gcode"] = gcode_name + " (reference for dxf/ assets)"
                     with open(rec_path, "w") as f:
                         json.dump(rec, f, indent=2)
-            except Exception:
-                pass
+            except Exception as _exc:
+                note_exception('cli.py', _exc)
         except Exception as e:
             print(f"  AETHON-CAM: skipped ({e})")
 
@@ -2161,8 +2163,8 @@ def main(argv: list[str] | None = None) -> int:
         # AETHON visuals parallel
         try:
             RobustVisualizer().auto_integrate(res)
-        except Exception:
-            pass
+        except Exception as _exc:
+            note_exception('cli.py', _exc)
         return 0
 
     if args.mode == "humanoid":
@@ -2290,8 +2292,8 @@ def main(argv: list[str] | None = None) -> int:
                         from gen.humanoids import model_parser
                         model = model_parser.parse_urdf(str(urdf_p))
                         sim_receipt["model_num_links"] = len(getattr(model, "links", []))
-                    except Exception:
-                        pass
+                    except Exception as _exc:
+                        note_exception('cli.py', _exc)
                 # collect real CAD from copied shells/dxf
                 for ext_dir in (full_pl_dir / "shells", full_pl_dir / "dxf"):
                     if ext_dir.exists():
@@ -2314,8 +2316,8 @@ def main(argv: list[str] | None = None) -> int:
                         "urdf": "aethon.urdf"
                     }
                     sim_receipt["stand"] = stand_receipt
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    note_exception('cli.py', _exc)
 
                 # richer proof for this humanoid pipeline run (passes real CAD + sim receipt from assets)
                 richer = generate_proof_package(
@@ -2368,8 +2370,8 @@ def main(argv: list[str] | None = None) -> int:
                     proof_dir = Path("out/proof_packages") / f"{spec.run_id}-assets_proof"
                     if proof_dir.exists():
                         shutil.copy2(full_pl_dir / gcode_name, proof_dir / gcode_name)
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    note_exception('cli.py', _exc)
                 # ensure manifest reflects
                 mf = full_pl_dir / "PIPELINE_MANIFEST.md"
                 if mf.exists():
@@ -2382,8 +2384,8 @@ def main(argv: list[str] | None = None) -> int:
                         rec["cam_sample_gcode"] = gcode_name + " (reference for dxf/ assets)"
                         with open(rec_path, "w") as f:
                             json.dump(rec, f, indent=2)
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    note_exception('cli.py', _exc)
             except Exception as e:
                 print(f"  CAM: sample gcode skipped ({e})")
 

@@ -18,6 +18,8 @@ wissensbasis internal_space_colony_sim / bio_molecular. 4 Linsen, Bio full, plan
 
 from __future__ import annotations
 
+from ..core.honest_except import note_exception
+
 from dataclasses import dataclass, field
 from ..core.state import now_utc
 from typing import TYPE_CHECKING, Any, Callable, Optional
@@ -162,8 +164,8 @@ class SimulationRunner:
             # If any trigger keywords appear in loads or description, we prioritize those domains
             if any("column" in t or "axial" in t for t in triggers) and self._has_buckling_physics(artifact, loads):
                 pass  # will be caught by the has_ method below
-        except Exception:
-            pass  # graceful – selection remains heuristic + explicit _has_ checks
+        except Exception as _exc:
+            note_exception('runner.py', _exc)  # graceful – selection remains heuristic + explicit _has_ checks
 
         # --- Structural (linear static) ---
         if self._has_structural_physics(artifact, loads):
@@ -1080,8 +1082,8 @@ def co_sim_electronics_thermal(
         try:
             runner = SimulationRunner(run_id=run_id)
             thermal_sim = runner.run_for_artifact(base_artifact, loads={"power_w": sum(thermal_loads.values())})
-        except Exception:
-            pass
+        except Exception as _exc:
+            note_exception('runner.py', _exc)
 
     return {
         "thermal_loads_from_electronics": thermal_loads,

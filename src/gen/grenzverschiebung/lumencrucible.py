@@ -25,6 +25,8 @@ attached; no pure LLM verdicts; full original return surface preserved.
 
 from __future__ import annotations
 
+from ..core.honest_except import note_exception
+
 import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -719,8 +721,8 @@ class LumenCrucible:
                             except Exception as e:
                                 gamma_plus_gate = f"error: {type(e).__name__}: {e}"
                         rs.pareto_front = pf
-                    except Exception:
-                        pass
+                    except Exception as _exc:
+                        note_exception('lumencrucible.py', _exc)
                 run_state = rs
                 # === δ+ REALITY + COVERAGE (guarded call to evaluate_reality per task; reviewed_failure_modes pop) ===
                 if FalsificationExperiment is not None and evaluate_reality is not None:
@@ -749,8 +751,8 @@ class LumenCrucible:
                                         or m_name
                                     )
                                     m_note = "LUMEN δ+ (real preferred from small_spec quantity)"
-                        except Exception:
-                            pass
+                        except Exception as _exc:
+                            note_exception('lumencrucible.py', _exc)
                         exp = FalsificationExperiment(
                             id=f"{run_id}-delta-demo",
                             measurand=m_name,
@@ -848,8 +850,8 @@ class LumenCrucible:
                                             grounding=[getattr(cc, "id", "lumen")],
                                         )
                                     )
-                                except Exception:
-                                    pass
+                                except Exception as _exc:
+                                    note_exception('lumencrucible.py', _exc)
                         # NO dummy fallback: empty list is honest when no REFUTED claims (full collection only).
                         # Mirrors conductor fix (Return Gate #3).
                         coverage_certificate = build_coverage_certificate(
@@ -866,8 +868,8 @@ class LumenCrucible:
                                 )
                             except Exception as e:
                                 coverage_gate = f"error: {type(e).__name__}: {e}"
-                    except Exception:
-                        pass
+                    except Exception as _exc:
+                        note_exception('lumencrucible.py', _exc)
             except Exception as exc:
                 # honest skip for any partial data (guarded spirit, like pipeline.py:150)
                 optional_skips.append(

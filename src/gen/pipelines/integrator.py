@@ -21,6 +21,8 @@ auditierten Build Package.
 
 from __future__ import annotations
 
+from ..core.honest_except import note_exception
+
 from dataclasses import dataclass
 
 from .architekt import SystemConcept, map_to_system_concept
@@ -524,8 +526,8 @@ def build_full_mini_realization_package(
                     if v is not None:
                         try:
                             setattr(rs, k, v)
-                        except Exception:
-                            pass
+                        except Exception as _exc:
+                            note_exception('integrator.py', _exc)
                 cert_report["run_state_certs"] = sorted(
                     name
                     for name in (
@@ -1734,8 +1736,8 @@ def realize(
             man = json.loads(mpath.read_text(encoding="utf-8"))
             certs_from_manifest = man.get("certs")
             # if build_full enriched cert_report with rs, use it (but json may not carry obj; re-hydrate via LUMEN)
-    except Exception:
-        pass
+    except Exception as _exc:
+        note_exception('integrator.py', _exc)
     try:
         from ..grenzverschiebung.lumencrucible import process_dream
 
@@ -1749,8 +1751,8 @@ def realize(
             ):
                 # attach summary from manifest too
                 pass
-    except Exception:
-        pass
+    except Exception as _exc:
+        note_exception('integrator.py', _exc)
     return {
         "package_dir": pkg,
         "lern_persisted": getattr(lern_res, "persisted_key", None)
