@@ -1086,6 +1086,58 @@ def write_montage_section(pkg_root: Path, section: dict[str, Any]) -> Path:
     return path
 
 
+def build_multi_physics_section(
+    *,
+    run_id: str | None = None,
+    power_w: float = 10.0,
+    r_th_k_per_w: float = 5.0,
+    force_n: float = 100.0,
+    cycles: int | None = 10_000,
+) -> dict[str, Any]:
+    """H8: multi-physics receipt embedded as a package section (offline closed forms)."""
+    from gen.simulation.runner import multi_physics_receipt
+
+    rec = multi_physics_receipt(
+        power_w=power_w,
+        r_th_k_per_w=r_th_k_per_w,
+        force_n=force_n,
+        cycles=cycles,
+        run_id=run_id or "package-multi-physics",
+    )
+    return {
+        "schema": "genesis-package-multi-physics-v1",
+        "run_id": run_id,
+        "receipt": rec,
+        "gaps": list(rec.get("gaps") or []),
+        "quelle": "gen.pipelines.realization_package.build_multi_physics_section (H8)",
+    }
+
+
+def write_multi_physics_section(pkg_root: Path, section: dict[str, Any]) -> Path:
+    path = pkg_root / "multi_physics.json"
+    path.write_text(json.dumps(section, indent=2, ensure_ascii=False), encoding="utf-8")
+    rec = section.get("receipt") or {}
+    lines = [
+        "# Multi-physics receipt (package)",
+        "",
+        f"Run: {section.get('run_id')}",
+        f"Domains: {', '.join((rec.get('closed_loop') or {}).get('domains') or [])}",
+        "",
+        f"- ΔT: {(rec.get('thermal') or {}).get('delta_t_k')} K",
+        f"- Tip deflection (mech): {(rec.get('structural') or {}).get('tip_deflection_m')} m",
+        f"- Tip total: {(rec.get('structural') or {}).get('tip_deflection_total_m')} m",
+        f"- Stress screen ok: {((rec.get('stress_screen') or {}).get('ok'))}",
+        f"- Fatigue ok: {((rec.get('fatigue') or {}).get('ok'))}",
+        "",
+        "## Gaps",
+    ]
+    for g in section.get("gaps") or []:
+        lines.append(f"- {g}")
+    lines.append("")
+    (pkg_root / "MULTI_PHYSICS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
+
+
 def collect_ready_to_build_files(pkg_root: Path) -> list[Path]:
     """List files that belong in the manufacturer ZIP (no nested zips, no dotfiles)."""
     root = Path(pkg_root)

@@ -89,8 +89,8 @@ Priority order from manufacturability impact (not existence of modules).
 - [x] **H1** Overall envelope dimensions + right (YZ) view on package DXFs — `export/drawing.py` (`section_dxf_dimensioned`, `annotate_overall_dimensions`), worker `section_dxf_with_info`, package top/front/right + sidecars; tests `test_drawing_dimensions.py` + package suite
 - [x] **H2** CAM depth — helical_bore G-code + verify; multi_axis_cam_capability / refuse; package cam.json + part_*.nc (profile/face/helical); tests test_gcode + test_cam_package
 - [x] **H3** Ready-to-Build ZIP — `build_ready_to_build_zip` packs BOM/STL/DXF/CAM/harness/docs; integrator writes `*_ready_to_build.zip` + ready_to_build.json; tests test_ready_to_build_zip
-- [ ] **H4** Harness lengths/pinouts
-- [ ] **H5** Assembly constraints
-- [ ] **H6** KiCad copper/DRC
-- [ ] **H7** Montage steps structure
-- [ ] **H8** Multi-physics depth
+- [x] **H4** Harness wire cut list + connector pinouts — extract_wire_runs / extract_connector_pinouts; HARNESS.md tables
+- [x] **H5** Assembly constraints offset/stack_z/align_xy — resolve_constraint_positions; FreeCAD still limitation
+- [x] **H6** KiCad copper zones + placement_clearance_drc — not full track DRC
+- [x] **H7** Montage steps + torque table + image placeholders — montage.json
+- [x] **H8** Multi-physics depth — thermoelastic + Basquin screen; package multi_physics.json

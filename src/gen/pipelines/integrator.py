@@ -579,10 +579,12 @@ Real package dir: {pkg_root}
         build_drawings_section,
         build_harness_section,
         build_montage_section,
+        build_multi_physics_section,
         write_cam_section,
         write_drawings_section,
         write_harness_section,
         write_montage_section,
+        write_multi_physics_section,
         write_package_bom,
     )
 
@@ -601,6 +603,9 @@ Real package dir: {pkg_root}
         fragments, run_id=run_id, pkg_name=package_name
     )
     write_montage_section(pkg_root, montage_section)
+    # H8: multi-physics receipt (closed-form chain) into package
+    multi_physics_section = build_multi_physics_section(run_id=run_id)
+    write_multi_physics_section(pkg_root, multi_physics_section)
     _generate_regulatorik_stub(pkg_root, fragments, dfm_reports, run_id)
     _generate_software_stub(pkg_root, software_report, run_id)
 
@@ -841,6 +846,17 @@ Real package dir: {pkg_root}
         "n_steps": montage_section.get("n_steps"),
         "default_torque_nm": montage_section.get("default_torque_nm"),
         "gaps": montage_section.get("gaps"),
+    }
+    manifest["multi_physics"] = "MULTI_PHYSICS.md"
+    manifest["multi_physics_json"] = "multi_physics.json"
+    manifest["multi_physics_section"] = {
+        "schema": multi_physics_section.get("schema"),
+        "domains": (
+            (multi_physics_section.get("receipt") or {})
+            .get("closed_loop", {})
+            .get("domains")
+        ),
+        "gaps": multi_physics_section.get("gaps"),
     }
     manifest["regulatorik"] = "REGULATORIK.md"
     manifest["software"] = "SOFTWARE_SPEC.md"

@@ -118,9 +118,10 @@ scripts/find_islands.py · scripts/gen_status.py
 0. **Backlog-Phasen A–G abgeschlossen** (H1–H5, C1–C8, W1–W5, S1–S4, X1–X4, G1–G4 —
    siehe `docs/BACKLOG_TODO_PLAN.md` + STATUS). Re-Audit-Befund G1 (stille 0-Byte-STLs
    in `cad/assembly.py`) ist behoben; CAD-Pfad liefert echte Kernel-STLs + top/front-DXF.
-   Offene Produkttiefe: full GD&T-Rahmen/PDF, multi-axis CAM, Assembly-Constraints,
-   KiCad-Copper/DRC, Harness-Routen, Ready-to-Build-ZIP, multi-physics depth, Viz/Montage
-   (H1 2026-07-16: Envelope-Bemaßung + right-view auf Paket-DXF erledigt).
+   Offene Produkttiefe (L4): full GD&T-PDF, multi-axis freeform CAM, FreeCAD-Mates,
+   Copper-Autoroute, echte Montage-Fotos, certified SN/CTE, Viz-Video.
+   Phase H (H1–H8) 2026-07-16: Envelope-DXF, helical NC, RTB-ZIP, Harness-Längen/Pinouts,
+   Assembly-Constraints, KiCad-Zones+Clearance, Montage-Torque, Multi-Physics-Receipt.
 
 ## Fokus-Historie (2026-07-12)
 

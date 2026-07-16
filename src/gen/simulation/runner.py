@@ -868,20 +868,94 @@ def multi_physics_receipt(
     length_m: float = 0.1,
     e_pa: float = 70e9,
     i_m4: float = 1e-8,
+    # H8 optional depth inputs (closed-form chain extensions)
+    alpha_per_k: float | None = 23e-6,  # linear CTE (default Al-ish); None disables thermoelastic
+    sigma_allow_pa: float | None = 100e6,  # allowables for simple stress screen
+    cycles: int | None = None,  # if set, attach a basquin-like fatigue screen
+    basquin_a: float = 1e12,  # stress-life intercept (Pa^b · N) — assumption
+    basquin_b: float = 3.0,  # Basquin exponent (assumption)
     run_id: str | None = None,
 ) -> dict[str, Any]:
-    """S2: mini multi-physics closed-loop *receipt* (elec power → thermal ΔT + beam tip).
+    """S2+H8: multi-physics closed-loop *receipt* (elec → thermal → structural [+fatigue]).
 
     Fully offline, deterministic, no LLM. Proves the co-design data flow with
-    closed-form physics (not a full FEM/SPICE stack). Returns provenance + values.
+    closed-form physics (not a full FEM/SPICE stack). H8 adds optional
+    thermoelastic tip contribution and a Basquin stress-life screen when
+    ``cycles`` is provided. Returns provenance + values + honest gaps.
     """
     if not all(map(lambda x: x == x and x > 0, (power_w, r_th_k_per_w, length_m, e_pa, i_m4))):
         raise ValueError("multi_physics_receipt: power, R_th, L, E, I must be finite > 0")
     if force_n <= 0 or force_n != force_n:
         raise ValueError("multi_physics_receipt: force_n must be finite > 0")
+    if basquin_b <= 0 or basquin_b != basquin_b or basquin_a <= 0 or basquin_a != basquin_a:
+        raise ValueError("multi_physics_receipt: basquin_a/b must be finite > 0")
 
     delta_t_k = power_w * r_th_k_per_w  # lumped thermal
-    tip_m = force_n * (length_m ** 3) / (3.0 * e_pa * i_m4)  # Euler–Bernoulli cantilever
+    tip_mech_m = force_n * (length_m ** 3) / (3.0 * e_pa * i_m4)  # Euler–Bernoulli cantilever
+    # Extreme fibre stress for rectangular-approx: use σ ≈ M·c/I with c from I ~ rough
+    # For a pure moment M = F·L at root: σ = F·L·c / I. Without section height we use
+    # an energy-equivalent characteristic stress σ_char = F·L² / (3·I) * sqrt(I)
+    # → simpler: σ = F·L / A_eff with A_eff derived from I and assumed square section.
+    # Square section: I = a^4/12 ⇒ a = (12·I)^(1/4), c = a/2, σ = M·c/I.
+    a_m = (12.0 * i_m4) ** 0.25
+    c_m = a_m / 2.0
+    m_nm = force_n * length_m
+    sigma_pa = (m_nm * c_m) / i_m4 if i_m4 > 0 else float("inf")
+
+    tip_thermal_m = 0.0
+    thermoelastic = None
+    if alpha_per_k is not None:
+        if alpha_per_k != alpha_per_k or alpha_per_k < 0:
+            raise ValueError("multi_physics_receipt: alpha_per_k must be finite >= 0")
+        # Free thermal expansion of length: ΔL = α·L·ΔT (axial tip contribution)
+        tip_thermal_m = alpha_per_k * length_m * delta_t_k
+        thermoelastic = {
+            "alpha_per_k": alpha_per_k,
+            "delta_t_k": delta_t_k,
+            "axial_expansion_m": tip_thermal_m,
+            "formula": "ΔL = α · L · ΔT",
+            "note": "axial free expansion from elec→thermal ΔT; not a constrained FEM residual stress field",
+        }
+
+    tip_total_m = tip_mech_m + tip_thermal_m
+
+    stress_screen = None
+    if sigma_allow_pa is not None:
+        if sigma_allow_pa <= 0 or sigma_allow_pa != sigma_allow_pa:
+            raise ValueError("multi_physics_receipt: sigma_allow_pa must be finite > 0")
+        sf = sigma_allow_pa / sigma_pa if sigma_pa > 0 else float("inf")
+        stress_screen = {
+            "sigma_pa": sigma_pa,
+            "sigma_allow_pa": sigma_allow_pa,
+            "safety_factor": sf,
+            "ok": sf >= 1.0,
+            "section_assumption": "square cross-section from I = a⁴/12",
+            "formula": "σ = M·c/I, M = F·L, c = a/2",
+        }
+
+    fatigue = None
+    if cycles is not None:
+        if not isinstance(cycles, int) or cycles < 1:
+            raise ValueError("multi_physics_receipt: cycles must be int >= 1")
+        # Basquin: N = A / σ^b  ⇒  N_pred at σ; compare to requested cycles
+        n_pred = basquin_a / (sigma_pa ** basquin_b) if sigma_pa > 0 else float("inf")
+        fatigue = {
+            "cycles_requested": cycles,
+            "n_predicted": n_pred,
+            "sigma_pa": sigma_pa,
+            "basquin_a": basquin_a,
+            "basquin_b": basquin_b,
+            "ok": n_pred >= float(cycles),
+            "formula": "N = A / σ^b (Basquin; A,b are ASSUMPTIONS not material certs)",
+            "note": "first-stone fatigue screen — not a full SN test campaign",
+        }
+
+    domains = ["electrical", "thermal", "structural"]
+    if thermoelastic is not None:
+        domains.append("thermoelastic")
+    if fatigue is not None:
+        domains.append("fatigue_screen")
+
     return {
         "schema": "genesis-multi-physics-receipt-v1",
         "run_id": run_id or "multi-physics",
@@ -900,19 +974,33 @@ def multi_physics_receipt(
             "length_m": length_m,
             "e_pa": e_pa,
             "i_m4": i_m4,
-            "tip_deflection_m": tip_m,
+            "tip_deflection_m": tip_mech_m,
+            "tip_deflection_total_m": tip_total_m,
+            "sigma_pa": sigma_pa,
             "formula": "δ = F·L³ / (3·E·I)",
             "reference": "euler_bernoulli_cantilever_tip",
         },
+        "thermoelastic": thermoelastic,
+        "stress_screen": stress_screen,
+        "fatigue": fatigue,
         "closed_loop": {
-            "note": "same run_id binds elec dissipation to thermal rise and a mechanical tip check",
-            "domains": ["electrical", "thermal", "structural"],
+            "note": "same run_id binds elec dissipation to thermal rise, mechanical tip, "
+            "optional thermoelastic expansion and fatigue screen",
+            "domains": domains,
+            "chain": [
+                "P_elec → ΔT_thermal",
+                "F → δ_mech + σ",
+                "α·L·ΔT → δ_thermal (optional)",
+                "σ,N → Basquin screen (optional)",
+            ],
         },
         "gaps": [
             "not a coupled multiphysics FEM; closed forms only",
             "no control loop dynamics in this receipt",
+            "Basquin A/b and CTE defaults are ASSUMPTIONS unless caller supplies certified values",
+            "Monte-Carlo uncertainty propagation not included in this receipt",
         ],
-        "quelle": "simulation.runner.multi_physics_receipt (S2)",
+        "quelle": "simulation.runner.multi_physics_receipt (S2+H8)",
     }
 
 

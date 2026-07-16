@@ -772,7 +772,19 @@ Smoke: Nicht-Jetpack-Idee ⇒ Teil "Main Structure" mit realem 646-KB-STL statt 
 **4 Linsen:** L1: Geometrie aus Spec, nicht Template · L2: "Idea→CAD"-Claim jetzt code-wahr für
 Spec-Pfad · L3: Naht Spec→Integrator/Assembly geschlossen · L4: Kernel-Tessellation druckbar.
 
+## 2026-07-16 — Phase H complete (H4–H8)
+
+**H4** Harness: wire cut list (eff lengths) + connector pinouts → HARNESS.md tables.  
+**H5** Assembly: `AssemblyConstraint` offset/stack_z/align_xy + default spacing as constraints.  
+**H6** KiCad: F.Cu zone pours + `placement_clearance_drc` (AABB).  
+**H7** Montage: `montage.json` steps with torque table + null image placeholders.  
+**H8** Multi-physics: thermoelastic ΔL + stress + Basquin screen; package `multi_physics.json`.  
+**Evidence:** per-sprint tests green; all commits on `main`.  
+**4 Linsen:** L1 closed-forms/sourced tables · L2 no overclaim vs FreeCAD/FEM/photos ·  
+L3 package/integrator seams · L4 manufacturer handoff stronger, factory sign-off still open.
+
 ## 2026-07-16 — H3 (Shop-floor): Ready-to-Build ZIP
+
 
 **Problem:** Hersteller brauchten ein einheitliches Archiv; Artefakte lagen nur als
 Verzeichnis (BOM, DXF, NC, STL, Harness) ohne ein ZIP.
