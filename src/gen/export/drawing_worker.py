@@ -148,7 +148,11 @@ def _write_dxf(sec) -> str:
 
     exporter = ExportDXF(unit=Unit.MM)
     exporter.add_shape(sec)
-    path = tempfile.mktemp(suffix=".dxf")
+    # Audit E3: NamedTemporaryFile — never tempfile.mktemp (TOCTOU)
+    with tempfile.NamedTemporaryFile(
+        suffix=".dxf", delete=False, mode="w", encoding="utf-8"
+    ) as tmp:
+        path = tmp.name
     try:
         exporter.write(path)
         with open(path, encoding="utf-8", errors="replace") as fh:
@@ -163,7 +167,10 @@ def _write_svg(sec) -> str:
 
     exporter = ExportSVG(unit=Unit.MM)
     exporter.add_shape(sec)
-    path = tempfile.mktemp(suffix=".svg")
+    with tempfile.NamedTemporaryFile(
+        suffix=".svg", delete=False, mode="w", encoding="utf-8"
+    ) as tmp:
+        path = tmp.name
     try:
         exporter.write(path)
         with open(path, encoding="utf-8", errors="replace") as fh:

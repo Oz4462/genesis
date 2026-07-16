@@ -199,18 +199,43 @@ def _assemble_and_solve(
                 f"fixed_dofs[{dof}]={val!r}: topology optimisation supports only "
                 "homogeneous (zero) prescribed displacements"
             )
-    k = np.zeros((cache.n_dof, cache.n_dof))
-    for s, ke0, dofs in zip(tet_scale, cache.ke0, cache.dofs):
-        k[np.ix_(dofs, dofs)] += s * ke0
+    # Audit D1 (2026-07-16): sparse assembly + spsolve — dense np.linalg.solve
+    # was ~18–20 s on default grids (O(n³)). scipy is a base dependency.
+    from scipy import sparse
+    from scipy.sparse.linalg import spsolve
+
+    rows: list[int] = []
+    cols: list[int] = []
+    data: list[float] = []
+    for s, ke0, dofs in zip(tet_scale, cache.ke0, cache.dofs, strict=True):
+        # ke0 is (12,12) for a tet; outer product of DOF index pairs
+        d = np.asarray(dofs, dtype=int)
+        n_e = d.size
+        # scale element stiffness and scatter as COO triplets
+        ke = s * ke0
+        ii = np.repeat(d, n_e)
+        jj = np.tile(d, n_e)
+        rows.extend(ii.tolist())
+        cols.extend(jj.tolist())
+        data.extend(ke.ravel().tolist())
+    k = sparse.coo_matrix(
+        (data, (rows, cols)), shape=(cache.n_dof, cache.n_dof)
+    ).tocsr()
     f = np.zeros(cache.n_dof)
     for dof, val in loads.items():
         f[dof] += val
     free = np.array([i for i in range(cache.n_dof) if i not in fixed_dofs])
     u = np.zeros(cache.n_dof)
-    u[free] = np.linalg.solve(k[np.ix_(free, free)], f[free])
+    k_ff = k[free][:, free]
+    u[free] = spsolve(k_ff, f[free])
     _check_solution_finite(u)
     compliance = float(f @ u)
-    energies = np.array([float(u[dofs] @ ke0 @ u[dofs]) for ke0, dofs in zip(cache.ke0, cache.dofs)])
+    energies = np.array(
+        [
+            float(u[dofs] @ ke0 @ u[dofs])
+            for ke0, dofs in zip(cache.ke0, cache.dofs, strict=True)
+        ]
+    )
     if not np.isfinite(compliance) or not np.all(np.isfinite(energies)):
         raise GeometryError("non-finite compliance/strain energy — ill-posed SIMP state")
     return compliance, energies

@@ -310,31 +310,28 @@ except Exception as e:
             "Bounding box ~120x80x6 mm — passt auf fast jeden Consumer-Printer.",
             "Recovery-Befestigungen: zusätzliche Verstärkung (mehr Perimeter) um die 8 mm Löcher empfohlen.",
         ]
-        volume = 42.0
-
+        # Audit B1 (2026-07-16): NEVER exec() emitted build123d code + NEVER invent
+        # solid volumes (was hard-coded 42.0). Volume = bbox upper bound OR kernel
+        # volume via cadquery bridge (subprocess), never in-process exec.
         node, quantities = _anchor_plate_geometry(spec)
         real_stl_path = _export_real_stl(
             "genesis_jetpack_tether_anchor", node, quantities, run_id
         )
-
-        # Opportunistic in-process build123d path (only if someone installed it
-        # in the main venv): refines the volume estimate; never writes files here.
+        bx, by, bz = spec.bounding_box_hint_mm
+        volume = round((float(bx) * float(by) * float(bz)) / 1000.0, 3)
+        volume_note = "bbox_hint upper bound cm³ (not solid volume)"
         try:
-            g: dict = {}
-            exec(code, g)
-            live = g.get("anchor_plate")
-            if live and hasattr(live, "part"):
-                volume = round(live.part.volume / 1000, 2)
-                b123d_stl = g.get("_genesis_stl_path")
-                if (
-                    real_stl_path is None
-                    and b123d_stl
-                    and os.path.exists(b123d_stl)
-                    and os.path.getsize(b123d_stl) > 0
-                ):
-                    real_stl_path = b123d_stl
+            from .cadquery_bridge import cad_available, exact_volume
+
+            if cad_available() and node is not None and quantities:
+                solid_vol_mm3 = exact_volume(node, quantities)
+                if solid_vol_mm3 is not None and solid_vol_mm3 > 0:
+                    volume = round(float(solid_vol_mm3) / 1000.0, 3)
+                    volume_note = "kernel solid volume via cadquery_bridge (subprocess)"
         except Exception:
-            pass  # nur Code-Emission, kein Hard-Fail
+            pass  # keep bbox upper bound
+
+        dfm = list(dfm) + [f"volume basis: {volume_note}"]
 
         return BuildArtifact(
             spec=spec,
@@ -374,6 +371,19 @@ with BuildPart() as plate:
         node, quantities = _generic_plate_geometry(spec)
         safe = re.sub(r"[^A-Za-z0-9_-]+", "_", spec.name).strip("_") or "generic_plate"
         real_stl_path = _export_real_stl(safe, node, quantities, run_id)
+        # Audit B1: no magic 30.0 — bbox upper bound or kernel solid volume
+        volume = round((gx * gy * gz) / 1000.0, 3)
+        volume_note = "bbox_hint upper bound cm³ (not solid volume)"
+        try:
+            from .cadquery_bridge import cad_available, exact_volume
+
+            if cad_available() and node is not None and quantities:
+                solid_vol_mm3 = exact_volume(node, quantities)
+                if solid_vol_mm3 is not None and solid_vol_mm3 > 0:
+                    volume = round(float(solid_vol_mm3) / 1000.0, 3)
+                    volume_note = "kernel solid volume via cadquery_bridge (subprocess)"
+        except Exception:
+            pass
 
         return BuildArtifact(
             spec=spec,
@@ -382,8 +392,11 @@ with BuildPart() as plate:
                 "stl": real_stl_path
                 or "generic_plate.stl (kernel unavailable — no file emitted, honest gap)",
             },
-            dfm_report=["Einfache Platte — leicht zu drucken. Wand 5 mm > empfohlene min."],
-            volume_estimate_cm3=30.0,
+            dfm_report=[
+                "Einfache Platte — leicht zu drucken. Wand 5 mm > empfohlene min.",
+                f"volume basis: {volume_note}",
+            ],
+            volume_estimate_cm3=volume,
             is_buildable=True,
             run_id=run_id,
             quelle="cadquery_bridge (OCCT kernel STL) + build123d docs + GENESIS generic fallback",

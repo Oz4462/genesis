@@ -173,20 +173,11 @@ _genesis_stl_path = stl_path
 _genesis_volume = round(assist_plate.part.volume / 1000, 2)
 '''
 
-    volume = 48.5
+    # Audit B1 (2026-07-16): no exec() of emitted build123d; no invented 48.5 cm³.
+    # Volume = bbox upper bound (assist plate nominal). STL only via kernel path elsewhere.
+    # Nominal plate dimensions in the emitted code (~100×60×5 mm class) → bbox cm³.
+    volume = round((100.0 * 60.0 * 5.0) / 1000.0, 3)  # bbox upper bound, not solid
     real_stl = None
-
-    try:
-        g: dict[str, Any] = {}
-        exec(code, g)
-        live = g.get("assist_plate")
-        if live and hasattr(live, "part"):
-            live_part = live.part
-            volume = round(live_part.volume / 1000, 2)
-            real_stl = g.get("_genesis_stl_path")
-    except Exception:
-        pass
-
     return real_stl, volume, code
 
 

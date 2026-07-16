@@ -117,13 +117,24 @@ def run_8_step_learning_cycle(
     ))
 
     # 2. Beschreibt als Verbesserungsvorschlag
-    proposal = "Erweitere den mini-Realisierungspaket-Generator (build_full_...) um vollständige BOM + einfaches Kostenmodell + Testplan aus Safety/Physiker; persistiere Lern-Delta in Wissensbasis; schließe Naht Lernmaschine → Grenz + CAD."
+    # Audit C1 (2026-07-16): this step is SCRIPT-level (L1) — a deterministic
+    # template proposal, not an autonomous "learning invention". Persistence of
+    # the cycle is real; the *content* of the proposal is a fixed scaffold that
+    # references the concrete open gaps of this run. Do not claim L3 learning.
+    primary_gap = luecken[0] if luecken else "unspecified package gap"
+    proposal = (
+        f"[scripted L1 proposal] Close gap: {primary_gap!r}. "
+        "Extend build_full_mini_realization_package with structured BOM + cost model "
+        "+ Safety/Physiker test plan; persist learning delta in Wissensbasis; "
+        "keep Naht Lernmaschine → Grenz + CAD. "
+        "(Not auto-derived from model training — template + gap list.)"
+    )
     steps.append(LearningStep(
         num=2, name="Verbesserungsvorschlag",
         finding=proposal,
         action="Formuliere präzisen, umsetzbaren Vorschlag mit Bezug auf existierende Builder",
-        evidence=["open_luecken aus Manifest", "Assembly combined_stl vorhanden"],
-        quelle="PLAN §3.8 Schritt 2 + §1 (Realisierungspaket-Anforderung)",
+        evidence=["open_luecken aus Manifest", "Assembly combined_stl vorhanden", "L1-scripted template"],
+        quelle="PLAN §3.8 Schritt 2 + §1 (Realisierungspaket-Anforderung); honesty: L1 script",
     ))
 
     # 3. Sammelt Quellen / Beispiele / Testfälle

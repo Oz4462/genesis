@@ -2146,11 +2146,11 @@ def main(argv: list[str] | None = None) -> int:
             hr_mod.chat_loop()
             return 0
 
-        # humanoid-research mode shows report + demonstrates the deep pipeline
-        if getattr(args, "verbose", False) or True:
-            print(mod.generate_comprehensive_report(include_evolution=True)[:1800])
-            print("\n... Dedicated chat (recommended): python -m gen --mode humanoid-chat")
-            print("... Or: python -m gen.humanoids.humanoid_research --chat")
+        # humanoid-research mode always shows a truncated report (audit A2:
+        # removed dead `getattr(args, "verbose") or True` — --verbose never existed).
+        print(mod.generate_comprehensive_report(include_evolution=True)[:1800])
+        print("\n... Dedicated chat (recommended): python -m gen --mode humanoid-chat")
+        print("... Or: python -m gen.humanoids.humanoid_research --chat")
         try:
             p4 = mod.run_full_pipeline_with_evolved_spec(run_id="deep_evolved_via_cli")
             print("[deep evolved pipeline] ->", p4.get("out_dir"))

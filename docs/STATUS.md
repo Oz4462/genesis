@@ -55,3 +55,16 @@
 5. After each sprint: test + commit + push  
 
 **Next open product depth (true factory L4):** PE-stamped multi-sheet GD&T release, simultaneous 5-axis freeform CAM kernel, FreeCAD Assembly WB solver, production autorouter+DRC, coupon-certified SN/CTE, photographic build docs, semiconductor pin-compat + thermal CFD. Package now ships working first stones for each former residual.
+
+### Audit 2026-07-16 (priority fixes)
+
+| ID | Status |
+|----|--------|
+| A1 integrator gcode dict key | ✅ process name keys |
+| A2 cli verbose dead condition | ✅ removed |
+| B1 exec()+fake volumes 42/48.5 | ✅ bbox/kernel volume; no exec |
+| D1 SIMP dense linalg | ✅ scipy.sparse + spsolve |
+| E3 tempfile.mktemp | ✅ NamedTemporaryFile |
+| C1 lernmaschine L1 honesty | ✅ scripted proposal labeled |
+| C4 config.yaml orphan | ✅ `load_default_yaml()` wired |
+| C5 trust_core install note | ✅ README Installation |

@@ -772,7 +772,20 @@ Smoke: Nicht-Jetpack-Idee ⇒ Teil "Main Structure" mit realem 646-KB-STL statt 
 **4 Linsen:** L1: Geometrie aus Spec, nicht Template · L2: "Idea→CAD"-Claim jetzt code-wahr für
 Spec-Pfad · L3: Naht Spec→Integrator/Assembly geschlossen · L4: Kernel-Tessellation druckbar.
 
+## 2026-07-16 — Vollaudit Fix-Pass (GENESIS_AUDIT_2026-07-16)
+
+**A1** integrator fertigungs `gcode` dict: key = process name (was static "profile").  
+**A2** cli humanoid-research: dead `verbose or True` removed.  
+**B1** no `exec()` of emitted CAD code; no hard-coded 42.0/48.5 solid volumes — bbox or kernel volume.  
+**D1** topology SIMP `_assemble_and_solve` → scipy.sparse COO + spsolve.  
+**E3** drawing_worker + cadquery_worker: NamedTemporaryFile.  
+**C1** lernmaschine proposal marked L1-scripted.  
+**C4** `load_default_yaml()` loads repo config.yaml.  
+**C5** README trust_core optional-dep honesty.  
+**4 Linsen:** L1 audit evidence · L2 no overclaim remaining · L3 runner/config wire · L4 sparse path measured in tests.
+
 ## 2026-07-16 — Residual L4 gap stones (post Phase H)
+
 
 **Closed as L3 first stones (honest, not PE/factory):**
 1. **GD&T** — `export/gdt.py`: ISO 2768-m, FCF text on DXF, multi-view PDF (matplotlib)

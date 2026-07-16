@@ -408,11 +408,16 @@ def build_full_mini_realization_package(
                         "kosten": fspec.kosten_modell.gesamt_est,
                         "qa": fspec.qa_plan.schritte[:2],
                         "dfm_ref": fspec.dfm_report_ref,
-                        # MODULE-05: real gcode if attached (profile/pocket); else gap note
+                        # Audit A1 (2026-07-16): key must be process name — static
+                        # "profile" overwrote every iteration and only kept the last process.
                         "gcode": {
-                            "profile": bool(getattr(p, "gcode_program", None))
+                            p.name: {
+                                "has_program": bool(
+                                    getattr(p, "gcode_program", None)
+                                ),
+                                "datei_stub": getattr(p, "datei_stub", None),
+                            }
                             for p in fspec.gewaehlte_prozesse
-                            if hasattr(p, "gcode_program")
                         }
                         if fspec.gewaehlte_prozesse
                         else None,

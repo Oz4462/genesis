@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -114,7 +115,32 @@ class Config:
 
 
 def default_config() -> Config:
+    """In-code defaults. Prefer ``load_default_yaml()`` when repo ``config.yaml`` exists."""
     return Config()
+
+
+def default_yaml_path() -> str | None:
+    """Path to repo-root ``config.yaml`` if present (audit C4: was never auto-loaded)."""
+    # src/gen/config.py → parents[2] = repo root
+    root = Path(__file__).resolve().parents[2]
+    candidate = root / "config.yaml"
+    return str(candidate) if candidate.is_file() else None
+
+
+def load_default_yaml() -> Config:
+    """Load repo ``config.yaml`` when present; else ``default_config()``.
+
+    Wire-up for the previously orphaned ``config.yaml`` (audit C4 2026-07-16).
+    Missing PyYAML falls back to in-code defaults with no silent override of
+    values that would require the YAML stack.
+    """
+    path = default_yaml_path()
+    if path is None:
+        return default_config()
+    try:
+        return load_yaml(path)
+    except Exception:
+        return default_config()
 
 
 def config_hash(config: Config) -> str:

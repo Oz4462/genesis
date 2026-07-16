@@ -692,6 +692,15 @@ pip install -e ".[sim]"        # pybullet (tests skip if missing)
 
 Console scripts: `genesis`, `genesis-web`.
 
+### Optional / not bundled (honest install notes)
+
+| Component | Status | What you get without it |
+|-----------|--------|-------------------------|
+| **CadQuery / build123d** | Isolated venvs (see `docs/CADQUERY_VENV.md`) | AABB geometry only; STL/DXF kernel paths skip |
+| **trust_core / trustcore companion** | **Private external lib — not in this repo** | Modules under `verification/drift_monitor`, `trustcore_adapter`, `integration/drift`, `audit` **fail loud** on import; CLI `--select drift/audit` unusable. No silent fallback. |
+| **config.yaml** (repo root) | Loaded via `gen.config.load_default_yaml()` when present | In-code `default_config()` otherwise |
+| **Live goldset / Ollama** | Needs `GENESIS_ALLOW_LIVE` | Offline goldset verifies mechanism only, not live abstention rates |
+
 ---
 
 ## 18. Tests & CI

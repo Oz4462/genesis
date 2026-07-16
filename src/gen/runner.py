@@ -27,7 +27,7 @@ from .agents.scholar import Scholar
 from .agents.scout import Scout
 from .agents.skeptic import Skeptic
 from .agents.synthesizer import Synthesizer
-from .config import Config, config_hash, default_config
+from .config import Config, config_hash, default_config, load_default_yaml
 from .core.interfaces import LedgerStore, SearchBackend
 from .core.state import (
     Divergence,
@@ -134,7 +134,7 @@ async def run(
     replay with the same `started_at` is bit-identical (D2, Kernprinzip 5); omit it
     and wall-clock is used (non-reproducible, like an omitted run_id).
     """
-    config = config or default_config()
+    config = config or load_default_yaml()
     pa = config.phase_alpha
     chash = config_hash(config)
     rid = run_id or make_run_id(question_text, chash, suffix=str(time.time_ns()))
@@ -194,7 +194,7 @@ async def run_solution(
     skeptic, so the cross-model guarantee is preserved. `started_at` pins the run
     clock for bit-identical replay (D2); see :func:`run`.
     """
-    config = config or default_config()
+    config = config or load_default_yaml()
     pa = config.phase_alpha
     pb = config.phase_beta
     chash = config_hash(config)
@@ -256,7 +256,7 @@ async def run_divergence(
     guarantee is preserved. The returned divergence is always a declared grounded sample.
     `started_at` pins the run clock for bit-identical replay (D2); see :func:`run`.
     """
-    config = config or default_config()
+    config = config or load_default_yaml()
     pa = config.phase_alpha
     chash = config_hash(config)
     rid = run_id or make_run_id(spark_text, chash, suffix=str(time.time_ns()))
@@ -326,7 +326,7 @@ async def run_specification(
     skeptic, so the cross-model guarantee is preserved. `started_at` pins the run
     clock for bit-identical replay (D2); see :func:`run`.
     """
-    config = config or default_config()
+    config = config or load_default_yaml()
     pa = config.phase_alpha
     pb = config.phase_beta
     pg = config.phase_gamma

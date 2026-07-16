@@ -139,7 +139,9 @@ def solid_to_step(solid) -> str:
     from cadquery import exporters
 
     wp = cq.Workplane(obj=solid)
-    path = tempfile.mktemp(suffix=".step")
+    # Audit E3: NamedTemporaryFile instead of mktemp (TOCTOU)
+    with tempfile.NamedTemporaryFile(suffix=".step", delete=False) as tmp:
+        path = tmp.name
     try:
         exporters.export(wp, path)
         with open(path, encoding="utf-8") as fh:
