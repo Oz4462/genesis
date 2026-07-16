@@ -772,7 +772,20 @@ Smoke: Nicht-Jetpack-Idee ⇒ Teil "Main Structure" mit realem 646-KB-STL statt 
 **4 Linsen:** L1: Geometrie aus Spec, nicht Template · L2: "Idea→CAD"-Claim jetzt code-wahr für
 Spec-Pfad · L3: Naht Spec→Integrator/Assembly geschlossen · L4: Kernel-Tessellation druckbar.
 
+## 2026-07-16 — H2 (Shop-floor): Helical-Bore G-Code + CAM-Sektion im Paket
+
+**Problem:** Multi-axis/Freeform CAM fehlte; Package hatte keine echten `.nc`-Dateien;
+Pocket-Gap nannte helical drill explizit.
+**Fix:** (1) `generate_helical_bore_gcode` — linearisierte Helix (G1), `verify_gcode` grün.
+(2) `multi_axis_cam_capability` + `refuse_multi_axis_toolpath` (laut, nie Fake-5-Achsen).
+(3) `build_cam_section`/`write_cam_section` → `cam.json`/`CAM.md` + `part_*_{op}.nc`
+(profile, face_mill, helical_bore wenn Lochradius bekannt); Integrator verdrahtet.
+**Evidence:** tests/test_gcode.py + test_cam_package.py — 12 passed.
+**4 Linsen:** L1: verifizierte RS-274-Programme · L2: multi_axis.supported=False ehrlich ·
+L3: CAM im Realisierungspaket · L4: 2.5D fertigbar; Freeform weiter Gap.
+
 ## 2026-07-16 — H1 (Shop-floor): Overall-Bemaßung + Right-View auf Paket-DXF
+
 
 **Problem (User gap matrix):** „Keine GD&T, keine vollständigen PDF/DXF-Zeichnungen mit
 Toleranzen“ — G4 lieferte echte top/front-Sektionen ohne Bemaßung und ohne right-view.

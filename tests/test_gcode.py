@@ -20,6 +20,9 @@ from gen.cad.gcode import (
     generate_profile_gcode,
     generate_rect_pocket_gcode,
     generate_face_mill_gcode,
+    generate_helical_bore_gcode,
+    multi_axis_cam_capability,
+    refuse_multi_axis_toolpath,
     verify_gcode,
 )
 
@@ -140,3 +143,30 @@ def test_c4_face_mill_gcode_verifies():
     assert prog.bounds_mm["z"][0] <= -0.5 + 1e-9
     text = prog.text()
     assert "G21" in text and "M3" in text and "M30" in text
+
+
+def test_h2_helical_bore_verifies_and_reaches_depth():
+    """H2: helical bore is real RS-274, verify-clean, reaches target depth."""
+    prog = generate_helical_bore_gcode(12.0, 8.0, tool_diameter_mm=3.0)
+    assert prog.operation == "helical_bore"
+    chk = verify_gcode(prog)
+    assert chk.ok, chk.issues
+    assert prog.bounds_mm["z"][0] <= -8.0 + 1e-6
+    text = prog.text()
+    assert "helical-bore" in text.lower() or "helical" in text.lower()
+    assert "G21" in text and "M3" in text and "M30" in text
+    # tool larger than bore refuses
+    with pytest.raises(ValueError, match="exceed"):
+        generate_helical_bore_gcode(3.0, 5.0, tool_diameter_mm=3.0)
+    with pytest.raises(ValueError):
+        generate_helical_bore_gcode(0.0, 5.0)
+
+
+def test_h2_multi_axis_is_loud_refusal():
+    """H2: multi-axis freeform is documented unsupported — never a fake 5-axis program."""
+    cap = multi_axis_cam_capability()
+    assert cap["supported"] is False
+    assert "helical_bore" in cap["ops_available"]
+    assert any("5-axis" in g or "multi-axis" in g for g in cap["gaps"])
+    with pytest.raises(ValueError, match="multi-axis"):
+        refuse_multi_axis_toolpath(context="kart freeform body")

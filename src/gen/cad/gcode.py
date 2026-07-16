@@ -374,6 +374,212 @@ def generate_face_mill_gcode(
     )
 
 
+#: Ops GENESIS can emit as verified 2.5D RS-274 (H2 inventory).
+GCODE_SUPPORTED_OPS: tuple[str, ...] = (
+    "outside_profile",
+    "rectangular_pocket",
+    "face_mill",
+    "helical_bore",
+)
+
+
+def multi_axis_cam_capability() -> dict:
+    """H2: honest multi-axis / freeform CAM status — never claims 5-axis capability.
+
+    Returns a structured capability dict for package MANIFEST / CAM section.
+    ``supported`` is always False until a real multi-axis kernel is wired.
+    """
+    return {
+        "supported": False,
+        "level": "L2",  # 2.5D ops exist and verify; multi-axis does not
+        "ops_available": list(GCODE_SUPPORTED_OPS),
+        "axes": "3-axis 2.5D (XY motion + stepped Z); no simultaneous multi-axis",
+        "gaps": [
+            "simultaneous 4/5-axis toolpaths not generated",
+            "freeform 3D surface finishing / adaptive clearing needs a CAM kernel",
+            "turning (lathe) programs not generated",
+            "FDM per-layer slicer G-code not generated",
+        ],
+        "quelle": "gen.cad.gcode.multi_axis_cam_capability",
+    }
+
+
+def refuse_multi_axis_toolpath(*, context: str = "") -> None:
+    """H2: loud refusal for multi-axis freeform requests — never emit a fake 5-axis program.
+
+    Raises ``ValueError`` with capability summary. Call sites must not catch-and-fabricate.
+    """
+    cap = multi_axis_cam_capability()
+    msg = (
+        "multi-axis / freeform CAM is not supported by GENESIS gcode "
+        f"(ops available: {', '.join(cap['ops_available'])}). "
+        f"Gaps: {'; '.join(cap['gaps'][:2])}."
+    )
+    if context:
+        msg = f"{context}: {msg}"
+    raise ValueError(msg)
+
+
+def generate_helical_bore_gcode(
+    diameter_mm: float,
+    depth_mm: float,
+    *,
+    center_x_mm: float = 0.0,
+    center_y_mm: float = 0.0,
+    tool_diameter_mm: float = GCODE_DEFAULT_TOOL_DIAMETER_MM,
+    cut_feed_mm_min: float = GCODE_DEFAULT_CUT_FEED_MM_MIN,
+    plunge_feed_mm_min: float = GCODE_DEFAULT_PLUNGE_FEED_MM_MIN,
+    pitch_mm: float | None = None,
+    safe_z_mm: float = GCODE_DEFAULT_SAFE_Z_MM,
+    spindle_rpm: int = GCODE_DEFAULT_SPINDLE_RPM,
+    segments_per_turn: int = 36,
+) -> GCodeProgram:
+    """H2: helical bore — circle while descending (G1-linearised helix), then floor clean.
+
+    Opens a round hole of ``diameter_mm`` to ``depth_mm`` with the tool centre on a
+    helix of radius ``(diameter − tool_d) / 2``. Uses G1 chord segments (not G2/G3)
+    so ``verify_gcode`` can bound every coordinate without arc math.
+
+    Scope honesty: 3-axis helical roughing only — not multi-axis freeform, not a
+    canned G81/G83 drill cycle, not a reamed finish pass. Tool must fit strictly
+    inside the bore (path radius > 0).
+    """
+    for name, v in (
+        ("diameter", diameter_mm),
+        ("depth", depth_mm),
+        ("tool_diameter", tool_diameter_mm),
+        ("safe_z", safe_z_mm),
+    ):
+        if not math.isfinite(v) or v <= 0:
+            raise ValueError(f"generate_helical_bore_gcode: {name} must be a finite value > 0")
+    for name, v in (
+        ("center_x", center_x_mm),
+        ("center_y", center_y_mm),
+    ):
+        if not math.isfinite(v):
+            raise ValueError(f"generate_helical_bore_gcode: {name} must be finite")
+    for name, v in (
+        ("cut_feed", cut_feed_mm_min),
+        ("plunge_feed", plunge_feed_mm_min),
+        ("spindle_rpm", spindle_rpm),
+    ):
+        if not math.isfinite(v) or v < 1:
+            raise ValueError(f"generate_helical_bore_gcode: {name} must be a finite value >= 1")
+    if not isinstance(segments_per_turn, int) or segments_per_turn < 8:
+        raise ValueError(
+            "generate_helical_bore_gcode: segments_per_turn must be an int >= 8"
+        )
+
+    path_r = (diameter_mm - tool_diameter_mm) / 2.0
+    if path_r <= 1e-9:
+        raise ValueError(
+            f"generate_helical_bore_gcode: bore diameter {diameter_mm} mm must exceed "
+            f"tool diameter {tool_diameter_mm} mm (path radius would be {path_r})"
+        )
+    pitch = pitch_mm if pitch_mm is not None else GCODE_DEFAULT_STEPDOWN_MM
+    if not math.isfinite(pitch) or pitch <= 0:
+        raise ValueError("generate_helical_bore_gcode: pitch_mm must be a finite value > 0")
+    # cap pitch so we always get at least one full turn of engagement for deep holes
+    pitch = min(pitch, depth_mm)
+
+    def fmt(v: float) -> str:
+        return f"{v:.3f}".rstrip("0").rstrip(".")
+
+    def q3(v: float) -> float:
+        """Quantize to the same 3-decimal emission used in G-code words (bounds match)."""
+        s = fmt(v)
+        return float(s) if s not in ("", "-", "+") else 0.0
+
+    n_turns = depth_mm / pitch
+    total_segments = int(math.ceil(n_turns * segments_per_turn))
+    # ensure we land exactly at -depth_mm on the last helix sample
+    total_segments = max(total_segments, segments_per_turn)
+
+    cx, cy = center_x_mm, center_y_mm
+    # start at angle 0 on the circle at Z=safe, then plunge to Z=0 at entry point
+    x_entry = q3(cx + path_r)
+    y_entry = q3(cy)
+    z_safe = q3(safe_z_mm)
+    z_floor = q3(-depth_mm)
+
+    lines = [
+        f"( helical-bore d={fmt(diameter_mm)}mm depth={fmt(depth_mm)}mm "
+        f"center=({fmt(cx)},{fmt(cy)}) tool d={fmt(tool_diameter_mm)}mm; {GCODE_SOURCE} )",
+        "G21 ( units: millimeters )",
+        "G90 ( absolute positioning )",
+        "G17 ( XY plane )",
+        f"M3 S{int(spindle_rpm)} ( spindle on, clockwise )",
+        f"G0 Z{fmt(z_safe)} ( retract to safe height )",
+        f"G0 X{fmt(x_entry)} Y{fmt(y_entry)} ( rapid to helix entry )",
+        f"G1 Z0 F{fmt(plunge_feed_mm_min)} ( approach stock top )",
+    ]
+
+    xs: list[float] = [x_entry]
+    ys: list[float] = [y_entry]
+    zs: list[float] = [z_safe, 0.0]
+
+    for i in range(1, total_segments + 1):
+        t_turns = (i / segments_per_turn)
+        angle = 2.0 * math.pi * t_turns
+        z = max(-depth_mm, -pitch * t_turns)
+        if i == total_segments:
+            z = -depth_mm
+        x = q3(cx + path_r * math.cos(angle))
+        y = q3(cy + path_r * math.sin(angle))
+        z = q3(z)
+        lines.append(
+            f"G1 X{fmt(x)} Y{fmt(y)} Z{fmt(z)} F{fmt(cut_feed_mm_min)}"
+        )
+        xs.append(x)
+        ys.append(y)
+        zs.append(z)
+
+    # one full cleanup circle at floor depth (constant Z)
+    for i in range(1, segments_per_turn + 1):
+        angle = 2.0 * math.pi * (i / segments_per_turn)
+        x = q3(cx + path_r * math.cos(angle))
+        y = q3(cy + path_r * math.sin(angle))
+        lines.append(
+            f"G1 X{fmt(x)} Y{fmt(y)} Z{fmt(z_floor)} F{fmt(cut_feed_mm_min)}"
+        )
+        xs.append(x)
+        ys.append(y)
+        zs.append(z_floor)
+
+    lines += [
+        f"G0 Z{fmt(z_safe)} ( retract )",
+        "M5 ( spindle off )",
+        "M30 ( program end )",
+    ]
+    zs.append(z_safe)
+
+    # bounds from quantized coordinates so verify_gcode declared==actual
+    return GCodeProgram(
+        operation="helical_bore",
+        lines=lines,
+        bounds_mm={
+            "x": (min(xs), max(xs)),
+            "y": (min(ys), max(ys)),
+            "z": (min(zs), max(zs)),
+        },
+        safe_z_mm=safe_z_mm,
+        assumptions=[
+            f"helical bore path_r={fmt(path_r)}mm, pitch={fmt(pitch)}mm, "
+            f"{segments_per_turn} G1 segments/turn",
+            f"feeds cut {fmt(cut_feed_mm_min)} / approach {fmt(plunge_feed_mm_min)} mm/min, "
+            f"spindle {int(spindle_rpm)} rpm — GENERIC defaults",
+            "linearised helix (G1 chords) — not G2/G3 arc interpolation",
+        ],
+        gaps=[
+            "multi-axis freeform / 5-axis: not generated (see multi_axis_cam_capability)",
+            "canned drill cycles (G81/G83) and ream finish passes: not generated",
+            "feeds & speeds material-specific",
+            "work-offset (G54), tool length offset, fixturing: setup-specific",
+        ],
+        source=GCODE_SOURCE,
+    )
+
+
 def _parse_words(raw: str) -> dict[str, float] | None:
     """Parse one line into {letter: value}, stripping comments. Returns None for a
     blank/comment-only line, or raises nothing — unknown letters are reported by the

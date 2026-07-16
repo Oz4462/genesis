@@ -575,8 +575,10 @@ Real package dir: {pkg_root}
     # C7 drawings + schaltplan/montage/regulatorik (PLAN §1)
     from .realization_package import (
         assemble_package_bom,
+        build_cam_section,
         build_drawings_section,
         build_harness_section,
+        write_cam_section,
         write_drawings_section,
         write_harness_section,
         write_package_bom,
@@ -586,6 +588,11 @@ Real package dir: {pkg_root}
         fragments, asm, run_id=run_id, pkg_name=package_name
     )
     write_drawings_section(pkg_root, drawings_section)
+    # H2: verified 2.5D G-code (.nc) + multi-axis honesty into the package
+    cam_section = build_cam_section(
+        fragments, run_id=run_id, pkg_name=package_name
+    )
+    write_cam_section(pkg_root, cam_section)
     _generate_schaltplan_stub(pkg_root, fragments, run_id)
     _generate_montage_stub(pkg_root, fragments, run_id)
     _generate_regulatorik_stub(pkg_root, fragments, dfm_reports, run_id)
@@ -809,6 +816,16 @@ Real package dir: {pkg_root}
         "drawing_gap": drawings_section.get("drawing_gap"),
         "gaps": drawings_section.get("gaps"),
     }
+    manifest["cam"] = "CAM.md"
+    manifest["cam_json"] = "cam.json"
+    manifest["cam_gap"] = cam_section.get("cam_gap", True)
+    manifest["cam_section"] = {
+        "schema": cam_section.get("schema"),
+        "parts": len(cam_section.get("parts") or []),
+        "cam_gap": cam_section.get("cam_gap"),
+        "multi_axis_supported": (cam_section.get("multi_axis") or {}).get("supported"),
+        "gaps": cam_section.get("gaps"),
+    }
     manifest["bom_file"] = "bom.json"
     manifest["schaltplan"] = "SCHALTPLAN.md"
     manifest["montage"] = "MONTAGEANLEITUNG.md"
@@ -818,7 +835,7 @@ Real package dir: {pkg_root}
         item for f in fragments for item in getattr(f, "open_luecken", [])
     ] + list(bom.get("gaps") or []) + list(harness_section.get("gaps") or []) + list(
         drawings_section.get("gaps") or []
-    ) + list(getattr(asm, "gaps", []) or []) + [
+    ) + list(cam_section.get("gaps") or []) + list(getattr(asm, "gaps", []) or []) + [
         "full live costs from Wissensbasis (stubbed for now per user)"
     ]
 

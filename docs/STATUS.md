@@ -20,7 +20,7 @@
 | E Sim & Caps | S1–S4 | ✅ `--mode caps`, multi-physics, mesh refs, MANIFEST caps |
 | F Cleanup | X1–X4 | ✅ stale docs, learning extract, revise_with_learning, this STATUS |
 | G Integrity & CAD depth (Re-Audit 2026-07-15) | G1–G4 | ✅ no-0-byte-STL fix + real kernel STLs, Spec→CAD bridge (`cad/spec_to_cad.py`), parametric plates, real top/front DXF sections (`drawing_gap` honest-False) |
-| H Shop-floor depth (User gap matrix 2026-07-16) | H1… | 🔄 **H1 done:** overall envelope dims + right (YZ) view on package DXFs; residual: full GD&T frames, multi-axis CAM, PCB copper, harness routes, Ready-to-Build ZIP |
+| H Shop-floor depth (User gap matrix 2026-07-16) | H1… | 🔄 **H1+H2 done:** dimensioned top/front/right DXF; helical_bore + verified `.nc` in package + multi-axis honest refuse; residual: full GD&T PDF, Ready-to-Build ZIP, PCB, harness routes |
 
 ---
 

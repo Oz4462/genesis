@@ -87,7 +87,7 @@ Priority order from manufacturability impact (not existence of modules).
 | **H8** | Multi-physics receipt depth | one FEM/therm/dyn chain with provenance beyond closed-form |
 
 - [x] **H1** Overall envelope dimensions + right (YZ) view on package DXFs — `export/drawing.py` (`section_dxf_dimensioned`, `annotate_overall_dimensions`), worker `section_dxf_with_info`, package top/front/right + sidecars; tests `test_drawing_dimensions.py` + package suite
-- [ ] **H2** CAM depth
+- [x] **H2** CAM depth — helical_bore G-code + verify; multi_axis_cam_capability / refuse; package cam.json + part_*.nc (profile/face/helical); tests test_gcode + test_cam_package
 - [ ] **H3** Ready-to-Build ZIP
 - [ ] **H4** Harness lengths/pinouts
 - [ ] **H5** Assembly constraints

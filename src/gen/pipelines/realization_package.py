@@ -15,6 +15,7 @@ from typing import Any
 BOM_SCHEMA = "genesis-bom-v1"
 HARNESS_SCHEMA = "genesis-harness-v1"
 DRAWINGS_SCHEMA = "genesis-drawings-v1"
+CAM_SCHEMA = "genesis-cam-v1"
 
 
 @dataclass
@@ -477,4 +478,213 @@ def write_drawings_section(pkg_root: Path, section: dict[str, Any]) -> Path:
         "control frames, surface finish, multi-sheet PDF) still requires a drafting step."
     )
     (pkg_root / "DRAWINGS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
+
+
+def _part_bbox_mm(cad: Any) -> tuple[float, float, float] | None:
+    """Extract positive bbox (x,y,z) mm from a CAD artifact, or None."""
+    spec = getattr(cad, "spec", None)
+    if spec is None:
+        return None
+    bbox = getattr(spec, "bounding_box_hint_mm", None)
+    if not bbox or len(bbox) < 3:
+        return None
+    try:
+        bx, by, bz = float(bbox[0]), float(bbox[1]), float(bbox[2])
+    except (TypeError, ValueError):
+        return None
+    if not (bx > 0 and by > 0 and bz > 0):
+        return None
+    return bx, by, bz
+
+
+def _center_hole_diameter_mm(cad: Any) -> float | None:
+    """Best-effort centre-hole diameter from geometry quantities (plate builder uses hr).
+
+    Returns None when no positive hole radius quantity is present — helical bore is
+    then skipped (not fabricated).
+    """
+    quantities = getattr(cad, "geometry_quantities", None) or {}
+    for key in ("hr", "hole_r", "hole_radius", "bore_r"):
+        q = quantities.get(key)
+        if q is None:
+            continue
+        try:
+            r = float(getattr(q, "value", q))
+        except (TypeError, ValueError):
+            continue
+        if r > 0:
+            return 2.0 * r
+    return None
+
+
+def build_cam_section(
+    fragments: list[Any],
+    *,
+    run_id: str | None = None,
+    pkg_name: str = "",
+) -> dict[str, Any]:
+    """H2: verified 2.5D G-code programs for each part bbox + multi-axis honesty.
+
+    Emits profile + face_mill from bbox; helical_bore when a centre-hole diameter is
+    known from geometry quantities. Every program must pass ``verify_gcode`` before
+    inclusion — never a rubber-stamp .nc file. Multi-axis freeform is documented as
+    unsupported via ``multi_axis_cam_capability``.
+    """
+    from gen.cad.gcode import (
+        generate_face_mill_gcode,
+        generate_helical_bore_gcode,
+        generate_profile_gcode,
+        multi_axis_cam_capability,
+        verify_gcode,
+    )
+
+    parts: list[dict[str, Any]] = []
+    program_texts: dict[tuple[int, str], str] = {}
+    any_verified = False
+    notes: list[str] = []
+
+    for i, frag in enumerate(fragments):
+        cad = getattr(frag, "cad_artifact", None)
+        if cad is None:
+            continue
+        spec = cad.spec
+        bbox = _part_bbox_mm(cad)
+        if bbox is None:
+            notes.append(f"part {i}: no positive bbox — CAM skipped")
+            continue
+        bx, by, bz = bbox
+        ops_meta: list[dict[str, Any]] = []
+
+        candidates: list[tuple[str, Any]] = [
+            ("outside_profile", lambda: generate_profile_gcode(bx, by, bz)),
+            ("face_mill", lambda: generate_face_mill_gcode(bx, by, face_depth_mm=min(0.5, bz))),
+        ]
+        hole_d = _center_hole_diameter_mm(cad)
+        if hole_d is not None:
+            # bore depth = full thickness; centre at plate origin (builder convention)
+            depth = bz
+            candidates.append(
+                (
+                    "helical_bore",
+                    lambda d=hole_d, dep=depth: generate_helical_bore_gcode(
+                        d, dep, center_x_mm=0.0, center_y_mm=0.0
+                    ),
+                )
+            )
+        else:
+            notes.append(f"part {i}: no centre-hole quantity — helical_bore skipped")
+
+        for op_name, factory in candidates:
+            try:
+                prog = factory()
+            except (ValueError, TypeError) as exc:
+                notes.append(f"part {i} op {op_name}: generate refused: {exc}")
+                continue
+            chk = verify_gcode(prog)
+            if not chk.ok:
+                notes.append(
+                    f"part {i} op {op_name}: verify failed: {chk.issues[:3]}"
+                )
+                continue
+            fname = f"part_{i}_{op_name}.nc"
+            program_texts[(i, op_name)] = prog.text()
+            any_verified = True
+            ops_meta.append(
+                {
+                    "operation": op_name,
+                    "file": fname,
+                    "verified": True,
+                    "n_lines": len(prog.lines),
+                    "n_moves": chk.n_moves,
+                    "bounds_mm": prog.bounds_mm,
+                    "assumptions": list(prog.assumptions),
+                    "gaps": list(prog.gaps),
+                }
+            )
+
+        parts.append(
+            {
+                "index": i,
+                "name": getattr(spec, "name", f"part_{i}"),
+                "bbox_mm": [bx, by, bz],
+                "operations": ops_meta,
+                "n_programs": len(ops_meta),
+            }
+        )
+
+    multi = multi_axis_cam_capability()
+    gaps = list(multi.get("gaps") or [])
+    if not any_verified:
+        gaps.insert(0, "no verified G-code programs generated for package parts")
+    else:
+        gaps.insert(
+            0,
+            "verified 2.5D programs only (profile / face_mill / helical_bore when hole known); "
+            "not a full multi-setup CNC job package",
+        )
+
+    return {
+        "schema": CAM_SCHEMA,
+        "run_id": run_id,
+        "package": pkg_name,
+        "parts": parts,
+        "multi_axis": multi,
+        "cam_gap": not any_verified,
+        "gaps": gaps,
+        "notes": notes,
+        "quelle": "gen.pipelines.realization_package.build_cam_section",
+        "_program_texts": program_texts,
+    }
+
+
+def write_cam_section(pkg_root: Path, section: dict[str, Any]) -> Path:
+    """Write verified ``.nc`` programs + cam.json / CAM.md. Never empty .nc files."""
+    program_texts = section.pop("_program_texts", {}) or {}
+    for (idx, op_name), text in program_texts.items():
+        if text and text.strip():
+            (pkg_root / f"part_{idx}_{op_name}.nc").write_text(text, encoding="utf-8")
+    path = pkg_root / "cam.json"
+    path.write_text(json.dumps(section, indent=2, ensure_ascii=False), encoding="utf-8")
+    lines = [
+        "# CAM / CNC programs (Realisierungspaket)",
+        "",
+        f"Package: {section.get('package')} | Run: {section.get('run_id')}",
+        f"**cam_gap:** {section.get('cam_gap')} (True only when no verified program)",
+        "",
+        "## Multi-axis capability",
+    ]
+    multi = section.get("multi_axis") or {}
+    lines.append(f"- supported: {multi.get('supported')}")
+    lines.append(f"- level: {multi.get('level')}")
+    lines.append(f"- axes: {multi.get('axes')}")
+    lines.append(f"- ops available: {', '.join(multi.get('ops_available') or [])}")
+    lines.append("")
+    lines.append("## Parts")
+    for p in section.get("parts") or []:
+        lines.append(f"### Part {p['index']}: {p.get('name')}")
+        lines.append(f"- BBox (mm): {p.get('bbox_mm')}")
+        for op in p.get("operations") or []:
+            lines.append(
+                f"- `{op['operation']}` → `{op['file']}` "
+                f"(verified={op.get('verified')}, lines={op.get('n_lines')}, "
+                f"moves={op.get('n_moves')})"
+            )
+        if not p.get("operations"):
+            lines.append("- (no verified programs)")
+        lines.append("")
+    if section.get("notes"):
+        lines.append("## Notes")
+        for n in section["notes"]:
+            lines.append(f"- {n}")
+        lines.append("")
+    lines.append("## Gaps")
+    for g in section.get("gaps") or []:
+        lines.append(f"- {g}")
+    lines.append("")
+    lines.append(
+        "**Scope (H2):** verified RS-274 2.5D programs from part bbox (+ helical bore "
+        "when hole radius is known). Multi-axis freeform CAM is explicitly unsupported."
+    )
+    (pkg_root / "CAM.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
