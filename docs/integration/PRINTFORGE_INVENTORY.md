@@ -42,7 +42,9 @@ On disk under `out/realization_packages/…`:
 | `harness_package.json` / `HARNESS.md` | C6 | Harness + netlist + placement + gaps |
 | `drawings.json` / `DRAWINGS.md` | C7+G4+H1 | Drawing index; real top/front/right DXF + envelope dims when CSG exists; `drawing_gap: false` then |
 | `part_*_{top,front,right}.dxf` (+ `.dims.txt`) | G4+H1 | Kernel section drawings with overall linear DIMENSION entities |
-| `manifest.json` | — | Includes `bom`, `drawing_gap`, `harness_package`, DFM, fertigungs |
+| `cam.json` / `CAM.md` / `part_*.nc` | H2 | Verified 2.5D G-code (profile, face_mill, helical_bore); multi-axis refused |
+| `*_ready_to_build.zip` / `ready_to_build.json` | H3 | Manufacturer archive of produced artifacts + inventory/gaps |
+| `manifest.json` | — | Includes `bom`, `drawing_gap`, `cam_gap`, `ready_to_build`, harness, DFM |
 | `part_*.stl`, assembly STLs | — | Geometry |
 | `electronics_*.json` | — | Elektriker layer when available |
 
@@ -50,12 +52,13 @@ On disk under `out/realization_packages/…`:
 
 ## Honest gaps (still open)
 
-1. Full multi-axis / freeform CAM toolpaths  
+1. Full multi-axis / freeform CAM toolpaths (H2: 2.5D ops + honest multi-axis refuse)  
 2. Full GD&T feature-control frames, surface finish, multi-sheet PDF (H1 closed overall envelope dims + right view)  
 3. Full KiCad ERC/DRC sign-off on real copper  
 4. Supplier-backed BOM prices (requires claim-grounded `Sourcing`)  
 5. Live print farm / machine queue integration  
-6. Ready-to-Build single ZIP with all manufacturer artifacts  
+6. Harness wire lengths / pinouts / wiring diagrams (package section exists; depth open)  
+
 
 
 ---

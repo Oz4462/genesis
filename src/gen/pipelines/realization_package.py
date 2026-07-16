@@ -7,6 +7,7 @@ machine-readable (JSON) and honest about gaps (no silent empty drawings/BOM).
 from __future__ import annotations
 
 import json
+import zipfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,13 @@ BOM_SCHEMA = "genesis-bom-v1"
 HARNESS_SCHEMA = "genesis-harness-v1"
 DRAWINGS_SCHEMA = "genesis-drawings-v1"
 CAM_SCHEMA = "genesis-cam-v1"
+READY_TO_BUILD_SCHEMA = "genesis-ready-to-build-v1"
+
+#: Suffixes included in the Ready-to-Build manufacturer archive (H3).
+_RTB_INCLUDE_SUFFIXES = frozenset({
+    ".json", ".md", ".stl", ".dxf", ".nc", ".txt", ".html", ".csv", ".svg",
+    ".kicad_pcb", ".kicad_sch", ".net",
+})
 
 
 @dataclass
@@ -688,3 +696,223 @@ def write_cam_section(pkg_root: Path, section: dict[str, Any]) -> Path:
     )
     (pkg_root / "CAM.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
+
+
+def _rtb_category(path: Path) -> str:
+    """Bucket a package file into a manufacturer-facing inventory category."""
+    name = path.name.lower()
+    suf = path.suffix.lower()
+    if name in ("manifest.json", "ready_to_build.json"):
+        return "manifest"
+    if name.startswith("bom") or name == "bom.json":
+        return "bom"
+    if "harness" in name or "netlist" in name or "placement" in name:
+        return "harness"
+    if suf == ".dxf" or name.startswith("drawing") or name.endswith(".dims.txt"):
+        return "drawings"
+    if suf == ".nc" or name.startswith("cam"):
+        return "cam"
+    if suf == ".stl":
+        return "geometry"
+    if "montage" in name or "schaltplan" in name or "regulatorik" in name:
+        return "docs"
+    if suf in (".md", ".html", ".txt"):
+        return "docs"
+    if "electronics" in name or suf in (".kicad_pcb", ".kicad_sch", ".net"):
+        return "electronics"
+    return "other"
+
+
+def collect_ready_to_build_files(pkg_root: Path) -> list[Path]:
+    """List files that belong in the manufacturer ZIP (no nested zips, no dotfiles)."""
+    root = Path(pkg_root)
+    if not root.is_dir():
+        raise ValueError(f"collect_ready_to_build_files: not a directory: {root}")
+    out: list[Path] = []
+    for p in sorted(root.rglob("*")):
+        if not p.is_file():
+            continue
+        if p.name.startswith("."):
+            continue
+        if p.suffix.lower() == ".zip":
+            continue
+        if p.suffix.lower() and p.suffix.lower() not in _RTB_INCLUDE_SUFFIXES:
+            # allow extensionless only if named known artifacts — skip binaries we don't claim
+            continue
+        out.append(p)
+    return out
+
+
+def build_ready_to_build_zip(
+    pkg_root: Path,
+    *,
+    zip_name: str | None = None,
+    run_id: str | None = None,
+) -> dict[str, Any]:
+    """H3: pack the realization package into one manufacturer-facing ZIP.
+
+    Includes BOM, harness, dimensioned DXFs, verified G-code, STLs, and docs when
+    present. Never fabricates missing artifacts — inventory + gaps list what is
+    and is not in the archive. The ZIP itself is written *inside* ``pkg_root``
+    and is excluded from nested re-packing.
+
+    Returns a serialisable meta dict (also written as ``ready_to_build.json``).
+    """
+    root = Path(pkg_root)
+    if not root.is_dir():
+        raise ValueError(f"build_ready_to_build_zip: package root missing: {root}")
+
+    zip_fname = zip_name or f"{root.name}_ready_to_build.zip"
+    zip_path = root / zip_fname
+
+    def _inventory_for(paths: list[Path]) -> dict[str, list[str]]:
+        inv: dict[str, list[str]] = {
+            "manifest": [],
+            "bom": [],
+            "harness": [],
+            "drawings": [],
+            "cam": [],
+            "geometry": [],
+            "electronics": [],
+            "docs": [],
+            "other": [],
+        }
+        for p in paths:
+            inv[_rtb_category(p)].append(p.relative_to(root).as_posix())
+        return inv
+
+    # Draft meta + docs first so they are included in the archive
+    files_pre = collect_ready_to_build_files(root)
+    inventory_pre = _inventory_for(files_pre)
+    has_manifest = bool(inventory_pre["manifest"]) or (root / "manifest.json").is_file()
+    has_payload = bool(
+        inventory_pre["bom"]
+        or inventory_pre["geometry"]
+        or inventory_pre["cam"]
+        or inventory_pre["drawings"]
+    )
+    gaps: list[str] = []
+    if not has_manifest:
+        gaps.append("manifest.json missing from package root")
+    if not inventory_pre["bom"]:
+        gaps.append("structured BOM not in archive")
+    if not inventory_pre["geometry"]:
+        gaps.append("no STL geometry in archive")
+    if not inventory_pre["drawings"]:
+        gaps.append("no DXF/drawing files in archive")
+    if not inventory_pre["cam"]:
+        gaps.append("no CAM/G-code files in archive")
+    if not inventory_pre["harness"]:
+        gaps.append("no harness/netlist section in archive")
+    gaps.append(
+        "full factory sign-off (GD&T PDF, multi-axis CAM, copper PCB) not claimed — "
+        "see package gap lists"
+    )
+
+    meta: dict[str, Any] = {
+        "schema": READY_TO_BUILD_SCHEMA,
+        "run_id": run_id,
+        "package_dir": root.name,
+        "zip_file": zip_fname,
+        "zip_path": str(zip_path),
+        "n_files_archived": 0,
+        "size_bytes": 0,
+        "inventory": {k: v for k, v in inventory_pre.items() if v},
+        "inventory_counts": {k: len(v) for k, v in inventory_pre.items() if v},
+        # ready = minimum usable manufacturer handoff, NOT factory-complete
+        "ready": has_manifest and has_payload,
+        "gaps": gaps,
+        "quelle": "gen.pipelines.realization_package.build_ready_to_build_zip",
+    }
+    (root / "ready_to_build.json").write_text(
+        json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    (root / "READY_TO_BUILD.md").write_text(
+        "\n".join(
+            [
+                "# Ready-to-Build package",
+                "",
+                f"**ZIP:** `{zip_fname}`",
+                f"**ready (min handoff):** {meta['ready']}",
+                f"**run_id:** {run_id}",
+                "",
+                "## Gaps",
+                *[f"- {g}" for g in gaps],
+                "",
+                "**Scope (H3):** one ZIP of artifacts this run actually produced. "
+                "Not a claim of complete factory documentation.",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    files = collect_ready_to_build_files(root)
+    inventory = _inventory_for(files)
+    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for p in files:
+            zf.write(p, arcname=p.relative_to(root).as_posix())
+        zf.writestr(
+            "READY_TO_BUILD_README.txt",
+            (
+                "GENESIS Ready-to-Build package\n"
+                f"run_id: {run_id or 'n/a'}\n"
+                f"source_dir: {root.name}\n"
+                "Contents are only what this run actually produced.\n"
+                "See ready_to_build.json inventory + gaps for honesty.\n"
+                "Full GD&T sign-off, multi-axis CAM, and PCB copper remain product gaps\n"
+                "when listed there — they are never fabricated into this ZIP.\n"
+            ),
+        )
+
+    size = zip_path.stat().st_size
+    if size <= 0:
+        raise ValueError("build_ready_to_build_zip: produced empty archive (refusing)")
+
+    meta["n_files_archived"] = len(files)
+    meta["size_bytes"] = size
+    meta["inventory"] = {k: v for k, v in inventory.items() if v}
+    meta["inventory_counts"] = {k: len(v) for k, v in inventory.items() if v}
+    meta["ready"] = bool(
+        (inventory.get("manifest") or has_manifest)
+        and (
+            inventory.get("bom")
+            or inventory.get("geometry")
+            or inventory.get("cam")
+            or inventory.get("drawings")
+        )
+    )
+    (root / "ready_to_build.json").write_text(
+        json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    # Refresh MD with final counts (outside ZIP is fine; JSON inside has draft counts OK)
+    inv_block: list[str] = []
+    for cat, paths in sorted((meta.get("inventory") or {}).items()):
+        inv_block.append(f"### {cat} ({len(paths)})")
+        for rel in paths[:40]:
+            inv_block.append(f"- `{rel}`")
+        if len(paths) > 40:
+            inv_block.append(f"- … +{len(paths) - 40} more")
+        inv_block.append("")
+    (root / "READY_TO_BUILD.md").write_text(
+        "\n".join(
+            [
+                "# Ready-to-Build package",
+                "",
+                f"**ZIP:** `{zip_fname}` ({size} bytes, {len(files)} files)",
+                f"**ready (min handoff):** {meta['ready']}",
+                f"**run_id:** {run_id}",
+                "",
+                "## Inventory",
+                *inv_block,
+                "## Gaps",
+                *[f"- {g}" for g in gaps],
+                "",
+                "**Scope (H3):** one ZIP of artifacts this run actually produced. "
+                "Not a claim of complete factory documentation.",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return meta

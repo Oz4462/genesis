@@ -839,9 +839,34 @@ Real package dir: {pkg_root}
         "full live costs from Wissensbasis (stubbed for now per user)"
     ]
 
+    # H3: Ready-to-Build ZIP — write manifest first so it is archived, then pack once.
+    from .realization_package import build_ready_to_build_zip
+
     (pkg_root / "manifest.json").write_text(
         json.dumps(manifest, indent=2, default=str), encoding="utf-8"
     )
+    try:
+        rtb = build_ready_to_build_zip(pkg_root, run_id=run_id)
+        manifest["ready_to_build"] = {
+            "zip_file": rtb.get("zip_file"),
+            "ready": rtb.get("ready"),
+            "n_files_archived": rtb.get("n_files_archived"),
+            "size_bytes": rtb.get("size_bytes"),
+            "inventory_counts": rtb.get("inventory_counts"),
+            "gaps": rtb.get("gaps"),
+        }
+        manifest["ready_to_build_zip"] = rtb.get("zip_file")
+        # Final manifest on disk includes RTB pointer (ZIP already holds pre-pointer
+        # manifest + full artifact set; ready_to_build.json is inside the ZIP).
+        (pkg_root / "manifest.json").write_text(
+            json.dumps(manifest, indent=2, default=str), encoding="utf-8"
+        )
+    except Exception as e:
+        print("Ready-to-Build ZIP skipped:", e)
+        manifest["ready_to_build"] = {"ready": False, "error": str(e)}
+        (pkg_root / "manifest.json").write_text(
+            json.dumps(manifest, indent=2, default=str), encoding="utf-8"
+        )
 
     # Persist full package summary to existing Wissensbasis (light use, not full deepening)
     try:

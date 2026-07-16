@@ -88,7 +88,7 @@ Priority order from manufacturability impact (not existence of modules).
 
 - [x] **H1** Overall envelope dimensions + right (YZ) view on package DXFs — `export/drawing.py` (`section_dxf_dimensioned`, `annotate_overall_dimensions`), worker `section_dxf_with_info`, package top/front/right + sidecars; tests `test_drawing_dimensions.py` + package suite
 - [x] **H2** CAM depth — helical_bore G-code + verify; multi_axis_cam_capability / refuse; package cam.json + part_*.nc (profile/face/helical); tests test_gcode + test_cam_package
-- [ ] **H3** Ready-to-Build ZIP
+- [x] **H3** Ready-to-Build ZIP — `build_ready_to_build_zip` packs BOM/STL/DXF/CAM/harness/docs; integrator writes `*_ready_to_build.zip` + ready_to_build.json; tests test_ready_to_build_zip
 - [ ] **H4** Harness lengths/pinouts
 - [ ] **H5** Assembly constraints
 - [ ] **H6** KiCad copper/DRC

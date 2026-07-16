@@ -772,7 +772,20 @@ Smoke: Nicht-Jetpack-Idee ⇒ Teil "Main Structure" mit realem 646-KB-STL statt 
 **4 Linsen:** L1: Geometrie aus Spec, nicht Template · L2: "Idea→CAD"-Claim jetzt code-wahr für
 Spec-Pfad · L3: Naht Spec→Integrator/Assembly geschlossen · L4: Kernel-Tessellation druckbar.
 
+## 2026-07-16 — H3 (Shop-floor): Ready-to-Build ZIP
+
+**Problem:** Hersteller brauchten ein einheitliches Archiv; Artefakte lagen nur als
+Verzeichnis (BOM, DXF, NC, STL, Harness) ohne ein ZIP.
+**Fix:** `build_ready_to_build_zip` sammelt erlaubte Suffixe, inventarisiert
+(manifest/bom/harness/drawings/cam/geometry/…), schreibt `*_ready_to_build.zip` +
+`ready_to_build.json`/`READY_TO_BUILD.md` mit ehrlichen Gaps; Integrator nach
+Manifest. Nie leeres ZIP; verschachtelte ZIPs ausgeschlossen.
+**Evidence:** tests/test_ready_to_build_zip.py — 4 passed (+ package suite grün).
+**4 Linsen:** L1: nur vorhandene Artefakte · L2: ready=min-Handoff ≠ Factory-complete ·
+L3: Integrator-Naht · L4: ein ZIP zum Weitergeben.
+
 ## 2026-07-16 — H2 (Shop-floor): Helical-Bore G-Code + CAM-Sektion im Paket
+
 
 **Problem:** Multi-axis/Freeform CAM fehlte; Package hatte keine echten `.nc`-Dateien;
 Pocket-Gap nannte helical drill explizit.
