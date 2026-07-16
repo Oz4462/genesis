@@ -14,10 +14,8 @@
 
 from __future__ import annotations
 
-from ..coverage import gate_delta_plus_coverage
-from ..memory_fabric import gate_zeta
-from ..omega import gate_omega
-from ..seams import gate_epsilon
+# Audit F1: do NOT eagerly import coverage/seams/memory_fabric/omega here —
+# those packages form import cycles with verification. Lazy via __getattr__.
 from .consensus import ConsensusVerdict, consensus_verdict
 from .cross_model import (
     Judgment,
@@ -99,3 +97,24 @@ __all__ = [
     "consensus_verdict",
     "ConsensusVerdict",
 ]
+
+
+def __getattr__(name: str):
+    """Lazy re-exports for horizon gates (break verification↔coverage/seams cycles)."""
+    if name == "gate_delta_plus_coverage":
+        from ..coverage import gate_delta_plus_coverage as g
+
+        return g
+    if name == "gate_epsilon":
+        from ..seams import gate_epsilon as g
+
+        return g
+    if name == "gate_zeta":
+        from ..memory_fabric import gate_zeta as g
+
+        return g
+    if name == "gate_omega":
+        from ..omega import gate_omega as g
+
+        return g
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -68,3 +68,10 @@
 | C1 lernmaschine L1 honesty | ✅ scripted proposal labeled |
 | C4 config.yaml orphan | ✅ `load_default_yaml()` wired |
 | C5 trust_core install note | ✅ README Installation |
+| B2 vision content typing | ✅ data/vision_catalog.yaml |
+| E1 zip(strict) discovery | ✅ |
+| E2 GPConfig None defaults | ✅ |
+| E6 RUF100 noqa cleanup | ✅ 176 fixed |
+| B3 silent except → notes | ✅ honest_except |
+| C2 dry goldset KPI honesty | ✅ + nightly live path |
+| F1 verification cycle lazy | ✅ __getattr__ + IMPORT_CYCLES.md |
